@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Project 06 · SSL Certificate Expiry Monitoring | ABC Bank DevOps Academy</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --navy:#0B1F3A; --navy-deep:#081527; --steel:#1B4F72;
+    --bg:#F3F6FA; --card:#FFFFFF; --line:#E2E8F0; --ink:#16233A; --ink-soft:#4B5A72;
+    --gold:#B9832F; --gold-soft:#F4E6CE;
+    --green:#1E7145; --green-soft:#E4F3EA;
+    --amber:#9A6B14; --amber-soft:#FBF0DA;
+    --red:#B3261E; --red-soft:#FBE7E5;
+    --mono:'JetBrains Mono', monospace; --disp:'Space Grotesk', sans-serif; --body:'IBM Plex Sans', sans-serif;
+  }
+  *{box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{margin:0; font-family:var(--body); background:var(--bg); color:var(--ink); display:flex; min-height:100vh;}
+  a{color:var(--steel);}
+  #sidebar{width:280px; min-width:280px; background:var(--navy-deep); color:#DCE6F5; position:sticky; top:0; height:100vh; overflow-y:auto; padding:22px 0 40px; border-right:1px solid #0a1a30;}
+  #sidebar .brand{padding:0 20px 18px; border-bottom:1px solid rgba(255,255,255,.08); margin-bottom:14px;}
+  #sidebar .brand .bank{font-family:var(--disp); font-weight:700; font-size:13px; letter-spacing:.14em; color:var(--gold); text-transform:uppercase;}
+  #sidebar .brand h1{font-family:var(--disp); font-size:18px; margin:6px 0 4px; color:#fff; line-height:1.3;}
+  #sidebar .brand .tag{font-size:12px; color:#93A5C4;}
+  #sidebar nav{padding:0 10px;}
+  #sidebar nav .group-label{font-size:10.5px; text-transform:uppercase; letter-spacing:.12em; color:#5E7398; padding:14px 12px 6px;}
+  #sidebar nav a{display:block; padding:8px 12px; margin:1px 0; border-radius:6px; font-size:13.5px; color:#B9C7DE; text-decoration:none; border-left:2px solid transparent;}
+  #sidebar nav a:hover{background:rgba(255,255,255,.05); color:#fff;}
+  #sidebar nav a.active{background:rgba(185,131,47,.15); color:#fff; border-left:2px solid var(--gold);}
+  main{flex:1; min-width:0; padding:0 0 80px;}
+  .hero{background:radial-gradient(1100px 400px at 15% -10%, #123059 0%, var(--navy) 55%, var(--navy-deep) 100%); color:#fff; padding:52px 56px 40px; position:relative; overflow:hidden;}
+  .hero::after{content:""; position:absolute; right:-60px; top:-60px; width:340px; height:340px; background:radial-gradient(circle, rgba(185,131,47,.18) 0%, transparent 70%);}
+  .hero .eyebrow{font-family:var(--mono); font-size:12px; letter-spacing:.16em; color:var(--gold); text-transform:uppercase;}
+  .hero h1{font-family:var(--disp); font-size:36px; margin:10px 0 12px; max-width:780px; line-height:1.15;}
+  .hero p{color:#B9C7DE; max-width:640px; font-size:15px; line-height:1.6;}
+  .status-strip{display:flex; gap:14px; margin-top:26px; flex-wrap:wrap;}
+  .status-chip{background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.12); border-radius:8px; padding:10px 14px; font-family:var(--mono); font-size:12.5px; display:flex; align-items:center; gap:8px; min-width:150px;}
+  .dot{width:8px; height:8px; border-radius:50%; display:inline-block;}
+  .dot.green{background:#37D67A;} .dot.amber{background:#F0B84E;} .dot.red{background:#F1594F;}
+  section.block{padding:40px 56px; border-bottom:1px solid var(--line); scroll-margin-top:16px;}
+  section.block h2{font-family:var(--disp); font-size:24px; margin:0 0 6px; color:var(--navy); display:flex; align-items:center; gap:10px;}
+  section.block h2 .num{font-family:var(--mono); font-size:13px; color:var(--gold); background:var(--gold-soft); padding:3px 9px; border-radius:5px; font-weight:600;}
+  section.block > .sub{color:var(--ink-soft); font-size:14px; margin-bottom:24px; max-width:820px;}
+  h3{font-family:var(--disp); font-size:17px; color:var(--navy); margin:26px 0 10px;}
+  p{line-height:1.7; font-size:14.5px; color:var(--ink);}
+  ul,ol{line-height:1.75; font-size:14.5px;}
+  strong{color:var(--navy);}
+  .story{background:linear-gradient(180deg,#FFFDF8,#FFF); border:1px solid var(--gold-soft); border-left:4px solid var(--gold); border-radius:10px; padding:22px 24px; margin-bottom:8px;}
+  .story .label{font-family:var(--mono); font-size:11px; letter-spacing:.1em; text-transform:uppercase; color:var(--gold); margin-bottom:8px; display:block;}
+  .story p{margin:0 0 12px; font-size:14.5px;} .story p:last-child{margin-bottom:0;}
+  .grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:16px; margin:18px 0;}
+  .card{background:var(--card); border:1px solid var(--line); border-radius:10px; padding:18px 20px;}
+  .card h4{margin:0 0 8px; font-family:var(--disp); font-size:14.5px; color:var(--navy);}
+  .card p{margin:0; font-size:13.5px; color:var(--ink-soft);}
+  table{width:100%; border-collapse:collapse; margin:14px 0 22px; font-size:13.5px;}
+  th,td{text-align:left; padding:10px 12px; border-bottom:1px solid var(--line);}
+  th{background:#EDF1F7; color:var(--navy); font-family:var(--disp); font-weight:600; font-size:12.5px; text-transform:uppercase; letter-spacing:.03em;}
+  tr:hover td{background:#FAFBFD;}
+  .callout{border-radius:10px; padding:16px 18px; margin:16px 0; font-size:14px; line-height:1.65; border:1px solid; position:relative; padding-left:48px;}
+  .callout::before{position:absolute; left:16px; top:15px; font-family:var(--mono); font-weight:700; font-size:13px;}
+  .callout.tip{background:var(--green-soft); border-color:#BEE3CB; color:#154A2E;} .callout.tip::before{content:"TIP"; color:var(--green);}
+  .callout.note{background:#EAF1FB; border-color:#C9DBF3; color:#1D3557;} .callout.note::before{content:"NOTE"; color:var(--steel);}
+  .callout.warn{background:var(--amber-soft); border-color:#EFD9A6; color:#5C4108;} .callout.warn::before{content:"WARN"; color:var(--amber);}
+  .callout.best{background:var(--gold-soft); border-color:#E9D3A5; color:#5A3E0E; padding-left:48px;} .callout.best::before{content:"BEST\A PRACT."; white-space:pre; line-height:1.1; top:10px; color:var(--gold);}
+  details.concept{background:var(--card); border:1px solid var(--line); border-radius:10px; margin:10px 0; overflow:hidden;}
+  details.concept summary{cursor:pointer; list-style:none; padding:14px 18px; font-family:var(--disp); font-size:14.5px; color:var(--navy); display:flex; justify-content:space-between; align-items:center; font-weight:600;}
+  details.concept summary::-webkit-details-marker{display:none;}
+  details.concept summary::after{content:"+"; font-family:var(--mono); color:var(--gold); font-size:18px;}
+  details.concept[open] summary::after{content:"–";}
+  details.concept .inner{padding:0 18px 18px; font-size:14px; color:var(--ink-soft); border-top:1px solid var(--line); padding-top:14px;}
+  details.concept .inner b{color:var(--navy);}
+  .code-wrap{position:relative; margin:16px 0 26px; border-radius:10px; overflow:hidden; border:1px solid #0a1a30;}
+  .code-head{background:var(--navy-deep); color:#93A5C4; font-family:var(--mono); font-size:12px; padding:9px 14px; display:flex; justify-content:space-between; align-items:center;}
+  .copy-btn{background:rgba(185,131,47,.18); color:var(--gold); border:1px solid rgba(185,131,47,.4); font-family:var(--mono); font-size:11px; padding:4px 10px; border-radius:5px; cursor:pointer;}
+  .copy-btn:hover{background:rgba(185,131,47,.3);}
+  pre{margin:0; background:#0B1526; padding:18px 20px; overflow-x:auto; max-height:640px; overflow-y:auto;}
+  pre code{font-family:var(--mono); font-size:12.6px; line-height:1.65; color:#D6E2F5; white-space:pre;}
+  .c-com{color:#7C93B8;} .c-str{color:#C9DA6E;} .c-kw{color:#E4A94B;} .c-var{color:#79C6E8;} .c-fn{color:#E88DAB;}
+  .lex{border-left:3px solid var(--steel); background:#F7FAFD; padding:10px 14px; margin:8px 0; border-radius:0 8px 8px 0;}
+  .lex code{font-family:var(--mono); font-size:12px; background:#EAF0F8; padding:2px 6px; border-radius:4px; color:var(--navy);}
+  .diagram{background:var(--card); border:1px solid var(--line); border-radius:10px; padding:24px; margin:16px 0; overflow-x:auto;}
+  .badge{display:inline-block; font-family:var(--mono); font-size:11px; padding:2px 9px; border-radius:20px; font-weight:600;}
+  .badge.h{background:var(--green-soft); color:var(--green);} .badge.w{background:var(--amber-soft); color:var(--amber);} .badge.c{background:var(--red-soft); color:var(--red);}
+  .agile-col{background:var(--card); border:1px solid var(--line); border-radius:10px; padding:16px 18px;}
+  .agile-col h4{margin:0 0 10px; font-family:var(--disp); color:var(--navy); font-size:14px; border-bottom:1px solid var(--line); padding-bottom:8px;}
+  .agile-col ul{margin:0; padding-left:18px; font-size:13.5px; color:var(--ink-soft);}
+  .qa{background:var(--card); border:1px solid var(--line); border-radius:10px; padding:16px 18px; margin:10px 0;}
+  .qa .q{font-family:var(--disp); color:var(--navy); font-size:14px; margin-bottom:6px;}
+  .qa .a{font-size:13.5px; color:var(--ink-soft); line-height:1.65;}
+  footer{padding:34px 56px; color:#8896AB; font-size:12.5px; font-family:var(--mono);}
+  @media(max-width:900px){body{flex-direction:column;} #sidebar{position:relative; height:auto; width:100%; min-width:0;} section.block, .hero{padding:28px 20px;}}
+</style>
+</head>
+<body>
+
+<aside id="sidebar">
+  <div class="brand">
+    <div class="bank">ABC Bank · IT Operations</div>
+    <h1>PowerShell DevOps Academy</h1>
+    <div class="tag">Project 06 of 30 · Beginner Track</div>
+  </div>
+  <nav id="nav">
+    <div class="group-label">Orientation</div>
+    <a href="#story">1. The Production Story</a>
+    <a href="#business">2. Business Case</a>
+    <div class="group-label">Foundations</div>
+    <a href="#concepts">3. New Concepts</a>
+    <a href="#architecture">4. Architecture</a>
+    <div class="group-label">Build</div>
+    <a href="#structure">5. Folder Structure</a>
+    <a href="#code">6. The Script</a>
+    <a href="#explain">7. Line-by-Line Explanation</a>
+    <a href="#flow">8. Execution Flow</a>
+    <a href="#internals">9. Windows Internals</a>
+    <div class="group-label">Delivery</div>
+    <a href="#agile">10. Agile Breakdown</a>
+    <a href="#lab">11. Hands-On Lab</a>
+    <a href="#practices">12. Production Best Practices</a>
+    <div class="group-label">Wrap-Up</div>
+    <a href="#interview">13. Interview Prep</a>
+    <a href="#summary">14. Key Learnings &amp; Assignment</a>
+  </nav>
+</aside>
+
+<main>
+  <div class="hero">
+    <div class="eyebrow">Project 06 — SSL Certificate Expiry Monitoring</div>
+    <h1>The outage nobody codes for, until it happens to them: a certificate simply expires</h1>
+    <p>No crash, no stopped service, no failed patch — just a calendar date quietly arriving. Today you'll check certificates two ways: what's actually installed in the local certificate store, and what a live TLS handshake reports for a public-facing banking URL, then flag anything expiring soon before it becomes an outage.</p>
+    <div class="status-strip">
+      <div class="status-chip"><span class="dot green"></span>onlinebanking.abcbank.com — 118 days left</div>
+      <div class="status-chip"><span class="dot amber"></span>mobileapi.abcbank.com — 21 days left</div>
+      <div class="status-chip"><span class="dot red"></span>partner-gateway.abcbank.com — 4 days left</div>
+    </div>
+  </div>
+
+  <!-- 1. STORY -->
+  <section class="block" id="story">
+    <h2><span class="num">01</span> The Production Story</h2>
+    <div class="sub">A different flavor of incident this time — nothing crashed, nothing was patched wrong. Something just... expired.</div>
+    <div class="story">
+      <span class="label">Friday, 6:00 AM — Industry War Story, Retold at Standup</span>
+      <p>Priya opens the morning standup with a story instead of a status update. "A few years ago, at my last bank, our partner integration gateway just stopped working one Saturday morning. No error in the logs pointed anywhere useful at first. Support escalated for two hours before someone finally noticed: the SSL certificate on that endpoint had expired at midnight. Nobody patched anything, nobody broke anything — a date on a calendar simply arrived, and every partner connection started failing TLS validation instantly."</p>
+      <p>"The infuriating part," she continues, "is that certificate expiry is completely predictable. We know the exact date months in advance. There's no excuse for it to ever cause an outage — except that nobody was watching the calendar."</p>
+      <p>"So today's project: check every certificate we care about — both what's sitting in the Windows certificate store on our servers, and what a real TLS connection to our public banking URLs actually presents to a client — and tell us how many days are left. I want three zones: plenty of time, getting close, and act now."</p>
+    </div>
+    <div class="callout note">This project reinforces something important: not every production risk is a crash or a bug. A perfectly working system can still fail the instant a completely predictable date arrives — which is exactly why proactive monitoring beats reactive firefighting.</div>
+  </section>
+
+  <!-- 2. BUSINESS CASE -->
+  <section class="block" id="business">
+    <h2><span class="num">02</span> Business Case</h2>
+    <div class="grid">
+      <div class="card"><h4>Business Requirement</h4><p>Prevent outages caused by expired SSL/TLS certificates on customer and partner-facing banking endpoints.</p></div>
+      <div class="card"><h4>Customer Requirement</h4><p>Ops wants advance warning — weeks, not hours — before any certificate expires, with clear urgency tiers.</p></div>
+      <div class="card"><h4>Banking Scenario</h4><p>Online banking, partner integrations, and internal service-to-service calls all rely on valid TLS certificates to establish trust and encryption.</p></div>
+      <div class="card"><h4>Current Manual Process</h4><p>Certificates are tracked, if at all, in a spreadsheet someone updates inconsistently whenever they remember to check.</p></div>
+      <div class="card"><h4>Problems With Current Process</h4><p>Entirely dependent on human memory for a completely predictable, calendar-based event — a recipe for exactly the outage Priya described.</p></div>
+      <div class="card"><h4>Business Challenges</h4><p>Certificates live in different places — local server stores, load balancers, and what's actually served live — and all need checking.</p></div>
+      <div class="card"><h4>Risk Analysis</h4><p>An expired certificate on a partner-facing endpoint causes an instant, hard failure for every connecting client — no gradual degradation, no warning.</p></div>
+      <div class="card"><h4>Business Impact</h4><p>A preventable, 100% predictable outage is one of the worst kinds to explain to leadership or regulators after the fact.</p></div>
+      <div class="card"><h4>Why Automation Is Required</h4><p>Only automation reliably checks every certificate, every day, without depending on someone remembering a spreadsheet.</p></div>
+      <div class="card"><h4>Solution Design</h4><p>A PowerShell script reading the local certificate store plus live TLS handshakes against key URLs, tiered by days-until-expiry.</p></div>
+      <div class="card"><h4>Project Scope</h4><p>Phase 1 covers local machine store certificates and a defined list of public-facing URLs, with a three-tier expiry warning system.</p></div>
+      <div class="card"><h4>Expected Benefits</h4><p>Certificate renewals become a scheduled, calm task weeks in advance instead of a frantic Saturday morning incident.</p></div>
+    </div>
+  </section>
+
+  <!-- 3. CONCEPTS -->
+  <section class="block" id="concepts">
+    <h2><span class="num">03</span> New Concepts (Building on Projects 01–05)</h2>
+    <div class="sub">You already know remoting, config files, and retry logic. Here's what's new for working with certificates and dates.</div>
+
+    <details class="concept" open>
+      <summary>The Cert: PSDrive</summary>
+      <div class="inner">
+        <p><b>What it is:</b> Just like <code>IIS:\</code> in Project 04, Windows exposes installed certificates as a navigable drive: <code>Cert:\LocalMachine\My</code> is the standard location for server certificates bound to services like IIS.</p>
+        <p><b>Why it's used today:</b> <code>Get-ChildItem Cert:\LocalMachine\My</code> returns every certificate installed on that server as real X509Certificate2 objects — no file parsing, no OpenSSL, just objects with properties.</p>
+      </div>
+    </details>
+
+    <details class="concept">
+      <summary>X509Certificate2 Properties — NotAfter, Subject, Thumbprint</summary>
+      <div class="inner">
+        <p><b>What it is:</b> Every certificate object carries standard properties: <code>.Subject</code> (who it was issued to), <code>.Issuer</code> (who issued it), <code>.NotAfter</code> (the expiry date as a real DateTime), and <code>.Thumbprint</code> (a unique fingerprint identifying the exact certificate).</p>
+        <p><b>Why it matters:</b> <code>.NotAfter</code> being a genuine DateTime object — not a text string — is what lets us do real date math on it, rather than trying to parse a date out of text.</p>
+      </div>
+    </details>
+
+    <details class="concept">
+      <summary>Date Arithmetic — New-TimeSpan &amp; Subtracting Dates</summary>
+      <div class="inner">
+        <p><b>What it is:</b> PowerShell dates are real .NET <code>DateTime</code> objects, so you can simply subtract one from another: <code>($Cert.NotAfter - (Get-Date)).Days</code> gives you the exact number of days remaining. <code>New-TimeSpan</code> is a cmdlet that does the same subtraction more explicitly.</p>
+        <p><b>Why it's used today:</b> This single calculation is the heart of the entire project — everything else exists to feed a certificate's expiry date into this subtraction.</p>
+      </div>
+    </details>
+
+    <details class="concept">
+      <summary>Checking a LIVE Certificate via .NET — SslStream</summary>
+      <div class="inner">
+        <p><b>What it is:</b> The local certificate store only tells you what's installed — it doesn't prove that's actually what a real client sees over the network (a load balancer might be serving a different one). To check the certificate a real TLS connection presents, we drop down to raw .NET classes: <code>System.Net.Sockets.TcpClient</code> to open the connection, and <code>System.Net.Security.SslStream</code> to perform the TLS handshake and read back the presented certificate.</p>
+        <p><b>Why it's used today:</b> This is the same technique tools like <code>openssl s_client</code> use — connecting exactly as a browser would and inspecting what's actually served live, which is the only way to be sure what customers really experience.</p>
+        <p><b>Production nuance:</b> PowerShell can call almost any .NET class directly, not just its own cmdlets — this is a good first taste of that much larger capability.</p>
+      </div>
+    </details>
+
+    <details class="concept">
+      <summary>Calculated Properties in Select-Object</summary>
+      <div class="inner">
+        <p><b>What it is:</b> <code>Select-Object</code> can create a brand new column on the fly using a hash table: <code>@{Name="DaysLeft"; Expression={($_.NotAfter - (Get-Date)).Days}}</code> — instead of adding a whole extra step to compute and attach a value.</p>
+        <p><b>Why it's used today:</b> It keeps our reporting pipeline compact — we compute "days left" as part of shaping the output, not as a separate manual loop.</p>
+      </div>
+    </details>
+
+    <div class="callout best">Certificate expiry is the textbook example of a "boring but critical" check — nothing dynamic to detect, just simple date math done reliably, every single day, without fail. That reliability is the entire value.</div>
+  </section>
+
+  <!-- 4. ARCHITECTURE -->
+  <section class="block" id="architecture">
+    <h2><span class="num">04</span> Architecture</h2>
+    <div class="diagram">
+      <svg width="820" height="210" viewBox="0 0 820 210" xmlns="http://www.w3.org/2000/svg" font-family="IBM Plex Sans, sans-serif">
+        <rect x="20" y="30" width="190" height="60" rx="8" fill="#EAF1FB" stroke="#1B4F72"/>
+        <text x="115" y="55" text-anchor="middle" font-size="11.5" fill="#0B1F3A">Cert:\LocalMachine\My</text>
+        <text x="115" y="70" text-anchor="middle" font-size="9" fill="#4B5A72">Installed certificates, per server</text>
+
+        <rect x="20" y="110" width="190" height="60" rx="8" fill="#EAF1FB" stroke="#1B4F72"/>
+        <text x="115" y="135" text-anchor="middle" font-size="11.5" fill="#0B1F3A">Live TLS Handshake</text>
+        <text x="115" y="150" text-anchor="middle" font-size="9" fill="#4B5A72">SslStream to public URL:443</text>
+
+        <rect x="280" y="70" width="200" height="65" rx="8" fill="#F4E6CE" stroke="#B9832F"/>
+        <text x="380" y="97" text-anchor="middle" font-size="12" fill="#0B1F3A" font-weight="600">Test-CertificateExpiry.ps1</text>
+        <text x="380" y="115" text-anchor="middle" font-size="9.5" fill="#4B5A72">(NotAfter - Today).Days</text>
+
+        <rect x="550" y="10" width="120" height="45" rx="8" fill="#E4F3EA" stroke="#1E7145"/>
+        <text x="610" y="37" text-anchor="middle" font-size="11" fill="#0B1F3A">OK &gt; 30 days</text>
+
+        <rect x="550" y="80" width="120" height="45" rx="8" fill="#FBF0DA" stroke="#9A6B14"/>
+        <text x="610" y="107" text-anchor="middle" font-size="11" fill="#0B1F3A">WARN ≤ 30 days</text>
+
+        <rect x="550" y="150" width="120" height="45" rx="8" fill="#FBE7E5" stroke="#B3261E"/>
+        <text x="610" y="177" text-anchor="middle" font-size="11" fill="#0B1F3A">CRITICAL ≤ 7 days</text>
+
+        <path d="M210 60 L280 95" stroke="#8896AB" stroke-width="1.5" marker-end="url(#a)"/>
+        <path d="M210 140 L280 110" stroke="#8896AB" stroke-width="1.5" marker-end="url(#a)"/>
+        <path d="M480 90 L550 32" stroke="#8896AB" stroke-width="1.5" marker-end="url(#a)"/>
+        <path d="M480 100 L550 102" stroke="#8896AB" stroke-width="1.5" marker-end="url(#a)"/>
+        <path d="M480 115 L550 172" stroke="#8896AB" stroke-width="1.5" marker-end="url(#a)"/>
+        <defs><marker id="a" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="#8896AB"/></marker></defs>
+      </svg>
+    </div>
+    <p>Two independent data sources feed the same simple date-math decision — this is deliberate: the store tells you what's installed, the live handshake proves what's actually served, and either one alone can miss a problem the other catches.</p>
+  </section>
+
+  <!-- 5. FOLDER STRUCTURE -->
+  <section class="block" id="structure">
+    <h2><span class="num">05</span> Project Folder Structure</h2>
+    <div class="code-wrap">
+      <div class="code-head"><span>folder-structure.txt</span></div>
+      <pre><code>C:\CertMonitor\
+│
+├── Scripts\
+│   └── Test-CertificateExpiry.ps1
+│
+├── Config\
+│   ├── servers.txt        <span class="c-com"># Servers to check local cert stores on</span>
+│   └── endpoints.txt       <span class="c-com"># Public URLs to check live via TLS handshake</span>
+│
+├── Logs\
+│   └── CertCheck_20260724_060000.log
+│
+├── Reports\
+│   ├── CertCheck_20260724_060000.csv
+│   └── CertCheck_20260724_060000.html
+│
+└── README.md</code></pre>
+    </div>
+    <div class="code-wrap">
+      <div class="code-head"><span>Config\endpoints.txt</span></div>
+      <pre><code>onlinebanking.abcbank.com
+mobileapi.abcbank.com
+partner-gateway.abcbank.com</code></pre>
+    </div>
+  </section>
+
+  <!-- 6. CODE -->
+  <section class="block" id="code">
+    <h2><span class="num">06</span> The Script — Test-CertificateExpiry.ps1</h2>
+
+    <div class="code-wrap">
+      <div class="code-head">
+        <span>Scripts\Test-CertificateExpiry.ps1</span>
+        <button class="copy-btn" onclick="copyCode('code1', this)">Copy</button>
+      </div>
+      <pre><code id="code1"><span class="c-com">&lt;#
+.SYNOPSIS
+    SSL Certificate Expiry Monitoring - ABC Bank Production Support
+.DESCRIPTION
+    Checks certificates in the local certificate store across a server
+    list, and performs a live TLS handshake against public endpoints,
+    flagging anything approaching expiry.
+#&gt;</span>
+
+<span class="c-com"># ============================================================
+# SECTION 1: CONFIGURATION
+# ============================================================</span>
+
+<span class="c-var">$Servers</span>   = Get-Content -Path <span class="c-str">"C:\CertMonitor\Config\servers.txt"</span>
+<span class="c-var">$Endpoints</span> = Get-Content -Path <span class="c-str">"C:\CertMonitor\Config\endpoints.txt"</span>
+
+<span class="c-var">$WarningDays</span>  = 30                     <span class="c-com"># 30 days or fewer remaining = WARNING</span>
+<span class="c-var">$CriticalDays</span> = 7                      <span class="c-com"># 7 days or fewer remaining  = CRITICAL</span>
+
+<span class="c-var">$TimeTag</span>    = Get-Date -Format <span class="c-str">'yyyyMMdd_HHmmss'</span>
+<span class="c-var">$LogFile</span>    = <span class="c-str">"C:\CertMonitor\Logs\CertCheck_$TimeTag.log"</span>
+<span class="c-var">$ReportCSV</span>  = <span class="c-str">"C:\CertMonitor\Reports\CertCheck_$TimeTag.csv"</span>
+<span class="c-var">$ReportHTML</span> = <span class="c-str">"C:\CertMonitor\Reports\CertCheck_$TimeTag.html"</span>
+
+<span class="c-kw">function</span> <span class="c-fn">Write-Log</span> {
+    <span class="c-kw">param</span>([string]<span class="c-var">$Message</span>, [string]<span class="c-var">$Level</span> = <span class="c-str">"INFO"</span>)
+    <span class="c-var">$Stamp</span> = Get-Date -Format <span class="c-str">"yyyy-MM-dd HH:mm:ss"</span>
+    <span class="c-var">$Entry</span> = <span class="c-str">"[$Stamp] [$Level] $Message"</span>
+    Add-Content -Path <span class="c-var">$LogFile</span> -Value <span class="c-var">$Entry</span>
+    Write-Host <span class="c-var">$Entry</span>
+}
+
+<span class="c-kw">function</span> <span class="c-fn">Get-ExpiryVerdict</span> {                       <span class="c-com"># Shared tiering logic used by BOTH check types below</span>
+    <span class="c-kw">param</span>([int]<span class="c-var">$DaysLeft</span>)
+    <span class="c-kw">if</span>     (<span class="c-var">$DaysLeft</span> -le <span class="c-var">$CriticalDays</span>) { <span class="c-str">"CRITICAL"</span> }
+    <span class="c-kw">elseif</span> (<span class="c-var">$DaysLeft</span> -le <span class="c-var">$WarningDays</span>)  { <span class="c-str">"WARNING"</span> }
+    <span class="c-kw">else</span>                                    { <span class="c-str">"OK"</span> }
+}
+
+<span class="c-com"># ============================================================
+# SECTION 2: LOCAL CERTIFICATE STORE CHECK
+# ============================================================</span>
+
+<span class="c-kw">function</span> <span class="c-fn">Get-StoreCertificates</span> {
+    <span class="c-kw">param</span>([string]<span class="c-var">$ComputerName</span>)
+
+    <span class="c-kw">try</span> {
+        <span class="c-var">$Certs</span> = Invoke-Command -ComputerName <span class="c-var">$ComputerName</span> -ScriptBlock {
+            Get-ChildItem -Path <span class="c-str">"Cert:\LocalMachine\My"</span> |             <span class="c-com"># Every certificate bound to services on this server</span>
+                Where-Object { <span class="c-var">$_</span>.NotAfter -gt (Get-Date).AddYears(-5) }  <span class="c-com"># Skip long-expired junk certs cluttering the store</span>
+        }
+
+        <span class="c-kw">foreach</span> (<span class="c-var">$Cert</span> in <span class="c-var">$Certs</span>) {
+            <span class="c-var">$DaysLeft</span> = (<span class="c-var">$Cert</span>.NotAfter - (Get-Date)).Days              <span class="c-com"># Real DateTime subtraction — gives whole days remaining</span>
+            [PSCustomObject]<span class="c-kw">@</span>{
+                Source      = <span class="c-str">"LocalStore"</span>
+                ServerOrUrl = <span class="c-var">$ComputerName</span>
+                Subject     = <span class="c-var">$Cert</span>.Subject
+                Issuer      = <span class="c-var">$Cert</span>.Issuer
+                Thumbprint  = <span class="c-var">$Cert</span>.Thumbprint
+                ExpiryDate  = <span class="c-var">$Cert</span>.NotAfter
+                DaysLeft    = <span class="c-var">$DaysLeft</span>
+                Verdict     = Get-ExpiryVerdict -DaysLeft <span class="c-var">$DaysLeft</span>
+            }
+        }
+    }
+    <span class="c-kw">catch</span> {
+        Write-Log <span class="c-str">"Error reading certificate store on $ComputerName : $($_.Exception.Message)"</span> <span class="c-str">"ERROR"</span>
+    }
+}
+
+<span class="c-com"># ============================================================
+# SECTION 3: LIVE TLS HANDSHAKE CHECK
+# ============================================================</span>
+
+<span class="c-kw">function</span> <span class="c-fn">Get-LiveCertificate</span> {
+    <span class="c-kw">param</span>([string]<span class="c-var">$HostName</span>, [int]<span class="c-var">$Port</span> = 443)
+
+    <span class="c-kw">try</span> {
+        <span class="c-var">$TcpClient</span> = New-Object System.Net.Sockets.TcpClient(<span class="c-var">$HostName</span>, <span class="c-var">$Port</span>)   <span class="c-com"># Opens a raw network connection, like a browser would</span>
+        <span class="c-var">$SslStream</span> = New-Object System.Net.Security.SslStream(<span class="c-var">$TcpClient</span>.GetStream(), <span class="c-kw">$false</span>, ({ <span class="c-kw">$true</span> }))  <span class="c-com"># Wraps it in TLS; callback accepts the cert so we can INSPECT it even if untrusted</span>
+        <span class="c-var">$SslStream</span>.AuthenticateAsClient(<span class="c-var">$HostName</span>)              <span class="c-com"># Performs the actual TLS handshake against the real endpoint</span>
+
+        <span class="c-var">$RemoteCert</span> = [System.Security.Cryptography.X509Certificates.X509Certificate2]<span class="c-var">$SslStream</span>.RemoteCertificate  <span class="c-com"># The certificate the server ACTUALLY presented</span>
+        <span class="c-var">$DaysLeft</span> = (<span class="c-var">$RemoteCert</span>.NotAfter - (Get-Date)).Days
+
+        [PSCustomObject]<span class="c-kw">@</span>{
+            Source      = <span class="c-str">"LiveTLS"</span>
+            ServerOrUrl = <span class="c-var">$HostName</span>
+            Subject     = <span class="c-var">$RemoteCert</span>.Subject
+            Issuer      = <span class="c-var">$RemoteCert</span>.Issuer
+            Thumbprint  = <span class="c-var">$RemoteCert</span>.Thumbprint
+            ExpiryDate  = <span class="c-var">$RemoteCert</span>.NotAfter
+            DaysLeft    = <span class="c-var">$DaysLeft</span>
+            Verdict     = Get-ExpiryVerdict -DaysLeft <span class="c-var">$DaysLeft</span>
+        }
+
+        <span class="c-var">$SslStream</span>.Close(); <span class="c-var">$TcpClient</span>.Close()             <span class="c-com"># Always clean up network resources when done</span>
+    }
+    <span class="c-kw">catch</span> {
+        Write-Log <span class="c-str">"Error connecting to $HostName : $($_.Exception.Message)"</span> <span class="c-str">"ERROR"</span>
+        [PSCustomObject]<span class="c-kw">@</span>{
+            Source = <span class="c-str">"LiveTLS"</span>; ServerOrUrl = <span class="c-var">$HostName</span>; Subject = <span class="c-str">"N/A"</span>; Issuer = <span class="c-str">"N/A"</span>
+            Thumbprint = <span class="c-str">"N/A"</span>; ExpiryDate = <span class="c-kw">$null</span>; DaysLeft = <span class="c-kw">$null</span>; Verdict = <span class="c-str">"CRITICAL - CONNECTION FAILED"</span>
+        }
+    }
+}
+
+<span class="c-com"># ============================================================
+# SECTION 4: MAIN EXECUTION
+# ============================================================</span>
+
+Write-Log <span class="c-str">"===== Starting Certificate Expiry Check ====="</span> <span class="c-str">"INFO"</span>
+
+<span class="c-var">$StoreResults</span> = <span class="c-kw">foreach</span> (<span class="c-var">$Server</span> in <span class="c-var">$Servers</span>)   { Get-StoreCertificates -ComputerName <span class="c-var">$Server</span> }
+<span class="c-var">$LiveResults</span>  = <span class="c-kw">foreach</span> (<span class="c-var">$Endpoint</span> in <span class="c-var">$Endpoints</span>) { Get-LiveCertificate -HostName <span class="c-var">$Endpoint</span> }
+
+<span class="c-var">$AllResults</span> = <span class="c-var">$StoreResults</span> + <span class="c-var">$LiveResults</span>          <span class="c-com"># Combine both sources into one report</span>
+
+<span class="c-var">$AllResults</span> |
+    Select-Object Source, ServerOrUrl, Subject, DaysLeft, Verdict,
+        <span class="c-kw">@</span>{ Name=<span class="c-str">"ExpiryDate"</span>; Expression = { <span class="c-var">$_</span>.ExpiryDate.ToString(<span class="c-str">"yyyy-MM-dd"</span>) } } |  <span class="c-com"># Calculated property: format the date cleanly for the report</span>
+    Sort-Object DaysLeft |                                                       <span class="c-com"># Most urgent (soonest expiry) appears first</span>
+    Format-Table -AutoSize
+
+<span class="c-var">$AllResults</span> | Export-Csv -Path <span class="c-var">$ReportCSV</span> -NoTypeInformation
+<span class="c-var">$AllResults</span> | ConvertTo-Html -Title <span class="c-str">"ABC Bank Certificate Expiry Report"</span> | Out-File -FilePath <span class="c-var">$ReportHTML</span>
+
+<span class="c-var">$CriticalCount</span> = (<span class="c-var">$AllResults</span> | Where-Object { <span class="c-var">$_</span>.Verdict -like <span class="c-str">"CRITICAL*"</span> }).Count
+<span class="c-kw">if</span> (<span class="c-var">$CriticalCount</span> -gt 0) {
+    Write-Log <span class="c-str">"$CriticalCount certificate(s) are CRITICAL - expiring within $CriticalDays days or connection failed"</span> <span class="c-str">"WARNING"</span>
+}
+
+Write-Log <span class="c-str">"===== Certificate Expiry Check Completed. Report: $ReportHTML ====="</span> <span class="c-str">"INFO"</span></code></pre>
+    </div>
+  </section>
+
+  <!-- 7. EXPLAIN -->
+  <section class="block" id="explain">
+    <h2><span class="num">07</span> Line-by-Line Explanation</h2>
+
+    <div class="lex"><code>($Cert.NotAfter - (Get-Date)).Days</code><br>Because <code>.NotAfter</code> is a real DateTime object, subtracting <code>Get-Date</code> (right now) from it produces a TimeSpan object automatically — <code>.Days</code> pulls out just the whole-day count from that span. No string parsing, no manual date math formulas.</div>
+
+    <div class="lex"><code>New-Object System.Net.Security.SslStream($TcpClient.GetStream(), $false, ({ $true }))</code><br>The third argument is a certificate validation callback — normally .NET would reject an untrusted or self-signed certificate outright. Passing a callback that always returns <code>$true</code> tells .NET "let me inspect this certificate regardless of trust status," which is exactly what a monitoring tool needs, even though a real browser would rightly block it.</div>
+
+    <div class="lex"><code>[System.Security.Cryptography.X509Certificates.X509Certificate2]$SslStream.RemoteCertificate</code><br>The stream returns the certificate as a more generic type; this explicit cast converts it into the richer X509Certificate2 type so we can read <code>.NotAfter</code>, <code>.Subject</code>, and <code>.Thumbprint</code> directly.</div>
+
+    <div class="lex"><code>@{ Name="ExpiryDate"; Expression = { $_.ExpiryDate.ToString("yyyy-MM-dd") } }</code><br>A calculated property inside Select-Object: instead of exporting the full DateTime object (with time, timezone, etc.), this reformats it into a clean, sortable date string just for the report — the underlying data isn't changed, only how it's displayed here.</div>
+
+    <div class="callout warn">Common mistake: forgetting to close the TcpClient/SslStream after use. Each check opens a real network socket — leaving many of them open during a large sweep can exhaust available connections on the automation host over time.</div>
+  </section>
+
+  <!-- 8. FLOW -->
+  <section class="block" id="flow">
+    <h2><span class="num">08</span> Script Execution Flow</h2>
+    <table>
+      <tr><th>Step</th><th>What Happens</th></tr>
+      <tr><td>1. Store Check</td><td>For each server, Invoke-Command reads that server's own local certificate store — no network handshake involved, just reading configuration.</td></tr>
+      <tr><td>2. Live Check</td><td>For each public endpoint, a real TCP connection and TLS handshake happens from the automation host, exactly like a customer's browser would perform.</td></tr>
+      <tr><td>3. Shared Verdict Logic</td><td>Both check types funnel through the same <code>Get-ExpiryVerdict</code> function — one tiering rule, applied consistently regardless of source.</td></tr>
+      <tr><td>4. Combine &amp; Sort</td><td>Store and live results are combined into one array and sorted by DaysLeft, so the most urgent certificate — regardless of source — appears first.</td></tr>
+      <tr><td>5. Reporting</td><td>Same CSV/HTML/log pattern as every prior project — consistency across the whole automation suite, not a one-off format.</td></tr>
+    </table>
+  </section>
+
+  <!-- 9. INTERNALS -->
+  <section class="block" id="internals">
+    <h2><span class="num">09</span> Windows Internals — In Simple English</h2>
+    <div class="grid">
+      <div class="card"><h4>Where Windows Stores Certificates</h4><p>The Local Machine certificate store is a Windows-managed database of certificates and their private keys, organized into named "stores" like My (personal), Root (trusted authorities), and CA (intermediate authorities).</p></div>
+      <div class="card"><h4>How a TLS Handshake Actually Works</h4><p>Before any encrypted data flows, the client and server exchange certificates and cryptographic parameters in a handshake — the server's certificate (including its expiry date) is presented during this very first step, before anything else happens.</p></div>
+      <div class="card"><h4>Why Expired Certificates Fail Instantly</h4><p>TLS clients check the certificate's validity dates as a hard rule, not a soft warning — the moment NotAfter passes, standards-compliant clients refuse the connection outright, with no gradual degradation.</p></div>
+    </div>
+  </section>
+
+  <!-- 10. AGILE -->
+  <section class="block" id="agile">
+    <h2><span class="num">10</span> Agile Breakdown</h2>
+    <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(220px,1fr));">
+      <div class="agile-col"><h4>Epic</h4><ul><li>Eliminate outages caused by expired SSL/TLS certificates</li></ul></div>
+      <div class="agile-col"><h4>Feature</h4><ul><li>Dual-source certificate expiry monitoring with tiered urgency</li></ul></div>
+      <div class="agile-col"><h4>User Story</h4><ul><li>As an Ops Engineer, I want weeks of advance warning on expiring certificates, not a Saturday morning outage</li></ul></div>
+      <div class="agile-col"><h4>Acceptance Criteria</h4><ul><li>Checks both local store and live endpoints</li><li>Correctly tiers OK/WARNING/CRITICAL</li><li>Sorts by most urgent first</li></ul></div>
+      <div class="agile-col"><h4>Sprint Backlog</h4><ul><li>Build local store check</li><li>Build live TLS handshake check</li><li>Build shared verdict function</li><li>Combine + report</li></ul></div>
+      <div class="agile-col"><h4>Definition of Done</h4><ul><li>Tested against a certificate expiring soon and one with plenty of time left</li><li>Verified against a real public endpoint</li><li>Peer reviewed</li></ul></div>
+    </div>
+  </section>
+
+  <!-- 11. LAB -->
+  <section class="block" id="lab">
+    <h2><span class="num">11</span> Hands-On Lab</h2>
+
+    <h3>Practice Config</h3>
+    <div class="code-wrap">
+      <div class="code-head"><span>Config\servers.txt and endpoints.txt for local testing</span><button class="copy-btn" onclick="copyCode('code2', this)">Copy</button></div>
+      <pre><code id="code2"><span class="c-com"># servers.txt</span>
+localhost
+
+<span class="c-com"># endpoints.txt — any real public HTTPS site works for the live check</span>
+www.microsoft.com</code></pre>
+    </div>
+    <ol>
+      <li>Create the folders from Section 5, save both config files and the script</li>
+      <li>Run the script — you should see a real result for www.microsoft.com with an actual DaysLeft count</li>
+      <li>Check localhost's Cert:\LocalMachine\My — a fresh Windows install may show zero results here, which is expected if no certificates are bound yet</li>
+    </ol>
+
+    <div class="callout tip">To generate a test certificate expiring soon in your local store, PowerShell's <code>New-SelfSignedCertificate</code> cmdlet supports a <code>-NotAfter</code> parameter — create one dated a few days from now and confirm your script correctly flags it CRITICAL.</div>
+
+    <h3>Troubleshooting</h3>
+    <table>
+      <tr><th>Error</th><th>Cause</th><th>Fix</th></tr>
+      <tr><td>AuthenticateAsClient throws an exception</td><td>Endpoint unreachable, wrong port, or firewall blocking 443 outbound</td><td>Confirm the endpoint is reachable with <code>Test-NetConnection -ComputerName &lt;host&gt; -Port 443</code> first</td></tr>
+      <tr><td>Empty results from Cert:\LocalMachine\My</td><td>No certificates currently bound on that server</td><td>Expected on a fresh machine — try against a server actually running HTTPS sites</td></tr>
+      <tr><td>Access denied on Invoke-Command</td><td>Not running elevated, or insufficient rights on target</td><td>Re-launch PowerShell as Administrator</td></tr>
+    </table>
+
+    <h3>Practice Exercises</h3>
+    <ul>
+      <li><b>Mini Assignment:</b> Change $WarningDays and $CriticalDays to different values and confirm the Verdict column updates accordingly for the same certificates.</li>
+      <li><b>Challenge Task:</b> Add a fourth tier, "EXPIRED", for any certificate where DaysLeft is already negative.</li>
+    </ul>
+  </section>
+
+  <!-- 12. BEST PRACTICES -->
+  <section class="block" id="practices">
+    <h2><span class="num">12</span> Production Best Practices</h2>
+    <div class="callout best">Check the live, actually-served certificate, not just what's installed locally — a load balancer or reverse proxy can serve a different certificate than what a server's local store shows.</div>
+    <div class="callout best">Always close TCP/SSL connections explicitly after each check — a monitoring script that leaks connections is itself a small production risk.</div>
+    <div class="callout best">Give yourself weeks of warning, not days — certificate renewal often involves a third-party Certificate Authority and approval steps that take real time.</div>
+    <div class="callout best">Sort urgency-based reports by the most time-critical item first — nobody should have to scan 500 rows to find the certificate expiring tomorrow.</div>
+  </section>
+
+  <!-- 13. INTERVIEW -->
+  <section class="block" id="interview">
+    <h2><span class="num">13</span> Interview Preparation</h2>
+    <div class="qa"><div class="q">Q: Why check both the local certificate store AND a live TLS handshake?</div><div class="a">The local store shows what's installed on that specific server, but load balancers, reverse proxies, or CDN layers in front of it can present a completely different certificate to real clients — only the live check confirms what customers actually receive.</div></div>
+    <div class="qa"><div class="q">Q: Why does the SslStream validation callback always return true here?</div><div class="a">A monitoring tool needs to inspect a certificate's details regardless of whether it's currently trusted or already expired — returning true from the callback lets the handshake complete so we can read the certificate, instead of .NET blocking the connection the way a real browser correctly would.</div></div>
+    <div class="qa"><div class="q">Q: How would you make this a fully proactive, zero-surprise process?</div><div class="a">Tie the CRITICAL tier into the same escalation email pattern from Project 05, and set the WARNING threshold far enough out (30+ days) to comfortably cover the real-world lead time a Certificate Authority renewal typically requires.</div></div>
+    <div class="qa"><div class="q">Q: What's a real incident this kind of check prevents?</div><div class="a">Exactly the story that opened this project — a partner integration or customer-facing endpoint failing instantly and completely the moment a completely predictable expiry date arrives, with zero advance warning to the team.</div></div>
+  </section>
+
+  <!-- 14. SUMMARY -->
+  <section class="block" id="summary">
+    <h2><span class="num">14</span> Key Learnings &amp; Assignment</h2>
+    <h3>Key Learnings</h3>
+    <ul>
+      <li>Not every production risk is a crash — some are completely predictable calendar events nobody was watching</li>
+      <li>Real DateTime objects make expiry math trivial: simple subtraction instead of string parsing</li>
+      <li>PowerShell can call raw .NET classes (TcpClient, SslStream) directly when no built-in cmdlet exists</li>
+      <li>Checking what's installed and what's actually served live are two different, both-necessary checks</li>
+    </ul>
+    <h3>Resume Point</h3>
+    <p>"Built a dual-source SSL/TLS certificate expiry monitoring automation combining local certificate store inventory with live TLS handshake verification against public banking endpoints, providing weeks of advance warning ahead of renewal deadlines and eliminating a class of entirely preventable outages."</p>
+    <h3>Assignment Before Project 7</h3>
+    <ol>
+      <li>Run the live check against a real public HTTPS site and confirm the DaysLeft and Verdict are accurate</li>
+      <li>Generate a short-lived self-signed test certificate and confirm the local store check correctly flags it CRITICAL</li>
+      <li>Explain, in your own words, why a certificate can look fine in the local store but still fail for real customers</li>
+    </ol>
+    <div class="callout note">Say <b>"next project"</b> when you're ready, and we'll build Project 07 together.</div>
+  </section>
+
+  <footer>ABC Bank · Windows Operations · PowerShell DevOps Academy — Project 06 of 30</footer>
+</main>
+
+<script>
+  const sections = document.querySelectorAll('section.block');
+  const links = document.querySelectorAll('#nav a');
+  window.addEventListener('scroll', () => {
+    let current = '';
+    sections.forEach(sec => { if (window.scrollY >= sec.offsetTop - 120) current = sec.id; });
+    links.forEach(a => a.classList.toggle('active', a.getAttribute('href') === '#' + current));
+  });
+  function copyCode(id, btn) {
+    const text = document.getElementById(id).innerText;
+    navigator.clipboard.writeText(text).then(() => {
+      const orig = btn.textContent; btn.textContent = 'Copied!';
+      setTimeout(() => btn.textContent = orig, 1500);
+    });
+  }
+</script>
+</body>
+</html>
