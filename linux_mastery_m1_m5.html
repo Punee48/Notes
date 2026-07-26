@@ -1,0 +1,2092 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Linux Mastery — Modules 1–5</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;600;700&family=Bebas+Neue&family=Barlow:wght@300;400;600;700;900&display=swap');
+
+:root {
+  --bg:#07090f;--surface:#0d1117;--surface2:#111827;--surface3:#1a2236;
+  --border:#1f2d45;--border2:#263352;
+  --green:#39ff14;--cyan:#00e5ff;--orange:#ff6b00;--yellow:#ffe600;
+  --red:#ff3355;--purple:#bf5af2;--blue:#0a84ff;--pink:#ff375f;
+  --text:#c9d1d9;--dim:#586069;--bright:#f0f6fc;
+  --m1:#39ff14;--m2:#00e5ff;--m3:#ffe600;--m4:#bf5af2;--m5:#ff6b00;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{font-family:'Barlow',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden}
+
+/* ── SCANLINE overlay ── */
+body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,.03) 2px,rgba(0,0,0,.03) 4px);pointer-events:none;z-index:9999}
+
+/* ── SIDEBAR ── */
+#sidebar{position:fixed;top:0;left:0;width:240px;height:100vh;background:var(--surface);border-right:1px solid var(--border);overflow-y:auto;z-index:100;display:flex;flex-direction:column}
+.sb-logo{padding:20px 16px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px}
+.sb-logo-icon{width:32px;height:32px;background:var(--green);border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
+.sb-logo-text{font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:2px;color:var(--bright);line-height:1.1}
+.sb-logo-sub{font-size:9px;color:var(--dim);letter-spacing:2px}
+
+.sb-progress{padding:12px 16px;border-bottom:1px solid var(--border)}
+.sb-prog-label{font-size:9px;letter-spacing:2px;color:var(--dim);text-transform:uppercase;margin-bottom:6px}
+.sb-prog-bar{height:3px;background:var(--border);border-radius:2px;overflow:hidden}
+.sb-prog-fill{height:100%;background:linear-gradient(90deg,var(--green),var(--cyan));transition:width .8s ease;border-radius:2px}
+.sb-prog-pct{font-size:10px;color:var(--green);margin-top:4px;font-family:'IBM Plex Mono',monospace}
+
+.sb-nav{flex:1;padding:8px 0}
+.sb-module{margin-bottom:2px}
+.sb-module-btn{width:100%;background:none;border:none;padding:10px 16px;cursor:pointer;display:flex;align-items:center;gap:10px;transition:background .15s;text-align:left}
+.sb-module-btn:hover,.sb-module-btn.active{background:var(--surface2)}
+.sb-mod-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;transition:box-shadow .3s}
+.sb-mod-dot.active{box-shadow:0 0 8px currentColor}
+.sb-mod-info{flex:1;min-width:0}
+.sb-mod-num{font-size:9px;letter-spacing:2px;color:var(--dim);text-transform:uppercase}
+.sb-mod-name{font-size:12px;font-weight:600;color:var(--bright);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+.sb-lessons{padding:0 0 0 34px;display:none}
+.sb-lessons.open{display:block}
+.sb-lesson-btn{width:100%;background:none;border:none;padding:6px 16px 6px 0;cursor:pointer;font-size:11px;color:var(--dim);text-align:left;display:flex;align-items:center;gap:6px;transition:color .15s;font-family:'Barlow',sans-serif}
+.sb-lesson-btn:hover,.sb-lesson-btn.done{color:var(--bright)}
+.sb-lesson-btn.active{color:var(--green)}
+.lesson-check{width:14px;height:14px;border-radius:50%;border:1px solid var(--border2);display:flex;align-items:center;justify-content:center;font-size:8px;flex-shrink:0;transition:all .2s}
+.lesson-check.done{background:var(--green);border-color:var(--green);color:#000}
+.lesson-check.active{border-color:var(--green);color:var(--green)}
+
+/* ── MAIN CONTENT ── */
+#main{margin-left:240px;min-height:100vh}
+
+/* ── TOP BAR ── */
+.topbar{position:sticky;top:0;background:rgba(7,9,15,.92);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);padding:0 32px;height:52px;display:flex;align-items:center;justify-content:space-between;z-index:50}
+.topbar-path{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--dim)}
+.topbar-path span{color:var(--green)}
+.topbar-actions{display:flex;gap:8px}
+.topbar-btn{background:var(--surface2);border:1px solid var(--border);color:var(--dim);font-size:10px;padding:5px 12px;border-radius:4px;cursor:pointer;font-family:'IBM Plex Mono',monospace;letter-spacing:1px;transition:all .15s}
+.topbar-btn:hover{border-color:var(--green);color:var(--green)}
+.topbar-btn.primary{background:rgba(57,255,20,.1);border-color:rgba(57,255,20,.3);color:var(--green)}
+
+/* ── PAGE SECTIONS ── */
+.page{display:none;padding:0}
+.page.active{display:block}
+
+/* ── HOME ── */
+.home-hero{padding:60px 40px 40px;position:relative;overflow:hidden}
+.home-hero::before{content:'';position:absolute;top:-100px;right:-100px;width:500px;height:500px;background:radial-gradient(circle,rgba(57,255,20,.06),transparent 70%);pointer-events:none}
+.home-eyebrow{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--green);letter-spacing:4px;text-transform:uppercase;margin-bottom:16px;display:flex;align-items:center;gap:8px}
+.pulse-dot{width:6px;height:6px;background:var(--green);border-radius:50%;animation:pdot 2s ease-in-out infinite}
+@keyframes pdot{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(.7)}}
+.home-title{font-family:'Bebas Neue',sans-serif;font-size:clamp(3rem,7vw,6rem);line-height:.95;letter-spacing:2px;color:var(--bright);margin-bottom:8px}
+.home-title .g{color:var(--green)}
+.home-title .c{color:var(--cyan)}
+.home-sub{font-size:14px;color:var(--dim);line-height:1.8;max-width:580px;margin-bottom:36px;font-weight:300}
+.home-sub strong{color:var(--text);font-weight:600}
+
+.story-card{background:var(--surface);border:1px solid var(--border);border-left:3px solid var(--cyan);border-radius:6px;padding:24px 28px;margin:0 40px 32px;max-width:820px;position:relative}
+.story-card::before{content:'📡 MISSION BRIEF';position:absolute;top:-11px;left:20px;background:var(--surface);padding:0 10px;font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--cyan);letter-spacing:3px}
+.story-card p{font-size:13px;line-height:1.9;color:var(--dim)}
+.story-card p strong{color:var(--bright)}
+.story-card p .hl{color:var(--cyan)}
+.story-card p .cmd{font-family:'IBM Plex Mono',monospace;background:rgba(0,229,255,.06);color:var(--cyan);padding:1px 6px;border-radius:3px;font-size:12px}
+
+.modules-overview{padding:0 40px 60px;display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px;max-width:1000px}
+.mod-card{background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:20px;cursor:pointer;transition:all .2s;position:relative;overflow:hidden}
+.mod-card::after{content:'';position:absolute;bottom:0;left:0;right:0;height:2px;background:var(--accent);transform:scaleX(0);transform-origin:left;transition:transform .3s}
+.mod-card:hover{border-color:var(--accent);background:var(--surface2)}
+.mod-card:hover::after{transform:scaleX(1)}
+.mod-card-header{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+.mod-card-icon{width:36px;height:36px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+.mod-card-meta{}
+.mod-card-tag{font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:2px;text-transform:uppercase;margin-bottom:2px}
+.mod-card-name{font-size:14px;font-weight:700;color:var(--bright)}
+.mod-card-desc{font-size:11px;color:var(--dim);line-height:1.7;margin-bottom:14px}
+.mod-card-tags{display:flex;flex-wrap:wrap;gap:5px}
+.tag{font-size:9px;padding:3px 8px;border-radius:3px;background:rgba(255,255,255,.04);border:1px solid var(--border);color:var(--dim);font-family:'IBM Plex Mono',monospace;letter-spacing:.5px}
+.mod-card-start{position:absolute;top:16px;right:16px;font-size:9px;letter-spacing:1px;padding:3px 8px;border-radius:3px;border:1px solid;font-family:'IBM Plex Mono',monospace}
+
+/* ── MODULE PAGES ── */
+.module-page{max-width:900px;padding:40px}
+
+.mod-header{margin-bottom:40px;padding-bottom:30px;border-bottom:1px solid var(--border);position:relative}
+.mod-num-big{font-family:'Bebas Neue',sans-serif;font-size:120px;line-height:1;color:var(--border);position:absolute;right:0;top:-20px;z-index:0;user-select:none}
+.mod-tag-line{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:4px;text-transform:uppercase;margin-bottom:12px}
+.mod-title-big{font-family:'Bebas Neue',sans-serif;font-size:clamp(2.4rem,5vw,3.8rem);letter-spacing:2px;line-height:1;color:var(--bright);margin-bottom:12px;position:relative;z-index:1}
+.mod-desc-big{font-size:13px;color:var(--dim);line-height:1.8;max-width:600px;position:relative;z-index:1}
+.mod-pills{display:flex;flex-wrap:wrap;gap:6px;margin-top:14px;position:relative;z-index:1}
+.mod-pill{font-family:'IBM Plex Mono',monospace;font-size:9px;padding:4px 10px;border-radius:3px;border:1px solid;letter-spacing:1px}
+
+/* ── LESSON ── */
+.lesson{margin-bottom:40px;background:var(--surface);border:1px solid var(--border);border-radius:8px;overflow:hidden}
+.lesson-header{padding:16px 24px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none}
+.lesson-title-row{display:flex;align-items:center;gap:12px}
+.lesson-num{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:2px;color:var(--dim)}
+.lesson-title{font-size:15px;font-weight:700;color:var(--bright)}
+.lesson-toggle{font-size:11px;color:var(--dim);transition:transform .2s}
+.lesson-toggle.open{transform:rotate(90deg)}
+.lesson-body{display:none;padding:24px}
+.lesson-body.open{display:block}
+
+/* ── STORY BOX ── */
+.story-box{background:rgba(0,229,255,.04);border:1px solid rgba(0,229,255,.15);border-radius:6px;padding:16px 20px;margin-bottom:20px;font-size:12px;line-height:1.9;color:#7d99b8;position:relative}
+.story-box::before{content:'🎬 STORY';position:absolute;top:-10px;left:16px;background:var(--surface);padding:0 8px;font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--cyan);letter-spacing:2px}
+.story-box strong{color:var(--cyan)}
+
+/* ── CONCEPT ── */
+.concept-title{font-family:'Bebas Neue',sans-serif;font-size:1.5rem;letter-spacing:2px;color:var(--bright);margin:20px 0 10px}
+.concept-body{font-size:13px;color:var(--dim);line-height:1.85;margin-bottom:16px}
+.concept-body strong{color:var(--text)}
+.concept-body code{font-family:'IBM Plex Mono',monospace;background:rgba(255,255,255,.06);padding:1px 6px;border-radius:3px;font-size:11px;color:var(--green)}
+
+/* ── TABLE ── */
+.concept-table{width:100%;border-collapse:collapse;font-family:'IBM Plex Mono',monospace;font-size:11px;margin:16px 0}
+.concept-table th{background:var(--surface2);padding:8px 12px;text-align:left;color:var(--dim);font-weight:600;letter-spacing:1px;font-size:10px;text-transform:uppercase;border:1px solid var(--border)}
+.concept-table td{padding:8px 12px;border:1px solid var(--border);color:var(--text);vertical-align:top;line-height:1.6}
+.concept-table tr:nth-child(even) td{background:rgba(255,255,255,.02)}
+.concept-table .cmd-col{color:var(--green)}
+.concept-table .why-col{color:var(--dim);font-family:'Barlow',sans-serif;font-size:11px}
+
+/* ── TERMINAL ── */
+.terminal{background:#030507;border:1px solid var(--border);border-radius:6px;overflow:hidden;margin:16px 0;font-family:'IBM Plex Mono',monospace}
+.term-bar{background:var(--surface2);padding:8px 14px;display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--border)}
+.tdot{width:10px;height:10px;border-radius:50%}
+.term-label{font-size:10px;color:var(--dim);margin-left:auto;letter-spacing:1px}
+.term-body{padding:16px 20px}
+.tl{font-size:12px;line-height:1.9;display:block}
+.tp{color:var(--green)}
+.tcmd{color:var(--bright)}
+.tout{color:#3a4a5c}
+.tcomment{color:#1e2d42;font-style:italic}
+.tsuccess{color:var(--cyan)}
+.twarn{color:var(--yellow)}
+.terr{color:var(--red)}
+.thighlight{background:rgba(57,255,20,.08);display:inline-block;padding:0 4px;border-radius:2px}
+.tcursor{display:inline-block;width:7px;height:13px;background:var(--green);animation:blink 1s step-end infinite;vertical-align:middle;margin-left:1px}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
+
+/* Word-by-word breakdown */
+.cmd-breakdown{background:var(--surface2);border:1px solid var(--border2);border-radius:6px;padding:16px 20px;margin:12px 0}
+.cmd-breakdown-title{font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:3px;color:var(--dim);text-transform:uppercase;margin-bottom:12px}
+.cmd-display{font-family:'IBM Plex Mono',monospace;font-size:14px;color:var(--bright);margin-bottom:14px;background:rgba(0,0,0,.3);padding:8px 12px;border-radius:4px;border-left:3px solid var(--green)}
+.cmd-parts{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px}
+.cmd-part{display:flex;flex-direction:column;gap:3px}
+.cmd-part-word{font-family:'IBM Plex Mono',monospace;font-size:12px;padding:4px 10px;border-radius:4px;text-align:center}
+.cmd-part-word.base{background:rgba(57,255,20,.12);color:var(--green);border:1px solid rgba(57,255,20,.25)}
+.cmd-part-word.flag{background:rgba(0,229,255,.1);color:var(--cyan);border:1px solid rgba(0,229,255,.2)}
+.cmd-part-word.arg{background:rgba(191,90,242,.1);color:var(--purple);border:1px solid rgba(191,90,242,.2)}
+.cmd-part-word.pipe{background:rgba(255,107,0,.1);color:var(--orange);border:1px solid rgba(255,107,0,.2)}
+.cmd-part-label{font-size:9px;color:var(--dim);text-align:center;letter-spacing:.5px}
+.cmd-full-explain{font-size:12px;color:var(--dim);line-height:1.7;padding-top:10px;border-top:1px solid var(--border)}
+.cmd-full-explain strong{color:var(--text)}
+
+/* ── EXERCISE ── */
+.exercise{background:rgba(57,255,20,.03);border:1px solid rgba(57,255,20,.12);border-radius:6px;padding:20px;margin:16px 0}
+.exercise-header{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+.exercise-badge{background:var(--green);color:#000;font-family:'IBM Plex Mono',monospace;font-size:9px;font-weight:700;padding:3px 8px;border-radius:3px;letter-spacing:2px}
+.exercise-title{font-size:14px;font-weight:700;color:var(--bright)}
+.exercise-task{font-size:12px;color:var(--dim);line-height:1.7;margin-bottom:14px}
+.exercise-task strong{color:var(--green)}
+.challenge-list{list-style:none;display:flex;flex-direction:column;gap:8px}
+.challenge-item{display:flex;align-items:flex-start;gap:10px;font-size:12px;color:var(--dim);padding:8px 12px;background:rgba(0,0,0,.2);border-radius:4px;border:1px solid var(--border)}
+.challenge-num{font-family:'IBM Plex Mono',monospace;color:var(--green);font-size:11px;flex-shrink:0;font-weight:700}
+.challenge-hint{font-size:11px;color:var(--dim);margin-top:4px;font-style:italic}
+.hint-toggle{background:none;border:1px solid var(--border);color:var(--dim);font-size:10px;padding:3px 8px;border-radius:3px;cursor:pointer;font-family:'IBM Plex Mono',monospace;letter-spacing:1px;transition:all .15s}
+.hint-toggle:hover{border-color:var(--yellow);color:var(--yellow)}
+.hint-text{display:none;font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--yellow);margin-top:6px;padding:6px 10px;background:rgba(255,230,0,.05);border-radius:3px;border-left:2px solid var(--yellow)}
+
+/* ── CALLOUT ── */
+.callout{border-radius:6px;padding:14px 18px;margin:14px 0;font-size:12px;line-height:1.8;position:relative;padding-left:36px}
+.callout::before{position:absolute;left:12px;top:14px;font-size:14px}
+.callout.info{background:rgba(10,132,255,.07);border:1px solid rgba(10,132,255,.2);color:#7ab8f5}.callout.info::before{content:'ℹ️'}
+.callout.warning{background:rgba(255,230,0,.06);border:1px solid rgba(255,230,0,.2);color:#c9b44a}.callout.warning::before{content:'⚠️'}
+.callout.danger{background:rgba(255,51,85,.06);border:1px solid rgba(255,51,85,.2);color:#d97575}.callout.danger::before{content:'🚨'}
+.callout.tip{background:rgba(57,255,20,.05);border:1px solid rgba(57,255,20,.15);color:#7abf7a}.callout.tip::before{content:'💡'}
+.callout strong{color:inherit;opacity:.9;font-weight:700}
+
+/* ── PERMISSION DIAGRAM ── */
+.perm-diagram{font-family:'IBM Plex Mono',monospace;font-size:13px;background:#030507;border:1px solid var(--border);border-radius:6px;padding:24px;margin:14px 0;text-align:center}
+.perm-row{display:flex;align-items:center;justify-content:center;gap:0;margin-bottom:20px}
+.perm-cell{width:32px;height:32px;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700}
+.perm-cell.d{color:var(--cyan)}
+.perm-cell.r{color:var(--green)}
+.perm-cell.w{color:var(--yellow)}
+.perm-cell.x{color:var(--orange)}
+.perm-cell.dash{color:var(--border2)}
+.perm-cell.sep{width:8px;color:var(--border)}
+.perm-groups{display:flex;gap:16px;justify-content:center;flex-wrap:wrap;margin-top:8px}
+.perm-group{text-align:center}
+.perm-group-label{font-size:9px;color:var(--dim);letter-spacing:2px;margin-bottom:4px}
+.perm-group-cells{display:flex;gap:0;justify-content:center}
+
+/* ── NETWORK DIAGRAM ── */
+.net-diagram{background:#030507;border:1px solid var(--border);border-radius:6px;padding:20px;margin:14px 0;overflow-x:auto}
+.net-node{display:inline-flex;flex-direction:column;align-items:center;gap:4px}
+.net-icon{width:50px;height:50px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:22px;border:1px solid var(--border)}
+.net-label{font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--dim);text-align:center;letter-spacing:1px}
+.net-ip{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--green)}
+.net-arrow{display:flex;align-items:center;padding:0 12px;color:var(--border2);font-size:14px;align-self:center;margin-bottom:14px}
+.net-row{display:flex;align-items:flex-end;gap:0;flex-wrap:wrap}
+
+/* ── SECTION DIVIDER ── */
+.sec-div{height:1px;background:linear-gradient(90deg,transparent,var(--border),transparent);margin:28px 0}
+
+/* ── QUIZ ── */
+.quiz-box{background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:20px;margin:16px 0}
+.quiz-q{font-size:13px;color:var(--bright);font-weight:600;margin-bottom:14px}
+.quiz-options{display:flex;flex-direction:column;gap:6px}
+.quiz-opt{background:none;border:1px solid var(--border);color:var(--dim);padding:10px 14px;border-radius:4px;cursor:pointer;text-align:left;font-size:12px;font-family:'Barlow',sans-serif;transition:all .15s}
+.quiz-opt:hover{border-color:var(--cyan);color:var(--bright)}
+.quiz-opt.correct{border-color:var(--green);background:rgba(57,255,20,.08);color:var(--green)}
+.quiz-opt.wrong{border-color:var(--red);background:rgba(255,51,85,.06);color:var(--red)}
+.quiz-feedback{font-size:12px;margin-top:10px;padding:8px 12px;border-radius:4px;display:none}
+.quiz-feedback.show{display:block}
+.quiz-feedback.good{background:rgba(57,255,20,.07);color:var(--green);border:1px solid rgba(57,255,20,.2)}
+.quiz-feedback.bad{background:rgba(255,51,85,.07);color:var(--red);border:1px solid rgba(255,51,85,.2)}
+
+/* ── PROGRESS CHECK ── */
+.done-btn{background:rgba(57,255,20,.1);border:1px solid rgba(57,255,20,.3);color:var(--green);font-family:'IBM Plex Mono',monospace;font-size:10px;padding:7px 16px;border-radius:4px;cursor:pointer;letter-spacing:2px;transition:all .2s;margin-top:14px}
+.done-btn:hover{background:rgba(57,255,20,.2);box-shadow:0 0 16px rgba(57,255,20,.15)}
+.done-btn.marked{background:var(--green);color:#000}
+
+/* ── SCROLLBAR ── */
+::-webkit-scrollbar{width:6px}
+::-webkit-scrollbar-track{background:var(--bg)}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+::-webkit-scrollbar-thumb:hover{background:var(--border2)}
+
+@keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:none}}
+.lesson{animation:fadeUp .4s ease both}
+.lesson:nth-child(2){animation-delay:.05s}
+.lesson:nth-child(3){animation-delay:.1s}
+.lesson:nth-child(4){animation-delay:.15s}
+.lesson:nth-child(5){animation-delay:.2s}
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════ SIDEBAR ═══════════════════════════════ -->
+<nav id="sidebar">
+  <div class="sb-logo">
+    <div class="sb-logo-icon">🐧</div>
+    <div>
+      <div class="sb-logo-text">LINUX<br>MASTERY</div>
+    </div>
+  </div>
+
+  <div class="sb-progress">
+    <div class="sb-prog-label">Overall Progress</div>
+    <div class="sb-prog-bar"><div class="sb-prog-fill" id="globalFill" style="width:0%"></div></div>
+    <div class="sb-prog-pct" id="globalPct">0 / 25 lessons</div>
+  </div>
+
+  <div class="sb-nav">
+    <!-- M1 -->
+    <div class="sb-module">
+      <button class="sb-module-btn active" onclick="toggleModule(1)" id="smod1">
+        <div class="sb-mod-dot" style="background:var(--m1);color:var(--m1)" id="sdot1"></div>
+        <div class="sb-mod-info">
+          <div class="sb-mod-num">MODULE 01</div>
+          <div class="sb-mod-name">Linux Foundations</div>
+        </div>
+      </button>
+      <div class="sb-lessons open" id="sl1">
+        <button class="sb-lesson-btn active" onclick="goLesson('m1','l1')"><div class="lesson-check active" id="ck-m1-l1"></div>Filesystem & Navigation</button>
+        <button class="sb-lesson-btn" onclick="goLesson('m1','l2')"><div class="lesson-check" id="ck-m1-l2"></div>File Operations</button>
+        <button class="sb-lesson-btn" onclick="goLesson('m1','l3')"><div class="lesson-check" id="ck-m1-l3"></div>Permissions & Ownership</button>
+        <button class="sb-lesson-btn" onclick="goLesson('m1','l4')"><div class="lesson-check" id="ck-m1-l4"></div>Pipes, Redirect & Text</button>
+        <button class="sb-lesson-btn" onclick="goLesson('m1','l5')"><div class="lesson-check" id="ck-m1-l5"></div>Bash Scripting Intro</button>
+      </div>
+    </div>
+    <!-- M2 -->
+    <div class="sb-module">
+      <button class="sb-module-btn" onclick="toggleModule(2)" id="smod2">
+        <div class="sb-mod-dot" style="background:var(--m2);color:var(--m2)" id="sdot2"></div>
+        <div class="sb-mod-info">
+          <div class="sb-mod-num">MODULE 02</div>
+          <div class="sb-mod-name">Users & Processes</div>
+        </div>
+      </button>
+      <div class="sb-lessons" id="sl2">
+        <button class="sb-lesson-btn" onclick="goLesson('m2','l1')"><div class="lesson-check" id="ck-m2-l1"></div>User Management</button>
+        <button class="sb-lesson-btn" onclick="goLesson('m2','l2')"><div class="lesson-check" id="ck-m2-l2"></div>Groups & sudo</button>
+        <button class="sb-lesson-btn" onclick="goLesson('m2','l3')"><div class="lesson-check" id="ck-m2-l3"></div>Process Management</button>
+        <button class="sb-lesson-btn" onclick="goLesson('m2','l4')"><div class="lesson-check" id="ck-m2-l4"></div>Scheduling & Cron</button>
+        <button class="sb-lesson-btn" onclick="goLesson('m2','l5')"><div class="lesson-check" id="ck-m2-l5"></div>Signals & Jobs</button>
+      </div>
+    </div>
+    <!-- M3 -->
+    <div class="sb-module">
+      <button class="sb-module-btn" onclick="toggleModule(3)" id="smod3">
+        <div class="sb-mod-dot" style="background:var(--m3);color:var(--m3)" id="sdot3"></div>
+        <div class="sb-mod-info">
+          <div class="sb-mod-num">MODULE 03</div>
+          <div class="sb-mod-name">Packages & Storage</div>
+        </div>
+      </button>
+      <div class="sb-lessons" id="sl3">
+        <button class="sb-lesson-btn" onclick="goLesson('m3','l1')"><div class="lesson-check" id="ck-m3-l1"></div>Package Management</button>
+        <button class="sb-lesson-btn" onclick="goLesson('m3','l2')"><div class="lesson-check" id="ck-m3-l2"></div>Disk & Partitions</button>
+        <button class="sb-lesson-btn" onclick="goLesson('m3','l3')"><div class="lesson-check" id="ck-m3-l3"></div>LVM & Filesystems</button>
+        <button class="sb-lesson-btn" onclick="goLesson('m3','l4')"><div class="lesson-check" id="ck-m3-l4"></div>Mounting & fstab</button>
+        <button class="sb-lesson-btn" onclick="goLesson('m3','l5')"><div class="lesson-check" id="ck-m3-l5"></div>NFS & Disk Health</button>
+      </div>
+    </div>
+    <!-- M4 -->
+    <div class="sb-module">
+      <button class="sb-module-btn" onclick="toggleModule(4)" id="smod4">
+        <div class="sb-mod-dot" style="background:var(--m4);color:var(--m4)" id="sdot4"></div>
+        <div class="sb-mod-info">
+          <div class="sb-mod-num">MODULE 04</div>
+          <div class="sb-mod-name">Networking</div>
+        </div>
+      </button>
+      <div class="sb-lessons" id="sl4">
+        <button class="sb-lesson-btn" onclick="goLesson('m4','l1')"><div class="lesson-check" id="ck-m4-l1"></div>OSI & TCP/IP</button>
+        <button class="sb-lesson-btn" onclick="goLesson('m4','l2')"><div class="lesson-check" id="ck-m4-l2"></div>IP, Subnets & Routing</button>
+        <button class="sb-lesson-btn" onclick="goLesson('m4','l3')"><div class="lesson-check" id="ck-m4-l3"></div>DNS Deep Dive</button>
+        <button class="sb-lesson-btn" onclick="goLesson('m4','l4')"><div class="lesson-check" id="ck-m4-l4"></div>Network Tools</button>
+        <button class="sb-lesson-btn" onclick="goLesson('m4','l5')"><div class="lesson-check" id="ck-m4-l5"></div>SSH & Remote Access</button>
+      </div>
+    </div>
+    <!-- M5 -->
+    <div class="sb-module">
+      <button class="sb-module-btn" onclick="toggleModule(5)" id="smod5">
+        <div class="sb-mod-dot" style="background:var(--m5);color:var(--m5)" id="sdot5"></div>
+        <div class="sb-mod-info">
+          <div class="sb-mod-num">MODULE 05</div>
+          <div class="sb-mod-name">Security & Firewall</div>
+        </div>
+      </button>
+      <div class="sb-lessons" id="sl5">
+        <button class="sb-lesson-btn" onclick="goLesson('m5','l1')"><div class="lesson-check" id="ck-m5-l1"></div>SSH Hardening</button>
+        <button class="sb-lesson-btn" onclick="goLesson('m5','l2')"><div class="lesson-check" id="ck-m5-l2"></div>iptables & ufw</button>
+        <button class="sb-lesson-btn" onclick="goLesson('m5','l3')"><div class="lesson-check" id="ck-m5-l3"></div>fail2ban & IDS</button>
+        <button class="sb-lesson-btn" onclick="goLesson('m5','l4')"><div class="lesson-check" id="ck-m5-l4"></div>SELinux & AppArmor</button>
+        <button class="sb-lesson-btn" onclick="goLesson('m5','l5')"><div class="lesson-check" id="ck-m5-l5"></div>Audit Logs & Hardening</button>
+      </div>
+    </div>
+  </div>
+</nav>
+
+<!-- ═══════════════════════════════ MAIN ═══════════════════════════════ -->
+<div id="main">
+  <div class="topbar">
+    <div class="topbar-path" id="topPath"><span>nebula@prod-01</span>:~$ <span id="topCmd">_</span></div>
+    <div class="topbar-actions">
+      <button class="topbar-btn" onclick="showPage('home')">⌂ Home</button>
+      <button class="topbar-btn primary" id="nextBtn" onclick="nextLesson()">Next Lesson →</button>
+    </div>
+  </div>
+
+  <!-- ════════ HOME PAGE ════════ -->
+  <div id="page-home" class="page active">
+    <div class="home-hero">
+      <div class="home-eyebrow"><span class="pulse-dot"></span> NebulaCloud Inc. · Linux Engineering Track</div>
+      <div class="home-title">LINUX<br><span class="g">MASTER</span><span class="c">Y</span></div>
+      <p class="home-sub">A story-driven, hands-on journey through <strong>Linux, System Administration, Networking & Security</strong> — every command explained word by word, every concept tied to a real production scenario.</p>
+    </div>
+    <div class="story-card">
+      <p>You just joined <strong>NebulaCloud Inc.</strong> as a Junior Systems Engineer. On Day 1, your manager <strong>Priya</strong> hands you SSH credentials to a bare Ubuntu 22.04 server and says: <span class="hl">"Make it production-ready by end of the month — users, security, networking, everything."</span><br><br>Every module is a new week at NebulaCloud. Every lesson is a real task. Every command is explained so you understand <em>why</em> it exists, not just <em>what</em> it does. By Module 5 you will have hardened a real Linux server from scratch.</p>
+    </div>
+    <div class="modules-overview">
+      <div class="mod-card" style="--accent:var(--m1)" onclick="goLesson('m1','l1')">
+        <div class="mod-card-header">
+          <div class="mod-card-icon" style="background:rgba(57,255,20,.1);border-color:rgba(57,255,20,.2)">🐧</div>
+          <div class="mod-card-meta">
+            <div class="mod-card-tag" style="color:var(--m1)">MODULE 01</div>
+            <div class="mod-card-name">Linux Foundations</div>
+          </div>
+        </div>
+        <div class="mod-card-desc">Survive the terminal. Learn the filesystem, navigate like a pro, manage files, understand permissions, and write your first bash script.</div>
+        <div class="mod-card-tags"><span class="tag">filesystem</span><span class="tag">permissions</span><span class="tag">pipes</span><span class="tag">bash</span></div>
+        <div class="mod-card-start" style="color:var(--m1);border-color:rgba(57,255,20,.3)">▶ START</div>
+      </div>
+      <div class="mod-card" style="--accent:var(--m2)" onclick="goLesson('m2','l1')">
+        <div class="mod-card-header">
+          <div class="mod-card-icon" style="background:rgba(0,229,255,.1);border-color:rgba(0,229,255,.2)">👥</div>
+          <div class="mod-card-meta">
+            <div class="mod-card-tag" style="color:var(--m2)">MODULE 02</div>
+            <div class="mod-card-name">Users & Processes</div>
+          </div>
+        </div>
+        <div class="mod-card-desc">Add the dev team, control sudo access, monitor running processes, schedule automation with cron, and manage signals.</div>
+        <div class="mod-card-tags"><span class="tag">useradd</span><span class="tag">sudo</span><span class="tag">ps/top</span><span class="tag">cron</span></div>
+        <div class="mod-card-start" style="color:var(--m2);border-color:rgba(0,229,255,.3)">▶ START</div>
+      </div>
+      <div class="mod-card" style="--accent:var(--m3)" onclick="goLesson('m3','l1')">
+        <div class="mod-card-header">
+          <div class="mod-card-icon" style="background:rgba(255,230,0,.1);border-color:rgba(255,230,0,.2)">📦</div>
+          <div class="mod-card-meta">
+            <div class="mod-card-tag" style="color:var(--m3)">MODULE 03</div>
+            <div class="mod-card-name">Packages & Storage</div>
+          </div>
+        </div>
+        <div class="mod-card-desc">Install software, manage disks and partitions, set up LVM volumes, mount filesystems, and share storage via NFS.</div>
+        <div class="mod-card-tags"><span class="tag">apt/yum</span><span class="tag">fdisk</span><span class="tag">LVM</span><span class="tag">fstab</span></div>
+        <div class="mod-card-start" style="color:var(--m3);border-color:rgba(255,230,0,.3)">▶ START</div>
+      </div>
+      <div class="mod-card" style="--accent:var(--m4)" onclick="goLesson('m4','l1')">
+        <div class="mod-card-header">
+          <div class="mod-card-icon" style="background:rgba(191,90,242,.1);border-color:rgba(191,90,242,.2)">🌐</div>
+          <div class="mod-card-meta">
+            <div class="mod-card-tag" style="color:var(--m4)">MODULE 04</div>
+            <div class="mod-card-name">Networking Deep Dive</div>
+          </div>
+        </div>
+        <div class="mod-card-desc">TCP/IP from first principles. Configure interfaces, subnets, routing, DNS, and diagnose connectivity from the command line.</div>
+        <div class="mod-card-tags"><span class="tag">TCP/IP</span><span class="tag">ip addr</span><span class="tag">DNS</span><span class="tag">ss/netstat</span></div>
+        <div class="mod-card-start" style="color:var(--m4);border-color:rgba(191,90,242,.3)">▶ START</div>
+      </div>
+      <div class="mod-card" style="--accent:var(--m5)" onclick="goLesson('m5','l1')">
+        <div class="mod-card-header">
+          <div class="mod-card-icon" style="background:rgba(255,107,0,.1);border-color:rgba(255,107,0,.2)">🔒</div>
+          <div class="mod-card-meta">
+            <div class="mod-card-tag" style="color:var(--m5)">MODULE 05</div>
+            <div class="mod-card-name">Security & Firewall</div>
+          </div>
+        </div>
+        <div class="mod-card-desc">Harden SSH, configure iptables and ufw, block brute-force with fail2ban, enforce MAC policies, and pass a security audit.</div>
+        <div class="mod-card-tags"><span class="tag">SSH keys</span><span class="tag">iptables</span><span class="tag">fail2ban</span><span class="tag">SELinux</span></div>
+        <div class="mod-card-start" style="color:var(--m5);border-color:rgba(255,107,0,.3)">▶ START</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════ MODULE 1 ════════════════════════ -->
+  <div id="page-m1" class="page">
+    <div class="module-page">
+      <div class="mod-header">
+        <div class="mod-num-big">01</div>
+        <div class="mod-tag-line" style="color:var(--m1)">◆ WEEK 1–2 AT NEBULA CLOUD</div>
+        <div class="mod-title-big">LINUX<br>FOUNDATIONS</div>
+        <div class="mod-desc-big">Your terminal is your command center. Before you can run a production server, you need to own the basics — filesystem layout, file operations, permissions, text processing, and your first automation script.</div>
+        <div class="mod-pills">
+          <span class="mod-pill" style="color:var(--m1);border-color:rgba(57,255,20,.25)">Filesystem</span>
+          <span class="mod-pill" style="color:var(--cyan);border-color:rgba(0,229,255,.25)">Permissions</span>
+          <span class="mod-pill" style="color:var(--yellow);border-color:rgba(255,230,0,.25)">Pipes & Redirect</span>
+          <span class="mod-pill" style="color:var(--purple);border-color:rgba(191,90,242,.25)">Bash Scripting</span>
+        </div>
+      </div>
+
+      <!-- LESSON 1.1 -->
+      <div class="lesson" id="lesson-m1-l1">
+        <div class="lesson-header" onclick="toggleLesson('m1','l1')">
+          <div class="lesson-title-row">
+            <span class="lesson-num" style="color:var(--m1)">1.1</span>
+            <span class="lesson-title">Filesystem & Navigation — Your Map of Linux</span>
+          </div>
+          <span class="lesson-toggle open" id="tog-m1-l1">▶</span>
+        </div>
+        <div class="lesson-body open" id="body-m1-l1">
+          <div class="story-box">Priya messages you: <strong>"SSH in and explore the server. Tell me what's in /etc and /var/log. Oh, and set up our project folder structure."</strong> Simple enough. But wait — where even IS /etc?</div>
+
+          <div class="concept-title">THE LINUX FILESYSTEM TREE</div>
+          <div class="concept-body">In Linux, <strong>everything is a file</strong> — regular files, directories, devices, network sockets, even running processes. They all live in one single tree that starts at <code>/</code> (called "root"). Think of it like a house: <code>/</code> is the front door, and every room inside is a directory.</div>
+
+          <div class="terminal">
+            <div class="term-bar"><div class="tdot" style="background:#ff5f57"></div><div class="tdot" style="background:#febc2e"></div><div class="tdot" style="background:#28c840"></div><span class="term-label">nebula@prod-01</span></div>
+            <div class="term-body">
+<span class="tl"><span class="tcomment"># The entire Linux filesystem — annotated</span></span>
+<span class="tl"><span class="tout">/                   ← ROOT: The top. Everything is inside here</span></span>
+<span class="tl"><span class="tout">├── /bin            ← BINaries: ls, cp, mv, cat — core commands</span></span>
+<span class="tl"><span class="tout">├── /sbin           ← System BINaries: fsck, reboot — root-only tools</span></span>
+<span class="tl"><span class="tout">├── /etc            ← ETCetera: ALL config files (nginx, ssh, cron...)</span></span>
+<span class="tl"><span class="tout">├── /home           ← HOME: /home/nebula, /home/priya — user dirs</span></span>
+<span class="tl"><span class="tout">├── /root           ← ROOT user's home (≠ / !) — admin's private space</span></span>
+<span class="tl"><span class="tout">├── /var            ← VARiable: logs(/var/log), databases, mail, spool</span></span>
+<span class="tl"><span class="tout">├── /tmp            ← TEMPorary: wiped on reboot — never store things here</span></span>
+<span class="tl"><span class="tout">├── /usr            ← Unix System Resources: installed apps & libraries</span></span>
+<span class="tl"><span class="tout">│   ├── /usr/bin    ← User commands: python3, git, vim...</span></span>
+<span class="tl"><span class="tout">│   └── /usr/local  ← Locally compiled software goes here</span></span>
+<span class="tl"><span class="tout">├── /proc           ← PROCess info: virtual FS — shows kernel/process data</span></span>
+<span class="tl"><span class="tout">├── /dev            ← DEVices: /dev/sda (disk), /dev/null (trash), /dev/tty</span></span>
+<span class="tl"><span class="tout">├── /sys            ← SYStem: kernel hardware info, CPU, memory stats</span></span>
+<span class="tl"><span class="tout">├── /boot           ← BOOT: kernel image (vmlinuz) — DON'T touch randomly</span></span>
+<span class="tl"><span class="tout">└── /mnt            ← MouNT: where you attach USB drives, NFS shares</span></span>
+            </div>
+          </div>
+
+          <div class="concept-title">NAVIGATION COMMANDS — WORD BY WORD</div>
+
+          <div class="cmd-breakdown">
+            <div class="cmd-breakdown-title">Command Breakdown</div>
+            <div class="cmd-display">ls -la /etc</div>
+            <div class="cmd-parts">
+              <div class="cmd-part"><div class="cmd-part-word base">ls</div><div class="cmd-part-label">BASE CMD</div></div>
+              <div class="cmd-part"><div class="cmd-part-word flag">-l</div><div class="cmd-part-label">LONG FORMAT</div></div>
+              <div class="cmd-part"><div class="cmd-part-word flag">-a</div><div class="cmd-part-label">ALL FILES</div></div>
+              <div class="cmd-part"><div class="cmd-part-word arg">/etc</div><div class="cmd-part-label">WHERE TO LOOK</div></div>
+            </div>
+            <div class="cmd-full-explain"><strong>ls</strong> = LiSt — shows files in a directory. <strong>-l</strong> = long format (shows permissions, owner, size, date). <strong>-a</strong> = all (shows hidden files starting with a dot like <code>.bashrc</code>). <strong>/etc</strong> = the directory we want to look inside. Combined: "Show me every file in /etc with full details including hidden ones."</div>
+          </div>
+
+          <div class="cmd-breakdown">
+            <div class="cmd-breakdown-title">Command Breakdown</div>
+            <div class="cmd-display">cd /var/log && pwd</div>
+            <div class="cmd-parts">
+              <div class="cmd-part"><div class="cmd-part-word base">cd</div><div class="cmd-part-label">CHANGE DIR</div></div>
+              <div class="cmd-part"><div class="cmd-part-word arg">/var/log</div><div class="cmd-part-label">DESTINATION</div></div>
+              <div class="cmd-part"><div class="cmd-part-word pipe">&&</div><div class="cmd-part-label">THEN (if success)</div></div>
+              <div class="cmd-part"><div class="cmd-part-word base">pwd</div><div class="cmd-part-label">PRINT WHERE</div></div>
+            </div>
+            <div class="cmd-full-explain"><strong>cd</strong> = Change Directory. <strong>/var/log</strong> = go to this exact absolute path. <strong>&&</strong> = "AND THEN — but only if the previous command succeeded" (if cd fails, pwd won't run). <strong>pwd</strong> = Print Working Directory — shows where you are now.</div>
+          </div>
+
+          <table class="concept-table">
+            <tr><th>Command</th><th>What It Does</th><th>Mental Model</th></tr>
+            <tr><td class="cmd-col">pwd</td><td class="why-col">Print Working Directory — "where am I?"</td><td class="why-col">GPS — shows your coordinates</td></tr>
+            <tr><td class="cmd-col">cd ~</td><td class="why-col">Go to your home directory (~  = shortcut for /home/nebula)</td><td class="why-col">Press Home button on phone</td></tr>
+            <tr><td class="cmd-col">cd ..</td><td class="why-col">Go up one level (..) = parent directory</td><td class="why-col">Browser's Back button</td></tr>
+            <tr><td class="cmd-col">cd -</td><td class="why-col">Go back to previous directory</td><td class="why-col">Alt+Tab for directories</td></tr>
+            <tr><td class="cmd-col">ls -lh</td><td class="why-col">List with human-readable sizes (4K, 2M, 1G)</td><td class="why-col">File Explorer with size column</td></tr>
+            <tr><td class="cmd-col">ls -lt</td><td class="why-col">List sorted by modification Time (newest first)</td><td class="why-col">Sort by "Date Modified"</td></tr>
+            <tr><td class="cmd-col">tree -L 2</td><td class="why-col">Show directory structure as a tree, 2 levels deep</td><td class="why-col">Folder diagram / mind map</td></tr>
+          </table>
+
+          <div class="callout info">The <strong>Tab key</strong> is your best friend. Type <code>cd /et</code> then press Tab — bash auto-completes to <code>/etc</code>. Press Tab twice to see all options. This saves thousands of keystrokes per day.</div>
+
+          <div class="exercise">
+            <div class="exercise-header">
+              <span class="exercise-badge">HANDS-ON</span>
+              <span class="exercise-title">Task: Set Up NebulaCloud's Project Structure</span>
+            </div>
+            <div class="exercise-task">Priya's exact words: <strong>"Create this folder structure in your home directory. We'll use it all month."</strong></div>
+            <div class="terminal">
+              <div class="term-bar"><div class="tdot" style="background:#ff5f57"></div><div class="tdot" style="background:#febc2e"></div><div class="tdot" style="background:#28c840"></div><span class="term-label">Type these exactly</span></div>
+              <div class="term-body">
+<span class="tl"><span class="tcomment"># Step 1: Go home</span></span>
+<span class="tl"><span class="tp">nebula@prod-01:~$</span> <span class="tcmd">cd ~</span></span>
+<span class="tl"></span>
+<span class="tl"><span class="tcomment"># Step 2: Create ALL subdirs at once with brace expansion</span></span>
+<span class="tl"><span class="tcomment"># {a,b,c} = bash expands to: nebula/{apps,configs,logs,scripts,backups,users}</span></span>
+<span class="tl"><span class="tp">nebula@prod-01:~$</span> <span class="tcmd">mkdir -p nebula/{apps,configs,logs,scripts,backups,users}</span></span>
+<span class="tl"><span class="tcomment"># mkdir = MaKe DIRectory</span></span>
+<span class="tl"><span class="tcomment"># -p   = --parents: create parent dirs if missing (no error if exists)</span></span>
+<span class="tl"></span>
+<span class="tl"><span class="tcomment"># Step 3: Verify</span></span>
+<span class="tl"><span class="tp">nebula@prod-01:~$</span> <span class="tcmd">find nebula -type d</span></span>
+<span class="tl"><span class="tsuccess">nebula</span></span>
+<span class="tl"><span class="tsuccess">nebula/apps</span></span>
+<span class="tl"><span class="tsuccess">nebula/configs</span></span>
+<span class="tl"><span class="tsuccess">nebula/logs</span></span>
+<span class="tl"><span class="tsuccess">nebula/scripts</span></span>
+<span class="tl"><span class="tsuccess">nebula/backups</span></span>
+<span class="tl"><span class="tsuccess">nebula/users</span></span>
+<span class="tl"><span class="tp">nebula@prod-01:~$</span> <span class="tcursor"></span></span>
+              </div>
+            </div>
+            <ul class="challenge-list">
+              <li class="challenge-item"><span class="challenge-num">①</span><div><div>How many files are in /usr/bin? Use ls and wc -l</div><button class="hint-toggle" onclick="toggleHint(this)">hint</button><div class="hint-text">ls /usr/bin | wc -l</div></div></li>
+              <li class="challenge-item"><span class="challenge-num">②</span><div><div>Show the 5 most recently modified files in /etc</div><button class="hint-toggle" onclick="toggleHint(this)">hint</button><div class="hint-text">ls -lt /etc | head -6</div></div></li>
+              <li class="challenge-item"><span class="challenge-num">③</span><div><div>Find what /dev/null is (the trash device)</div><button class="hint-toggle" onclick="toggleHint(this)">hint</button><div class="hint-text">file /dev/null — then try: echo "test" > /dev/null and see nothing happens</div></div></li>
+            </ul>
+          </div>
+
+          <button class="done-btn" onclick="markDone('m1','l1',this)">✓ Mark Lesson Complete</button>
+        </div>
+      </div>
+
+      <!-- LESSON 1.2 -->
+      <div class="lesson" id="lesson-m1-l2">
+        <div class="lesson-header" onclick="toggleLesson('m1','l2')">
+          <div class="lesson-title-row"><span class="lesson-num" style="color:var(--m1)">1.2</span><span class="lesson-title">File Operations — Create, Copy, Move, Delete</span></div>
+          <span class="lesson-toggle" id="tog-m1-l2">▶</span>
+        </div>
+        <div class="lesson-body" id="body-m1-l2">
+          <div class="story-box">Priya: <strong>"Put the server config template in nebula/configs/ and create a README. Also copy the sample nginx config from /usr/share/doc somewhere — I need it for reference."</strong></div>
+          <div class="concept-title">THE CORE FILE COMMANDS</div>
+          <table class="concept-table">
+            <tr><th>Command</th><th>Full Name</th><th>What It Does</th><th>Critical Flags</th></tr>
+            <tr><td class="cmd-col">touch file.txt</td><td>touch</td><td class="why-col">Create empty file OR update its timestamp</td><td>—</td></tr>
+            <tr><td class="cmd-col">cp src dest</td><td>CoPy</td><td class="why-col">Copy file from src to dest</td><td>-r (recursive dir), -p (preserve permissions), -v (verbose)</td></tr>
+            <tr><td class="cmd-col">mv src dest</td><td>MoVe</td><td class="why-col">Move or RENAME a file (same command!)</td><td>-i (confirm overwrite), -v (verbose)</td></tr>
+            <tr><td class="cmd-col">rm file.txt</td><td>ReMove</td><td class="why-col">DELETE a file — permanent, no Recycle Bin</td><td>-r (directory), -f (force), -i (confirm each)</td></tr>
+            <tr><td class="cmd-col">cat file.txt</td><td>conCATenate</td><td class="why-col">Read and display file content</td><td>-n (line numbers), -A (show special chars)</td></tr>
+            <tr><td class="cmd-col">less file.txt</td><td>less</td><td class="why-col">Read large files with scroll (q to quit)</td><td>/ to search, n for next match</td></tr>
+            <tr><td class="cmd-col">head -n 20 f</td><td>head</td><td class="why-col">Show first N lines (default 10)</td><td>-n = number of lines</td></tr>
+            <tr><td class="cmd-col">tail -f file</td><td>tail</td><td class="why-col">Show last lines; -f = follow (live updates!)</td><td>-f for live log watching</td></tr>
+          </table>
+          <div class="callout danger"><strong>rm -rf is permanent.</strong> There is no "undo". There is no trash. One wrong rm -rf can destroy your entire server. Always double-check the path. Many engineers use <code>rm -i</code> in daily work to confirm each deletion.</div>
+          <div class="terminal">
+            <div class="term-bar"><div class="tdot" style="background:#ff5f57"></div><div class="tdot" style="background:#febc2e"></div><div class="tdot" style="background:#28c840"></div><span class="term-label">File Operations Practice</span></div>
+            <div class="term-body">
+<span class="tl"><span class="tcomment"># Create a server config file using heredoc (multi-line input)</span></span>
+<span class="tl"><span class="tp">nebula@prod-01:~$</span> <span class="tcmd">cat > nebula/configs/server.conf << 'EOF'</span></span>
+<span class="tl"><span class="tcmd">> server_name=prod-server-01</span></span>
+<span class="tl"><span class="tcmd">> environment=production</span></span>
+<span class="tl"><span class="tcmd">> admin=priya@nebula.cloud</span></span>
+<span class="tl"><span class="tcmd">> max_connections=1000</span></span>
+<span class="tl"><span class="tcmd">> EOF</span></span>
+<span class="tl"><span class="tcomment"># cat > file    = write to file (overwrite)</span></span>
+<span class="tl"><span class="tcomment"># << 'EOF'      = heredoc: read lines until you type EOF alone</span></span>
+<span class="tl"></span>
+<span class="tl"><span class="tcomment"># Verify what we wrote</span></span>
+<span class="tl"><span class="tp">nebula@prod-01:~$</span> <span class="tcmd">cat nebula/configs/server.conf</span></span>
+<span class="tl"><span class="tsuccess">server_name=prod-server-01</span></span>
+<span class="tl"><span class="tsuccess">environment=production</span></span>
+<span class="tl"></span>
+<span class="tl"><span class="tcomment"># Copy the file (make a backup)</span></span>
+<span class="tl"><span class="tp">nebula@prod-01:~$</span> <span class="tcmd">cp nebula/configs/server.conf nebula/backups/server.conf.bak</span></span>
+<span class="tl"></span>
+<span class="tl"><span class="tcomment"># Rename a file (mv = move AND rename)</span></span>
+<span class="tl"><span class="tp">nebula@prod-01:~$</span> <span class="tcmd">mv nebula/backups/server.conf.bak nebula/backups/server.conf.2026-05-18.bak</span></span>
+<span class="tl"></span>
+<span class="tl"><span class="tcomment"># SAFELY search for a file (using find)</span></span>
+<span class="tl"><span class="tp">nebula@prod-01:~$</span> <span class="tcmd">find /etc -name "*.conf" -type f 2>/dev/null | head -10</span></span>
+<span class="tl"><span class="tcomment"># find /etc        = search inside /etc</span></span>
+<span class="tl"><span class="tcomment"># -name "*.conf"   = match files ending in .conf (* = wildcard)</span></span>
+<span class="tl"><span class="tcomment"># -type f          = only regular files (not directories)</span></span>
+<span class="tl"><span class="tcomment"># 2>/dev/null      = discard error messages (permission denied etc)</span></span>
+<span class="tl"><span class="tcomment"># | head -10       = show only first 10 results</span></span>
+            </div>
+          </div>
+          <div class="exercise">
+            <div class="exercise-header"><span class="exercise-badge">HANDS-ON</span><span class="exercise-title">File Operations Challenge</span></div>
+            <ul class="challenge-list">
+              <li class="challenge-item"><span class="challenge-num">①</span><div><div>Create a README.md in nebula/ with the server name and today's date</div><button class="hint-toggle" onclick="toggleHint(this)">hint</button><div class="hint-text">echo "# NebulaCloud Server — $(date)" > nebula/README.md</div></div></li>
+              <li class="challenge-item"><span class="challenge-num">②</span><div><div>Watch /var/log/syslog update in real time (press Ctrl+C to stop)</div><button class="hint-toggle" onclick="toggleHint(this)">hint</button><div class="hint-text">tail -f /var/log/syslog</div></div></li>
+              <li class="challenge-item"><span class="challenge-num">③</span><div><div>Find ALL .log files larger than 1MB in /var/log</div><button class="hint-toggle" onclick="toggleHint(this)">hint</button><div class="hint-text">find /var/log -name "*.log" -size +1M -type f</div></div></li>
+            </ul>
+          </div>
+          <button class="done-btn" onclick="markDone('m1','l2',this)">✓ Mark Lesson Complete</button>
+        </div>
+      </div>
+
+      <!-- LESSON 1.3 -->
+      <div class="lesson" id="lesson-m1-l3">
+        <div class="lesson-header" onclick="toggleLesson('m1','l3')">
+          <div class="lesson-title-row"><span class="lesson-num" style="color:var(--m1)">1.3</span><span class="lesson-title">Permissions & Ownership — chmod, chown, ACL</span></div>
+          <span class="lesson-toggle" id="tog-m1-l3">▶</span>
+        </div>
+        <div class="lesson-body" id="body-m1-l3">
+          <div class="story-box">Priya: <strong>"The deploy script is there but no one can run it. And the log file is world-writable — that's a security risk! Fix the permissions."</strong></div>
+          <div class="concept-title">HOW LINUX PERMISSIONS WORK</div>
+          <div class="concept-body">Every file has <strong>three permission groups</strong> and <strong>three permission types</strong>. When you run <code>ls -l</code>, you see them as a 10-character string like <code>-rwxr-xr--</code>.</div>
+          <div class="perm-diagram">
+            <div style="font-size:11px;color:var(--dim);letter-spacing:2px;margin-bottom:12px">HOW TO READ: -rwxr-xr--</div>
+            <div class="perm-row">
+              <div class="perm-cell d">-</div>
+              <div class="perm-cell r">r</div><div class="perm-cell w">w</div><div class="perm-cell x">x</div>
+              <div class="perm-cell sep">|</div>
+              <div class="perm-cell r">r</div><div class="perm-cell dash">-</div><div class="perm-cell x">x</div>
+              <div class="perm-cell sep">|</div>
+              <div class="perm-cell r">r</div><div class="perm-cell dash">-</div><div class="perm-cell dash">-</div>
+            </div>
+            <div style="display:flex;gap:0;justify-content:center;font-size:10px;color:var(--dim);letter-spacing:1px;margin-top:6px">
+              <div style="width:32px;text-align:center">type</div>
+              <div style="width:96px;text-align:center;color:var(--m1)">── OWNER ──</div>
+              <div style="width:8px"></div>
+              <div style="width:96px;text-align:center;color:var(--cyan)">── GROUP ──</div>
+              <div style="width:8px"></div>
+              <div style="width:96px;text-align:center;color:var(--purple)">── OTHERS ──</div>
+            </div>
+            <div style="margin-top:20px;display:flex;gap:24px;justify-content:center;flex-wrap:wrap;font-size:11px">
+              <div style="text-align:center"><div style="color:var(--dim);margin-bottom:6px">FILE TYPE</div><div><span style="color:var(--cyan)">-</span> = regular file<br><span style="color:var(--cyan)">d</span> = directory<br><span style="color:var(--cyan)">l</span> = symbolic link</div></div>
+              <div style="text-align:center"><div style="color:var(--dim);margin-bottom:6px">PERMISSIONS</div><div><span style="color:var(--m1)">r</span> = read (4)<br><span style="color:var(--yellow)">w</span> = write (2)<br><span style="color:var(--orange)">x</span> = execute (1)</div></div>
+              <div style="text-align:center"><div style="color:var(--dim);margin-bottom:6px">NUMERIC</div><div>rwx = 4+2+1 = <span style="color:var(--m1)">7</span><br>r-x = 4+0+1 = <span style="color:var(--cyan)">5</span><br>r-- = 4+0+0 = <span style="color:var(--purple)">4</span></div></div>
+            </div>
+          </div>
+
+          <div class="cmd-breakdown">
+            <div class="cmd-breakdown-title">Command Breakdown</div>
+            <div class="cmd-display">chmod 755 nebula/scripts/deploy.sh</div>
+            <div class="cmd-parts">
+              <div class="cmd-part"><div class="cmd-part-word base">chmod</div><div class="cmd-part-label">CHange MODe</div></div>
+              <div class="cmd-part"><div class="cmd-part-word flag">7</div><div class="cmd-part-label">OWNER: rwx</div></div>
+              <div class="cmd-part"><div class="cmd-part-word flag">5</div><div class="cmd-part-label">GROUP: r-x</div></div>
+              <div class="cmd-part"><div class="cmd-part-word flag">5</div><div class="cmd-part-label">OTHERS: r-x</div></div>
+              <div class="cmd-part"><div class="cmd-part-word arg">deploy.sh</div><div class="cmd-part-label">THE FILE</div></div>
+            </div>
+            <div class="cmd-full-explain"><strong>chmod</strong> = CHange file MODe (permissions). <strong>755</strong> = three digits, one for each group. Owner gets 7 (rwx=read+write+execute), Group gets 5 (r-x=read+execute), Others get 5. This means: <em>"I can do anything, everyone else can read and run but not modify."</em> Perfect for scripts.</div>
+          </div>
+
+          <div class="cmd-breakdown">
+            <div class="cmd-breakdown-title">Command Breakdown</div>
+            <div class="cmd-display">chown nebula:developers nebula/scripts/deploy.sh</div>
+            <div class="cmd-parts">
+              <div class="cmd-part"><div class="cmd-part-word base">chown</div><div class="cmd-part-label">CHange OWNer</div></div>
+              <div class="cmd-part"><div class="cmd-part-word arg">nebula</div><div class="cmd-part-label">NEW OWNER</div></div>
+              <div class="cmd-part"><div class="cmd-part-word flag">:</div><div class="cmd-part-label">SEPARATOR</div></div>
+              <div class="cmd-part"><div class="cmd-part-word arg">developers</div><div class="cmd-part-label">NEW GROUP</div></div>
+              <div class="cmd-part"><div class="cmd-part-word arg">deploy.sh</div><div class="cmd-part-label">THE FILE</div></div>
+            </div>
+            <div class="cmd-full-explain"><strong>chown</strong> = CHange OWNership. The format is <code>owner:group</code>. You can change just the owner: <code>chown nebula file</code>, just the group: <code>chown :developers file</code>, or both at once. <strong>Requires sudo</strong> to change to a different owner.</div>
+          </div>
+
+          <table class="concept-table">
+            <tr><th>Scenario</th><th>Correct chmod</th><th>Why</th></tr>
+            <tr><td>Script that only you should run</td><td class="cmd-col">chmod 700</td><td class="why-col">Only owner: rwx, group & others: nothing</td></tr>
+            <tr><td>Web server public file</td><td class="cmd-col">chmod 644</td><td class="why-col">Owner: rw-, group & others: r-- (read-only)</td></tr>
+            <tr><td>Executable script everyone needs</td><td class="cmd-col">chmod 755</td><td class="why-col">Owner: rwx, others: r-x</td></tr>
+            <tr><td>Private SSH key (!)</td><td class="cmd-col">chmod 600</td><td class="why-col">Owner: rw-, nobody else anything — SSH will refuse to use the key otherwise!</td></tr>
+            <tr><td>Directory everyone can enter</td><td class="cmd-col">chmod 755</td><td class="why-col">x on directory = permission to enter it</td></tr>
+          </table>
+
+          <div class="callout tip"><strong>Symbolic chmod:</strong> You don't need to memorize numbers! <code>chmod +x file</code> adds execute for all. <code>chmod u+x file</code> adds execute for user only. <code>chmod go-w file</code> removes write from group and others. Both styles work.</div>
+
+          <div class="exercise">
+            <div class="exercise-header"><span class="exercise-badge">HANDS-ON</span><span class="exercise-title">Fix the Security Issues Priya Found</span></div>
+            <div class="terminal">
+              <div class="term-bar"><div class="tdot" style="background:#ff5f57"></div><div class="tdot" style="background:#febc2e"></div><div class="tdot" style="background:#28c840"></div><span class="term-label">Practice</span></div>
+              <div class="term-body">
+<span class="tl"><span class="tcomment"># Create a deploy script</span></span>
+<span class="tl"><span class="tp">nebula@prod-01:~$</span> <span class="tcmd">echo '#!/bin/bash' > nebula/scripts/deploy.sh</span></span>
+<span class="tl"><span class="tp">nebula@prod-01:~$</span> <span class="tcmd">echo 'echo "Deploying NebulaCloud app..."' >> nebula/scripts/deploy.sh</span></span>
+<span class="tl"></span>
+<span class="tl"><span class="tcomment"># Check current permissions</span></span>
+<span class="tl"><span class="tp">nebula@prod-01:~$</span> <span class="tcmd">ls -l nebula/scripts/deploy.sh</span></span>
+<span class="tl"><span class="tout">-rw-r--r-- 1 nebula nebula 42 May 18 deploy.sh</span></span>
+<span class="tl"><span class="tcomment"># Problem: not executable! Trying to run it:</span></span>
+<span class="tl"><span class="tp">nebula@prod-01:~$</span> <span class="tcmd">./nebula/scripts/deploy.sh</span></span>
+<span class="tl"><span class="terr">bash: ./nebula/scripts/deploy.sh: Permission denied</span></span>
+<span class="tl"></span>
+<span class="tl"><span class="tcomment"># Fix it — make executable, only owner can write</span></span>
+<span class="tl"><span class="tp">nebula@prod-01:~$</span> <span class="tcmd">chmod 755 nebula/scripts/deploy.sh</span></span>
+<span class="tl"><span class="tp">nebula@prod-01:~$</span> <span class="tcmd">./nebula/scripts/deploy.sh</span></span>
+<span class="tl"><span class="tsuccess">Deploying NebulaCloud app...</span></span>
+              </div>
+            </div>
+            <ul class="challenge-list">
+              <li class="challenge-item"><span class="challenge-num">①</span><div><div>Create a file "secret.key", set it so ONLY you can read/write it (no one else)</div><button class="hint-toggle" onclick="toggleHint(this)">hint</button><div class="hint-text">touch secret.key && chmod 600 secret.key</div></div></li>
+              <li class="challenge-item"><span class="challenge-num">②</span><div><div>What does chmod 777 mean? Why is it dangerous?</div><button class="hint-toggle" onclick="toggleHint(this)">hint</button><div class="hint-text">777 = rwxrwxrwx — everyone can read, write, AND execute. Any user can delete or modify the file — huge security risk on shared systems.</div></div></li>
+            </ul>
+          </div>
+          <button class="done-btn" onclick="markDone('m1','l3',this)">✓ Mark Lesson Complete</button>
+        </div>
+      </div>
+
+      <!-- LESSON 1.4 -->
+      <div class="lesson" id="lesson-m1-l4">
+        <div class="lesson-header" onclick="toggleLesson('m1','l4')">
+          <div class="lesson-title-row"><span class="lesson-num" style="color:var(--m1)">1.4</span><span class="lesson-title">Pipes, Redirection & Text Processing — Linux Superpower</span></div>
+          <span class="lesson-toggle" id="tog-m1-l4">▶</span>
+        </div>
+        <div class="lesson-body" id="body-m1-l4">
+          <div class="story-box">Priya: <strong>"Find every failed login attempt from today's auth log and count them. Also, extract all IP addresses. I need a report in 5 minutes."</strong></div>
+          <div class="concept-title">THE UNIX PHILOSOPHY: SMALL TOOLS CHAINED TOGETHER</div>
+          <div class="concept-body">Linux tools each do <strong>one thing well</strong>. The pipe <code>|</code> connects them so output of one becomes input of the next. This is more powerful than any GUI tool — you can build custom analytics pipelines on the fly.</div>
+
+          <table class="concept-table">
+            <tr><th>Symbol</th><th>Name</th><th>What It Does</th><th>Example</th></tr>
+            <tr><td class="cmd-col">|</td><td>Pipe</td><td class="why-col">Send output of left cmd as input to right cmd</td><td class="cmd-col">ls | grep ".conf"</td></tr>
+            <tr><td class="cmd-col">&gt;</td><td>Redirect Out</td><td class="why-col">Write output to file (OVERWRITES)</td><td class="cmd-col">echo "hi" &gt; file.txt</td></tr>
+            <tr><td class="cmd-col">&gt;&gt;</td><td>Append</td><td class="why-col">Add output to END of file (safe)</td><td class="cmd-col">echo "hi" &gt;&gt; file.txt</td></tr>
+            <tr><td class="cmd-col">&lt;</td><td>Redirect In</td><td class="why-col">Use file content as input to command</td><td class="cmd-col">sort &lt; names.txt</td></tr>
+            <tr><td class="cmd-col">2&gt;</td><td>Redirect stderr</td><td class="why-col">Send error messages to a file</td><td class="cmd-col">cmd 2&gt; errors.log</td></tr>
+            <tr><td class="cmd-col">2&gt;&1</td><td>Merge streams</td><td class="why-col">Combine stdout and stderr</td><td class="cmd-col">cmd &gt; all.log 2&gt;&1</td></tr>
+          </table>
+
+          <div class="cmd-breakdown">
+            <div class="cmd-breakdown-title">Real Command — Analyzing Auth Logs</div>
+            <div class="cmd-display">grep "Failed password" /var/log/auth.log | awk '{print $11}' | sort | uniq -c | sort -rn | head -10</div>
+            <div class="cmd-parts">
+              <div class="cmd-part"><div class="cmd-part-word base">grep</div><div class="cmd-part-label">SEARCH</div></div>
+              <div class="cmd-part"><div class="cmd-part-word arg">"Failed"</div><div class="cmd-part-label">PATTERN</div></div>
+              <div class="cmd-part"><div class="cmd-part-word pipe">|</div><div class="cmd-part-label">PIPE</div></div>
+              <div class="cmd-part"><div class="cmd-part-word base">awk</div><div class="cmd-part-label">EXTRACT COL</div></div>
+              <div class="cmd-part"><div class="cmd-part-word pipe">|</div><div class="cmd-part-label">PIPE</div></div>
+              <div class="cmd-part"><div class="cmd-part-word base">sort</div><div class="cmd-part-label">SORT LINES</div></div>
+              <div class="cmd-part"><div class="cmd-part-word pipe">|</div><div class="cmd-part-label">PIPE</div></div>
+              <div class="cmd-part"><div class="cmd-part-word base">uniq -c</div><div class="cmd-part-label">COUNT DUPS</div></div>
+              <div class="cmd-part"><div class="cmd-part-word pipe">|</div><div class="cmd-part-label">PIPE</div></div>
+              <div class="cmd-part"><div class="cmd-part-word base">sort -rn</div><div class="cmd-part-label">SORT BY #</div></div>
+              <div class="cmd-part"><div class="cmd-part-word base">head -10</div><div class="cmd-part-label">TOP 10</div></div>
+            </div>
+            <div class="cmd-full-explain">Step by step: <strong>grep</strong> searches auth.log for lines containing "Failed password". <strong>awk '{print $11}'</strong> prints the 11th word of each line (that's where the IP address is). <strong>sort</strong> sorts IPs alphabetically (needed for uniq to work). <strong>uniq -c</strong> counts consecutive duplicates (how many times each IP appears). <strong>sort -rn</strong> sorts by number (-n) in reverse (-r) so biggest count is first. <strong>head -10</strong> shows only the top 10 attackers. This is a real security command used in production.</div>
+          </div>
+
+          <table class="concept-table">
+            <tr><th>Text Tool</th><th>Purpose</th><th>Key Usage</th></tr>
+            <tr><td class="cmd-col">grep "pattern" file</td><td class="why-col">Search for pattern in file</td><td class="cmd-col">grep -i "error" log.txt (-i = case insensitive)</td></tr>
+            <tr><td class="cmd-col">grep -v "pattern"</td><td class="why-col">Show lines NOT matching (invert)</td><td class="cmd-col">grep -v "DEBUG" app.log</td></tr>
+            <tr><td class="cmd-col">grep -r "pattern" dir/</td><td class="why-col">Search recursively in directory</td><td class="cmd-col">grep -r "password" /etc/</td></tr>
+            <tr><td class="cmd-col">awk '{print $2}'</td><td class="why-col">Print specific column ($1=first word)</td><td class="cmd-col">awk -F: '{print $1}' /etc/passwd</td></tr>
+            <tr><td class="cmd-col">sed 's/old/new/g'</td><td class="why-col">Find & replace text in stream</td><td class="cmd-col">sed 's/http/https/g' config.txt</td></tr>
+            <tr><td class="cmd-col">sort -u</td><td class="why-col">Sort + remove duplicates</td><td class="cmd-col">sort -u names.txt</td></tr>
+            <tr><td class="cmd-col">wc -l</td><td class="why-col">Count lines (-w=words, -c=chars)</td><td class="cmd-col">cat file | wc -l</td></tr>
+            <tr><td class="cmd-col">cut -d: -f1</td><td class="why-col">Cut field from delimited line</td><td class="cmd-col">cut -d: -f1 /etc/passwd (get usernames)</td></tr>
+          </table>
+
+          <div class="exercise">
+            <div class="exercise-header"><span class="exercise-badge">HANDS-ON</span><span class="exercise-title">Generate Priya's Security Report</span></div>
+            <div class="terminal">
+              <div class="term-bar"><div class="tdot" style="background:#ff5f57"></div><div class="tdot" style="background:#febc2e"></div><div class="tdot" style="background:#28c840"></div><span class="term-label">Text Processing Lab</span></div>
+              <div class="term-body">
+<span class="tl"><span class="tcomment"># Extract all usernames from /etc/passwd</span></span>
+<span class="tl"><span class="tp">nebula@prod-01:~$</span> <span class="tcmd">cut -d: -f1 /etc/passwd</span></span>
+<span class="tl"><span class="tcomment"># -d: = delimiter is colon (:)</span></span>
+<span class="tl"><span class="tcomment"># -f1 = field 1 (first column)</span></span>
+<span class="tl"></span>
+<span class="tl"><span class="tcomment"># Count how many users have /bin/bash as their shell</span></span>
+<span class="tl"><span class="tp">nebula@prod-01:~$</span> <span class="tcmd">grep "/bin/bash" /etc/passwd | wc -l</span></span>
+<span class="tl"></span>
+<span class="tl"><span class="tcomment"># Find all .conf files and save to a report file</span></span>
+<span class="tl"><span class="tp">nebula@prod-01:~$</span> <span class="tcmd">find /etc -name "*.conf" 2>/dev/null | sort > nebula/logs/config_report.txt</span></span>
+<span class="tl"><span class="tp">nebula@prod-01:~$</span> <span class="tcmd">echo "Total configs: $(wc -l < nebula/logs/config_report.txt)"</span></span>
+<span class="tl"><span class="tcomment"># $() = command substitution — runs command, inserts output as text</span></span>
+              </div>
+            </div>
+            <ul class="challenge-list">
+              <li class="challenge-item"><span class="challenge-num">①</span><div><div>List all running processes, find only ones containing "bash", count them</div><button class="hint-toggle" onclick="toggleHint(this)">hint</button><div class="hint-text">ps aux | grep bash | grep -v grep | wc -l</div></div></li>
+              <li class="challenge-item"><span class="challenge-num">②</span><div><div>Replace "production" with "staging" in server.conf WITHOUT editing the file (just display)</div><button class="hint-toggle" onclick="toggleHint(this)">hint</button><div class="hint-text">sed 's/production/staging/g' nebula/configs/server.conf</div></div></li>
+            </ul>
+          </div>
+          <button class="done-btn" onclick="markDone('m1','l4',this)">✓ Mark Lesson Complete</button>
+        </div>
+      </div>
+
+      <!-- LESSON 1.5 -->
+      <div class="lesson" id="lesson-m1-l5">
+        <div class="lesson-header" onclick="toggleLesson('m1','l5')">
+          <div class="lesson-title-row"><span class="lesson-num" style="color:var(--m1)">1.5</span><span class="lesson-title">Bash Scripting Intro — Automate Your First Real Task</span></div>
+          <span class="lesson-toggle" id="tog-m1-l5">▶</span>
+        </div>
+        <div class="lesson-body" id="body-m1-l5">
+          <div class="story-box">Priya: <strong>"Every morning I manually check disk usage, memory, and active users. Can you write a script that does this automatically and saves the report?"</strong> Your first automation task.</div>
+          <div class="concept-title">ANATOMY OF A BASH SCRIPT</div>
+          <div class="terminal">
+            <div class="term-bar"><div class="tdot" style="background:#ff5f57"></div><div class="tdot" style="background:#febc2e"></div><div class="tdot" style="background:#28c840"></div><span class="term-label">nebula/scripts/health-check.sh — Word by Word</span></div>
+            <div class="term-body">
+<span class="tl"><span class="tcomment">#!/bin/bash</span></span>
+<span class="tl"><span class="tcomment"># ↑ SHEBANG: Tells the OS which interpreter to use (bash, not sh/python/etc)</span></span>
+<span class="tl"><span class="tcomment"># Without this, the OS doesn't know it's a bash script!</span></span>
+<span class="tl"></span>
+<span class="tl"><span class="tcomment"># ── VARIABLES ──────────────────────────────────────────────</span></span>
+<span class="tl"><span class="tcmd">REPORT_DIR="$HOME/nebula/logs"</span></span>
+<span class="tl"><span class="tcomment"># Variable assignment: no spaces around = !</span></span>
+<span class="tl"><span class="tcomment"># $HOME = built-in variable that = your home directory</span></span>
+<span class="tl"><span class="tcmd">DATE=$(date +%Y-%m-%d)</span></span>
+<span class="tl"><span class="tcomment"># $() = command substitution: runs 'date +%Y-%m-%d', stores result</span></span>
+<span class="tl"><span class="tcomment"># date +%Y-%m-%d = format: 2026-05-18</span></span>
+<span class="tl"><span class="tcmd">REPORT="$REPORT_DIR/health-$DATE.txt"</span></span>
+<span class="tl"><span class="tcomment"># Build filename using variables — quotes needed for spaces safety</span></span>
+<span class="tl"></span>
+<span class="tl"><span class="tcomment"># ── FUNCTIONS ──────────────────────────────────────────────</span></span>
+<span class="tl"><span class="tcmd">print_section() {</span></span>
+<span class="tl"><span class="tcmd">  echo "═══ $1 ═══"         </span><span class="tcomment"># $1 = first argument passed to function</span></span>
+<span class="tl"><span class="tcmd">}</span></span>
+<span class="tl"></span>
+<span class="tl"><span class="tcomment"># ── MAIN LOGIC ──────────────────────────────────────────────</span></span>
+<span class="tl"><span class="tcmd">mkdir -p "$REPORT_DIR"       </span><span class="tcomment"># Ensure report dir exists</span></span>
+<span class="tl"></span>
+<span class="tl"><span class="tcmd">{                            </span><span class="tcomment"># { ... } groups commands, redirect all output at once</span></span>
+<span class="tl"><span class="tcmd">  echo "NEBULA HEALTH REPORT - $DATE"</span></span>
+<span class="tl"><span class="tcmd">  echo "Generated: $(date)"</span></span>
+<span class="tl"><span class="tcmd">  echo ""</span></span>
+<span class="tl"></span>
+<span class="tl"><span class="tcmd">  print_section "DISK USAGE"</span></span>
+<span class="tl"><span class="tcmd">  df -h                      </span><span class="tcomment"># Disk Free: -h = human readable (GB/MB)</span></span>
+<span class="tl"></span>
+<span class="tl"><span class="tcmd">  print_section "MEMORY"</span></span>
+<span class="tl"><span class="tcmd">  free -h                    </span><span class="tcomment"># Memory free: -h = human readable</span></span>
+<span class="tl"></span>
+<span class="tl"><span class="tcmd">  print_section "LOGGED IN USERS"</span></span>
+<span class="tl"><span class="tcmd">  who                        </span><span class="tcomment"># Show who is logged in right now</span></span>
+<span class="tl"></span>
+<span class="tl"><span class="tcmd">  print_section "TOP 5 CPU PROCESSES"</span></span>
+<span class="tl"><span class="tcmd">  ps aux --sort=-%cpu | head -6</span></span>
+<span class="tl"><span class="tcomment">  # ps aux = all processes with details</span></span>
+<span class="tl"><span class="tcomment">  # --sort=-%cpu = sort by CPU% descending (- = descending)</span></span>
+<span class="tl"><span class="tcomment">  # head -6 = show 6 lines (1 header + 5 processes)</span></span>
+<span class="tl"></span>
+<span class="tl"><span class="tcmd">} > "$REPORT"                </span><span class="tcomment"># Redirect ALL output into the report file</span></span>
+<span class="tl"></span>
+<span class="tl"><span class="tcomment"># ── CONDITIONAL ──────────────────────────────────────────────</span></span>
+<span class="tl"><span class="tcmd">if [ $? -eq 0 ]; then        </span><span class="tcomment"># $? = exit code of last command (0=success)</span></span>
+<span class="tl"><span class="tcmd">  echo "✓ Report saved: $REPORT"</span></span>
+<span class="tl"><span class="tcmd">else</span></span>
+<span class="tl"><span class="tcmd">  echo "✗ ERROR: Report generation failed" >&2   </span><span class="tcomment"># >&2 = send to stderr</span></span>
+<span class="tl"><span class="tcmd">  exit 1                     </span><span class="tcomment"># exit 1 = signal failure to caller</span></span>
+<span class="tl"><span class="tcmd">fi</span></span>
+            </div>
+          </div>
+          <div class="callout tip"><strong>Script Golden Rules:</strong> (1) Always start with <code>#!/bin/bash</code>. (2) Always quote variables: <code>"$VAR"</code> not <code>$VAR</code> — spaces in values break unquoted variables. (3) Use <code>set -e</code> at the top to exit immediately on any error. (4) Test with <code>bash -n script.sh</code> (syntax check) before running.</div>
+          <div class="exercise">
+            <div class="exercise-header"><span class="exercise-badge">HANDS-ON</span><span class="exercise-title">Build & Run Priya's Health Check Script</span></div>
+            <div class="terminal">
+              <div class="term-bar"><div class="tdot" style="background:#ff5f57"></div><div class="tdot" style="background:#febc2e"></div><div class="tdot" style="background:#28c840"></div><span class="term-label">Build it step by step</span></div>
+              <div class="term-body">
+<span class="tl"><span class="tcomment"># Create the script</span></span>
+<span class="tl"><span class="tp">nebula@prod-01:~$</span> <span class="tcmd">nano nebula/scripts/health-check.sh</span></span>
+<span class="tl"><span class="tcomment"># (type the script above, Ctrl+X to save)</span></span>
+<span class="tl"></span>
+<span class="tl"><span class="tcomment"># Check syntax (no = good, errors = bad)</span></span>
+<span class="tl"><span class="tp">nebula@prod-01:~$</span> <span class="tcmd">bash -n nebula/scripts/health-check.sh</span></span>
+<span class="tl"></span>
+<span class="tl"><span class="tcomment"># Make executable</span></span>
+<span class="tl"><span class="tp">nebula@prod-01:~$</span> <span class="tcmd">chmod +x nebula/scripts/health-check.sh</span></span>
+<span class="tl"></span>
+<span class="tl"><span class="tcomment"># Run it!</span></span>
+<span class="tl"><span class="tp">nebula@prod-01:~$</span> <span class="tcmd">./nebula/scripts/health-check.sh</span></span>
+<span class="tl"><span class="tsuccess">✓ Report saved: /home/nebula/nebula/logs/health-2026-05-18.txt</span></span>
+<span class="tl"></span>
+<span class="tl"><span class="tcomment"># Read the report</span></span>
+<span class="tl"><span class="tp">nebula@prod-01:~$</span> <span class="tcmd">cat nebula/logs/health-2026-05-18.txt</span></span>
+              </div>
+            </div>
+          </div>
+          <button class="done-btn" onclick="markDone('m1','l5',this)">✓ Mark Lesson Complete</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════ MODULE 2 ════════════════════════ -->
+  <div id="page-m2" class="page">
+    <div class="module-page">
+      <div class="mod-header">
+        <div class="mod-num-big">02</div>
+        <div class="mod-tag-line" style="color:var(--m2)">◆ WEEK 3–4 AT NEBULA CLOUD</div>
+        <div class="mod-title-big">USERS &<br>PROCESSES</div>
+        <div class="mod-desc-big">Your dev team is joining NebulaCloud. Create user accounts, assign proper permissions, understand how Linux manages running programs, and set up automated tasks.</div>
+        <div class="mod-pills">
+          <span class="mod-pill" style="color:var(--m2);border-color:rgba(0,229,255,.25)">useradd/usermod</span>
+          <span class="mod-pill" style="color:var(--m1);border-color:rgba(57,255,20,.25)">sudo/su</span>
+          <span class="mod-pill" style="color:var(--yellow);border-color:rgba(255,230,0,.25)">ps/top/htop</span>
+          <span class="mod-pill" style="color:var(--purple);border-color:rgba(191,90,242,.25)">cron/at</span>
+          <span class="mod-pill" style="color:var(--orange);border-color:rgba(255,107,0,.25)">signals/jobs</span>
+        </div>
+      </div>
+
+      <div class="lesson" id="lesson-m2-l1">
+        <div class="lesson-header" onclick="toggleLesson('m2','l1')"><div class="lesson-title-row"><span class="lesson-num" style="color:var(--m2)">2.1</span><span class="lesson-title">User Management — Adding Your Dev Team</span></div><span class="lesson-toggle" id="tog-m2-l1">▶</span></div>
+        <div class="lesson-body" id="body-m2-l1">
+          <div class="story-box">Priya: <strong>"Onboard the 3 new devs: alice (backend), bob (frontend), and carol (devops). Give carol admin rights. Alice and Bob should share the 'developers' group."</strong></div>
+          <div class="concept-title">THE /etc/passwd FILE — EVERY USER IN ONE FILE</div>
+          <div class="terminal">
+            <div class="term-bar"><div class="tdot" style="background:#ff5f57"></div><div class="tdot" style="background:#febc2e"></div><div class="tdot" style="background:#28c840"></div><span class="term-label">/etc/passwd structure</span></div>
+            <div class="term-body">
+<span class="tl"><span class="tp">nebula@prod-01:~$</span> <span class="tcmd">cat /etc/passwd | head -3</span></span>
+<span class="tl"><span class="tsuccess">root:x:0:0:root:/root:/bin/bash</span></span>
+<span class="tl"><span class="tcomment"># ↑ Fields separated by colons:  </span></span>
+<span class="tl"><span class="tcomment"># username : password(x=in /etc/shadow) : UID : GID : comment : home : shell</span></span>
+<span class="tl"><span class="tsuccess">nobody:x:65534:65534:nobody:/nonexistent:/usr/sbin/nologin</span></span>
+<span class="tl"><span class="tcomment"># nologin = this user CAN'T log in interactively (service accounts)</span></span>
+            </div>
+          </div>
+          <div class="cmd-breakdown">
+            <div class="cmd-breakdown-title">Command Breakdown — Create User</div>
+            <div class="cmd-display">sudo useradd -m -s /bin/bash -c "Alice Backend Dev" alice</div>
+            <div class="cmd-parts">
+              <div class="cmd-part"><div class="cmd-part-word pipe">sudo</div><div class="cmd-part-label">RUN AS ROOT</div></div>
+              <div class="cmd-part"><div class="cmd-part-word base">useradd</div><div class="cmd-part-label">ADD USER</div></div>
+              <div class="cmd-part"><div class="cmd-part-word flag">-m</div><div class="cmd-part-label">MAKE HOME</div></div>
+              <div class="cmd-part"><div class="cmd-part-word flag">-s /bin/bash</div><div class="cmd-part-label">SET SHELL</div></div>
+              <div class="cmd-part"><div class="cmd-part-word flag">-c "Alice..."</div><div class="cmd-part-label">COMMENT/NAME</div></div>
+              <div class="cmd-part"><div class="cmd-part-word arg">alice</div><div class="cmd-part-label">USERNAME</div></div>
+            </div>
+            <div class="cmd-full-explain"><strong>sudo</strong> = run as root (superuser do). <strong>useradd</strong> = add a new user. <strong>-m</strong> = create home directory (/home/alice). <strong>-s /bin/bash</strong> = set their default shell to bash (otherwise they might get /sh or no shell). <strong>-c</strong> = comment field (full name). <strong>alice</strong> = the username. Without -m, no home dir is created — always use -m for real people.</div>
+          </div>
+          <div class="terminal">
+            <div class="term-bar"><div class="tdot" style="background:#ff5f57"></div><div class="tdot" style="background:#febc2e"></div><div class="tdot" style="background:#28c840"></div><span class="term-label">Onboarding Alice, Bob, Carol</span></div>
+            <div class="term-body">
+<span class="tl"><span class="tcomment"># Create all three users</span></span>
+<span class="tl"><span class="tp">nebula@prod-01:~$</span> <span class="tcmd">sudo useradd -m -s /bin/bash -c "Alice Backend Dev" alice</span></span>
+<span class="tl"><span class="tp">nebula@prod-01:~$</span> <span class="tcmd">sudo useradd -m -s /bin/bash -c "Bob Frontend Dev" bob</span></span>
+<span class="tl"><span class="tp">nebula@prod-01:~$</span> <span class="tcmd">sudo useradd -m -s /bin/bash -c "Carol DevOps" carol</span></span>
+<span class="tl"></span>
+<span class="tl"><span class="tcomment"># Set passwords (you'll be prompted to type a password)</span></span>
+<span class="tl"><span class="tp">nebula@prod-01:~$</span> <span class="tcmd">sudo passwd alice</span></span>
+<span class="tl"><span class="twarn">New password: ████████</span></span>
+<span class="tl"><span class="twarn">Retype new password: ████████</span></span>
+<span class="tl"><span class="tsuccess">passwd: password updated successfully</span></span>
+<span class="tl"></span>
+<span class="tl"><span class="tcomment"># Create a 'developers' group and add alice + bob</span></span>
+<span class="tl"><span class="tp">nebula@prod-01:~$</span> <span class="tcmd">sudo groupadd developers</span></span>
+<span class="tl"><span class="tp">nebula@prod-01:~$</span> <span class="tcmd">sudo usermod -aG developers alice</span></span>
+<span class="tl"><span class="tcomment"># usermod = modify existing user</span></span>
+<span class="tl"><span class="tcomment"># -aG    = Append to Group (without -a it REPLACES all groups!)</span></span>
+<span class="tl"><span class="tp">nebula@prod-01:~$</span> <span class="tcmd">sudo usermod -aG developers bob</span></span>
+<span class="tl"></span>
+<span class="tl"><span class="tcomment"># Verify group membership</span></span>
+<span class="tl"><span class="tp">nebula@prod-01:~$</span> <span class="tcmd">groups alice</span></span>
+<span class="tl"><span class="tsuccess">alice : alice developers</span></span>
+<span class="tl"></span>
+<span class="tl"><span class="tcomment"># Lock a user account (without deleting it)</span></span>
+<span class="tl"><span class="tp">nebula@prod-01:~$</span> <span class="tcmd">sudo usermod -L alice     </span><span class="tcomment"># -L = Lock</span></span>
+<span class="tl"><span class="tp">nebula@prod-01:~$</span> <span class="tcmd">sudo usermod -U alice     </span><span class="tcomment"># -U = Unlock</span></span>
+<span class="tl"></span>
+<span class="tl"><span class="tcomment"># Delete a user AND their home dir</span></span>
+<span class="tl"><span class="tp">nebula@prod-01:~$</span> <span class="tcmd">sudo userdel -r username  </span><span class="tcomment"># -r removes home directory too</span></span>
+            </div>
+          </div>
+          <div class="callout warning">Always use <strong>usermod -aG</strong> (with the -a flag). Forgetting -a means <code>usermod -G developers alice</code> will REMOVE alice from all her other groups and add only developers. This can break sudo access instantly.</div>
+          <div class="exercise">
+            <div class="exercise-header"><span class="exercise-badge">HANDS-ON</span><span class="exercise-title">User Audit</span></div>
+            <ul class="challenge-list">
+              <li class="challenge-item"><span class="challenge-num">①</span><div><div>List all users who have /bin/bash as their shell (real humans, not service accounts)</div><button class="hint-toggle" onclick="toggleHint(this)">hint</button><div class="hint-text">grep "/bin/bash" /etc/passwd | cut -d: -f1</div></div></li>
+              <li class="challenge-item"><span class="challenge-num">②</span><div><div>Show full details of alice's account</div><button class="hint-toggle" onclick="toggleHint(this)">hint</button><div class="hint-text">grep "^alice:" /etc/passwd && id alice</div></div></li>
+              <li class="challenge-item"><span class="challenge-num">③</span><div><div>List all groups on the system and find "developers"</div><button class="hint-toggle" onclick="toggleHint(this)">hint</button><div class="hint-text">cat /etc/group | grep developers</div></div></li>
+            </ul>
+          </div>
+          <button class="done-btn" onclick="markDone('m2','l1',this)">✓ Mark Lesson Complete</button>
+        </div>
+      </div>
+
+      <div class="lesson" id="lesson-m2-l2">
+        <div class="lesson-header" onclick="toggleLesson('m2','l2')"><div class="lesson-title-row"><span class="lesson-num" style="color:var(--m2)">2.2</span><span class="lesson-title">Groups & sudo — The Art of Least Privilege</span></div><span class="lesson-toggle" id="tog-m2-l2">▶</span></div>
+        <div class="lesson-body" id="body-m2-l2">
+          <div class="story-box">Priya: <strong>"Carol needs to restart nginx and manage services but she shouldn't have full root access — too risky. Set up sudo with specific permissions."</strong></div>
+          <div class="concept-title">HOW sudo WORKS</div>
+          <div class="concept-body">sudo = <strong>Super User DO</strong>. It lets specific users run specific commands as root WITHOUT knowing the root password. The rules live in <code>/etc/sudoers</code> (always edit it with <code>visudo</code> — it validates syntax before saving, preventing lockouts).</div>
+          <div class="terminal">
+            <div class="term-bar"><div class="tdot" style="background:#ff5f57"></div><div class="tdot" style="background:#febc2e"></div><div class="tdot" style="background:#28c840"></div><span class="term-label">/etc/sudoers configuration</span></div>
+            <div class="term-body">
+<span class="tl"><span class="tcomment"># NEVER edit /etc/sudoers directly! Always use:</span></span>
+<span class="tl"><span class="tp">nebula@prod-01:~$</span> <span class="tcmd">sudo visudo</span></span>
+<span class="tl"></span>
+<span class="tl"><span class="tcomment"># Inside visudo, the format is:</span></span>
+<span class="tl"><span class="tcomment"># WHO    WHERE=(AS_WHO)  WHAT</span></span>
+<span class="tl"></span>
+<span class="tl"><span class="tcomment"># Give carol FULL sudo (like root)</span></span>
+<span class="tl"><span class="tsuccess">carol   ALL=(ALL:ALL) ALL</span></span>
+<span class="tl"><span class="tcomment"># carol = the user</span></span>
+<span class="tl"><span class="tcomment"># ALL   = on all hosts</span></span>
+<span class="tl"><span class="tcomment"># (ALL:ALL) = run as any user:any group</span></span>
+<span class="tl"><span class="tcomment"># ALL   = run any command</span></span>
+<span class="tl"></span>
+<span class="tl"><span class="tcomment"># Give carol ONLY nginx restart (least privilege)</span></span>
+<span class="tl"><span class="tsuccess">carol   ALL=(root) /bin/systemctl restart nginx, /bin/systemctl reload nginx</span></span>
+<span class="tl"></span>
+<span class="tl"><span class="tcomment"># Give %developers group ability to restart services, no password needed</span></span>
+<span class="tl"><span class="tsuccess">%developers ALL=(root) NOPASSWD: /bin/systemctl</span></span>
+<span class="tl"><span class="tcomment"># % = group. NOPASSWD: = no password prompt</span></span>
+<span class="tl"></span>
+<span class="tl"><span class="tcomment"># Safer: use /etc/sudoers.d/ directory for per-user files</span></span>
+<span class="tl"><span class="tp">nebula@prod-01:~$</span> <span class="tcmd">echo "carol ALL=(root) /bin/systemctl" | sudo tee /etc/sudoers.d/carol</span></span>
+<span class="tl"><span class="tp">nebula@prod-01:~$</span> <span class="tcmd">sudo chmod 440 /etc/sudoers.d/carol</span></span>
+            </div>
+          </div>
+          <table class="concept-table">
+            <tr><th>Command</th><th>What It Does</th></tr>
+            <tr><td class="cmd-col">sudo command</td><td class="why-col">Run command as root (your password)</td></tr>
+            <tr><td class="cmd-col">sudo -u alice cmd</td><td class="why-col">Run command AS alice</td></tr>
+            <tr><td class="cmd-col">sudo -i</td><td class="why-col">Open root shell (full root environment)</td></tr>
+            <tr><td class="cmd-col">su - alice</td><td class="why-col">Switch to alice's account (needs alice's password)</td></tr>
+            <tr><td class="cmd-col">sudo !!  </td><td class="why-col">Re-run LAST command with sudo (!! = last command)</td></tr>
+            <tr><td class="cmd-col">sudo -l</td><td class="why-col">List what you're allowed to do with sudo</td></tr>
+          </table>
+          <button class="done-btn" onclick="markDone('m2','l2',this)">✓ Mark Lesson Complete</button>
+        </div>
+      </div>
+
+      <div class="lesson" id="lesson-m2-l3">
+        <div class="lesson-header" onclick="toggleLesson('m2','l3')"><div class="lesson-title-row"><span class="lesson-num" style="color:var(--m2)">2.3</span><span class="lesson-title">Process Management — What's Running on Your Server?</span></div><span class="lesson-toggle" id="tog-m2-l3">▶</span></div>
+        <div class="lesson-body" id="body-m2-l3">
+          <div class="story-box">Priya: <strong>"The server is slow. CPU is maxed out. Find what's eating resources and kill it. Also, nginx crashed — restart it in the background."</strong></div>
+          <div class="concept-title">WHAT IS A PROCESS?</div>
+          <div class="concept-body">Every running program is a <strong>process</strong> with a unique <strong>PID</strong> (Process ID). Every process has a parent (PPID). The very first process (PID 1) is <strong>systemd</strong> — it starts everything else. Processes can spawn children, creating a tree.</div>
+          <div class="terminal">
+            <div class="term-bar"><div class="tdot" style="background:#ff5f57"></div><div class="tdot" style="background:#febc2e"></div><div class="tdot" style="background:#28c840"></div><span class="term-label">Process Investigation</span></div>
+            <div class="term-body">
+<span class="tl"><span class="tcomment"># See ALL processes with full details</span></span>
+<span class="tl"><span class="tp">nebula@prod-01:~$</span> <span class="tcmd">ps aux</span></span>
+<span class="tl"><span class="tcomment"># ps  = Process Status</span></span>
+<span class="tl"><span class="tcomment"># a   = show processes of ALL users (not just yours)</span></span>
+<span class="tl"><span class="tcomment"># u   = user-oriented format (shows username, CPU%, MEM%)</span></span>
+<span class="tl"><span class="tcomment"># x   = include processes not attached to a terminal</span></span>
+<span class="tl"><span class="tout">USER       PID %CPU %MEM    VSZ   RSS TTY      STAT START   COMMAND</span></span>
+<span class="tl"><span class="tout">root         1  0.0  0.1 169604 12480 ?        Ss   May17   /sbin/init</span></span>
+<span class="tl"><span class="tout">nebula    1234 99.9  2.0  82404  8192 pts/0    R+   10:23   python3 bad_script.py</span></span>
+<span class="tl"></span>
+<span class="tl"><span class="tcomment"># Top CPU consumers right now</span></span>
+<span class="tl"><span class="tp">nebula@prod-01:~$</span> <span class="tcmd">ps aux --sort=-%cpu | head -6</span></span>
+<span class="tl"></span>
+<span class="tl"><span class="tcomment"># Find process by name</span></span>
+<span class="tl"><span class="tp">nebula@prod-01:~$</span> <span class="tcmd">pgrep -la nginx</span></span>
+<span class="tl"><span class="tcomment"># pgrep = process grep: find process by name</span></span>
+<span class="tl"><span class="tcomment"># -l = list name, -a = full command line</span></span>
+<span class="tl"><span class="tsuccess">1337 nginx: master process /usr/sbin/nginx</span></span>
+<span class="tl"></span>
+<span class="tl"><span class="tcomment"># Process tree (who started what)</span></span>
+<span class="tl"><span class="tp">nebula@prod-01:~$</span> <span class="tcmd">pstree -p</span></span>
+<span class="tl"></span>
+<span class="tl"><span class="tcomment"># KILL a runaway process</span></span>
+<span class="tl"><span class="tp">nebula@prod-01:~$</span> <span class="tcmd">kill 1234</span></span>
+<span class="tl"><span class="tcomment"># kill = send a signal to a process. Default signal = SIGTERM (15)</span></span>
+<span class="tl"><span class="tcomment"># SIGTERM = "please shut down gracefully" — process can ignore it</span></span>
+<span class="tl"><span class="tp">nebula@prod-01:~$</span> <span class="tcmd">kill -9 1234</span></span>
+<span class="tl"><span class="tcomment"># Signal 9 = SIGKILL = "DIE NOW" — cannot be ignored or caught</span></span>
+<span class="tl"><span class="tp">nebula@prod-01:~$</span> <span class="tcmd">pkill -9 bad_script</span></span>
+<span class="tl"><span class="tcomment"># pkill = kill by name (not PID)</span></span>
+            </div>
+          </div>
+          <div class="callout tip"><strong>Use kill -15 (SIGTERM) first</strong>, give the process 5 seconds, THEN use kill -9 if it doesn't respond. Abrupt SIGKILL can corrupt databases or leave locks behind. Always try graceful shutdown first.</div>
+          <table class="concept-table">
+            <tr><th>Signal #</th><th>Name</th><th>What It Means</th><th>Process Can Ignore?</th></tr>
+            <tr><td class="cmd-col">1</td><td>SIGHUP</td><td class="why-col">Reload config (hang up)</td><td class="why-col">Yes — nginx uses this to reload</td></tr>
+            <tr><td class="cmd-col">2</td><td>SIGINT</td><td class="why-col">Ctrl+C — interrupt</td><td class="why-col">Yes</td></tr>
+            <tr><td class="cmd-col">15</td><td>SIGTERM</td><td class="why-col">Polite shutdown request</td><td class="why-col">Yes</td></tr>
+            <tr><td class="cmd-col">9</td><td>SIGKILL</td><td class="why-col">Force kill — immediate</td><td class="why-col">NO — kernel enforces this</td></tr>
+            <tr><td class="cmd-col">19</td><td>SIGSTOP</td><td class="why-col">Pause/freeze a process</td><td class="why-col">NO</td></tr>
+          </table>
+          <button class="done-btn" onclick="markDone('m2','l3',this)">✓ Mark Lesson Complete</button>
+        </div>
+      </div>
+
+      <div class="lesson" id="lesson-m2-l4">
+        <div class="lesson-header" onclick="toggleLesson('m2','l4')"><div class="lesson-title-row"><span class="lesson-num" style="color:var(--m2)">2.4</span><span class="lesson-title">Cron — Schedule Your First Automation</span></div><span class="lesson-toggle" id="tog-m2-l4">▶</span></div>
+        <div class="lesson-body" id="body-m2-l4">
+          <div class="story-box">Priya: <strong>"I want that health-check script to run automatically at 8 AM every day. Also, clean up /tmp every Sunday night."</strong></div>
+          <div class="concept-title">UNDERSTANDING THE CRON SYNTAX</div>
+          <div class="terminal">
+            <div class="term-bar"><div class="tdot" style="background:#ff5f57"></div><div class="tdot" style="background:#febc2e"></div><div class="tdot" style="background:#28c840"></div><span class="term-label">Cron Field Layout</span></div>
+            <div class="term-body">
+<span class="tl"><span class="tcomment"># Open your crontab (cron table — your personal schedule)</span></span>
+<span class="tl"><span class="tp">nebula@prod-01:~$</span> <span class="tcmd">crontab -e</span></span>
+<span class="tl"></span>
+<span class="tl"><span class="tcomment"># CRON FORMAT: 5 time fields + the command</span></span>
+<span class="tl"><span class="tsuccess">┌─────────── minute       (0-59)</span></span>
+<span class="tl"><span class="tsuccess">│ ┌───────── hour         (0-23)</span></span>
+<span class="tl"><span class="tsuccess">│ │ ┌─────── day of month (1-31)</span></span>
+<span class="tl"><span class="tsuccess">│ │ │ ┌───── month        (1-12)</span></span>
+<span class="tl"><span class="tsuccess">│ │ │ │ ┌─── day of week  (0=Sun, 6=Sat)</span></span>
+<span class="tl"><span class="tsuccess">│ │ │ │ │</span></span>
+<span class="tl"><span class="tsuccess">* * * * *  command_to_run</span></span>
+<span class="tl"></span>
+<span class="tl"><span class="tcomment"># Examples — read them carefully:</span></span>
+<span class="tl"></span>
+<span class="tl"><span class="tcomment"># Every day at 8:00 AM</span></span>
+<span class="tl"><span class="tsuccess">0 8 * * * /home/nebula/nebula/scripts/health-check.sh</span></span>
+<span class="tl"></span>
+<span class="tl"><span class="tcomment"># Every Sunday at 11:30 PM</span></span>
+<span class="tl"><span class="tsuccess">30 23 * * 0 rm -rf /tmp/* 2>/dev/null</span></span>
+<span class="tl"></span>
+<span class="tl"><span class="tcomment"># Every 15 minutes</span></span>
+<span class="tl"><span class="tsuccess">*/15 * * * * /usr/local/bin/monitor.sh</span></span>
+<span class="tl"><span class="tcomment"># */15 = every 15 minutes (0,15,30,45)</span></span>
+<span class="tl"></span>
+<span class="tl"><span class="tcomment"># First day of every month at midnight — backup time!</span></span>
+<span class="tl"><span class="tsuccess">0 0 1 * * /home/nebula/nebula/scripts/monthly-backup.sh >> /var/log/backup.log 2>&1</span></span>
+<span class="tl"><span class="tcomment"># >> append output to log file</span></span>
+<span class="tl"><span class="tcomment"># 2>&1 = merge stderr into stdout (capture ALL output)</span></span>
+<span class="tl"></span>
+<span class="tl"><span class="tcomment"># List your current cron jobs</span></span>
+<span class="tl"><span class="tp">nebula@prod-01:~$</span> <span class="tcmd">crontab -l</span></span>
+            </div>
+          </div>
+          <div class="callout tip"><strong>Always use full paths in cron jobs</strong>. Cron runs with a minimal environment and doesn't know about your PATH aliases. Instead of <code>health-check.sh</code>, write <code>/home/nebula/nebula/scripts/health-check.sh</code>. Always redirect output: <code>>> /var/log/job.log 2>&1</code> so you can debug if it fails.</div>
+          <button class="done-btn" onclick="markDone('m2','l4',this)">✓ Mark Lesson Complete</button>
+        </div>
+      </div>
+
+      <div class="lesson" id="lesson-m2-l5">
+        <div class="lesson-header" onclick="toggleLesson('m2','l5')"><div class="lesson-title-row"><span class="lesson-num" style="color:var(--m2)">2.5</span><span class="lesson-title">Signals & Job Control — Background & Foreground</span></div><span class="lesson-toggle" id="tog-m2-l5">▶</span></div>
+        <div class="lesson-body" id="body-m2-l5">
+          <div class="story-box">Priya: <strong>"You started a long database backup but now you need the terminal back. Don't kill it — move it to the background!"</strong></div>
+          <div class="terminal">
+            <div class="term-bar"><div class="tdot" style="background:#ff5f57"></div><div class="tdot" style="background:#febc2e"></div><div class="tdot" style="background:#28c840"></div><span class="term-label">Job Control</span></div>
+            <div class="term-body">
+<span class="tl"><span class="tcomment"># Start a long process</span></span>
+<span class="tl"><span class="tp">nebula@prod-01:~$</span> <span class="tcmd">sleep 300</span></span>
+<span class="tl"><span class="tcomment"># It's blocking your terminal! Press Ctrl+Z to pause it</span></span>
+<span class="tl"><span class="twarn">^Z</span></span>
+<span class="tl"><span class="tout">[1]+  Stopped    sleep 300</span></span>
+<span class="tl"></span>
+<span class="tl"><span class="tcomment"># Resume it in the BACKGROUND</span></span>
+<span class="tl"><span class="tp">nebula@prod-01:~$</span> <span class="tcmd">bg</span></span>
+<span class="tl"><span class="tout">[1]+ sleep 300 &amp;</span></span>
+<span class="tl"></span>
+<span class="tl"><span class="tcomment"># List all background jobs</span></span>
+<span class="tl"><span class="tp">nebula@prod-01:~$</span> <span class="tcmd">jobs</span></span>
+<span class="tl"><span class="tout">[1]+  Running    sleep 300 &amp;</span></span>
+<span class="tl"></span>
+<span class="tl"><span class="tcomment"># Bring it back to foreground</span></span>
+<span class="tl"><span class="tp">nebula@prod-01:~$</span> <span class="tcmd">fg %1</span></span>
+<span class="tl"></span>
+<span class="tl"><span class="tcomment"># Start directly in background with &amp;</span></span>
+<span class="tl"><span class="tp">nebula@prod-01:~$</span> <span class="tcmd">./backup.sh &amp;</span></span>
+<span class="tl"><span class="tout">[1] 5678</span></span>
+<span class="tl"><span class="tcomment"># [1] = job number, 5678 = PID</span></span>
+<span class="tl"></span>
+<span class="tl"><span class="tcomment"># nohup = NO HangUP: keeps running even after you logout!</span></span>
+<span class="tl"><span class="tp">nebula@prod-01:~$</span> <span class="tcmd">nohup ./backup.sh > /var/log/backup.log 2>&1 &</span></span>
+<span class="tl"><span class="tcomment"># Without nohup, background jobs die when you close the SSH session</span></span>
+            </div>
+          </div>
+          <button class="done-btn" onclick="markDone('m2','l5',this)">✓ Mark Lesson Complete</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════ MODULE 3 ════════════════════════ -->
+  <div id="page-m3" class="page">
+    <div class="module-page">
+      <div class="mod-header">
+        <div class="mod-num-big">03</div>
+        <div class="mod-tag-line" style="color:var(--m3)">◆ WEEK 5 AT NEBULA CLOUD</div>
+        <div class="mod-title-big">PACKAGES &<br>STORAGE</div>
+        <div class="mod-desc-big">NebulaCloud needs nginx, MySQL, and monitoring tools installed. The new data disk needs partitioning and mounting. Learn to manage software and storage like an admin.</div>
+        <div class="mod-pills">
+          <span class="mod-pill" style="color:var(--m3);border-color:rgba(255,230,0,.25)">apt/yum/dnf</span>
+          <span class="mod-pill" style="color:var(--m2);border-color:rgba(0,229,255,.25)">fdisk/lsblk</span>
+          <span class="mod-pill" style="color:var(--m1);border-color:rgba(57,255,20,.25)">LVM</span>
+          <span class="mod-pill" style="color:var(--orange);border-color:rgba(255,107,0,.25)">mount/fstab</span>
+        </div>
+      </div>
+
+      <div class="lesson" id="lesson-m3-l1">
+        <div class="lesson-header" onclick="toggleLesson('m3','l1')"><div class="lesson-title-row"><span class="lesson-num" style="color:var(--m3)">3.1</span><span class="lesson-title">Package Management — Installing Software the Right Way</span></div><span class="lesson-toggle" id="tog-m3-l1">▶</span></div>
+        <div class="lesson-body" id="body-m3-l1">
+          <div class="story-box">Priya: <strong>"Install nginx, git, htop, and MySQL on the server. Also, I need you to hold the nginx version so it doesn't auto-update during our next deployment."</strong></div>
+          <div class="concept-title">APT — THE UBUNTU/DEBIAN PACKAGE MANAGER</div>
+          <div class="concept-body">APT (Advanced Package Tool) manages software on Debian/Ubuntu. It downloads from <strong>repositories</strong> (servers with pre-built packages), handles <strong>dependencies</strong> automatically, and keeps a local database of all installed packages.</div>
+          <div class="terminal">
+            <div class="term-bar"><div class="tdot" style="background:#ff5f57"></div><div class="tdot" style="background:#febc2e"></div><div class="tdot" style="background:#28c840"></div><span class="term-label">APT Package Management</span></div>
+            <div class="term-body">
+<span class="tl"><span class="tcomment"># Step 1: Always update the package list first!</span></span>
+<span class="tl"><span class="tp">nebula@prod-01:~$</span> <span class="tcmd">sudo apt update</span></span>
+<span class="tl"><span class="tcomment"># apt update = downloads the LATEST package lists from repos</span></span>
+<span class="tl"><span class="tcomment"># Does NOT install anything — just updates what's available</span></span>
+<span class="tl"></span>
+<span class="tl"><span class="tcomment"># Install packages</span></span>
+<span class="tl"><span class="tp">nebula@prod-01:~$</span> <span class="tcmd">sudo apt install -y nginx git htop mysql-server</span></span>
+<span class="tl"><span class="tcomment"># apt install = download and install</span></span>
+<span class="tl"><span class="tcomment"># -y          = yes to all prompts (non-interactive)</span></span>
+<span class="tl"></span>
+<span class="tl"><span class="tcomment"># Upgrade all installed packages</span></span>
+<span class="tl"><span class="tp">nebula@prod-01:~$</span> <span class="tcmd">sudo apt upgrade -y</span></span>
+<span class="tl"></span>
+<span class="tl"><span class="tcomment"># HOLD a package version (prevent auto-upgrade)</span></span>
+<span class="tl"><span class="tp">nebula@prod-01:~$</span> <span class="tcmd">sudo apt-mark hold nginx</span></span>
+<span class="tl"><span class="tsuccess">nginx set on hold.</span></span>
+<span class="tl"><span class="tp">nebula@prod-01:~$</span> <span class="tcmd">sudo apt-mark unhold nginx</span></span>
+<span class="tl"></span>
+<span class="tl"><span class="tcomment"># Search for a package</span></span>
+<span class="tl"><span class="tp">nebula@prod-01:~$</span> <span class="tcmd">apt search "web server"</span></span>
+<span class="tl"></span>
+<span class="tl"><span class="tcomment"># Show package info before installing</span></span>
+<span class="tl"><span class="tp">nebula@prod-01:~$</span> <span class="tcmd">apt show nginx</span></span>
+<span class="tl"></span>
+<span class="tl"><span class="tcomment"># Remove package (keep config files)</span></span>
+<span class="tl"><span class="tp">nebula@prod-01:~$</span> <span class="tcmd">sudo apt remove nginx</span></span>
+<span class="tl"><span class="tcomment"># Remove package AND config files</span></span>
+<span class="tl"><span class="tp">nebula@prod-01:~$</span> <span class="tcmd">sudo apt purge nginx</span></span>
+<span class="tl"></span>
+<span class="tl"><span class="tcomment"># Clean up unused dependencies</span></span>
+<span class="tl"><span class="tp">nebula@prod-01:~$</span> <span class="tcmd">sudo apt autoremove -y</span></span>
+<span class="tl"></span>
+<span class="tl"><span class="tcomment"># See what's installed and where files went</span></span>
+<span class="tl"><span class="tp">nebula@prod-01:~$</span> <span class="tcmd">dpkg -L nginx | head -10</span></span>
+<span class="tl"><span class="tcomment"># dpkg = low-level package tool. -L = list all files in a package</span></span>
+            </div>
+          </div>
+          <table class="concept-table">
+            <tr><th>Distro</th><th>Package Manager</th><th>Install Command</th><th>Update Command</th></tr>
+            <tr><td>Ubuntu/Debian</td><td class="cmd-col">apt</td><td class="cmd-col">apt install nginx</td><td class="cmd-col">apt update && apt upgrade</td></tr>
+            <tr><td>CentOS/RHEL 7</td><td class="cmd-col">yum</td><td class="cmd-col">yum install nginx</td><td class="cmd-col">yum update</td></tr>
+            <tr><td>CentOS/RHEL 8+</td><td class="cmd-col">dnf</td><td class="cmd-col">dnf install nginx</td><td class="cmd-col">dnf update</td></tr>
+            <tr><td>Any (portable)</td><td class="cmd-col">snap</td><td class="cmd-col">snap install code</td><td class="cmd-col">snap refresh</td></tr>
+          </table>
+          <button class="done-btn" onclick="markDone('m3','l1',this)">✓ Mark Lesson Complete</button>
+        </div>
+      </div>
+
+      <div class="lesson" id="lesson-m3-l2">
+        <div class="lesson-header" onclick="toggleLesson('m3','l2')"><div class="lesson-title-row"><span class="lesson-num" style="color:var(--m3)">3.2</span><span class="lesson-title">Disks & Partitions — Adding a Data Drive</span></div><span class="lesson-toggle" id="tog-m3-l2">▶</span></div>
+        <div class="lesson-body" id="body-m3-l2">
+          <div class="story-box">Priya: <strong>"The new 500GB SSD just arrived and got attached to the server as /dev/sdb. Partition it, format it, and mount it at /data for the apps."</strong></div>
+          <div class="terminal">
+            <div class="term-bar"><div class="tdot" style="background:#ff5f57"></div><div class="tdot" style="background:#febc2e"></div><div class="tdot" style="background:#28c840"></div><span class="term-label">Disk Management Step by Step</span></div>
+            <div class="term-body">
+<span class="tl"><span class="tcomment"># Step 1: See what disks exist</span></span>
+<span class="tl"><span class="tp">nebula@prod-01:~$</span> <span class="tcmd">lsblk</span></span>
+<span class="tl"><span class="tcomment"># lsblk = LiSt BLocK devices. Shows disks and partitions as a tree</span></span>
+<span class="tl"><span class="tout">NAME   MAJ:MIN RM  SIZE RO TYPE MOUNTPOINT</span></span>
+<span class="tl"><span class="tout">sda      8:0    0   50G  0 disk</span></span>
+<span class="tl"><span class="tout">├─sda1   8:1    0    1M  0 part</span></span>
+<span class="tl"><span class="tout">└─sda2   8:2    0   50G  0 part /</span></span>
+<span class="tl"><span class="tout">sdb      8:16   0  500G  0 disk          ← Our new disk! No partitions yet.</span></span>
+<span class="tl"></span>
+<span class="tl"><span class="tcomment"># Step 2: Check disk details</span></span>
+<span class="tl"><span class="tp">nebula@prod-01:~$</span> <span class="tcmd">sudo fdisk -l /dev/sdb</span></span>
+<span class="tl"><span class="tcomment"># fdisk -l = list disk partition table</span></span>
+<span class="tl"></span>
+<span class="tl"><span class="tcomment"># Step 3: Partition the disk (interactive)</span></span>
+<span class="tl"><span class="tp">nebula@prod-01:~$</span> <span class="tcmd">sudo fdisk /dev/sdb</span></span>
+<span class="tl"><span class="twarn">Command (m for help): n    </span><span class="tcomment">← n = new partition</span></span>
+<span class="tl"><span class="twarn">Partition type: p          </span><span class="tcomment">← p = primary</span></span>
+<span class="tl"><span class="twarn">Partition number: 1        </span><span class="tcomment">← first partition</span></span>
+<span class="tl"><span class="twarn">First sector: [Enter]      </span><span class="tcomment">← accept default (start)</span></span>
+<span class="tl"><span class="twarn">Last sector: [Enter]       </span><span class="tcomment">← accept default (use all space)</span></span>
+<span class="tl"><span class="twarn">Command (m for help): w    </span><span class="tcomment">← w = WRITE changes (this is final!)</span></span>
+<span class="tl"><span class="tsuccess">The partition table has been altered.</span></span>
+<span class="tl"></span>
+<span class="tl"><span class="tcomment"># Step 4: Format with ext4 filesystem</span></span>
+<span class="tl"><span class="tp">nebula@prod-01:~$</span> <span class="tcmd">sudo mkfs.ext4 -L "nebula-data" /dev/sdb1</span></span>
+<span class="tl"><span class="tcomment"># mkfs.ext4 = MaKe FileSystem (ext4 type)</span></span>
+<span class="tl"><span class="tcomment"># -L "nebula-data" = give the filesystem a label</span></span>
+<span class="tl"><span class="tcomment"># /dev/sdb1 = the partition we just created</span></span>
+<span class="tl"></span>
+<span class="tl"><span class="tcomment"># Step 5: Mount it</span></span>
+<span class="tl"><span class="tp">nebula@prod-01:~$</span> <span class="tcmd">sudo mkdir -p /data</span></span>
+<span class="tl"><span class="tp">nebula@prod-01:~$</span> <span class="tcmd">sudo mount /dev/sdb1 /data</span></span>
+<span class="tl"></span>
+<span class="tl"><span class="tcomment"># Verify it's mounted and check space</span></span>
+<span class="tl"><span class="tp">nebula@prod-01:~$</span> <span class="tcmd">df -h /data</span></span>
+<span class="tl"><span class="tsuccess">Filesystem      Size  Used Avail Use% Mounted on</span></span>
+<span class="tl"><span class="tsuccess">/dev/sdb1       492G   28K  467G   1% /data</span></span>
+            </div>
+          </div>
+          <div class="callout warning">The mount above is <strong>temporary</strong> — it disappears on reboot! To make it permanent, add it to <strong>/etc/fstab</strong> (covered in Lesson 3.4).</div>
+          <button class="done-btn" onclick="markDone('m3','l2',this)">✓ Mark Lesson Complete</button>
+        </div>
+      </div>
+
+      <div class="lesson" id="lesson-m3-l3">
+        <div class="lesson-header" onclick="toggleLesson('m3','l3')"><div class="lesson-title-row"><span class="lesson-num" style="color:var(--m3)">3.3</span><span class="lesson-title">LVM — Logical Volume Manager (Flexible Disk Magic)</span></div><span class="lesson-toggle" id="tog-m3-l3">▶</span></div>
+        <div class="lesson-body" id="body-m3-l3">
+          <div class="story-box">Priya: <strong>"The /data partition is filling up but we have another disk. With regular partitions, we'd have to migrate everything. Set it up with LVM so we can just add space later."</strong></div>
+          <div class="concept-title">LVM: 3 LAYERS THAT GIVE YOU FLEXIBILITY</div>
+          <div class="concept-body">LVM adds an abstraction layer between physical disks and mount points. You can <strong>resize on the fly</strong>, <strong>span volumes across multiple disks</strong>, and <strong>take snapshots</strong> — things impossible with regular partitions.</div>
+          <div class="terminal">
+            <div class="term-bar"><div class="tdot" style="background:#ff5f57"></div><div class="tdot" style="background:#febc2e"></div><div class="tdot" style="background:#28c840"></div><span class="term-label">LVM Setup</span></div>
+            <div class="term-body">
+<span class="tl"><span class="tcomment"># Layer 1: Physical Volumes (PV) — initialize disks for LVM</span></span>
+<span class="tl"><span class="tp">nebula@prod-01:~$</span> <span class="tcmd">sudo pvcreate /dev/sdb /dev/sdc</span></span>
+<span class="tl"><span class="tcomment"># pvcreate = Physical Volume CREATE</span></span>
+<span class="tl"><span class="tcomment"># We're telling LVM: "these two disks are yours to manage"</span></span>
+<span class="tl"></span>
+<span class="tl"><span class="tcomment"># Layer 2: Volume Group (VG) — pool the physical volumes</span></span>
+<span class="tl"><span class="tp">nebula@prod-01:~$</span> <span class="tcmd">sudo vgcreate nebula-vg /dev/sdb /dev/sdc</span></span>
+<span class="tl"><span class="tcomment"># vgcreate = Volume Group CREATE</span></span>
+<span class="tl"><span class="tcomment"># nebula-vg = name for our volume group (pool of 500GB+500GB=1TB)</span></span>
+<span class="tl"></span>
+<span class="tl"><span class="tcomment"># Layer 3: Logical Volumes (LV) — carve out what you need</span></span>
+<span class="tl"><span class="tp">nebula@prod-01:~$</span> <span class="tcmd">sudo lvcreate -L 200G -n data-lv nebula-vg</span></span>
+<span class="tl"><span class="tcomment"># lvcreate = Logical Volume CREATE</span></span>
+<span class="tl"><span class="tcomment"># -L 200G  = size: 200 Gigabytes</span></span>
+<span class="tl"><span class="tcomment"># -n data-lv = name of the logical volume</span></span>
+<span class="tl"><span class="tcomment"># nebula-vg  = which volume group to draw from</span></span>
+<span class="tl"></span>
+<span class="tl"><span class="tcomment"># Format and mount</span></span>
+<span class="tl"><span class="tp">nebula@prod-01:~$</span> <span class="tcmd">sudo mkfs.ext4 /dev/nebula-vg/data-lv</span></span>
+<span class="tl"><span class="tp">nebula@prod-01:~$</span> <span class="tcmd">sudo mount /dev/nebula-vg/data-lv /data</span></span>
+<span class="tl"></span>
+<span class="tl"><span class="tcomment"># 6 months later — /data is 90% full. Just extend it!</span></span>
+<span class="tl"><span class="tp">nebula@prod-01:~$</span> <span class="tcmd">sudo lvextend -L +100G /dev/nebula-vg/data-lv</span></span>
+<span class="tl"><span class="tp">nebula@prod-01:~$</span> <span class="tcmd">sudo resize2fs /dev/nebula-vg/data-lv</span></span>
+<span class="tl"><span class="tcomment"># resize2fs = tell the FILESYSTEM about the new larger size</span></span>
+<span class="tl"><span class="tcomment"># No unmounting needed for ext4 with resize2fs!</span></span>
+            </div>
+          </div>
+          <button class="done-btn" onclick="markDone('m3','l3',this)">✓ Mark Lesson Complete</button>
+        </div>
+      </div>
+
+      <div class="lesson" id="lesson-m3-l4">
+        <div class="lesson-header" onclick="toggleLesson('m3','l4')"><div class="lesson-title-row"><span class="lesson-num" style="color:var(--m3)">3.4</span><span class="lesson-title">Persistent Mounts — /etc/fstab</span></div><span class="lesson-toggle" id="tog-m3-l4">▶</span></div>
+        <div class="lesson-body" id="body-m3-l4">
+          <div class="story-box">Priya: <strong>"Server rebooted last night and /data wasn't mounted. The apps crashed looking for files. Make it permanent!"</strong></div>
+          <div class="terminal">
+            <div class="term-bar"><div class="tdot" style="background:#ff5f57"></div><div class="tdot" style="background:#febc2e"></div><div class="tdot" style="background:#28c840"></div><span class="term-label">/etc/fstab — Filesystem Table</span></div>
+            <div class="term-body">
+<span class="tl"><span class="tcomment"># Get the UUID (stable ID even if sdb becomes sdc after reboot)</span></span>
+<span class="tl"><span class="tp">nebula@prod-01:~$</span> <span class="tcmd">sudo blkid /dev/sdb1</span></span>
+<span class="tl"><span class="tsuccess">/dev/sdb1: UUID="a1b2c3d4-e5f6-..." TYPE="ext4" LABEL="nebula-data"</span></span>
+<span class="tl"></span>
+<span class="tl"><span class="tcomment"># Add to /etc/fstab (BACKUP FIRST!)</span></span>
+<span class="tl"><span class="tp">nebula@prod-01:~$</span> <span class="tcmd">sudo cp /etc/fstab /etc/fstab.backup</span></span>
+<span class="tl"><span class="tp">nebula@prod-01:~$</span> <span class="tcmd">sudo nano /etc/fstab</span></span>
+<span class="tl"></span>
+<span class="tl"><span class="tcomment"># fstab format: device  mountpoint  fstype  options  dump  pass</span></span>
+<span class="tl"><span class="tsuccess">UUID=a1b2c3d4-e5f6-...  /data  ext4  defaults  0  2</span></span>
+<span class="tl"><span class="tcomment"># UUID=...   = identify by UUID (safer than /dev/sdb — device names can change!)</span></span>
+<span class="tl"><span class="tcomment"># /data      = where to mount</span></span>
+<span class="tl"><span class="tcomment"># ext4       = filesystem type</span></span>
+<span class="tl"><span class="tcomment"># defaults   = standard mount options (rw, suid, dev, exec, auto, nouser, async)</span></span>
+<span class="tl"><span class="tcomment"># 0          = dump (backup tool, almost always 0)</span></span>
+<span class="tl"><span class="tcomment"># 2          = fsck order (1=root first, 2=other disks after, 0=skip)</span></span>
+<span class="tl"></span>
+<span class="tl"><span class="tcomment"># TEST before rebooting — mount -a reads fstab and mounts everything</span></span>
+<span class="tl"><span class="tp">nebula@prod-01:~$</span> <span class="tcmd">sudo mount -a</span></span>
+<span class="tl"><span class="tcomment"># If no errors, your fstab entry is correct!</span></span>
+<span class="tl"><span class="tp">nebula@prod-01:~$</span> <span class="tcmd">df -h /data</span></span>
+            </div>
+          </div>
+          <div class="callout danger"><strong>A broken /etc/fstab can prevent the server from booting!</strong> Always backup it first, test with <code>mount -a</code>, and use UUIDs instead of /dev/sdX names (device names can change on reboot).</div>
+          <button class="done-btn" onclick="markDone('m3','l4',this)">✓ Mark Lesson Complete</button>
+        </div>
+      </div>
+
+      <div class="lesson" id="lesson-m3-l5">
+        <div class="lesson-header" onclick="toggleLesson('m3','l5')"><div class="lesson-title-row"><span class="lesson-num" style="color:var(--m3)">3.5</span><span class="lesson-title">NFS & Disk Health — Share Storage & Monitor Drives</span></div><span class="lesson-toggle" id="tog-m3-l5">▶</span></div>
+        <div class="lesson-body" id="body-m3-l5">
+          <div class="story-box">Priya: <strong>"The dev team on server-02 needs to access /data/apps on server-01 over the network. Also, set up a disk health alert — we don't want surprise failures."</strong></div>
+          <div class="terminal">
+            <div class="term-bar"><div class="tdot" style="background:#ff5f57"></div><div class="tdot" style="background:#febc2e"></div><div class="tdot" style="background:#28c840"></div><span class="term-label">NFS Server Setup + Disk Health</span></div>
+            <div class="term-body">
+<span class="tl"><span class="tcomment"># ─── ON SERVER-01 (the NFS server) ───────────────────────</span></span>
+<span class="tl"><span class="tp">server01:~$</span> <span class="tcmd">sudo apt install -y nfs-kernel-server</span></span>
+<span class="tl"></span>
+<span class="tl"><span class="tcomment"># Define what to share in /etc/exports</span></span>
+<span class="tl"><span class="tp">server01:~$</span> <span class="tcmd">echo "/data/apps  192.168.1.0/24(rw,sync,no_subtree_check)" | sudo tee -a /etc/exports</span></span>
+<span class="tl"><span class="tcomment"># /data/apps         = directory to share</span></span>
+<span class="tl"><span class="tcomment"># 192.168.1.0/24     = allow this subnet (our internal network)</span></span>
+<span class="tl"><span class="tcomment"># rw                 = read and write</span></span>
+<span class="tl"><span class="tcomment"># sync               = write to disk before replying (safer, slower)</span></span>
+<span class="tl"><span class="tcomment"># no_subtree_check   = don't verify file is in exported tree (better performance)</span></span>
+<span class="tl"></span>
+<span class="tl"><span class="tp">server01:~$</span> <span class="tcmd">sudo exportfs -ra    </span><span class="tcomment"># -r=reexport all, -a=all entries</span></span>
+<span class="tl"><span class="tp">server01:~$</span> <span class="tcmd">sudo systemctl restart nfs-kernel-server</span></span>
+<span class="tl"></span>
+<span class="tl"><span class="tcomment"># ─── ON SERVER-02 (the NFS client) ───────────────────────</span></span>
+<span class="tl"><span class="tp">server02:~$</span> <span class="tcmd">sudo apt install -y nfs-common</span></span>
+<span class="tl"><span class="tp">server02:~$</span> <span class="tcmd">sudo mkdir -p /mnt/nebula-apps</span></span>
+<span class="tl"><span class="tp">server02:~$</span> <span class="tcmd">sudo mount 192.168.1.10:/data/apps /mnt/nebula-apps</span></span>
+<span class="tl"></span>
+<span class="tl"><span class="tcomment"># ─── DISK HEALTH (smartmontools) ─────────────────────────</span></span>
+<span class="tl"><span class="tp">nebula@prod-01:~$</span> <span class="tcmd">sudo apt install -y smartmontools</span></span>
+<span class="tl"><span class="tp">nebula@prod-01:~$</span> <span class="tcmd">sudo smartctl -H /dev/sda     </span><span class="tcomment"># Quick health check</span></span>
+<span class="tl"><span class="tsuccess">SMART overall-health self-assessment test result: PASSED</span></span>
+<span class="tl"><span class="tp">nebula@prod-01:~$</span> <span class="tcmd">sudo smartctl -a /dev/sda     </span><span class="tcomment"># Full attribute report</span></span>
+<span class="tl"></span>
+<span class="tl"><span class="tcomment"># Disk usage — find what's eating space</span></span>
+<span class="tl"><span class="tp">nebula@prod-01:~$</span> <span class="tcmd">df -h                         </span><span class="tcomment"># All mounted filesystems</span></span>
+<span class="tl"><span class="tp">nebula@prod-01:~$</span> <span class="tcmd">du -sh /var/log/* | sort -rh | head -10</span></span>
+<span class="tl"><span class="tcomment"># du -sh = Disk Usage: -s=summary, -h=human readable</span></span>
+<span class="tl"><span class="tcomment"># sort -rh = sort by human size, reversed (biggest first)</span></span>
+            </div>
+          </div>
+          <button class="done-btn" onclick="markDone('m3','l5',this)">✓ Mark Lesson Complete</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════ MODULE 4 ════════════════════════ -->
+  <div id="page-m4" class="page">
+    <div class="module-page">
+      <div class="mod-header">
+        <div class="mod-num-big">04</div>
+        <div class="mod-tag-line" style="color:var(--m4)">◆ WEEK 6–7 AT NEBULA CLOUD</div>
+        <div class="mod-title-big">NETWORKING<br>DEEP DIVE</div>
+        <div class="mod-desc-big">NebulaCloud is expanding. Configure network interfaces, understand TCP/IP, set up DNS and routing, and diagnose connectivity issues from the command line like a network engineer.</div>
+        <div class="mod-pills">
+          <span class="mod-pill" style="color:var(--m4);border-color:rgba(191,90,242,.25)">TCP/IP</span>
+          <span class="mod-pill" style="color:var(--cyan);border-color:rgba(0,229,255,.25)">ip/ifconfig</span>
+          <span class="mod-pill" style="color:var(--m1);border-color:rgba(57,255,20,.25)">DNS/DHCP</span>
+          <span class="mod-pill" style="color:var(--yellow);border-color:rgba(255,230,0,.25)">ss/netstat</span>
+          <span class="mod-pill" style="color:var(--orange);border-color:rgba(255,107,0,.25)">SSH</span>
+        </div>
+      </div>
+
+      <div class="lesson" id="lesson-m4-l1">
+        <div class="lesson-header" onclick="toggleLesson('m4','l1')"><div class="lesson-title-row"><span class="lesson-num" style="color:var(--m4)">4.1</span><span class="lesson-title">OSI Model & TCP/IP — The Language Computers Speak</span></div><span class="lesson-toggle" id="tog-m4-l1">▶</span></div>
+        <div class="lesson-body" id="body-m4-l1">
+          <div class="story-box">Priya: <strong>"Dev team says the app can't reach the database. Before you touch anything, I want you to understand HOW network communication works so you can systematically diagnose it."</strong></div>
+          <div class="concept-title">THE OSI MODEL — 7 LAYERS OF NETWORKING</div>
+          <table class="concept-table">
+            <tr><th>#</th><th>Layer</th><th>What It Does</th><th>Protocols</th><th>Linux Tools</th></tr>
+            <tr><td class="cmd-col">7</td><td style="color:#ff6b00">Application</td><td class="why-col">What the app sends/receives</td><td>HTTP, HTTPS, DNS, SSH, FTP</td><td class="cmd-col">curl, wget, dig</td></tr>
+            <tr><td class="cmd-col">6</td><td style="color:#ffd700">Presentation</td><td class="why-col">Encryption, encoding, compression</td><td>TLS/SSL, gzip</td><td class="cmd-col">openssl, gzip</td></tr>
+            <tr><td class="cmd-col">5</td><td style="color:#39ff14">Session</td><td class="why-col">Establishes/manages connections</td><td>RPC, NetBIOS</td><td class="cmd-col">ss, netstat</td></tr>
+            <tr><td class="cmd-col">4</td><td style="color:#00e5ff">Transport</td><td class="why-col">Reliable delivery, ports</td><td>TCP (reliable), UDP (fast)</td><td class="cmd-col">ss, iptables</td></tr>
+            <tr><td class="cmd-col">3</td><td style="color:#bf5af2">Network</td><td class="why-col">IP addressing, routing</td><td>IP, ICMP, BGP</td><td class="cmd-col">ip, route, ping</td></tr>
+            <tr><td class="cmd-col">2</td><td style="color:#ff375f">Data Link</td><td class="why-col">MAC addresses, local delivery</td><td>Ethernet, WiFi, ARP</td><td class="cmd-col">arp, ip link</td></tr>
+            <tr><td class="cmd-col">1</td><td style="color:#586069">Physical</td><td class="why-col">Actual bits on wire/radio</td><td>Cable, fiber, WiFi signal</td><td class="cmd-col">ethtool</td></tr>
+          </table>
+          <div class="callout tip"><strong>Remember it bottom-up: "Please Do Not Throw Sausage Pizza Away"</strong> — Physical, Data Link, Network, Transport, Session, Presentation, Application. When troubleshooting, always start at Layer 1 (is the cable plugged in?) and work up.</div>
+          <div class="concept-title">TCP vs UDP — CHOOSE YOUR TRADE-OFF</div>
+          <table class="concept-table">
+            <tr><th>Feature</th><th>TCP</th><th>UDP</th></tr>
+            <tr><td>Connection</td><td class="cmd-col">3-way handshake (SYN, SYN-ACK, ACK)</td><td class="why-col">No connection — fire and forget</td></tr>
+            <tr><td>Reliability</td><td class="cmd-col">Guaranteed delivery, ordering</td><td class="why-col">No guarantee — packets may be lost</td></tr>
+            <tr><td>Speed</td><td class="why-col">Slower (acknowledgement overhead)</td><td class="cmd-col">Fast</td></tr>
+            <tr><td>Use Case</td><td class="why-col">HTTP, SSH, MySQL, email</td><td class="cmd-col">DNS, video streaming, gaming, VoIP</td></tr>
+          </table>
+          <button class="done-btn" onclick="markDone('m4','l1',this)">✓ Mark Lesson Complete</button>
+        </div>
+      </div>
+
+      <div class="lesson" id="lesson-m4-l2">
+        <div class="lesson-header" onclick="toggleLesson('m4','l2')"><div class="lesson-title-row"><span class="lesson-num" style="color:var(--m4)">4.2</span><span class="lesson-title">IP Addressing, Subnets & Routing</span></div><span class="lesson-toggle" id="tog-m4-l2">▶</span></div>
+        <div class="lesson-body" id="body-m4-l2">
+          <div class="story-box">Priya: <strong>"Configure server-01 with a static IP (192.168.1.10/24) and make sure it can reach the internet through our gateway (192.168.1.1)."</strong></div>
+          <div class="concept-title">IP ADDRESSES & SUBNETTING IN PLAIN ENGLISH</div>
+          <div class="concept-body">An IP address like <code>192.168.1.10</code> is 32 bits written as 4 numbers (octets). The <code>/24</code> (subnet mask) tells you how many bits define the <strong>network</strong> (24 bits) vs the <strong>host</strong> (8 bits). So <code>192.168.1.0/24</code> means: network=192.168.1, hosts=.1 to .254.</div>
+          <div class="terminal">
+            <div class="term-bar"><div class="tdot" style="background:#ff5f57"></div><div class="tdot" style="background:#febc2e"></div><div class="tdot" style="background:#28c840"></div><span class="term-label">Network Interface Configuration</span></div>
+            <div class="term-body">
+<span class="tl"><span class="tcomment"># See all network interfaces</span></span>
+<span class="tl"><span class="tp">nebula@prod-01:~$</span> <span class="tcmd">ip addr show</span></span>
+<span class="tl"><span class="tcomment"># or shorter:</span></span>
+<span class="tl"><span class="tp">nebula@prod-01:~$</span> <span class="tcmd">ip a</span></span>
+<span class="tl"><span class="tout">2: eth0: &lt;BROADCAST,MULTICAST,UP,LOWER_UP&gt; mtu 1500</span></span>
+<span class="tl"><span class="tout">    link/ether 00:1a:2b:3c:4d:5e               ← MAC address (Layer 2)</span></span>
+<span class="tl"><span class="tout">    inet 192.168.1.10/24                        ← Our IP (Layer 3)</span></span>
+<span class="tl"></span>
+<span class="tl"><span class="tcomment"># Temporary: add an IP address (gone on reboot)</span></span>
+<span class="tl"><span class="tp">nebula@prod-01:~$</span> <span class="tcmd">sudo ip addr add 192.168.1.10/24 dev eth0</span></span>
+<span class="tl"></span>
+<span class="tl"><span class="tcomment"># Permanent: edit netplan config (Ubuntu 18+)</span></span>
+<span class="tl"><span class="tp">nebula@prod-01:~$</span> <span class="tcmd">sudo nano /etc/netplan/01-netcfg.yaml</span></span>
+<span class="tl"><span class="tsuccess">network:</span></span>
+<span class="tl"><span class="tsuccess">  version: 2</span></span>
+<span class="tl"><span class="tsuccess">  ethernets:</span></span>
+<span class="tl"><span class="tsuccess">    eth0:</span></span>
+<span class="tl"><span class="tsuccess">      addresses: [192.168.1.10/24]   </span><span class="tcomment">← our static IP</span></span>
+<span class="tl"><span class="tsuccess">      gateway4: 192.168.1.1          </span><span class="tcomment">← default route through our router</span></span>
+<span class="tl"><span class="tsuccess">      nameservers:</span></span>
+<span class="tl"><span class="tsuccess">        addresses: [8.8.8.8, 1.1.1.1]</span></span>
+<span class="tl"><span class="tp">nebula@prod-01:~$</span> <span class="tcmd">sudo netplan apply</span></span>
+<span class="tl"></span>
+<span class="tl"><span class="tcomment"># See routing table — how does traffic get where it's going?</span></span>
+<span class="tl"><span class="tp">nebula@prod-01:~$</span> <span class="tcmd">ip route show</span></span>
+<span class="tl"><span class="tsuccess">default via 192.168.1.1 dev eth0    ← ALL unknown traffic → gateway</span></span>
+<span class="tl"><span class="tsuccess">192.168.1.0/24 dev eth0 proto kernel ← local network: go directly</span></span>
+            </div>
+          </div>
+          <button class="done-btn" onclick="markDone('m4','l2',this)">✓ Mark Lesson Complete</button>
+        </div>
+      </div>
+
+      <div class="lesson" id="lesson-m4-l3">
+        <div class="lesson-header" onclick="toggleLesson('m4','l3')"><div class="lesson-title-row"><span class="lesson-num" style="color:var(--m4)">4.3</span><span class="lesson-title">DNS — How domain names become IP addresses</span></div><span class="lesson-toggle" id="tog-m4-l3">▶</span></div>
+        <div class="lesson-body" id="body-m4-l3">
+          <div class="story-box">Priya: <strong>"The app says 'cannot resolve db.nebula.internal'. Is DNS broken? Diagnose it and fix the /etc/hosts for now."</strong></div>
+          <div class="terminal">
+            <div class="term-bar"><div class="tdot" style="background:#ff5f57"></div><div class="tdot" style="background:#febc2e"></div><div class="tdot" style="background:#28c840"></div><span class="term-label">DNS Diagnosis</span></div>
+            <div class="term-body">
+<span class="tl"><span class="tcomment"># Test DNS resolution</span></span>
+<span class="tl"><span class="tp">nebula@prod-01:~$</span> <span class="tcmd">dig google.com</span></span>
+<span class="tl"><span class="tcomment"># dig = DNS lookup tool — shows the full DNS response</span></span>
+<span class="tl"><span class="tsuccess">;; ANSWER SECTION:</span></span>
+<span class="tl"><span class="tsuccess">google.com.    299  IN  A  142.250.77.46</span></span>
+<span class="tl"></span>
+<span class="tl"><span class="tp">nebula@prod-01:~$</span> <span class="tcmd">dig @8.8.8.8 google.com    </span><span class="tcomment"># Query SPECIFIC DNS server</span></span>
+<span class="tl"><span class="tp">nebula@prod-01:~$</span> <span class="tcmd">nslookup db.nebula.internal</span></span>
+<span class="tl"><span class="terr">;; connection timed out; no servers could be reached</span></span>
+<span class="tl"></span>
+<span class="tl"><span class="tcomment"># Quick fix: add to /etc/hosts (local DNS — checked first!)</span></span>
+<span class="tl"><span class="tp">nebula@prod-01:~$</span> <span class="tcmd">echo "192.168.1.20  db.nebula.internal db" | sudo tee -a /etc/hosts</span></span>
+<span class="tl"></span>
+<span class="tl"><span class="tcomment"># Verify fix</span></span>
+<span class="tl"><span class="tp">nebula@prod-01:~$</span> <span class="tcmd">ping -c 2 db.nebula.internal</span></span>
+<span class="tl"><span class="tsuccess">PING db.nebula.internal (192.168.1.20): 56 bytes</span></span>
+<span class="tl"><span class="tsuccess">64 bytes from 192.168.1.20: icmp_seq=1 ttl=64 time=0.4ms</span></span>
+<span class="tl"></span>
+<span class="tl"><span class="tcomment"># Where does Linux look for names? (resolution order)</span></span>
+<span class="tl"><span class="tp">nebula@prod-01:~$</span> <span class="tcmd">cat /etc/nsswitch.conf | grep hosts</span></span>
+<span class="tl"><span class="tsuccess">hosts: files dns   </span><span class="tcomment">← check /etc/hosts FIRST, then DNS</span></span>
+<span class="tl"></span>
+<span class="tl"><span class="tcomment"># Which DNS servers are configured?</span></span>
+<span class="tl"><span class="tp">nebula@prod-01:~$</span> <span class="tcmd">cat /etc/resolv.conf</span></span>
+<span class="tl"><span class="tout">nameserver 8.8.8.8</span></span>
+<span class="tl"><span class="tout">nameserver 1.1.1.1</span></span>
+            </div>
+          </div>
+          <button class="done-btn" onclick="markDone('m4','l3',this)">✓ Mark Lesson Complete</button>
+        </div>
+      </div>
+
+      <div class="lesson" id="lesson-m4-l4">
+        <div class="lesson-header" onclick="toggleLesson('m4','l4')"><div class="lesson-title-row"><span class="lesson-num" style="color:var(--m4)">4.4</span><span class="lesson-title">Network Diagnostic Tools — The Troubleshooter's Arsenal</span></div><span class="lesson-toggle" id="tog-m4-l4">▶</span></div>
+        <div class="lesson-body" id="body-m4-l4">
+          <div class="story-box">Priya: <strong>"Port 3306 (MySQL) should be open on db-server but the app can't connect. Walk me through your diagnosis."</strong></div>
+          <div class="terminal">
+            <div class="term-bar"><div class="tdot" style="background:#ff5f57"></div><div class="tdot" style="background:#febc2e"></div><div class="tdot" style="background:#28c840"></div><span class="term-label">Network Troubleshooting Workflow</span></div>
+            <div class="term-body">
+<span class="tl"><span class="tcomment"># Layer 3: Can we reach the host at all?</span></span>
+<span class="tl"><span class="tp">nebula@prod-01:~$</span> <span class="tcmd">ping -c 4 192.168.1.20</span></span>
+<span class="tl"><span class="tsuccess">4 packets transmitted, 4 received, 0% packet loss   ← host is up!</span></span>
+<span class="tl"></span>
+<span class="tl"><span class="tcomment"># Layer 4: Is the specific PORT open?</span></span>
+<span class="tl"><span class="tp">nebula@prod-01:~$</span> <span class="tcmd">nc -zv 192.168.1.20 3306</span></span>
+<span class="tl"><span class="tcomment"># nc = netcat — the TCP/UDP swiss army knife</span></span>
+<span class="tl"><span class="tcomment"># -z = scan mode (don't send data)</span></span>
+<span class="tl"><span class="tcomment"># -v = verbose</span></span>
+<span class="tl"><span class="terr">nc: connect to 192.168.1.20 port 3306 failed: Connection refused</span></span>
+<span class="tl"><span class="tcomment"># Connection REFUSED = port is not listening (service down or not configured)</span></span>
+<span class="tl"><span class="tcomment"># Connection TIMEOUT = firewall is blocking it</span></span>
+<span class="tl"></span>
+<span class="tl"><span class="tcomment"># ON db-server: what is actually listening?</span></span>
+<span class="tl"><span class="tp">db-server:~$</span> <span class="tcmd">ss -tlnp</span></span>
+<span class="tl"><span class="tcomment"># ss = Socket Statistics (modern netstat)</span></span>
+<span class="tl"><span class="tcomment"># -t = TCP sockets only</span></span>
+<span class="tl"><span class="tcomment"># -l = listening sockets only</span></span>
+<span class="tl"><span class="tcomment"># -n = show numbers (don't resolve ports to names)</span></span>
+<span class="tl"><span class="tcomment"># -p = show process using the socket</span></span>
+<span class="tl"><span class="tout">State  Recv-Q Send-Q Local Address:Port</span></span>
+<span class="tl"><span class="tout">LISTEN 0      128    127.0.0.1:3306            ← MySQL only listening on localhost!</span></span>
+<span class="tl"><span class="tcomment"># Found it! MySQL is bound to 127.0.0.1, not 0.0.0.0</span></span>
+<span class="tl"><span class="tcomment"># Fix: edit /etc/mysql/mysql.conf.d/mysqld.cnf</span></span>
+<span class="tl"><span class="tcomment"># Change: bind-address = 127.0.0.1 → bind-address = 0.0.0.0</span></span>
+<span class="tl"></span>
+<span class="tl"><span class="tcomment"># Check the route packets take (trace the path)</span></span>
+<span class="tl"><span class="tp">nebula@prod-01:~$</span> <span class="tcmd">traceroute 8.8.8.8</span></span>
+<span class="tl"></span>
+<span class="tl"><span class="tcomment"># See current network connections</span></span>
+<span class="tl"><span class="tp">nebula@prod-01:~$</span> <span class="tcmd">ss -tnp state established</span></span>
+<span class="tl"><span class="tcomment"># Shows all currently connected TCP sessions</span></span>
+            </div>
+          </div>
+          <table class="concept-table">
+            <tr><th>Tool</th><th>Purpose</th><th>Key Flags</th></tr>
+            <tr><td class="cmd-col">ping</td><td class="why-col">Test Layer 3 (IP) reachability</td><td class="cmd-col">-c 4 (count), -i 0.2 (interval)</td></tr>
+            <tr><td class="cmd-col">traceroute</td><td class="why-col">Trace the route to a host hop-by-hop</td><td class="cmd-col">traceroute -n (no DNS lookup)</td></tr>
+            <tr><td class="cmd-col">ss</td><td class="why-col">Show socket/connection stats</td><td class="cmd-col">-tlnp (TCP listen), -tnp (connected)</td></tr>
+            <tr><td class="cmd-col">nc (netcat)</td><td class="why-col">Test TCP/UDP port reachability</td><td class="cmd-col">-zv (scan), -l (listen mode)</td></tr>
+            <tr><td class="cmd-col">curl</td><td class="why-col">Test HTTP endpoints</td><td class="cmd-col">-I (headers only), -v (verbose)</td></tr>
+            <tr><td class="cmd-col">dig</td><td class="why-col">DNS lookup and debugging</td><td class="cmd-col">@8.8.8.8 (specific server), +short</td></tr>
+            <tr><td class="cmd-col">arp -n</td><td class="why-col">Show Layer 2 MAC-to-IP table</td><td class="cmd-col">-n (no hostname resolution)</td></tr>
+          </table>
+          <button class="done-btn" onclick="markDone('m4','l4',this)">✓ Mark Lesson Complete</button>
+        </div>
+      </div>
+
+      <div class="lesson" id="lesson-m4-l5">
+        <div class="lesson-header" onclick="toggleLesson('m4','l5')"><div class="lesson-title-row"><span class="lesson-num" style="color:var(--m4)">4.5</span><span class="lesson-title">SSH & Remote Access — Secure Shell Mastery</span></div><span class="lesson-toggle" id="tog-m4-l5">▶</span></div>
+        <div class="lesson-body" id="body-m4-l5">
+          <div class="story-box">Priya: <strong>"Set up key-based SSH so the deployment pipeline can connect without passwords. Also, create an SSH tunnel to access the internal database from your laptop."</strong></div>
+          <div class="terminal">
+            <div class="term-bar"><div class="tdot" style="background:#ff5f57"></div><div class="tdot" style="background:#febc2e"></div><div class="tdot" style="background:#28c840"></div><span class="term-label">SSH Key Setup & Advanced Usage</span></div>
+            <div class="term-body">
+<span class="tl"><span class="tcomment"># ── ON YOUR LAPTOP: Generate SSH key pair ──────────────────</span></span>
+<span class="tl"><span class="tp">laptop:~$</span> <span class="tcmd">ssh-keygen -t ed25519 -C "nebula-deploy-key" -f ~/.ssh/nebula_key</span></span>
+<span class="tl"><span class="tcomment"># ssh-keygen = generate SSH key pair</span></span>
+<span class="tl"><span class="tcomment"># -t ed25519 = key type (Ed25519 is modern, faster than RSA)</span></span>
+<span class="tl"><span class="tcomment"># -C "comment" = a label so you know which key is which</span></span>
+<span class="tl"><span class="tcomment"># -f file = where to save (creates nebula_key + nebula_key.pub)</span></span>
+<span class="tl"><span class="tsuccess">Your public key has been saved in /home/you/.ssh/nebula_key.pub</span></span>
+<span class="tl"></span>
+<span class="tl"><span class="tcomment"># Copy public key to the server (one command magic!)</span></span>
+<span class="tl"><span class="tp">laptop:~$</span> <span class="tcmd">ssh-copy-id -i ~/.ssh/nebula_key.pub nebula@192.168.1.10</span></span>
+<span class="tl"><span class="tcomment"># This adds your public key to server's ~/.ssh/authorized_keys</span></span>
+<span class="tl"><span class="tcomment"># The private key stays on YOUR laptop — NEVER copy private keys!</span></span>
+<span class="tl"></span>
+<span class="tl"><span class="tcomment"># Now connect WITHOUT password</span></span>
+<span class="tl"><span class="tp">laptop:~$</span> <span class="tcmd">ssh -i ~/.ssh/nebula_key nebula@192.168.1.10</span></span>
+<span class="tl"></span>
+<span class="tl"><span class="tcomment"># ~/.ssh/config — save connection shortcuts</span></span>
+<span class="tl"><span class="tp">laptop:~$</span> <span class="tcmd">cat >> ~/.ssh/config << 'EOF'</span></span>
+<span class="tl"><span class="tcmd">> Host nebula-prod</span></span>
+<span class="tl"><span class="tcmd">>   HostName 192.168.1.10</span></span>
+<span class="tl"><span class="tcmd">>   User nebula</span></span>
+<span class="tl"><span class="tcmd">>   IdentityFile ~/.ssh/nebula_key</span></span>
+<span class="tl"><span class="tcmd">> EOF</span></span>
+<span class="tl"><span class="tp">laptop:~$</span> <span class="tcmd">ssh nebula-prod         </span><span class="tcomment">← Now just this!</span></span>
+<span class="tl"></span>
+<span class="tl"><span class="tcomment"># SSH TUNNEL: Access internal MySQL on laptop</span></span>
+<span class="tl"><span class="tp">laptop:~$</span> <span class="tcmd">ssh -L 3307:192.168.1.20:3306 nebula-prod -N &amp;</span></span>
+<span class="tl"><span class="tcomment"># -L 3307:remote:3306 = Local port 3307 → forwards to remote 3306</span></span>
+<span class="tl"><span class="tcomment"># -N = no remote command, just tunnel</span></span>
+<span class="tl"><span class="tcomment"># &amp; = run in background</span></span>
+<span class="tl"><span class="tcomment"># Now connect MySQL client to localhost:3307 on your laptop!</span></span>
+<span class="tl"><span class="tp">laptop:~$</span> <span class="tcmd">mysql -h 127.0.0.1 -P 3307 -u nebula -p</span></span>
+            </div>
+          </div>
+          <button class="done-btn" onclick="markDone('m4','l5',this)">✓ Mark Lesson Complete</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════ MODULE 5 ════════════════════════ -->
+  <div id="page-m5" class="page">
+    <div class="module-page">
+      <div class="mod-header">
+        <div class="mod-num-big">05</div>
+        <div class="mod-tag-line" style="color:var(--m5)">◆ WEEK 8–9 AT NEBULA CLOUD</div>
+        <div class="mod-title-big">SECURITY &<br>FIREWALL</div>
+        <div class="mod-desc-big">The security audit is in 2 weeks. Harden SSH, build firewall rules with iptables and ufw, block brute-force attackers with fail2ban, enforce mandatory access controls, and set up audit logging.</div>
+        <div class="mod-pills">
+          <span class="mod-pill" style="color:var(--m5);border-color:rgba(255,107,0,.25)">SSH Hardening</span>
+          <span class="mod-pill" style="color:var(--red);border-color:rgba(255,51,85,.25)">iptables</span>
+          <span class="mod-pill" style="color:var(--cyan);border-color:rgba(0,229,255,.25)">ufw</span>
+          <span class="mod-pill" style="color:var(--yellow);border-color:rgba(255,230,0,.25)">fail2ban</span>
+          <span class="mod-pill" style="color:var(--purple);border-color:rgba(191,90,242,.25)">SELinux/AppArmor</span>
+        </div>
+      </div>
+
+      <div class="lesson" id="lesson-m5-l1">
+        <div class="lesson-header" onclick="toggleLesson('m5','l1')"><div class="lesson-title-row"><span class="lesson-num" style="color:var(--m5)">5.1</span><span class="lesson-title">SSH Hardening — Close the Most Attacked Door</span></div><span class="lesson-toggle" id="tog-m5-l1">▶</span></div>
+        <div class="lesson-body" id="body-m5-l1">
+          <div class="story-box">Priya shows you the auth.log: <strong>"Look — 2,847 failed SSH logins last night from random IPs. We're being brute-forced. Password auth must go. Harden SSH now."</strong></div>
+          <div class="concept-title">THE /etc/ssh/sshd_config HARDENING CHECKLIST</div>
+          <div class="terminal">
+            <div class="term-bar"><div class="tdot" style="background:#ff5f57"></div><div class="tdot" style="background:#febc2e"></div><div class="tdot" style="background:#28c840"></div><span class="term-label">SSH Server Hardening</span></div>
+            <div class="term-body">
+<span class="tl"><span class="tcomment"># ALWAYS backup before editing!</span></span>
+<span class="tl"><span class="tp">nebula@prod-01:~$</span> <span class="tcmd">sudo cp /etc/ssh/sshd_config /etc/ssh/sshd_config.backup</span></span>
+<span class="tl"><span class="tp">nebula@prod-01:~$</span> <span class="tcmd">sudo nano /etc/ssh/sshd_config</span></span>
+<span class="tl"></span>
+<span class="tl"><span class="tcomment"># Make these changes (find and edit each line):</span></span>
+<span class="tl"></span>
+<span class="tl"><span class="tsuccess">Port 2222                    </span><span class="tcomment">← Change from 22 (reduces bot noise)</span></span>
+<span class="tl"><span class="tsuccess">PermitRootLogin no           </span><span class="tcomment">← NEVER allow root SSH login</span></span>
+<span class="tl"><span class="tsuccess">PasswordAuthentication no    </span><span class="tcomment">← Key-only auth (passwords = brute-force risk)</span></span>
+<span class="tl"><span class="tsuccess">PubkeyAuthentication yes     </span><span class="tcomment">← Enable key-based login</span></span>
+<span class="tl"><span class="tsuccess">MaxAuthTries 3               </span><span class="tcomment">← Disconnect after 3 bad attempts</span></span>
+<span class="tl"><span class="tsuccess">LoginGraceTime 20            </span><span class="tcomment">← 20 seconds to authenticate, then disconnect</span></span>
+<span class="tl"><span class="tsuccess">AllowUsers nebula carol       </span><span class="tcomment">← Whitelist: ONLY these users can SSH</span></span>
+<span class="tl"><span class="tsuccess">X11Forwarding no             </span><span class="tcomment">← Disable GUI forwarding (attack surface)</span></span>
+<span class="tl"><span class="tsuccess">ClientAliveInterval 300      </span><span class="tcomment">← Disconnect idle sessions after 5 min</span></span>
+<span class="tl"><span class="tsuccess">ClientAliveCountMax 2        </span><span class="tcomment">← After 2 missed keepalives, disconnect</span></span>
+<span class="tl"></span>
+<span class="tl"><span class="tcomment"># Test config BEFORE restarting (syntax errors = lockout!)</span></span>
+<span class="tl"><span class="tp">nebula@prod-01:~$</span> <span class="tcmd">sudo sshd -t</span></span>
+<span class="tl"><span class="tcomment"># sshd -t = test mode: check config syntax, exit with 0 if ok</span></span>
+<span class="tl"><span class="tsuccess">[no output = config is valid]</span></span>
+<span class="tl"></span>
+<span class="tl"><span class="tcomment"># Apply changes (keep your current session open until verified!)</span></span>
+<span class="tl"><span class="tp">nebula@prod-01:~$</span> <span class="tcmd">sudo systemctl reload sshd</span></span>
+<span class="tl"><span class="tcomment"># reload = re-reads config without killing current sessions</span></span>
+<span class="tl"></span>
+<span class="tl"><span class="tcomment"># Open a NEW terminal window, test the new config</span></span>
+<span class="tl"><span class="tp">laptop:~$</span> <span class="tcmd">ssh -p 2222 nebula@192.168.1.10</span></span>
+<span class="tl"><span class="tsuccess">nebula@prod-01:~$       ← Connected! Now close the old session.</span></span>
+            </div>
+          </div>
+          <div class="callout danger"><strong>CRITICAL:</strong> Always keep your current SSH session open when testing a new sshd config. If you break the config and reload, your OPEN session survives — but you won't be able to reconnect. Test from a SECOND terminal first, THEN close the original.</div>
+          <button class="done-btn" onclick="markDone('m5','l1',this)">✓ Mark Lesson Complete</button>
+        </div>
+      </div>
+
+      <div class="lesson" id="lesson-m5-l2">
+        <div class="lesson-header" onclick="toggleLesson('m5','l2')"><div class="lesson-title-row"><span class="lesson-num" style="color:var(--m5)">5.2</span><span class="lesson-title">iptables & ufw — Building Your Firewall</span></div><span class="lesson-toggle" id="tog-m5-l2">▶</span></div>
+        <div class="lesson-body" id="body-m5-l2">
+          <div class="story-box">Priya: <strong>"The server should only accept traffic on ports 2222 (SSH), 80 (HTTP), 443 (HTTPS), and 3306 only from our internal network (192.168.1.0/24). Everything else: DROP."</strong></div>
+          <div class="concept-title">UFW — UNCOMPLICATED FIREWALL (iptables made easy)</div>
+          <div class="terminal">
+            <div class="term-bar"><div class="tdot" style="background:#ff5f57"></div><div class="tdot" style="background:#febc2e"></div><div class="tdot" style="background:#28c840"></div><span class="term-label">UFW Firewall Configuration</span></div>
+            <div class="term-body">
+<span class="tl"><span class="tcomment"># STEP 1: Install and check status</span></span>
+<span class="tl"><span class="tp">nebula@prod-01:~$</span> <span class="tcmd">sudo ufw status verbose</span></span>
+<span class="tl"><span class="tout">Status: inactive</span></span>
+<span class="tl"></span>
+<span class="tl"><span class="tcomment"># STEP 2: Set default policies BEFORE enabling</span></span>
+<span class="tl"><span class="tp">nebula@prod-01:~$</span> <span class="tcmd">sudo ufw default deny incoming</span></span>
+<span class="tl"><span class="tcomment"># deny incoming = block ALL inbound traffic by default</span></span>
+<span class="tl"><span class="tp">nebula@prod-01:~$</span> <span class="tcmd">sudo ufw default allow outgoing</span></span>
+<span class="tl"><span class="tcomment"># allow outgoing = our server can initiate connections (apt, curl, etc)</span></span>
+<span class="tl"></span>
+<span class="tl"><span class="tcomment"># STEP 3: Allow specific ports BEFORE enabling (or you'll lock yourself out!)</span></span>
+<span class="tl"><span class="tp">nebula@prod-01:~$</span> <span class="tcmd">sudo ufw allow 2222/tcp comment 'SSH'</span></span>
+<span class="tl"><span class="tp">nebula@prod-01:~$</span> <span class="tcmd">sudo ufw allow 80/tcp comment 'HTTP'</span></span>
+<span class="tl"><span class="tp">nebula@prod-01:~$</span> <span class="tcmd">sudo ufw allow 443/tcp comment 'HTTPS'</span></span>
+<span class="tl"></span>
+<span class="tl"><span class="tcomment"># Allow MySQL ONLY from internal network</span></span>
+<span class="tl"><span class="tp">nebula@prod-01:~$</span> <span class="tcmd">sudo ufw allow from 192.168.1.0/24 to any port 3306 proto tcp</span></span>
+<span class="tl"><span class="tcomment"># from 192.168.1.0/24 = only from this subnet</span></span>
+<span class="tl"><span class="tcomment"># to any = to our server's any IP</span></span>
+<span class="tl"><span class="tcomment"># port 3306 = MySQL port</span></span>
+<span class="tl"></span>
+<span class="tl"><span class="tcomment"># STEP 4: ENABLE (now it's live)</span></span>
+<span class="tl"><span class="tp">nebula@prod-01:~$</span> <span class="tcmd">sudo ufw enable</span></span>
+<span class="tl"><span class="twarn">Command may disrupt existing ssh connections. Proceed with operation (y|n)? y</span></span>
+<span class="tl"><span class="tsuccess">Firewall is active and enabled on system startup</span></span>
+<span class="tl"></span>
+<span class="tl"><span class="tcomment"># Check rules</span></span>
+<span class="tl"><span class="tp">nebula@prod-01:~$</span> <span class="tcmd">sudo ufw status numbered</span></span>
+<span class="tl"><span class="tsuccess">     To                   Action      From</span></span>
+<span class="tl"><span class="tsuccess">[ 1] 2222/tcp              ALLOW IN    Anywhere   # SSH</span></span>
+<span class="tl"><span class="tsuccess">[ 2] 80/tcp                ALLOW IN    Anywhere   # HTTP</span></span>
+<span class="tl"><span class="tsuccess">[ 3] 443/tcp               ALLOW IN    Anywhere   # HTTPS</span></span>
+<span class="tl"><span class="tsuccess">[ 4] 3306/tcp              ALLOW IN    192.168.1.0/24</span></span>
+<span class="tl"></span>
+<span class="tl"><span class="tcomment"># Delete a rule (by number)</span></span>
+<span class="tl"><span class="tp">nebula@prod-01:~$</span> <span class="tcmd">sudo ufw delete 4</span></span>
+            </div>
+          </div>
+          <div class="concept-title">IPTABLES — THE UNDERLYING ENGINE</div>
+          <div class="terminal">
+            <div class="term-bar"><div class="tdot" style="background:#ff5f57"></div><div class="tdot" style="background:#febc2e"></div><div class="tdot" style="background:#28c840"></div><span class="term-label">iptables Direct Rules</span></div>
+            <div class="term-body">
+<span class="tl"><span class="tcomment"># See current iptables rules</span></span>
+<span class="tl"><span class="tp">nebula@prod-01:~$</span> <span class="tcmd">sudo iptables -L INPUT --line-numbers -v</span></span>
+<span class="tl"><span class="tcomment"># -L INPUT = List the INPUT chain (inbound traffic)</span></span>
+<span class="tl"><span class="tcomment"># --line-numbers = show rule numbers (needed to delete by position)</span></span>
+<span class="tl"><span class="tcomment"># -v = verbose (show packet/byte counters)</span></span>
+<span class="tl"></span>
+<span class="tl"><span class="tcomment"># Block a specific IP address</span></span>
+<span class="tl"><span class="tp">nebula@prod-01:~$</span> <span class="tcmd">sudo iptables -I INPUT -s 1.2.3.4 -j DROP</span></span>
+<span class="tl"><span class="tcomment"># -I = Insert at top (not append)</span></span>
+<span class="tl"><span class="tcomment"># INPUT = the chain (inbound traffic)</span></span>
+<span class="tl"><span class="tcomment"># -s 1.2.3.4 = source IP to match</span></span>
+<span class="tl"><span class="tcomment"># -j DROP = jump to DROP action (silently discard)</span></span>
+<span class="tl"><span class="tcomment"># -j REJECT sends "port unreachable" back — DROP is stealthier</span></span>
+<span class="tl"></span>
+<span class="tl"><span class="tcomment"># Rate limit to slow down scanners (allow max 10 SSH connections per minute)</span></span>
+<span class="tl"><span class="tp">nebula@prod-01:~$</span> <span class="tcmd">sudo iptables -I INPUT -p tcp --dport 2222 -m limit --limit 10/min --limit-burst 5 -j ACCEPT</span></span>
+            </div>
+          </div>
+          <button class="done-btn" onclick="markDone('m5','l2',this)">✓ Mark Lesson Complete</button>
+        </div>
+      </div>
+
+      <div class="lesson" id="lesson-m5-l3">
+        <div class="lesson-header" onclick="toggleLesson('m5','l3')"><div class="lesson-title-row"><span class="lesson-num" style="color:var(--m5)">5.3</span><span class="lesson-title">fail2ban — Automatic Brute-Force Defense</span></div><span class="lesson-toggle" id="tog-m5-l3">▶</span></div>
+        <div class="lesson-body" id="body-m5-l3">
+          <div class="story-box">Priya: <strong>"Even with key auth, we're still getting scanned constantly. Set up fail2ban to automatically ban IPs that try too many connections."</strong></div>
+          <div class="terminal">
+            <div class="term-bar"><div class="tdot" style="background:#ff5f57"></div><div class="tdot" style="background:#febc2e"></div><div class="tdot" style="background:#28c840"></div><span class="term-label">fail2ban Setup</span></div>
+            <div class="term-body">
+<span class="tl"><span class="tp">nebula@prod-01:~$</span> <span class="tcmd">sudo apt install -y fail2ban</span></span>
+<span class="tl"></span>
+<span class="tl"><span class="tcomment"># ALWAYS create a .local file (not edit .conf directly — survives upgrades)</span></span>
+<span class="tl"><span class="tp">nebula@prod-01:~$</span> <span class="tcmd">sudo cp /etc/fail2ban/jail.conf /etc/fail2ban/jail.local</span></span>
+<span class="tl"><span class="tp">nebula@prod-01:~$</span> <span class="tcmd">sudo nano /etc/fail2ban/jail.local</span></span>
+<span class="tl"></span>
+<span class="tl"><span class="tcomment"># Edit the [DEFAULT] section:</span></span>
+<span class="tl"><span class="tsuccess">[DEFAULT]</span></span>
+<span class="tl"><span class="tsuccess">bantime  = 1h         </span><span class="tcomment">← Ban for 1 hour</span></span>
+<span class="tl"><span class="tsuccess">findtime = 10m        </span><span class="tcomment">← Measure within 10 minutes</span></span>
+<span class="tl"><span class="tsuccess">maxretry = 5          </span><span class="tcomment">← Ban after 5 failures</span></span>
+<span class="tl"><span class="tsuccess">ignoreip = 127.0.0.1/8 192.168.1.0/24  </span><span class="tcomment">← NEVER ban these (your network!)</span></span>
+<span class="tl"></span>
+<span class="tl"><span class="tcomment"># Enable SSH protection:</span></span>
+<span class="tl"><span class="tsuccess">[sshd]</span></span>
+<span class="tl"><span class="tsuccess">enabled  = true</span></span>
+<span class="tl"><span class="tsuccess">port     = 2222       </span><span class="tcomment">← Match our custom SSH port!</span></span>
+<span class="tl"><span class="tsuccess">filter   = sshd       </span><span class="tcomment">← Use the pre-built sshd filter rules</span></span>
+<span class="tl"><span class="tsuccess">logpath  = /var/log/auth.log</span></span>
+<span class="tl"><span class="tsuccess">maxretry = 3          </span><span class="tcomment">← Stricter than default for SSH</span></span>
+<span class="tl"></span>
+<span class="tl"><span class="tp">nebula@prod-01:~$</span> <span class="tcmd">sudo systemctl enable --now fail2ban</span></span>
+<span class="tl"></span>
+<span class="tl"><span class="tcomment"># Monitor fail2ban activity</span></span>
+<span class="tl"><span class="tp">nebula@prod-01:~$</span> <span class="tcmd">sudo fail2ban-client status sshd</span></span>
+<span class="tl"><span class="tsuccess">Status for the jail: sshd</span></span>
+<span class="tl"><span class="tsuccess">|- Filter: [Currently failed: 2] [Total failed: 847] [File: /var/log/auth.log]</span></span>
+<span class="tl"><span class="tsuccess">|- Actions: [Currently banned: 12] [Total banned: 203]</span></span>
+<span class="tl"></span>
+<span class="tl"><span class="tcomment"># Manually unban your own IP (if you locked yourself out)</span></span>
+<span class="tl"><span class="tp">nebula@prod-01:~$</span> <span class="tcmd">sudo fail2ban-client set sshd unbanip 1.2.3.4</span></span>
+            </div>
+          </div>
+          <button class="done-btn" onclick="markDone('m5','l3',this)">✓ Mark Lesson Complete</button>
+        </div>
+      </div>
+
+      <div class="lesson" id="lesson-m5-l4">
+        <div class="lesson-header" onclick="toggleLesson('m5','l4')"><div class="lesson-title-row"><span class="lesson-num" style="color:var(--m5)">5.4</span><span class="lesson-title">SELinux & AppArmor — Mandatory Access Control</span></div><span class="lesson-toggle" id="tog-m5-l4">▶</span></div>
+        <div class="lesson-body" id="body-m5-l4">
+          <div class="story-box">Priya: <strong>"Even if an attacker gets into the nginx process, they shouldn't be able to read /etc/passwd or the private keys. That's what AppArmor is for."</strong></div>
+          <div class="concept-title">AppArmor (Ubuntu) — CONFINE A PROCESS</div>
+          <div class="concept-body">AppArmor enforces <strong>Mandatory Access Control (MAC)</strong>. Even if nginx is compromised, AppArmor's profile says "nginx may only read /var/www and /etc/nginx — nothing else". It limits blast radius of security breaches.</div>
+          <div class="terminal">
+            <div class="term-bar"><div class="tdot" style="background:#ff5f57"></div><div class="tdot" style="background:#febc2e"></div><div class="tdot" style="background:#28c840"></div><span class="term-label">AppArmor Management</span></div>
+            <div class="term-body">
+<span class="tl"><span class="tcomment"># Check status of all profiles</span></span>
+<span class="tl"><span class="tp">nebula@prod-01:~$</span> <span class="tcmd">sudo aa-status</span></span>
+<span class="tl"><span class="tsuccess">apparmor module is loaded.</span></span>
+<span class="tl"><span class="tsuccess">25 profiles are loaded.</span></span>
+<span class="tl"><span class="tsuccess">25 profiles are in enforce mode.</span></span>
+<span class="tl"><span class="tout">   /usr/sbin/nginx</span></span>
+<span class="tl"></span>
+<span class="tl"><span class="tcomment"># Two modes: enforce (blocking) and complain (logging only)</span></span>
+<span class="tl"><span class="tp">nebula@prod-01:~$</span> <span class="tcmd">sudo aa-complain /usr/sbin/nginx   </span><span class="tcomment"># log violations, don't block</span></span>
+<span class="tl"><span class="tp">nebula@prod-01:~$</span> <span class="tcmd">sudo aa-enforce /usr/sbin/nginx    </span><span class="tcomment"># actively block violations</span></span>
+<span class="tl"></span>
+<span class="tl"><span class="tcomment"># View nginx's AppArmor profile</span></span>
+<span class="tl"><span class="tp">nebula@prod-01:~$</span> <span class="tcmd">cat /etc/apparmor.d/usr.sbin.nginx | head -30</span></span>
+<span class="tl"><span class="tsuccess">/usr/sbin/nginx {</span></span>
+<span class="tl"><span class="tsuccess">  capability net_bind_service,    ← allowed to bind to port 80</span></span>
+<span class="tl"><span class="tsuccess">  /var/www/** r,                  ← read website files</span></span>
+<span class="tl"><span class="tsuccess">  /etc/nginx/** r,                ← read its own config</span></span>
+<span class="tl"><span class="tsuccess">  /var/log/nginx/** rw,           ← write logs</span></span>
+<span class="tl"><span class="tsuccess">  deny /etc/passwd r,             ← explicitly deny reading /etc/passwd</span></span>
+<span class="tl"><span class="tsuccess">}</span></span>
+<span class="tl"></span>
+<span class="tl"><span class="tcomment"># Check AppArmor denials in real-time</span></span>
+<span class="tl"><span class="tp">nebula@prod-01:~$</span> <span class="tcmd">sudo journalctl -f | grep apparmor</span></span>
+            </div>
+          </div>
+          <button class="done-btn" onclick="markDone('m5','l4',this)">✓ Mark Lesson Complete</button>
+        </div>
+      </div>
+
+      <div class="lesson" id="lesson-m5-l5">
+        <div class="lesson-header" onclick="toggleLesson('m5','l5')"><div class="lesson-title-row"><span class="lesson-num" style="color:var(--m5)">5.5</span><span class="lesson-title">Audit Logs & Complete Security Hardening Checklist</span></div><span class="lesson-toggle" id="tog-m5-l5">▶</span></div>
+        <div class="lesson-body" id="body-m5-l5">
+          <div class="story-box">Priya: <strong>"Security audit is tomorrow. Here's the checklist. Make sure everything is done — missing one item can fail us."</strong></div>
+          <div class="terminal">
+            <div class="term-bar"><div class="tdot" style="background:#ff5f57"></div><div class="tdot" style="background:#febc2e"></div><div class="tdot" style="background:#28c840"></div><span class="term-label">auditd — Track Everything That Matters</span></div>
+            <div class="term-body">
+<span class="tl"><span class="tp">nebula@prod-01:~$</span> <span class="tcmd">sudo apt install -y auditd</span></span>
+<span class="tl"></span>
+<span class="tl"><span class="tcomment"># Watch for any writes to passwd or shadow (user tampering)</span></span>
+<span class="tl"><span class="tp">nebula@prod-01:~$</span> <span class="tcmd">sudo auditctl -w /etc/passwd -p wa -k user-changes</span></span>
+<span class="tl"><span class="tcomment"># -w /etc/passwd = watch this file</span></span>
+<span class="tl"><span class="tcomment"># -p wa = watch for Writes and Attribute changes</span></span>
+<span class="tl"><span class="tcomment"># -k user-changes = tag events with this keyword (for searching)</span></span>
+<span class="tl"><span class="tp">nebula@prod-01:~$</span> <span class="tcmd">sudo auditctl -w /etc/sudoers -p wa -k sudo-changes</span></span>
+<span class="tl"></span>
+<span class="tl"><span class="tcomment"># Search audit log for events tagged user-changes</span></span>
+<span class="tl"><span class="tp">nebula@prod-01:~$</span> <span class="tcmd">sudo ausearch -k user-changes --interpret</span></span>
+<span class="tl"></span>
+<span class="tl"><span class="tcomment"># Generate a compliance report</span></span>
+<span class="tl"><span class="tp">nebula@prod-01:~$</span> <span class="tcmd">sudo aureport --summary</span></span>
+            </div>
+          </div>
+          <div class="concept-title">THE NEBULA CLOUD SECURITY HARDENING CHECKLIST</div>
+          <table class="concept-table">
+            <tr><th>Category</th><th>Item</th><th>Command to Verify</th></tr>
+            <tr><td style="color:var(--m5)">SSH</td><td class="why-col">Root login disabled</td><td class="cmd-col">grep PermitRootLogin /etc/ssh/sshd_config</td></tr>
+            <tr><td style="color:var(--m5)">SSH</td><td class="why-col">Password auth disabled</td><td class="cmd-col">grep PasswordAuthentication /etc/ssh/sshd_config</td></tr>
+            <tr><td style="color:var(--m5)">SSH</td><td class="why-col">Non-standard port</td><td class="cmd-col">grep ^Port /etc/ssh/sshd_config</td></tr>
+            <tr><td style="color:var(--cyan)">Firewall</td><td class="why-col">ufw enabled with deny all</td><td class="cmd-col">sudo ufw status | grep Status</td></tr>
+            <tr><td style="color:var(--cyan)">Firewall</td><td class="why-col">Only required ports open</td><td class="cmd-col">sudo ufw status numbered</td></tr>
+            <tr><td style="color:var(--yellow)">Brute Force</td><td class="why-col">fail2ban running</td><td class="cmd-col">sudo systemctl status fail2ban</td></tr>
+            <tr><td style="color:var(--m1)">Updates</td><td class="why-col">All packages updated</td><td class="cmd-col">sudo apt list --upgradable</td></tr>
+            <tr><td style="color:var(--m1)">Updates</td><td class="why-col">Unattended upgrades on</td><td class="cmd-col">systemctl status unattended-upgrades</td></tr>
+            <tr><td style="color:var(--purple)">MAC</td><td class="why-col">AppArmor in enforce mode</td><td class="cmd-col">sudo aa-status | grep enforce</td></tr>
+            <tr><td style="color:var(--purple)">Audit</td><td class="why-col">auditd running with rules</td><td class="cmd-col">sudo auditctl -l</td></tr>
+            <tr><td style="color:var(--red)">Users</td><td class="why-col">No empty passwords</td><td class="cmd-col">sudo awk -F: '($2==""){print $1}' /etc/shadow</td></tr>
+            <tr><td style="color:var(--red)">Users</td><td class="why-col">No UID 0 accounts (besides root)</td><td class="cmd-col">awk -F: '$3==0{print $1}' /etc/passwd</td></tr>
+          </table>
+          <div class="callout tip"><strong>Run a security scan with Lynis:</strong> <code>sudo apt install lynis && sudo lynis audit system</code> — it gives you a score and a prioritized hardening list. Aim for 70+ on the hardening index.</div>
+          <button class="done-btn" onclick="markDone('m5','l5',this)">✓ Mark Lesson Complete</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /main -->
+
+<script>
+// ═══════ STATE ═══════
+const state = {};
+const lessonMap = {
+  m1:['l1','l2','l3','l4','l5'],
+  m2:['l1','l2','l3','l4','l5'],
+  m3:['l1','l2','l3','l4','l5'],
+  m4:['l1','l2','l3','l4','l5'],
+  m5:['l1','l2','l3','l4','l5']
+};
+const modAccents = {m1:'#39ff14',m2:'#00e5ff',m3:'#ffe600',m4:'#bf5af2',m5:'#ff6b00'};
+
+// ═══════ NAVIGATION ═══════
+let currentMod = 'm1', currentLes = 'l1';
+
+function showPage(id){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  const pg = document.getElementById('page-'+id);
+  if(pg) pg.classList.add('active');
+  // update topbar
+  if(id==='home'){
+    document.getElementById('topCmd').textContent='~/';
+  } else {
+    document.getElementById('topCmd').textContent = id.replace('m','module-').replace('l','lesson-') || id;
+  }
+}
+
+function goLesson(mod, les){
+  currentMod = mod; currentLes = les;
+  showPage(mod);
+  // close all lessons, open target
+  const mods = ['m1','m2','m3','m4','m5'];
+  mods.forEach(m=>{
+    lessonMap[m].forEach(l=>{
+      const body = document.getElementById('body-'+m+'-'+l);
+      const tog = document.getElementById('tog-'+m+'-'+l);
+      if(body && tog){body.classList.remove('open');tog.classList.remove('open');}
+    });
+  });
+  const targetBody = document.getElementById('body-'+mod+'-'+les);
+  const targetTog = document.getElementById('tog-'+mod+'-'+les);
+  if(targetBody){targetBody.classList.add('open');targetTog.classList.add('open');}
+  
+  // scroll to lesson
+  setTimeout(()=>{
+    const el = document.getElementById('lesson-'+mod+'-'+les);
+    if(el) el.scrollIntoView({behavior:'smooth', block:'start'});
+  }, 100);
+
+  // update topbar
+  document.getElementById('topCmd').textContent = mod+' / '+les;
+
+  // update sidebar active states
+  document.querySelectorAll('.sb-lesson-btn').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.sb-module-btn').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.lesson-check').forEach(c=>c.classList.remove('active'));
+  const activeBtn = document.querySelector(`[onclick="goLesson('${mod}','${les}')"]`);
+  if(activeBtn){
+    activeBtn.classList.add('active');
+    const ck = document.getElementById('ck-'+mod+'-'+les);
+    if(ck && !ck.classList.contains('done')) ck.classList.add('active');
+  }
+  const modBtn = document.getElementById('smod'+mod.replace('m',''));
+  if(modBtn) modBtn.classList.add('active');
+
+  openSidebar(mod);
+}
+
+function toggleModule(num){
+  const mod = 'm'+num;
+  const sl = document.getElementById('sl'+num);
+  const isOpen = sl.classList.contains('open');
+  // close all
+  ['sl1','sl2','sl3','sl4','sl5'].forEach(id=>{
+    const el = document.getElementById(id);
+    if(el) el.classList.remove('open');
+  });
+  if(!isOpen) sl.classList.add('open');
+  goLesson(mod, 'l1');
+}
+
+function openSidebar(mod){
+  const num = mod.replace('m','');
+  ['sl1','sl2','sl3','sl4','sl5'].forEach(id=>document.getElementById(id)?.classList.remove('open'));
+  document.getElementById('sl'+num)?.classList.add('open');
+}
+
+function toggleLesson(mod, les){
+  const body = document.getElementById('body-'+mod+'-'+les);
+  const tog = document.getElementById('tog-'+mod+'-'+les);
+  body.classList.toggle('open');
+  tog.classList.toggle('open');
+}
+
+// ═══════ NEXT LESSON ═══════
+function nextLesson(){
+  const mods = ['m1','m2','m3','m4','m5'];
+  const les = ['l1','l2','l3','l4','l5'];
+  const mi = mods.indexOf(currentMod);
+  const li = les.indexOf(currentLes);
+  if(li < les.length-1){ goLesson(currentMod, les[li+1]); }
+  else if(mi < mods.length-1){ goLesson(mods[mi+1], 'l1'); }
+}
+
+// ═══════ MARK DONE ═══════
+function markDone(mod, les, btn){
+  const key = mod+'-'+les;
+  state[key] = true;
+  btn.textContent = '✓ Lesson Complete!';
+  btn.classList.add('marked');
+  btn.disabled = true;
+
+  // update sidebar checkmark
+  const ck = document.getElementById('ck-'+mod+'-'+les);
+  if(ck){ ck.classList.add('done'); ck.classList.remove('active'); ck.textContent='✓'; }
+  // update sidebar lesson btn
+  const lb = document.querySelector(`[onclick="goLesson('${mod}','${les}')"]`);
+  if(lb) lb.classList.add('done');
+
+  updateProgress();
+  nextLesson();
+}
+
+function updateProgress(){
+  const total = 25;
+  const done = Object.values(state).filter(Boolean).length;
+  const pct = Math.round((done/total)*100);
+  document.getElementById('globalFill').style.width = pct+'%';
+  document.getElementById('globalPct').textContent = done + ' / ' + total + ' lessons';
+}
+
+// ═══════ HINTS ═══════
+function toggleHint(btn){
+  const hint = btn.nextElementSibling;
+  if(hint.style.display === 'block'){ hint.style.display='none'; btn.textContent='hint'; }
+  else { hint.style.display='block'; btn.textContent='hide'; }
+}
+
+// ═══════ INIT ═══════
+document.addEventListener('DOMContentLoaded', ()=>{
+  goLesson('m1','l1');
+});
+</script>
+</body>
+</html>

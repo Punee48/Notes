@@ -1,0 +1,59 @@
+---
+- name: Enterprise window administration
+  hosts: all
+  gather_facts: yes     # Helps to gather system information like memory, disk, network which can be used in the playbooks
+  tasks:
+    - name: Install window updates 
+      ansible.windows.win_updates:
+        category_names: 
+          - SecurityUpdates
+          - CriticalUpdates 
+        state: installed 
+      register: update_result 
+
+    - name: Reboot the System if patches require it 
+      ansible.windows.win_reboot:
+        reboot_timeout: 600
+      when: update_result.reboot_required 
+
+
+    - name: PCI-DSS Compliance - Enforce Account Lockout Policy
+      ansible.windows.win_security_policy:
+        section: Account Lockout Policy
+        key: LockoutBadCount
+        value: 5
+
+    - name: Disable insecure protocols TLS 
+      ansible.windows.win_registry:
+        path: HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.0\Server
+        name: Enabled
+        type: dword #32 bit numeric value
+        data: 0 # Disable TLS 1.0 from the registry
+
+
+    - name: SSL Certificate Renewal 
+      ansible.windows.win_powershell:
+        script: |
+          $cert = Get-ChildItem Cert:\LocalMachine\My | Where-Object { $_.NotAfter -lt (Get-Date).AddDays(30)}
+          if ($cert) 
+          {
+            Write-Output "EXPIRED_OR_EXPIRING"
+            Exit 1
+          }
+      register: cert_status
+      failed_when: false 
+
+    - name: Notify if the certificate is expiring 
+      ansible.windows.debug:
+        msg: "SSL Certificate is expiring within 30 days! Triggering automated renewal pipeline."  
+      when: "'EXPIRED_OR_EXPIRING' in cert_status.stdout"
+
+
+    - name: Database Backup for the server
+      ansible.windows.win_powershell:
+        script: |
+          Backup-SqlDatabase -ServerInstance "." -Database "ProductionDB" -BackupFile "D:\Backups\ProdDB_{{ ansible_date_time.date }}.bak"
+      when: "'db-server' in inventory_hostname"
+
+
+        

@@ -1,0 +1,848 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Kubernetes on AWS — Part 3: Networking</title>
+<style>
+  :root {
+    --bg:#F7F8FA;--surface:#FFFFFF;--border:#E2E6ED;
+    --accent:#2563EB;--accent2:#16A34A;--accent3:#DC2626;
+    --accent-lt:#EFF6FF;--text:#111827;--muted:#6B7280;
+    --code-bg:#1E293B;--code-text:#E2E8F0;
+    --yellow:#FEF9C3;--yellow-b:#CA8A04;
+    --green-lt:#DCFCE7;--green-b:#15803D;
+    --purple-lt:#F5F3FF;--purple-b:#7C3AED;
+    --teal-lt:#F0FDFA;--teal-b:#0F766E;
+    --radius:10px;--shadow:0 2px 12px rgba(0,0,0,.07);
+    font-family:'Segoe UI',system-ui,-apple-system,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{background:var(--bg);color:var(--text);line-height:1.7;font-size:16px;}
+  .page{max-width:960px;margin:0 auto;padding:40px 24px 80px;}
+  .header{background:linear-gradient(135deg,#0F4C75,#1B7FA6 60%,#0F766E);color:white;border-radius:16px;padding:48px 40px;margin-bottom:40px;}
+  .header .badge{font-size:12px;font-weight:700;letter-spacing:2px;background:rgba(255,255,255,.15);padding:4px 14px;border-radius:20px;display:inline-block;margin-bottom:16px;text-transform:uppercase;}
+  .header h1{font-size:2.4rem;font-weight:800;line-height:1.2;margin-bottom:12px;}
+  .header p{font-size:1.1rem;opacity:.85;max-width:620px;}
+  .header .meta{margin-top:24px;display:flex;gap:24px;flex-wrap:wrap;}
+  .header .meta span{font-size:.85rem;opacity:.8;}
+  .parts-nav{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:36px;}
+  .parts-nav a{padding:8px 18px;border-radius:24px;font-size:.85rem;font-weight:600;text-decoration:none;border:2px solid var(--border);color:var(--muted);background:var(--surface);transition:all .2s;}
+  .parts-nav a.active{background:var(--accent);color:white;border-color:var(--accent);}
+  .parts-nav a:hover:not(.active){border-color:var(--accent);color:var(--accent);}
+  .toc{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:28px 32px;margin-bottom:40px;box-shadow:var(--shadow);}
+  .toc h2{font-size:1rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:16px;}
+  .toc ol{padding-left:20px;}
+  .toc li{margin-bottom:8px;}
+  .toc a{color:var(--accent);text-decoration:none;font-size:.95rem;}
+  .section{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:36px 40px;margin-bottom:32px;box-shadow:var(--shadow);}
+  .section-num{display:inline-block;background:var(--accent);color:white;font-size:.75rem;font-weight:800;padding:2px 10px;border-radius:20px;margin-bottom:12px;}
+  .section h2{font-size:1.6rem;font-weight:700;color:var(--text);margin-bottom:16px;}
+  .section h3{font-size:1.15rem;font-weight:700;color:var(--accent);margin:28px 0 10px;}
+  .section h4{font-size:1rem;font-weight:700;margin:20px 0 8px;}
+  .section p{margin-bottom:14px;color:#374151;}
+  .section ul,.section ol{padding-left:22px;margin-bottom:14px;}
+  .section li{margin-bottom:6px;color:#374151;}
+  .story{background:linear-gradient(135deg,#EFF6FF,#DBEAFE);border-left:4px solid var(--accent);border-radius:0 var(--radius) var(--radius) 0;padding:20px 24px;margin:24px 0;}
+  .story .story-label{font-size:.75rem;font-weight:800;color:var(--accent);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:8px;}
+  .story p{color:#1E40AF;margin:0;}
+  .code-block{background:var(--code-bg);border-radius:var(--radius);overflow:hidden;margin:20px 0;box-shadow:0 4px 16px rgba(0,0,0,.15);}
+  .code-header{background:#0F172A;padding:10px 18px;display:flex;justify-content:space-between;align-items:center;}
+  .code-header .lang{font-size:.75rem;color:#94A3B8;font-weight:600;text-transform:uppercase;letter-spacing:1px;}
+  .code-header .filename{font-size:.75rem;color:#64748B;font-family:monospace;}
+  pre{padding:20px 22px;overflow-x:auto;}
+  code{font-family:'Cascadia Code','Fira Code','Consolas',monospace;font-size:.88rem;line-height:1.7;color:var(--code-text);}
+  .inline-code{background:#E8EDF5;color:#2563EB;padding:2px 7px;border-radius:5px;font-family:monospace;font-size:.87em;}
+  .annotate-row{display:grid;grid-template-columns:1fr 2fr;gap:0;border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:10px;}
+  .annotate-code{background:var(--code-bg);padding:12px 16px;font-family:monospace;font-size:.85rem;color:var(--code-text);word-break:break-all;}
+  .annotate-desc{background:var(--surface);padding:12px 16px;font-size:.9rem;color:var(--text);border-left:1px solid var(--border);}
+  .annotate-desc strong{color:var(--accent);display:block;margin-bottom:4px;}
+  .tip{background:var(--yellow);border-left:4px solid var(--yellow-b);border-radius:0 var(--radius) var(--radius) 0;padding:16px 20px;margin:20px 0;}
+  .tip strong{color:var(--yellow-b);}
+  .success{background:var(--green-lt);border-left:4px solid var(--green-b);border-radius:0 var(--radius) var(--radius) 0;padding:16px 20px;margin:20px 0;}
+  .success strong{color:var(--green-b);}
+  .danger{background:#FFF1F2;border-left:4px solid var(--accent3);border-radius:0 var(--radius) var(--radius) 0;padding:16px 20px;margin:20px 0;}
+  .danger strong{color:var(--accent3);}
+  .info{background:var(--teal-lt);border-left:4px solid var(--teal-b);border-radius:0 var(--radius) var(--radius) 0;padding:16px 20px;margin:20px 0;}
+  .info strong{color:var(--teal-b);}
+  .interview{background:var(--purple-lt);border:1px solid #E9D5FF;border-radius:var(--radius);padding:20px 24px;margin:24px 0;}
+  .interview-label{font-size:.75rem;font-weight:800;color:var(--purple-b);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:12px;}
+  .interview .q{font-weight:700;color:#6D28D9;margin-bottom:6px;}
+  .interview .a{color:#374151;margin-bottom:12px;padding-left:14px;border-left:3px solid #C4B5FD;}
+  .arch-diagram{background:var(--bg);border:2px dashed var(--border);border-radius:var(--radius);padding:24px;margin:20px 0;font-family:monospace;font-size:.82rem;line-height:1.9;color:var(--text);white-space:pre;overflow-x:auto;}
+  .lab{background:#F0FDF4;border:2px solid #86EFAC;border-radius:var(--radius);padding:28px 32px;margin:28px 0;}
+  .lab-header{display:flex;align-items:center;gap:12px;margin-bottom:20px;}
+  .lab-header .lab-icon{font-size:1.6rem;}
+  .lab-header h3{font-size:1.1rem;font-weight:700;color:#15803D;margin:0;}
+  .lab .step{display:flex;gap:14px;margin-bottom:18px;}
+  .lab .step-num{background:#15803D;color:white;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.8rem;font-weight:700;flex-shrink:0;margin-top:3px;}
+  .lab .step-body p{margin-bottom:8px;font-size:.95rem;}
+  table{width:100%;border-collapse:collapse;margin:20px 0;font-size:.9rem;}
+  th{background:var(--accent);color:white;padding:12px 16px;text-align:left;font-weight:600;}
+  td{padding:11px 16px;border-bottom:1px solid var(--border);}
+  tr:nth-child(even) td{background:var(--bg);}
+  .footer{text-align:center;padding:40px 0 0;color:var(--muted);font-size:.85rem;}
+  .footer .next-btn{display:inline-block;margin-bottom:20px;background:var(--accent);color:white;padding:14px 32px;border-radius:30px;text-decoration:none;font-weight:700;font-size:1rem;}
+  .footer .prev-btn{display:inline-block;margin:0 10px 20px;background:var(--surface);color:var(--accent);padding:14px 32px;border-radius:30px;text-decoration:none;font-weight:700;font-size:1rem;border:2px solid var(--accent);}
+  @media(max-width:600px){.header{padding:32px 20px;}.header h1{font-size:1.7rem;}.section{padding:24px 20px;}.annotate-row{grid-template-columns:1fr;}}
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="header">
+    <div class="badge">Complete Course · Part 3 of 6</div>
+    <h1>Kubernetes Networking<br>on AWS</h1>
+    <p>Master the full networking stack: DNS, Services, Ingress, Network Policies, AWS VPC CNI, and the AWS Load Balancer Controller.</p>
+    <div class="meta">
+      <span>🎯 <strong>Level:</strong> Intermediate → Advanced</span>
+      <span>📦 <strong>Part 3 of 6</strong> — Networking</span>
+      <span>⏱ <strong>~3 hours</strong> reading + labs</span>
+    </div>
+  </div>
+
+  <div class="parts-nav">
+    <a href="k8s-aws-part1.html">Part 1 · Foundations</a>
+    <a href="k8s-aws-part2.html">Part 2 · Workloads</a>
+    <a href="k8s-aws-part3.html" class="active">Part 3 · Networking</a>
+    <a href="k8s-aws-part4.html">Part 4 · Storage & Config</a>
+    <a href="k8s-aws-part5.html">Part 5 · Security & RBAC</a>
+    <a href="k8s-aws-part6.html">Part 6 · Real Project + Interview</a>
+  </div>
+
+  <div class="toc">
+    <h2>📋 Part 3 — Table of Contents</h2>
+    <ol>
+      <li><a href="#networking-model">Kubernetes Networking Model</a></li>
+      <li><a href="#dns">CoreDNS — Service Discovery</a></li>
+      <li><a href="#ingress">Ingress — HTTP Routing Gateway</a></li>
+      <li><a href="#aws-alb">AWS Load Balancer Controller (EKS)</a></li>
+      <li><a href="#network-policy">Network Policies — Pod-Level Firewall</a></li>
+      <li><a href="#vpc-cni">AWS VPC CNI</a></li>
+      <li><a href="#labs">Hands-On Labs</a></li>
+      <li><a href="#interview">Interview Questions — Part 3</a></li>
+    </ol>
+  </div>
+
+  <!-- SECTION 1 — NETWORKING MODEL -->
+  <div class="section" id="networking-model">
+    <span class="section-num">SECTION 1</span>
+    <h2>🌐 Kubernetes Networking Model</h2>
+
+    <div class="story">
+      <div class="story-label">📖 The 3 Networking Problems K8s Solves</div>
+      <p>1) <strong>Pod-to-Pod:</strong> How does the checkout service talk to the inventory service? 2) <strong>Pod-to-Service:</strong> Which pod IP do I call when pods restart constantly? 3) <strong>External-to-Service:</strong> How do users on the internet reach my app?</p>
+    </div>
+
+    <h3>The 4 Kubernetes Networking Rules</h3>
+    <ul>
+      <li>Every Pod gets its own unique IP address (no NAT between pods)</li>
+      <li>Any Pod can communicate with any other Pod directly using its IP</li>
+      <li>Pods on the same node communicate via a virtual bridge (cbr0)</li>
+      <li>Pods on different nodes communicate via the CNI plugin (AWS VPC CNI on EKS)</li>
+    </ul>
+
+    <h3>The Full Networking Picture</h3>
+    <div class="arch-diagram">
+EXTERNAL USER (internet)
+       │ HTTPS
+       ▼
+ AWS ALB (Application Load Balancer)
+       │ HTTP forward
+       ▼
+ Ingress Controller (nginx / AWS ALB Ingress)
+       │ Route by path/host
+  ┌────┴──────────────────┐
+  ▼                       ▼
+Service: frontend-svc   Service: api-svc
+  (ClusterIP)             (ClusterIP)
+  │                       │
+  │ iptables load balance  │
+  ├──► frontend-pod-1     ├──► api-pod-1
+  ├──► frontend-pod-2     └──► api-pod-2
+  └──► frontend-pod-3
+  
+Pod-to-Pod (within cluster):
+  api-pod-1 ──► mysql-svc:3306 ──► mysql-0, mysql-1
+
+DNS Resolution (CoreDNS):
+  mysql-svc → 10.100.45.23 (ClusterIP)
+  mysql-0.mysql.shopnow.svc.cluster.local → 10.0.1.5 (StatefulSet pod)
+    </div>
+
+    <h3>Network Layers Explained</h3>
+    <table>
+      <tr><th>Layer</th><th>What It Does</th><th>K8s Object</th></tr>
+      <tr><td>L7 HTTP Routing</td><td>Route /api → service A, /web → service B</td><td>Ingress</td></tr>
+      <tr><td>L4 TCP Load Balance</td><td>Stable IP/DNS → load balance to pod IPs</td><td>Service</td></tr>
+      <tr><td>L3 Pod Network</td><td>Pod-to-pod IP routing across nodes</td><td>CNI (AWS VPC CNI)</td></tr>
+      <tr><td>DNS</td><td>service-name → ClusterIP resolution</td><td>CoreDNS</td></tr>
+      <tr><td>Firewall</td><td>Which pods can talk to which pods</td><td>NetworkPolicy</td></tr>
+    </table>
+  </div>
+
+  <!-- SECTION 2 — COREDNS -->
+  <div class="section" id="dns">
+    <span class="section-num">SECTION 2</span>
+    <h2>🔍 CoreDNS — Service Discovery in Kubernetes</h2>
+
+    <p>CoreDNS is the DNS server that runs inside every Kubernetes cluster. It allows pods to find each other by name instead of IP address. When you create a Service, CoreDNS automatically creates DNS entries for it.</p>
+
+    <h3>DNS Name Format</h3>
+    <div class="code-block">
+      <div class="code-header"><span class="lang">text</span><span class="filename">DNS naming patterns</span></div>
+      <pre><code># Full DNS name format for a Service:
+&lt;service-name&gt;.&lt;namespace&gt;.svc.cluster.local
+
+# Examples:
+mysql-svc.shopnow.svc.cluster.local      # MySQL service in shopnow namespace
+api-svc.default.svc.cluster.local        # API service in default namespace
+nginx-svc.shopnow.svc.cluster.local      # nginx service
+
+# Short-form DNS (works from within SAME namespace):
+mysql-svc              # Same as mysql-svc.shopnow.svc.cluster.local
+api-svc                # Same as api-svc.default.svc.cluster.local
+
+# Cross-namespace (must use full name or at least service.namespace):
+mysql-svc.shopnow      # Calling shopnow's mysql from another namespace
+
+# StatefulSet pod DNS (via Headless Service):
+mysql-0.mysql.shopnow.svc.cluster.local  # Pod mysql-0
+mysql-1.mysql.shopnow.svc.cluster.local  # Pod mysql-1</code></pre>
+    </div>
+
+    <h3>Verify DNS from inside a Pod</h3>
+    <div class="code-block">
+      <div class="code-header"><span class="lang">bash</span></div>
+      <pre><code># Run a debug pod with DNS tools
+kubectl run dns-debug \
+  --image=busybox:1.28 \
+  --rm -it \
+  --restart=Never \
+  -n shopnow \
+  -- /bin/sh
+
+# Inside the pod:
+nslookup nginx-svc                          # Short name (same namespace)
+nslookup nginx-svc.shopnow.svc.cluster.local  # Full name
+nslookup kubernetes.default.svc.cluster.local  # K8s API server
+cat /etc/resolv.conf  # See DNS search domains configured by K8s</code></pre>
+    </div>
+
+    <div class="tip">
+      <strong>💡 /etc/resolv.conf inside pods:</strong><br>
+      Kubernetes configures each pod's <code>/etc/resolv.conf</code> with search domains:<br>
+      <code>search shopnow.svc.cluster.local svc.cluster.local cluster.local</code><br>
+      This is why you can use short names — the search domain expands them automatically.
+    </div>
+  </div>
+
+  <!-- SECTION 3 — INGRESS -->
+  <div class="section" id="ingress">
+    <span class="section-num">SECTION 3</span>
+    <h2>🚪 Ingress — The HTTP Routing Gateway</h2>
+
+    <div class="story">
+      <div class="story-label">📖 Story — The Problem Without Ingress</div>
+      <p>ShopNow has 5 microservices. Without Ingress, each needs its own AWS LoadBalancer ($20/month each = $100/month). With Ingress, ONE LoadBalancer receives all traffic and routes by URL path or hostname to the right service. Save 80% on cloud costs, plus get TLS termination in one place.</p>
+    </div>
+
+    <h3>Ingress vs Service LoadBalancer</h3>
+    <table>
+      <tr><th>Without Ingress</th><th>With Ingress</th></tr>
+      <tr><td>5 services = 5 LoadBalancers = $100/mo</td><td>1 Ingress = 1 LoadBalancer = $20/mo</td></tr>
+      <tr><td>5 SSL certificates to manage</td><td>1 SSL certificate (wildcard)</td></tr>
+      <tr><td>5 different public IPs/DNS names</td><td>1 DNS name, different paths</td></tr>
+      <tr><td>No path-based routing</td><td>Route /api, /web, /admin separately</td></tr>
+    </table>
+
+    <h3>Ingress Architecture</h3>
+    <div class="arch-diagram">
+Internet User
+     │  GET https://shopnow.com/api/orders
+     ▼
+AWS ALB (Load Balancer)          ← Ingress Controller creates this
+     │
+     ▼
+Ingress Controller Pod           ← Reads Ingress YAML rules
+(nginx-ingress or aws-alb-ingress)
+     │
+     ├── /api/*   ──────────────► Service: api-svc:8080
+     ├── /web/*   ──────────────► Service: frontend-svc:80
+     └── /admin/* ──────────────► Service: admin-svc:3000
+     
+Host-based routing:
+     ├── api.shopnow.com ───────► Service: api-svc
+     └── app.shopnow.com ───────► Service: frontend-svc
+    </div>
+
+    <h3>Ingress Resource YAML (nginx Ingress Controller)</h3>
+    <div class="code-block">
+      <div class="code-header"><span class="lang">YAML</span><span class="filename">shopnow-ingress.yaml</span></div>
+      <pre><code>apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: shopnow-ingress
+  namespace: shopnow
+  annotations:
+    # Which ingress controller handles this resource:
+    kubernetes.io/ingress.class: "nginx"
+    
+    # Redirect HTTP to HTTPS:
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    
+    # Enable CORS headers:
+    nginx.ingress.kubernetes.io/enable-cors: "true"
+    
+    # Rate limiting: 100 requests per minute per IP
+    nginx.ingress.kubernetes.io/limit-rpm: "100"
+    
+    # Rewrite /api/v1/orders → /orders (strip prefix):
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
+    
+spec:
+  ingressClassName: nginx            # ← Which IngressClass to use (K8s 1.18+)
+  
+  tls:                               # ← TLS/HTTPS configuration
+  - hosts:
+    - shopnow.com
+    - api.shopnow.com
+    secretName: shopnow-tls          # ← K8s Secret with TLS cert/key
+    
+  rules:
+  - host: shopnow.com                # ← Match this hostname
+    http:
+      paths:
+      - path: /                      # ← Match this path
+        pathType: Prefix             # ← Prefix: /foo matches /foo/bar
+                                     #   Exact: /foo only matches /foo
+        backend:
+          service:
+            name: frontend-svc       # ← Forward to this Service
+            port:
+              number: 80
+              
+  - host: api.shopnow.com            # ← Separate host for API
+    http:
+      paths:
+      - path: /v1                    # ← API v1 endpoint
+        pathType: Prefix
+        backend:
+          service:
+            name: api-svc
+            port:
+              number: 8080
+      - path: /health                # ← Health check endpoint
+        pathType: Exact
+        backend:
+          service:
+            name: api-svc
+            port:
+              number: 8080</code></pre>
+    </div>
+
+    <h3>Word-by-Word Annotations</h3>
+    <div class="annotate-row">
+      <div class="annotate-code">annotations</div>
+      <div class="annotate-desc"><strong>What they do:</strong> Ingress annotations are controller-specific configuration. nginx has 100+ annotations. The Ingress object itself is just routing rules — annotations tell the controller HOW to handle traffic (timeouts, SSL, rate limiting, rewrites). Different controllers (nginx vs AWS ALB) have completely different annotation keys.</div>
+    </div>
+    <div class="annotate-row">
+      <div class="annotate-code">pathType: Prefix vs Exact</div>
+      <div class="annotate-desc"><strong>Prefix:</strong> /api matches /api, /api/, /api/users, /api/orders/123. <strong>Exact:</strong> /health matches ONLY /health, not /health/check. <strong>ImplementationSpecific:</strong> controller decides the interpretation. Use Prefix for APIs, Exact for specific endpoints like /healthz or /metrics.</div>
+    </div>
+    <div class="annotate-row">
+      <div class="annotate-code">tls.secretName: shopnow-tls</div>
+      <div class="annotate-desc"><strong>What's inside the Secret:</strong> A TLS secret must contain two keys: <code>tls.crt</code> (the certificate) and <code>tls.key</code> (the private key). Create with: <code>kubectl create secret tls shopnow-tls --cert=cert.pem --key=key.pem</code>. In production, use cert-manager to auto-issue Let's Encrypt certs.</div>
+    </div>
+
+    <h3>Installing nginx Ingress Controller</h3>
+    <div class="code-block">
+      <div class="code-header"><span class="lang">bash</span></div>
+      <pre><code># Minikube — built-in addon
+minikube addons enable ingress
+minikube addons enable ingress-dns
+
+# EKS — using Helm
+helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
+helm repo update
+
+helm install ingress-nginx ingress-nginx/ingress-nginx \
+  --namespace ingress-nginx \
+  --create-namespace \
+  --set controller.service.type=LoadBalancer \
+  --set controller.service.annotations."service\.beta\.kubernetes\.io/aws-load-balancer-type"=nlb
+
+# Verify controller is running
+kubectl get pods -n ingress-nginx
+kubectl get svc -n ingress-nginx
+# NAME                       TYPE           EXTERNAL-IP
+# ingress-nginx-controller   LoadBalancer   a1234.us-east-1.elb.amazonaws.com</code></pre>
+    </div>
+  </div>
+
+  <!-- SECTION 4 — AWS LOAD BALANCER CONTROLLER -->
+  <div class="section" id="aws-alb">
+    <span class="section-num">SECTION 4</span>
+    <h2>☁️ AWS Load Balancer Controller (EKS)</h2>
+
+    <div class="story">
+      <div class="story-label">📖 Story</div>
+      <p>On EKS, when you create a Service of type LoadBalancer, by default Kubernetes creates a Classic Load Balancer (CLB) — outdated and limited. The <strong>AWS Load Balancer Controller</strong> replaces this: Services get Network Load Balancers (NLB), and Ingress resources get Application Load Balancers (ALB) with path routing, WAF, Cognito auth, and SSL via ACM.</p>
+    </div>
+
+    <table>
+      <tr><th>Resource</th><th>Without Controller</th><th>With AWS LBC</th></tr>
+      <tr><td>Service LoadBalancer</td><td>Classic LB (CLB)</td><td>NLB (faster, cheaper)</td></tr>
+      <tr><td>Ingress</td><td>Not native to AWS</td><td>ALB with path routing, WAF, Auth</td></tr>
+      <tr><td>SSL</td><td>Manual setup</td><td>ACM certificate auto-attached</td></tr>
+      <tr><td>Target mode</td><td>NodePort only</td><td>IP mode (direct pod targeting)</td></tr>
+    </table>
+
+    <h3>Install AWS Load Balancer Controller</h3>
+    <div class="code-block">
+      <div class="code-header"><span class="lang">bash</span></div>
+      <pre><code># Step 1: Create IAM policy for the controller
+curl -O https://raw.githubusercontent.com/kubernetes-sigs/aws-load-balancer-controller/v2.7.1/docs/install/iam_policy.json
+
+aws iam create-policy \
+  --policy-name AWSLoadBalancerControllerIAMPolicy \
+  --policy-document file://iam_policy.json
+
+# Step 2: Create IAM service account (IRSA - IAM Roles for Service Accounts)
+eksctl create iamserviceaccount \
+  --cluster=shopnow-cluster \
+  --namespace=kube-system \
+  --name=aws-load-balancer-controller \
+  --role-name AmazonEKSLoadBalancerControllerRole \
+  --attach-policy-arn=arn:aws:iam::ACCOUNT_ID:policy/AWSLoadBalancerControllerIAMPolicy \
+  --approve
+
+# Step 3: Install via Helm
+helm repo add eks https://aws.github.io/eks-charts
+helm repo update
+
+helm install aws-load-balancer-controller eks/aws-load-balancer-controller \
+  -n kube-system \
+  --set clusterName=shopnow-cluster \
+  --set serviceAccount.create=false \
+  --set serviceAccount.name=aws-load-balancer-controller \
+  --set region=ap-south-1 \
+  --set vpcId=vpc-0abc123def456
+
+# Verify
+kubectl get deployment -n kube-system aws-load-balancer-controller
+# READY 2/2</code></pre>
+    </div>
+
+    <h3>Ingress with AWS ALB</h3>
+    <div class="code-block">
+      <div class="code-header"><span class="lang">YAML</span><span class="filename">alb-ingress.yaml</span></div>
+      <pre><code>apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: shopnow-alb-ingress
+  namespace: shopnow
+  annotations:
+    # Tell AWS LBC to create an ALB (not nginx handles this)
+    kubernetes.io/ingress.class: alb
+    
+    # ALB scheme: internet-facing (public) or internal (private VPC)
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    
+    # Target type: ip = route directly to pod IPs (more efficient)
+    alb.ingress.kubernetes.io/target-type: ip
+    
+    # SSL: ACM certificate ARN
+    alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:ap-south-1:123:certificate/abc-123
+    
+    # Force HTTPS redirect
+    alb.ingress.kubernetes.io/ssl-redirect: "443"
+    
+    # AWS WAF association (attach a WebACL for DDoS protection)
+    alb.ingress.kubernetes.io/wafv2-acl-arn: arn:aws:wafv2:...
+    
+    # Health check configuration
+    alb.ingress.kubernetes.io/healthcheck-path: /health
+    alb.ingress.kubernetes.io/healthcheck-interval-seconds: "30"
+    
+    # Attach ALB to specific subnets (public subnets)
+    alb.ingress.kubernetes.io/subnets: subnet-abc123, subnet-def456
+
+spec:
+  ingressClassName: alb
+  rules:
+  - host: shopnow.com
+    http:
+      paths:
+      - path: /api
+        pathType: Prefix
+        backend:
+          service:
+            name: api-svc
+            port:
+              number: 8080
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: frontend-svc
+            port:
+              number: 80</code></pre>
+    </div>
+
+    <div class="info">
+      <strong>💡 IRSA (IAM Roles for Service Accounts):</strong> AWS LBC needs IAM permissions to create ALBs, Target Groups, and Security Groups. IRSA links a Kubernetes Service Account to an AWS IAM Role, so pods running with that Service Account can make AWS API calls without using EC2 instance credentials. This is the AWS-native, secure way to grant AWS permissions to pods.
+    </div>
+  </div>
+
+  <!-- SECTION 5 — NETWORK POLICIES -->
+  <div class="section" id="network-policy">
+    <span class="section-num">SECTION 5</span>
+    <h2>🔒 Network Policies — Pod-Level Firewall</h2>
+
+    <div class="story">
+      <div class="story-label">📖 Story</div>
+      <p>By default, every pod in your cluster can talk to every other pod — including pods in other namespaces. A hacker who compromises your frontend pod can directly connect to your database! Network Policies let you say: "Only the API pod can connect to MySQL. Frontend pods cannot."</p>
+    </div>
+
+    <div class="danger">
+      <strong>⚠️ Default K8s behavior:</strong> All pods can communicate with all other pods across all namespaces. This is an open network. You MUST add Network Policies in production to implement least-privilege networking.
+    </div>
+
+    <div class="code-block">
+      <div class="code-header"><span class="lang">YAML</span><span class="filename">deny-all-then-allow.yaml</span></div>
+      <pre><code># ── STEP 1: Deny ALL ingress to the database namespace ────────────
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: deny-all-ingress          # ← Start with zero trust
+  namespace: shopnow
+spec:
+  podSelector: {}                 # ← {} means: apply to ALL pods in namespace
+  policyTypes:
+  - Ingress                       # ← Block all incoming connections
+  # No ingress rules = deny everything
+---
+# ── STEP 2: Allow ONLY api pods to reach mysql pods ───────────────
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-api-to-mysql
+  namespace: shopnow
+spec:
+  podSelector:                    # ← Apply this policy TO mysql pods
+    matchLabels:
+      app: mysql
+  policyTypes:
+  - Ingress                       # ← Control incoming connections to mysql
+  ingress:
+  - from:                         # ← Allow traffic FROM:
+    - podSelector:
+        matchLabels:
+          app: api                # ← Only pods with label app=api
+      namespaceSelector:          # ← AND only from shopnow namespace
+        matchLabels:
+          kubernetes.io/metadata.name: shopnow
+    ports:
+    - protocol: TCP
+      port: 3306                  # ← Only on MySQL port
+---
+# ── STEP 3: Allow API pods to receive traffic from Ingress ────────
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-ingress-to-api
+  namespace: shopnow
+spec:
+  podSelector:
+    matchLabels:
+      app: api
+  policyTypes:
+  - Ingress
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: ingress-nginx
+      podSelector:
+        matchLabels:
+          app.kubernetes.io/name: ingress-nginx
+    ports:
+    - protocol: TCP
+      port: 8080</code></pre>
+    </div>
+
+    <h3>Word-by-Word: podSelector in policyTypes</h3>
+    <div class="annotate-row">
+      <div class="annotate-code">podSelector: {} (empty)</div>
+      <div class="annotate-desc"><strong>Meaning:</strong> Apply this policy to ALL pods in the namespace. If you specify matchLabels, it applies only to pods with those labels.</div>
+    </div>
+    <div class="annotate-row">
+      <div class="annotate-code">ingress.from with both podSelector AND namespaceSelector</div>
+      <div class="annotate-desc"><strong>AND vs OR logic:</strong> When you put podSelector and namespaceSelector in the SAME list item (using <code>-</code>), it's an AND (must match both). If you put them as separate <code>-</code> items, it's an OR. This is a common confusion in K8s network policy.</div>
+    </div>
+
+    <div class="tip">
+      <strong>⚠️ Network Policy requires a CNI that supports it!</strong><br>
+      AWS VPC CNI by itself does NOT enforce NetworkPolicies. On EKS you need either: 1) AWS VPC CNI + Network Policy Controller (aws-network-policy-controller add-on), or 2) Install Calico or Cilium as a replacement CNI.
+    </div>
+
+    <h3>Enable Network Policy on EKS</h3>
+    <div class="code-block">
+      <div class="code-header"><span class="lang">bash</span></div>
+      <pre><code># Enable the Amazon VPC CNI Network Policy Controller (AWS-native, no Calico needed)
+aws eks update-addon \
+  --cluster-name shopnow-cluster \
+  --addon-name vpc-cni \
+  --configuration-values '{"enableNetworkPolicy": "true"}' \
+  --region ap-south-1
+
+# OR install Calico (open source, more features)
+kubectl apply -f https://raw.githubusercontent.com/projectcalico/calico/v3.27.0/manifests/calico.yaml</code></pre>
+    </div>
+  </div>
+
+  <!-- SECTION 6 — VPC CNI -->
+  <div class="section" id="vpc-cni">
+    <span class="section-num">SECTION 6</span>
+    <h2>🏗️ AWS VPC CNI — How EKS Pod Networking Works</h2>
+
+    <p>The <strong>AWS VPC CNI</strong> (Container Network Interface) plugin is what runs on every EKS node and gives each pod a real VPC IP address from your subnets. This is fundamentally different from how vanilla Kubernetes (or GKE) handles networking.</p>
+
+    <div class="arch-diagram">
+Without AWS VPC CNI (generic K8s):           With AWS VPC CNI (EKS):
+  Node IP: 10.0.1.100                          Node IP: 10.0.1.100
+  Pod IPs: 192.168.1.x (overlay network)       Pod IPs: 10.0.1.101, 10.0.1.102
+  Pod→External: NAT translation needed          Pod→External: No NAT (VPC native)
+  
+AWS VPC CNI Architecture:
+  EC2 Node (t3.medium = max 6 ENIs × 6 IPs = 36 pods max)
+  ┌────────────────────────────────────────────────────────┐
+  │ eth0 (primary ENI): 10.0.1.100                        │
+  │ eth1 (secondary ENI): 10.0.1.101, 10.0.1.102          │
+  │   ├── pod-1 (10.0.1.101)                              │
+  │   └── pod-2 (10.0.1.102)                              │
+  │ eth2 (secondary ENI): 10.0.1.103, 10.0.1.104          │
+  │   ├── pod-3 (10.0.1.103)                              │
+  │   └── pod-4 (10.0.1.104)                              │
+  └────────────────────────────────────────────────────────┘
+  
+  ✅ Each pod has a REAL VPC IP visible in your AWS Console
+  ✅ Pods can talk to RDS, ElastiCache, other AWS services directly
+  ✅ Security Groups on pods (not just nodes)
+  ⚠️ Pod count limited by instance type's ENI/IP limits
+    </div>
+
+    <h3>Max Pods per Instance Type</h3>
+    <table>
+      <tr><th>Instance Type</th><th>Max ENIs</th><th>IPs per ENI</th><th>Max Pods (approx)</th></tr>
+      <tr><td>t3.small</td><td>3</td><td>4</td><td>11</td></tr>
+      <tr><td>t3.medium</td><td>3</td><td>6</td><td>17</td></tr>
+      <tr><td>t3.large</td><td>3</td><td>12</td><td>35</td></tr>
+      <tr><td>m5.large</td><td>3</td><td>10</td><td>29</td></tr>
+      <tr><td>m5.xlarge</td><td>4</td><td>15</td><td>58</td></tr>
+      <tr><td>m5.4xlarge</td><td>8</td><td>30</td><td>234</td></tr>
+    </table>
+
+    <div class="tip">
+      <strong>💡 Prefix Delegation:</strong> A newer VPC CNI feature that increases max pods dramatically by assigning a /28 CIDR block (16 IPs) per ENI slot instead of individual IPs. Enable with: <code>--set env.ENABLE_PREFIX_DELEGATION=true</code> in CNI config.
+    </div>
+  </div>
+
+  <!-- SECTION 7 — LABS -->
+  <div class="section" id="labs">
+    <span class="section-num">SECTION 7</span>
+    <h2>🧪 Hands-On Labs</h2>
+
+    <div class="lab">
+      <div class="lab-header"><span class="lab-icon">🚪</span><h3>Lab 5: Deploy Ingress on Minikube</h3></div>
+
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-body">
+          <div class="code-block">
+            <div class="code-header"><span class="lang">bash</span></div>
+            <pre><code># Enable ingress on minikube
+minikube addons enable ingress
+minikube addons enable ingress-dns
+
+# Verify ingress controller is running
+kubectl get pods -n ingress-nginx
+# NAME                                      READY   STATUS    RESTARTS
+# ingress-nginx-controller-xxx              1/1     Running   0</code></pre>
+          </div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-body">
+          <p>Deploy two services (frontend and API) and route via Ingress:</p>
+          <div class="code-block">
+            <div class="code-header"><span class="lang">bash</span></div>
+            <pre><code"># Deploy "frontend" app
+kubectl create deployment frontend \
+  --image=nginx:1.25 \
+  -n shopnow
+kubectl expose deployment frontend \
+  --port=80 \
+  --name=frontend-svc \
+  -n shopnow
+
+# Deploy "api" app (using httpd as placeholder)
+kubectl create deployment api \
+  --image=httpd:2.4 \
+  -n shopnow
+kubectl expose deployment api \
+  --port=80 \
+  --name=api-svc \
+  -n shopnow
+
+# Create Ingress routing /api → api-svc, / → frontend-svc
+cat > shopnow-ingress.yaml &lt;&lt;'EOF'
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: shopnow-ingress
+  namespace: shopnow
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: shopnow.local
+    http:
+      paths:
+      - path: /api
+        pathType: Prefix
+        backend:
+          service:
+            name: api-svc
+            port:
+              number: 80
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: frontend-svc
+            port:
+              number: 80
+EOF
+
+kubectl apply -f shopnow-ingress.yaml
+
+# Get minikube IP
+minikube ip   # e.g., 192.168.49.2
+
+# Add to /etc/hosts (Linux/Mac):
+echo "$(minikube ip) shopnow.local" | sudo tee -a /etc/hosts
+
+# Test routing
+curl http://shopnow.local/         # Gets nginx (frontend)
+curl http://shopnow.local/api      # Gets httpd (api)</code></pre>
+          </div>
+          <div class="success"><strong>✅ You've set up L7 routing with Ingress! One entry point, multiple backends.</strong></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="lab">
+      <div class="lab-header"><span class="lab-icon">🔒</span><h3>Lab 6: Test Network Policies</h3></div>
+
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-body">
+          <div class="code-block">
+            <div class="code-header"><span class="lang">bash</span></div>
+            <pre><code># Deploy two pods: web and db
+kubectl run web --image=nginx:1.25 --labels=app=web -n shopnow
+kubectl run db  --image=nginx:1.25 --labels=app=db  -n shopnow
+
+# Test: web can reach db (default = open)
+kubectl exec web -n shopnow -- wget -q -O- http://$(kubectl get pod db -n shopnow -o jsonpath='{.status.podIP}')
+# Should succeed: "Welcome to nginx!"
+
+# Apply deny-all policy
+cat > deny-all.yaml &lt;&lt;'EOF'
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: deny-all
+  namespace: shopnow
+spec:
+  podSelector: {}
+  policyTypes:
+  - Ingress
+EOF
+kubectl apply -f deny-all.yaml
+
+# Test again: web cannot reach db now!
+kubectl exec web -n shopnow -- wget -q -O- --timeout=3 http://$(kubectl get pod db -n shopnow -o jsonpath='{.status.podIP}')
+# Timeout! Network policy is blocking it.
+
+# Allow web → db selectively
+cat > allow-web-to-db.yaml &lt;&lt;'EOF'
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-web-to-db
+  namespace: shopnow
+spec:
+  podSelector:
+    matchLabels:
+      app: db
+  ingress:
+  - from:
+    - podSelector:
+        matchLabels:
+          app: web
+EOF
+kubectl apply -f allow-web-to-db.yaml
+
+# Test: web → db works, other pods → db still blocked
+kubectl exec web -n shopnow -- wget -q -O- http://$(kubectl get pod db -n shopnow -o jsonpath='{.status.podIP}')
+# ✅ Succeeds again — only web pod allowed!</code></pre>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- INTERVIEW -->
+  <div class="section" id="interview">
+    <span class="section-num">SECTION 8</span>
+    <h2>🎯 Interview Questions — Part 3</h2>
+
+    <div class="interview">
+      <div class="interview-label">🎯 Interview Prep — 4 YOE Level</div>
+
+      <p class="q">Q1: What is an Ingress in Kubernetes? How is it different from a Service?</p>
+      <div class="a">A: A Service provides a stable ClusterIP and does L4 (TCP) load balancing to pods. An Ingress provides L7 (HTTP/HTTPS) routing based on hostname and URL path. Ingress can route requests to multiple different Services from a single entry point, handle TLS termination, and implement rate limiting or auth — things a Service cannot do. You need an Ingress Controller (nginx, AWS ALB) to actually implement the Ingress rules.</div>
+
+      <p class="q">Q2: Explain how AWS VPC CNI differs from standard Kubernetes networking.</p>
+      <div class="a">A: Standard K8s networking uses an overlay network — pods get IPs from a virtual network (like 192.168.x.x) that doesn't exist in the underlying infrastructure. Traffic between nodes needs encapsulation (VXLAN/tunneling). AWS VPC CNI gives every pod a real VPC IP from your subnet CIDR — pods are first-class citizens in your VPC. This means: no NAT for pod traffic, pods appear in VPC routing tables, Security Groups can be applied per pod (not just per node), and pods communicate directly with AWS services like RDS. The tradeoff: pod count per node is limited by EC2 ENI/IP limits.</div>
+
+      <p class="q">Q3: What is the default behavior for pod-to-pod network communication? Is it secure by default?</p>
+      <div class="a">A: By default, all pods can communicate with all other pods across all namespaces — no network restrictions. This is NOT secure. If a frontend pod is compromised, an attacker can directly connect to your database pod. Network Policies add the zero-trust model. Best practice: start with a deny-all Network Policy in every namespace, then add explicit allow rules for only the connections that are needed. Also note: Network Policies require a CNI that supports them (AWS VPC CNI with the network policy add-on, or Calico/Cilium).</div>
+
+      <p class="q">Q4: What is IRSA and why is it important on EKS?</p>
+      <div class="a">A: IRSA (IAM Roles for Service Accounts) links a Kubernetes Service Account to an AWS IAM Role. When a pod uses that Service Account, the AWS SDK running inside the pod automatically assumes the IAM role — no credentials needed in the container. This replaces the older approach of attaching IAM permissions to EC2 node instance profiles (which gives ALL pods on that node the same AWS permissions). IRSA enables least-privilege — each pod gets only the AWS permissions it needs.</div>
+
+      <p class="q">Q5: How does CoreDNS enable service discovery in Kubernetes?</p>
+      <div class="a">A: CoreDNS runs as pods in kube-system namespace and watches the K8s API for Services. When a Service is created, CoreDNS automatically adds a DNS A record: <code>service-name.namespace.svc.cluster.local → ClusterIP</code>. Each pod's /etc/resolv.conf is configured by kubelet to search these domains automatically. So a pod in the "shopnow" namespace can reach mysql-svc just by name — no hardcoded IPs needed. For StatefulSets with a headless service, CoreDNS creates individual records per pod: <code>pod-0.service-name.namespace.svc.cluster.local</code>.</div>
+    </div>
+
+    <div class="success">
+      <strong>✅ Part 3 Complete!</strong> You now understand the full K8s networking stack from pod IPs to ALB. Continue to Part 4 for Storage, ConfigMaps, Secrets, and managing application configuration.
+    </div>
+  </div>
+
+  <div class="footer">
+    <a href="k8s-aws-part2.html" class="prev-btn">← Part 2: Workloads</a>
+    <a href="k8s-aws-part4.html" class="next-btn">Continue to Part 4: Storage & Config →</a>
+    <p>Part 3 of 6 · Kubernetes Administration on AWS · Built for 4 YOE Engineers</p>
+  </div>
+
+</div>
+</body>
+</html>

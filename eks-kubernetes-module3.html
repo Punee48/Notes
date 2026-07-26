@@ -1,0 +1,1315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EKS Kubernetes — Module 3: Fargate · Karpenter · Multi-Cluster · Chaos · Cost</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --white: #ffffff;
+    --bg: #f7f6f3;
+    --surface: #ffffff;
+    --border: #e5e1d8;
+    --border-soft: #edeae3;
+    --ink: #0a0a0a;
+    --ink-2: #2d2d2d;
+    --ink-3: #5c5c5c;
+    --ink-4: #9e9e9e;
+
+    /* chapter accents */
+    --fargate:   #0369a1;  --fargate-bg:  #e0f2fe;
+    --karp:      #7c3aed;  --karp-bg:     #ede9fe;
+    --multi:     #0f766e;  --multi-bg:    #ccfbf1;
+    --velero:    #b45309;  --velero-bg:   #fef3c7;
+    --chaos:     #be123c;  --chaos-bg:    #ffe4e6;
+    --cost:      #15803d;  --cost-bg:     #dcfce7;
+
+    --code-bg:      #0f1117;
+    --code-text:    #e5e7eb;
+    --code-comment: #4b5563;
+    --code-kw:      #a78bfa;
+    --code-str:     #6ee7b7;
+    --code-num:     #fb923c;
+    --code-key:     #67e8f9;
+    --code-val:     #86efac;
+    --code-op:      #f9a8d4;
+  }
+
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html { scroll-behavior: smooth; }
+  body { font-family:'Inter', sans-serif; background:var(--bg); color:var(--ink); line-height:1.7; }
+
+  /* ── HERO ─── */
+  .hero { background:var(--white); border-bottom:2px solid var(--ink); padding:56px 0 0; }
+  .hi   { max-width:1140px; margin:0 auto; padding:0 44px; }
+
+  .m-tag {
+    display:inline-flex; align-items:center; gap:10px;
+    background:var(--ink); color:var(--white);
+    font-size:10px; font-weight:700; letter-spacing:3px; text-transform:uppercase;
+    padding:7px 18px; margin-bottom:32px;
+  }
+
+  .hero h1 {
+    font-family:'Syne', sans-serif;
+    font-size:clamp(34px, 5vw, 68px);
+    font-weight:800; line-height:1.04; letter-spacing:-2px;
+    color:var(--ink); margin-bottom:20px;
+  }
+
+  .hero h1 .accent { color:var(--chaos); }
+  .hero h1 .accent2 { color:var(--fargate); }
+
+  .hero-sub {
+    font-size:16px; color:var(--ink-3); font-weight:300;
+    max-width:600px; margin-bottom:40px; line-height:1.7;
+  }
+
+  .topic-grid {
+    display:grid; grid-template-columns:repeat(3,1fr); gap:0;
+    border-top:2px solid var(--border); border-left:1px solid var(--border);
+  }
+
+  .topic-cell {
+    padding:18px 24px; border-right:1px solid var(--border); border-bottom:1px solid var(--border);
+    display:flex; align-items:center; gap:12px;
+  }
+
+  .tc-num {
+    font-family:'JetBrains Mono',monospace; font-size:11px; font-weight:700;
+    width:24px; height:24px; border-radius:50%; display:flex; align-items:center;
+    justify-content:center; flex-shrink:0; color:var(--white);
+  }
+
+  .tc-title { font-size:13px; font-weight:600; }
+  .tc-sub   { font-size:11px; color:var(--ink-3); }
+
+  .t1 .tc-num { background:var(--fargate); }
+  .t2 .tc-num { background:var(--karp); }
+  .t3 .tc-num { background:var(--multi); }
+  .t4 .tc-num { background:var(--velero); }
+  .t5 .tc-num { background:var(--chaos); }
+  .t6 .tc-num { background:var(--cost); }
+
+  /* ── LAYOUT ─── */
+  .wrap {
+    max-width:1140px; margin:0 auto; padding:0 44px;
+    display:grid; grid-template-columns:200px 1fr; gap:56px; padding-top:60px;
+  }
+
+  /* ── SIDEBAR ─── */
+  .sidebar {
+    position:sticky; top:24px; align-self:flex-start; height:fit-content;
+  }
+
+  .sb-label {
+    font-size:10px; font-weight:700; letter-spacing:2.5px; text-transform:uppercase;
+    color:var(--ink-4); margin-bottom:16px;
+  }
+
+  .sb-link {
+    display:flex; align-items:center; gap:9px;
+    padding:7px 10px; border-radius:5px; font-size:12.5px; font-weight:500;
+    color:var(--ink-3); text-decoration:none; margin-bottom:2px;
+    border-left:2px solid transparent; transition:all 0.15s;
+  }
+
+  .sb-link:hover { background:var(--bg); color:var(--ink); }
+  .sb-link.active { background:var(--bg); color:var(--ink); font-weight:600; }
+
+  .sb-dot { width:7px; height:7px; border-radius:50%; flex-shrink:0; }
+
+  .sb-link[data-c="fargate"] .sb-dot { background:var(--fargate); }
+  .sb-link.active[data-c="fargate"]   { border-left-color:var(--fargate); }
+  .sb-link[data-c="karp"] .sb-dot     { background:var(--karp); }
+  .sb-link.active[data-c="karp"]      { border-left-color:var(--karp); }
+  .sb-link[data-c="multi"] .sb-dot    { background:var(--multi); }
+  .sb-link.active[data-c="multi"]     { border-left-color:var(--multi); }
+  .sb-link[data-c="velero"] .sb-dot   { background:var(--velero); }
+  .sb-link.active[data-c="velero"]    { border-left-color:var(--velero); }
+  .sb-link[data-c="chaos"] .sb-dot    { background:var(--chaos); }
+  .sb-link.active[data-c="chaos"]     { border-left-color:var(--chaos); }
+  .sb-link[data-c="cost"] .sb-dot     { background:var(--cost); }
+  .sb-link.active[data-c="cost"]      { border-left-color:var(--cost); }
+
+  .sb-prog { margin-top:28px; padding:14px; background:var(--border-soft); border-radius:8px; }
+  .sb-prog-lbl { font-size:11px; font-weight:600; color:var(--ink-3); margin-bottom:8px; }
+  .sb-bar-bg { height:5px; background:var(--border); border-radius:99px; overflow:hidden; }
+  .sb-bar { height:100%; width:0; border-radius:99px; background:linear-gradient(90deg,var(--fargate),var(--chaos)); transition:width 0.4s; }
+  .sb-pct { font-size:11px; font-weight:700; color:var(--fargate); margin-top:5px; }
+
+  /* ── MAIN ─── */
+  .main { padding-bottom:100px; }
+
+  /* ── CHAPTER ─── */
+  .ch { margin-bottom:80px; scroll-margin-top:28px; }
+
+  .ch-head {
+    display:flex; align-items:center; gap:18px;
+    margin-bottom:28px; padding-bottom:20px;
+    border-bottom:1.5px solid var(--border);
+  }
+
+  .ch-badge {
+    width:52px; height:52px; border-radius:10px; flex-shrink:0;
+    display:flex; align-items:center; justify-content:center; font-size:22px;
+    border:1.5px solid;
+  }
+
+  .bg-fg { background:var(--fargate-bg); border-color:var(--fargate); }
+  .bg-kp { background:var(--karp-bg);    border-color:var(--karp); }
+  .bg-mc { background:var(--multi-bg);   border-color:var(--multi); }
+  .bg-vl { background:var(--velero-bg);  border-color:var(--velero); }
+  .bg-ch { background:var(--chaos-bg);   border-color:var(--chaos); }
+  .bg-co { background:var(--cost-bg);    border-color:var(--cost); }
+
+  .ch-lbl { font-size:10px; font-weight:700; letter-spacing:2.5px; text-transform:uppercase; margin-bottom:4px; }
+  .lbl-fg { color:var(--fargate); }
+  .lbl-kp { color:var(--karp); }
+  .lbl-mc { color:var(--multi); }
+  .lbl-vl { color:var(--velero); }
+  .lbl-ch { color:var(--chaos); }
+  .lbl-co { color:var(--cost); }
+
+  .ch-title {
+    font-family:'Syne', sans-serif; font-size:clamp(22px,3vw,32px);
+    font-weight:800; line-height:1.15; letter-spacing:-0.5px; color:var(--ink);
+  }
+
+  .ch-desc { font-size:13px; color:var(--ink-3); font-weight:300; margin-top:4px; }
+
+  /* ── STORY ─── */
+  .story {
+    background:var(--white); border-left:3px solid var(--ink);
+    padding:22px 26px; margin:22px 0; border-radius:0 8px 8px 0;
+  }
+
+  .s-hd {
+    font-size:10px; font-weight:700; letter-spacing:2.5px; text-transform:uppercase;
+    color:var(--ink-4); margin-bottom:10px; display:flex; align-items:center; gap:8px;
+  }
+
+  .story p { font-size:14.5px; color:var(--ink-2); font-weight:300; line-height:1.8; margin-bottom:10px; }
+  .story p:last-child { margin-bottom:0; }
+
+  /* ── SH ─── */
+  .sh {
+    font-family:'Syne',sans-serif; font-size:19px; font-weight:700;
+    color:var(--ink); margin:30px 0 12px; display:flex; align-items:center; gap:10px;
+  }
+
+  .sh-n {
+    font-family:'JetBrains Mono',monospace; font-size:11px; font-weight:700;
+    background:var(--ink); color:var(--white); padding:2px 8px; border-radius:3px;
+  }
+
+  p.bd { font-size:14px; color:var(--ink-2); line-height:1.8; font-weight:300; margin-bottom:12px; }
+  strong { color:var(--ink); font-weight:600; }
+
+  /* ── CODE ─── */
+  .cw { margin:20px 0; }
+
+  .ct {
+    background:#1a1a2e; border-radius:7px 7px 0 0; padding:10px 16px;
+    display:flex; align-items:center; justify-content:space-between;
+  }
+
+  .cdots { display:flex; gap:5px; align-items:center; }
+  .cd { width:10px; height:10px; border-radius:50%; }
+  .cdr { background:#ff5f57; } .cdy { background:#febc2e; } .cdg { background:#28c840; }
+
+  .cfn { font-family:'JetBrains Mono',monospace; font-size:11.5px; color:rgba(255,255,255,0.6); margin-left:10px; }
+  .clt { font-family:'JetBrains Mono',monospace; font-size:10px; color:rgba(255,255,255,0.25); letter-spacing:1.5px; text-transform:uppercase; }
+
+  .cb {
+    background:var(--code-bg); padding:20px 18px; border-radius:0 0 7px 7px;
+    overflow-x:auto; font-family:'JetBrains Mono',monospace; font-size:12.5px;
+    line-height:1.8; color:var(--code-text);
+  }
+
+  .cb pre { white-space:pre; }
+
+  .ck  { color:var(--code-kw); }
+  .cs  { color:var(--code-str); }
+  .cn  { color:var(--code-num); }
+  .cK  { color:var(--code-key); }
+  .cV  { color:var(--code-val); }
+  .cc  { color:var(--code-comment); font-style:italic; }
+  .cop { color:var(--code-op); }
+
+  /* ── CARDS ─── */
+  .cg { display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:14px; margin:18px 0; }
+
+  .ccard {
+    background:var(--white); border:1.5px solid var(--border); border-radius:8px;
+    padding:18px; transition:transform 0.15s, box-shadow 0.15s;
+  }
+
+  .ccard:hover { transform:translateY(-2px); box-shadow:0 6px 20px rgba(0,0,0,0.06); }
+
+  .cc-icon { font-size:22px; margin-bottom:10px; }
+  .cc-name { font-weight:700; font-size:14px; color:var(--ink); margin-bottom:6px; }
+  .cc-desc { font-size:12.5px; color:var(--ink-3); line-height:1.6; font-weight:300; }
+
+  /* ── TABLE ─── */
+  .wtbl {
+    width:100%; border-collapse:collapse; background:var(--white);
+    border-radius:8px; overflow:hidden; border:1.5px solid var(--border);
+    margin:18px 0; font-size:13px;
+  }
+
+  .wtbl thead th {
+    background:var(--ink); color:var(--white); padding:10px 16px;
+    text-align:left; font-size:11px; font-weight:600; letter-spacing:1px; text-transform:uppercase;
+  }
+
+  .wtbl tbody tr { border-bottom:1px solid var(--border-soft); }
+  .wtbl tbody tr:last-child { border-bottom:none; }
+  .wtbl tbody tr:nth-child(even) { background:#fafaf9; }
+  .wtbl td { padding:11px 16px; vertical-align:top; line-height:1.6; color:var(--ink-2); }
+
+  .ci {
+    font-family:'JetBrains Mono',monospace; background:#f0ece4; color:#0369a1;
+    padding:1px 6px; border-radius:3px; font-size:11.5px; white-space:nowrap;
+  }
+
+  /* ── LAB ─── */
+  .lab {
+    background:#f8fff9; border:1.5px solid #86efac; border-radius:10px;
+    padding:24px 28px; margin:24px 0;
+  }
+
+  .lab-hd { display:flex; align-items:center; gap:14px; margin-bottom:16px; }
+
+  .lab-ic {
+    background:#16a34a; color:white; border-radius:50%;
+    width:36px; height:36px; display:flex; align-items:center; justify-content:center;
+    font-size:17px; flex-shrink:0;
+  }
+
+  .lab-title { font-family:'Syne',sans-serif; font-size:17px; font-weight:700; color:#166534; }
+  .lab-sub   { font-size:11.5px; color:#15803d; }
+
+  .cmd {
+    background:var(--code-bg); border-radius:6px; padding:13px 16px;
+    font-family:'JetBrains Mono',monospace; font-size:12px; color:var(--code-text);
+    margin:9px 0; overflow-x:auto;
+  }
+
+  .cmd .pr  { color:#a6e3a1; user-select:none; }
+  .cmd .cmt { color:var(--code-comment); font-style:italic; display:block; margin-bottom:2px; }
+  .cmd .out { color:#67e8f9; }
+
+  /* ── CALLOUT ─── */
+  .callout {
+    display:flex; gap:13px; padding:14px 18px; border-radius:7px;
+    margin:16px 0; align-items:flex-start; font-size:13.5px; line-height:1.65;
+  }
+
+  .ci-info { background:#eff6ff; border-left:3px solid #3b82f6; }
+  .ci-warn { background:#fffbeb; border-left:3px solid #f59e0b; }
+  .ci-tip  { background:#f0fdf4; border-left:3px solid #22c55e; }
+  .ci-imp  { background:#fff1f2; border-left:3px solid #f43f5e; }
+
+  .co-ic { font-size:18px; flex-shrink:0; margin-top:1px; }
+  .co-ttl { font-size:10px; font-weight:700; letter-spacing:1px; text-transform:uppercase; margin-bottom:4px; }
+  .co-bd  { font-size:13px; color:var(--ink-2); }
+
+  /* ── ARCH ─── */
+  .arch {
+    background:var(--white); border:1.5px solid var(--border); border-radius:10px;
+    padding:26px; margin:20px 0; text-align:center; font-size:12.5px;
+  }
+
+  .a-row { display:flex; justify-content:center; align-items:center; gap:10px; flex-wrap:wrap; margin:8px 0; }
+
+  .abox {
+    border-radius:6px; padding:9px 14px; font-size:11.5px; font-weight:600;
+    min-width:95px; text-align:center; border:1.5px solid; transition:transform 0.15s; cursor:default;
+  }
+
+  .abox:hover { transform:scale(1.04); }
+
+  .a-fg  { background:var(--fargate-bg); border-color:var(--fargate); color:var(--fargate); }
+  .a-kp  { background:var(--karp-bg);    border-color:var(--karp);    color:var(--karp); }
+  .a-mc  { background:var(--multi-bg);   border-color:var(--multi);   color:var(--multi); }
+  .a-ch  { background:var(--chaos-bg);   border-color:var(--chaos);   color:var(--chaos); }
+  .a-co  { background:var(--cost-bg);    border-color:var(--cost);    color:var(--cost); }
+  .a-vl  { background:var(--velero-bg);  border-color:var(--velero);  color:var(--velero); }
+  .a-aws { background:#fff7ed; border-color:#f97316; color:#9a3412; }
+  .a-k8s { background:#ede9fe; border-color:#8b5cf6; color:#5b21b6; }
+  .a-gr  { background:#f0fdf4; border-color:#16a34a; color:#14532d; }
+  .a-bl  { background:#eff6ff; border-color:#3b82f6; color:#1e40af; }
+  .a-rd  { background:#fff1f2; border-color:#f43f5e; color:#9f1239; }
+
+  .a-arr { font-size:17px; color:var(--ink-4); }
+  .a-sep { width:100%; height:1px; background:var(--border); margin:8px 0; }
+  .a-lbl { font-size:10px; font-weight:700; letter-spacing:1.5px; text-transform:uppercase; color:var(--ink-4); margin:4px 0; }
+
+  /* ── CHECKLIST ─── */
+  .chk { list-style:none; margin:14px 0; }
+  .chk li { display:flex; align-items:flex-start; gap:11px; padding:8px 0; border-bottom:1px solid var(--border-soft); font-size:13.5px; color:var(--ink-2); }
+  .chk li:last-child { border-bottom:none; }
+  .ckbx { width:20px; height:20px; border-radius:4px; display:flex; align-items:center; justify-content:center; flex-shrink:0; font-size:10px; font-weight:700; margin-top:2px; }
+  .ck-done { background:#dcfce7; color:#16a34a; border:1px solid #86efac; }
+  .ck-todo { background:#f3f4f6; color:#9ca3af; border:1px solid #e5e7eb; }
+  .ck-now  { background:#fef9c3; color:#854d0e; border:1px solid #fde047; }
+
+  /* ── COST COMPARISON ─── */
+  .cost-comp {
+    display:grid; grid-template-columns:1fr 1fr; gap:16px; margin:18px 0;
+  }
+
+  .cost-card {
+    background:var(--white); border-radius:8px; padding:20px;
+    border:1.5px solid var(--border);
+  }
+
+  .cost-title {
+    font-family:'Syne',sans-serif; font-size:15px; font-weight:700;
+    margin-bottom:14px; padding-bottom:10px; border-bottom:1px solid var(--border);
+    display:flex; align-items:center; gap:8px;
+  }
+
+  .cost-row { display:flex; justify-content:space-between; align-items:center; padding:6px 0; border-bottom:1px dashed var(--border-soft); font-size:13px; }
+  .cost-row:last-child { border-bottom:none; }
+  .cost-label { color:var(--ink-3); font-weight:400; }
+  .cost-val { font-weight:600; font-family:'JetBrains Mono',monospace; font-size:12px; }
+  .cv-green { color:#16a34a; }
+  .cv-red   { color:#dc2626; }
+  .cv-blue  { color:#2563eb; }
+
+  /* ── DIVIDER ─── */
+  .div { height:1px; background:var(--border); margin:52px 0; }
+
+  /* ── FOOTER ─── */
+  .footer {
+    background:var(--ink); color:rgba(255,255,255,0.5);
+    text-align:center; padding:28px; font-size:13px;
+  }
+  .footer strong { color:rgba(255,255,255,0.9); }
+
+  @media(max-width:768px) {
+    .wrap { grid-template-columns:1fr; padding:0 20px; }
+    .hi { padding:0 20px; }
+    .sidebar { position:static; }
+    .topic-grid { grid-template-columns:1fr 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ═══ HERO ═══ -->
+<header class="hero">
+  <div class="hi">
+    <div class="m-tag">🏆 AWS DevOps Series · Module 3 of 3 · Production Grade</div>
+    <h1>Production EKS:<br>
+      <span class="accent2">Fargate · Karpenter</span><br>
+      <span class="accent">Chaos · Cost · Scale</span>
+    </h1>
+    <p class="hero-sub">The final frontier. You can deploy and operate EKS. Now harden it for enterprise — serverless nodes, intelligent autoscaling, multi-cluster, disaster recovery, and saving 60% on your AWS bill.</p>
+    <div class="topic-grid">
+      <div class="topic-cell t1"><div class="tc-num">1</div><div><div class="tc-title">EKS Fargate</div><div class="tc-sub">Serverless pods, zero node mgmt</div></div></div>
+      <div class="topic-cell t2"><div class="tc-num">2</div><div><div class="tc-title">Karpenter</div><div class="tc-sub">Intelligent node provisioning</div></div></div>
+      <div class="topic-cell t3"><div class="tc-num">3</div><div><div class="tc-title">Multi-Cluster</div><div class="tc-sub">Federation + cross-cluster routing</div></div></div>
+      <div class="topic-cell t4"><div class="tc-num">4</div><div><div class="tc-title">Velero Backups</div><div class="tc-sub">Disaster recovery for K8s</div></div></div>
+      <div class="topic-cell t5"><div class="tc-num">5</div><div><div class="tc-title">Chaos Engineering</div><div class="tc-sub">Break things to build confidence</div></div></div>
+      <div class="topic-cell t6"><div class="tc-num">6</div><div><div class="tc-title">Cost Optimization</div><div class="tc-sub">Cut your EKS bill by 60%</div></div></div>
+    </div>
+  </div>
+</header>
+
+<!-- ═══ LAYOUT ═══ -->
+<div class="wrap">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sb-label">Module 3 Chapters</div>
+    <a class="sb-link active" href="#fargate" data-c="fargate"><span class="sb-dot"></span>1. EKS Fargate</a>
+    <a class="sb-link" href="#karpenter" data-c="karp"><span class="sb-dot"></span>2. Karpenter</a>
+    <a class="sb-link" href="#multi" data-c="multi"><span class="sb-dot"></span>3. Multi-Cluster</a>
+    <a class="sb-link" href="#velero" data-c="velero"><span class="sb-dot"></span>4. Velero Backups</a>
+    <a class="sb-link" href="#chaos" data-c="chaos"><span class="sb-dot"></span>5. Chaos Engineering</a>
+    <a class="sb-link" href="#cost" data-c="cost"><span class="sb-dot"></span>6. Cost Optimization</a>
+    <div class="sb-prog">
+      <div class="sb-prog-lbl">Progress</div>
+      <div class="sb-bar-bg"><div class="sb-bar" id="progBar"></div></div>
+      <div class="sb-pct" id="progPct">0%</div>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main">
+
+    <!-- ════ CH 1: FARGATE ════ -->
+    <section class="ch" id="fargate">
+      <div class="ch-head">
+        <div class="ch-badge bg-fg">☁️</div>
+        <div>
+          <div class="ch-lbl lbl-fg">Chapter 1 · Serverless Kubernetes</div>
+          <h2 class="ch-title">EKS Fargate — Run Pods Without Managing EC2 Nodes</h2>
+          <div class="ch-desc">No nodes to patch, no capacity to plan. AWS manages the infrastructure completely.</div>
+        </div>
+      </div>
+
+      <div class="story">
+        <div class="s-hd">📖 The Fargate Story</div>
+        <p>You're running ShopEasy on EKS with 5 EC2 worker nodes. You have to manage those nodes: patch their OS, upgrade Kubernetes on them, choose the right instance type, handle spot interruptions, and make sure they're not sitting idle at 3 AM wasting money.</p>
+        <p>Your colleague says: "Just use <strong>Fargate</strong>. You describe a pod's CPU and memory. AWS finds the right server, runs your pod on it, and you never touch a node. The server disappears when your pod terminates." No more node management, no idle capacity, no OS patching. You pay per second, per pod, only for what actually runs.</p>
+        <p><strong>Tradeoff:</strong> Fargate is ~20-30% more expensive per vCPU than EC2, has slower cold starts, and can't run privileged pods or DaemonSets. Use it for batch jobs, dev/test workloads, and variable traffic services. Use EC2 node groups for stateful apps and high-throughput APIs.</p>
+      </div>
+
+      <h3 class="sh"><span class="sh-n">1.1</span> EC2 Nodes vs Fargate — When to Use What</h3>
+
+      <table class="wtbl">
+        <thead><tr><th>Feature</th><th>EC2 Node Groups</th><th>Fargate</th></tr></thead>
+        <tbody>
+          <tr><td>Node Management</td><td>You manage OS, patches, kubelet</td><td>AWS manages everything</td></tr>
+          <tr><td>Cost Model</td><td>Pay for whole EC2, always on</td><td>Pay per pod per second</td></tr>
+          <tr><td>Startup Speed</td><td>Fast (pod on existing node)</td><td>Slower (~30-60s cold start)</td></tr>
+          <tr><td>DaemonSets</td><td>✅ Supported</td><td>❌ Not supported</td></tr>
+          <tr><td>Persistent Volumes</td><td>✅ EBS, EFS, NVMe</td><td>EFS only (no EBS)</td></tr>
+          <tr><td>Privileged Containers</td><td>✅ Supported</td><td>❌ Not supported</td></tr>
+          <tr><td>Best For</td><td>Databases, high-traffic APIs, stateful</td><td>Batch jobs, dev, variable workloads</td></tr>
+          <tr><td>GPU Support</td><td>✅ Yes</td><td>❌ No</td></tr>
+        </tbody>
+      </table>
+
+      <h3 class="sh"><span class="sh-n">1.2</span> Fargate Profile — How to Enable It</h3>
+
+      <p class="bd">A <strong>Fargate Profile</strong> tells EKS which pods to run on Fargate. It matches pods by namespace and labels. Any pod matching the selector gets scheduled onto Fargate instead of EC2 nodes.</p>
+
+      <div class="cw">
+        <div class="ct">
+          <div class="cdots"><span class="cd cdr"></span><span class="cd cdy"></span><span class="cd cdg"></span><span class="cfn">fargate-profile.yaml</span></div>
+          <span class="clt">YAML · Fargate Profile via eksctl</span>
+        </div>
+        <div class="cb"><pre><span class="cc"># eksctl config to add Fargate profile to existing cluster</span>
+<span class="cK">apiVersion</span>: <span class="cs">eksctl.io/v1alpha5</span>
+<span class="cK">kind</span>: <span class="cs">ClusterConfig</span>
+
+<span class="cK">metadata</span>:
+  <span class="cK">name</span>: <span class="cs">shopeasy-cluster</span>
+  <span class="cK">region</span>: <span class="cs">ap-south-1</span>
+
+<span class="cK">fargateProfiles</span>:                        <span class="cc"># Define which pods go to Fargate</span>
+
+  <span class="cop">-</span> <span class="cK">name</span>: <span class="cs">batch-jobs-profile</span>             <span class="cc"># Profile name</span>
+    <span class="cK">selectors</span>:                           <span class="cc"># Rules: which pods match this profile?</span>
+      <span class="cop">-</span> <span class="cK">namespace</span>: <span class="cs">batch</span>                 <span class="cc"># All pods in 'batch' namespace → Fargate</span>
+
+  <span class="cop">-</span> <span class="cK">name</span>: <span class="cs">dev-profile</span>
+    <span class="cK">selectors</span>:
+      <span class="cop">-</span> <span class="cK">namespace</span>: <span class="cs">development</span>          <span class="cc"># Dev namespace → Fargate (cheap, no idle nodes)</span>
+
+  <span class="cop">-</span> <span class="cK">name</span>: <span class="cs">scheduled-tasks-profile</span>
+    <span class="cK">selectors</span>:
+      <span class="cop">-</span> <span class="cK">namespace</span>: <span class="cs">production</span>           <span class="cc"># Only specific pods in production</span>
+        <span class="cK">labels</span>:
+          <span class="cK">workload-type</span>: <span class="cs">batch</span>         <span class="cc"># Only pods with this label → Fargate</span>
+          <span class="cc">             # Pods without this label → EC2 nodes (your API, DB)</span></pre></div>
+      </div>
+
+      <h3 class="sh"><span class="sh-n">1.3</span> A Real Fargate Use Case — Nightly Report Job</h3>
+
+      <div class="cw">
+        <div class="ct">
+          <div class="cdots"><span class="cd cdr"></span><span class="cd cdy"></span><span class="cd cdg"></span><span class="cfn">report-cronjob.yaml</span></div>
+          <span class="clt">YAML · CronJob on Fargate</span>
+        </div>
+        <div class="cb"><pre><span class="cK">apiVersion</span>: <span class="cs">batch/v1</span>                  <span class="cc"># "batch" API group = CronJobs, Jobs</span>
+<span class="cK">kind</span>: <span class="cs">CronJob</span>                         <span class="cc"># Runs a job on a schedule (like Linux cron)</span>
+<span class="cK">metadata</span>:
+  <span class="cK">name</span>: <span class="cs">nightly-sales-report</span>
+  <span class="cK">namespace</span>: <span class="cs">batch</span>                   <span class="cc"># This namespace is in our Fargate profile</span>
+<span class="cK">spec</span>:
+  <span class="cK">schedule</span>: <span class="cs">"0 2 * * *"</span>              <span class="cc"># Run at 02:00 AM every day (cron syntax)</span>
+  <span class="cc">                                      # "0 2 * * *" = minute:0 hour:2 day:* month:* weekday:*</span>
+  <span class="cK">successfulJobsHistoryLimit</span>: <span class="cn">3</span>       <span class="cc"># Keep last 3 successful job records</span>
+  <span class="cK">failedJobsHistoryLimit</span>: <span class="cn">1</span>           <span class="cc"># Keep last 1 failed job for debugging</span>
+  <span class="cK">jobTemplate</span>:                        <span class="cc"># What to run each time</span>
+    <span class="cK">spec</span>:
+      <span class="cK">template</span>:
+        <span class="cK">metadata</span>:
+          <span class="cK">labels</span>:
+            <span class="cK">workload-type</span>: <span class="cs">batch</span>     <span class="cc"># Matches our Fargate profile selector!</span>
+        <span class="cK">spec</span>:
+          <span class="cK">restartPolicy</span>: <span class="cs">OnFailure</span>   <span class="cc"># Retry if job fails (not Never = give up)</span>
+          <span class="cK">containers</span>:
+          <span class="cop">-</span> <span class="cK">name</span>: <span class="cs">report-generator</span>
+            <span class="cK">image</span>: <span class="cs">123456.dkr.ecr.ap-south-1.amazonaws.com/shopeasy-reports:latest</span>
+            <span class="cK">command</span>: [<span class="cs">"node"</span>, <span class="cs">"generate-report.js"</span>]
+            <span class="cK">env</span>:
+            <span class="cop">-</span> <span class="cK">name</span>: <span class="cs">REPORT_DATE</span>
+              <span class="cK">value</span>: <span class="cs">"yesterday"</span>
+            <span class="cK">resources</span>:                <span class="cc"># Fargate uses EXACT values (no overcommit)</span>
+              <span class="cK">requests</span>:
+                <span class="cK">cpu</span>: <span class="cs">"1"</span>             <span class="cc"># Fargate valid CPU: 0.25, 0.5, 1, 2, 4 vCPU</span>
+                <span class="cK">memory</span>: <span class="cs">"2Gi"</span>       <span class="cc"># Fargate valid memory: depends on CPU choice</span>
+              <span class="cK">limits</span>:
+                <span class="cK">cpu</span>: <span class="cs">"1"</span>             <span class="cc"># In Fargate, requests = limits (what you pay)</span>
+                <span class="cK">memory</span>: <span class="cs">"2Gi"</span></pre></div>
+      </div>
+
+      <div class="lab">
+        <div class="lab-hd"><div class="lab-ic">☁️</div><div><div class="lab-title">Lab 1 — Deploy & Test a Fargate CronJob</div><div class="lab-sub">Watch AWS provision a server just for your pod, then destroy it</div></div></div>
+        <div class="cmd">
+          <span class="cmt"># Create Fargate profile on existing cluster</span>
+          <span class="pr">$ </span>eksctl create fargateprofile \<br>
+          &nbsp;&nbsp;--cluster shopeasy-cluster \<br>
+          &nbsp;&nbsp;--name batch-profile \<br>
+          &nbsp;&nbsp;--namespace batch<br>
+          <span class="out"># [ℹ]  creating Fargate profile "batch-profile" on EKS cluster...</span><br>
+          <span class="out"># [✔]  created Fargate profile "batch-profile"</span>
+        </div>
+        <div class="cmd">
+          <span class="cmt"># Create namespace and deploy the CronJob</span>
+          <span class="pr">$ </span>kubectl create namespace batch<br>
+          <span class="pr">$ </span>kubectl apply -f report-cronjob.yaml<br><br>
+          <span class="cmt"># Manually trigger a job run RIGHT NOW (don't wait for schedule)</span>
+          <span class="pr">$ </span>kubectl create job --from=cronjob/nightly-sales-report manual-run-1 -n batch<br><br>
+          <span class="cmt"># Watch: pod appears, runs, completes — all on Fargate!</span>
+          <span class="pr">$ </span>kubectl get pods -n batch -w<br>
+          <span class="out"># nightly-sales-report-xxx   0/1   Pending   0    0s     ← AWS provisioning Fargate node</span><br>
+          <span class="out"># nightly-sales-report-xxx   1/1   Running   0    45s    ← pod running on Fargate</span><br>
+          <span class="out"># nightly-sales-report-xxx   0/1   Completed 0    2m     ← done! server destroyed.</span>
+        </div>
+        <div class="cmd">
+          <span class="cmt"># See the node — it says "fargate" in the name!</span>
+          <span class="pr">$ </span>kubectl get nodes<br>
+          <span class="out"># fargate-ip-192-168-1-10.ap-south-1.compute.internal   Ready   2m</span><br>
+          <span class="out"># ← This node appeared for your pod and will disappear after</span>
+        </div>
+      </div>
+
+    </section>
+
+    <div class="div"></div>
+
+    <!-- ════ CH 2: KARPENTER ════ -->
+    <section class="ch" id="karpenter">
+      <div class="ch-head">
+        <div class="ch-badge bg-kp">⚡</div>
+        <div>
+          <div class="ch-lbl lbl-kp">Chapter 2 · Next-Gen Autoscaling</div>
+          <h2 class="ch-title">Karpenter — Smart Node Provisioning in Seconds</h2>
+          <div class="ch-desc">Cluster Autoscaler scales in minutes. Karpenter provisions the perfect node in under 60 seconds.</div>
+        </div>
+      </div>
+
+      <div class="story">
+        <div class="s-hd">📖 Why Karpenter Replaced Cluster Autoscaler</div>
+        <p>The old way: <strong>Cluster Autoscaler</strong> works with pre-defined Auto Scaling Groups (ASGs). You choose an instance type (e.g., m5.xlarge) and the autoscaler adds more of the same. Problem: if your pods need different sizes — some need 1 CPU, some need 16 CPU — you need multiple ASGs, and the autoscaler is slow (3-5 minutes to add a node).</p>
+        <p><strong>Karpenter</strong> is different. It watches for pending pods, calculates the exact right instance type based on what those pods actually need, provisions it directly via EC2 Fleet API, and has your pod running in under 60 seconds. It also picks <strong>Spot instances automatically when safe</strong>, consolidates underutilized nodes, and replaces expensive nodes with cheaper ones when pods are shifted around — all automatically.</p>
+      </div>
+
+      <h3 class="sh"><span class="sh-n">2.1</span> Karpenter vs Cluster Autoscaler</h3>
+
+      <table class="wtbl">
+        <thead><tr><th>Feature</th><th>Cluster Autoscaler</th><th>Karpenter ✅</th></tr></thead>
+        <tbody>
+          <tr><td>Node Provisioning Speed</td><td>3–5 minutes</td><td>Under 60 seconds</td></tr>
+          <tr><td>Instance Selection</td><td>Fixed ASG instance type</td><td>Picks optimal type per workload</td></tr>
+          <tr><td>Spot Integration</td><td>Manual ASG configuration</td><td>Automatic spot with fallback</td></tr>
+          <tr><td>Node Consolidation</td><td>Manual / basic</td><td>Automatic consolidation (saves cost)</td></tr>
+          <tr><td>Configuration</td><td>Complex, many flags</td><td>Simple NodePool YAML</td></tr>
+          <tr><td>Cloud Support</td><td>Multi-cloud</td><td>AWS-native (best on EKS)</td></tr>
+        </tbody>
+      </table>
+
+      <h3 class="sh"><span class="sh-n">2.2</span> Install Karpenter</h3>
+
+      <div class="lab">
+        <div class="lab-hd"><div class="lab-ic">⚡</div><div><div class="lab-title">Lab 2 — Install Karpenter on EKS</div><div class="lab-sub">Using Helm — the standard install method</div></div></div>
+        <div class="cmd">
+          <span class="cmt"># Step 1: Set environment variables</span>
+          <span class="pr">$ </span>export CLUSTER_NAME=shopeasy-cluster<br>
+          <span class="pr">$ </span>export AWS_DEFAULT_REGION=ap-south-1<br>
+          <span class="pr">$ </span>export AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)<br>
+          <span class="pr">$ </span>export KARPENTER_VERSION=v0.37.0<br><br>
+          <span class="cmt"># Step 2: Create IAM role for Karpenter (needs EC2 permissions)</span>
+          <span class="pr">$ </span>eksctl create iamserviceaccount \<br>
+          &nbsp;&nbsp;--cluster $CLUSTER_NAME \<br>
+          &nbsp;&nbsp;--name karpenter \<br>
+          &nbsp;&nbsp;--namespace karpenter \<br>
+          &nbsp;&nbsp;--attach-policy-arn arn:aws:iam::$AWS_ACCOUNT_ID:policy/KarpenterControllerPolicy \<br>
+          &nbsp;&nbsp;--approve
+        </div>
+        <div class="cmd">
+          <span class="cmt"># Step 3: Install Karpenter via Helm</span>
+          <span class="pr">$ </span>helm registry login public.ecr.aws --username AWS --password $(aws ecr-public get-login-password)<br><br>
+          <span class="pr">$ </span>helm upgrade --install karpenter oci://public.ecr.aws/karpenter/karpenter \<br>
+          &nbsp;&nbsp;--version $KARPENTER_VERSION \<br>
+          &nbsp;&nbsp;--namespace karpenter \<br>
+          &nbsp;&nbsp;--create-namespace \<br>
+          &nbsp;&nbsp;--set settings.clusterName=$CLUSTER_NAME \<br>
+          &nbsp;&nbsp;--set settings.interruptionQueue=$CLUSTER_NAME \<br>
+          &nbsp;&nbsp;--set controller.resources.requests.cpu=1 \<br>
+          &nbsp;&nbsp;--set controller.resources.requests.memory=1Gi<br><br>
+          <span class="cmt"># Verify Karpenter is running</span>
+          <span class="pr">$ </span>kubectl get pods -n karpenter<br>
+          <span class="out"># karpenter-xxx   2/2   Running   ✅</span>
+        </div>
+      </div>
+
+      <h3 class="sh"><span class="sh-n">2.3</span> NodePool — Word by Word</h3>
+
+      <p class="bd">A <strong>NodePool</strong> is Karpenter's config object. It defines what kinds of nodes Karpenter can create, what workloads can use them, and how to handle spot interruptions and consolidation.</p>
+
+      <div class="cw">
+        <div class="ct">
+          <div class="cdots"><span class="cd cdr"></span><span class="cd cdy"></span><span class="cd cdg"></span><span class="cfn">nodepool-default.yaml</span></div>
+          <span class="clt">YAML · Karpenter NodePool</span>
+        </div>
+        <div class="cb"><pre><span class="cK">apiVersion</span>: <span class="cs">karpenter.sh/v1beta1</span>
+<span class="cK">kind</span>: <span class="cs">NodePool</span>                       <span class="cc"># Karpenter's CRD — replaces ASG configs</span>
+<span class="cK">metadata</span>:
+  <span class="cK">name</span>: <span class="cs">default</span>
+<span class="cK">spec</span>:
+  <span class="cK">template</span>:
+    <span class="cK">spec</span>:
+      <span class="cK">nodeClassRef</span>:                   <span class="cc"># Reference to EC2NodeClass (AWS-specific config)</span>
+        <span class="cK">apiVersion</span>: <span class="cs">karpenter.k8s.aws/v1beta1</span>
+        <span class="cK">kind</span>: <span class="cs">EC2NodeClass</span>
+        <span class="cK">name</span>: <span class="cs">default</span>
+      <span class="cK">requirements</span>:                   <span class="cc"># What kinds of nodes are allowed?</span>
+        <span class="cop">-</span> <span class="cK">key</span>: <span class="cs">karpenter.sh/capacity-type</span>
+          <span class="cK">operator</span>: <span class="cs">In</span>
+          <span class="cK">values</span>: [<span class="cs">"spot"</span>, <span class="cs">"on-demand"</span>]
+          <span class="cc">          # Try Spot first (up to 80% cheaper). Fall back to on-demand if no spot.</span>
+        <span class="cop">-</span> <span class="cK">key</span>: <span class="cs">node.kubernetes.io/instance-type</span>
+          <span class="cK">operator</span>: <span class="cs">In</span>
+          <span class="cK">values</span>: [<span class="cs">"m5.large"</span>, <span class="cs">"m5.xlarge"</span>, <span class="cs">"m6i.large"</span>, <span class="cs">"m6i.xlarge"</span>, <span class="cs">"c5.large"</span>, <span class="cs">"c5.xlarge"</span>]
+          <span class="cc">          # Many instance types = better spot availability</span>
+        <span class="cop">-</span> <span class="cK">key</span>: <span class="cs">kubernetes.io/arch</span>
+          <span class="cK">operator</span>: <span class="cs">In</span>
+          <span class="cK">values</span>: [<span class="cs">"amd64"</span>]              <span class="cc"># x86 architecture (ARM = arm64 for Graviton)</span>
+        <span class="cop">-</span> <span class="cK">key</span>: <span class="cs">kubernetes.io/os</span>
+          <span class="cK">operator</span>: <span class="cs">In</span>
+          <span class="cK">values</span>: [<span class="cs">"linux"</span>]
+
+  <span class="cK">limits</span>:                             <span class="cc"># Cost guardrails — never exceed this</span>
+    <span class="cK">cpu</span>: <span class="cs">"100"</span>                       <span class="cc"># Max 100 total CPU across all Karpenter nodes</span>
+    <span class="cK">memory</span>: <span class="cs">400Gi</span>                    <span class="cc"># Max 400GB total RAM</span>
+
+  <span class="cK">disruption</span>:                         <span class="cc"># How to handle node removal / consolidation</span>
+    <span class="cK">consolidationPolicy</span>: <span class="cs">WhenUnderutilized</span>
+    <span class="cc">    # If a node is underutilized, move its pods to another node and delete it. Saves money!</span>
+    <span class="cK">consolidateAfter</span>: <span class="cs">30s</span>             <span class="cc"># Wait 30s after becoming underutilized before moving pods</span>
+    <span class="cK">expireAfter</span>: <span class="cs">720h</span>                 <span class="cc"># Force-replace nodes after 30 days (security patching)</span>
+
+---
+<span class="cK">apiVersion</span>: <span class="cs">karpenter.k8s.aws/v1beta1</span>
+<span class="cK">kind</span>: <span class="cs">EC2NodeClass</span>                   <span class="cc"># AWS-specific node configuration</span>
+<span class="cK">metadata</span>:
+  <span class="cK">name</span>: <span class="cs">default</span>
+<span class="cK">spec</span>:
+  <span class="cK">amiFamily</span>: <span class="cs">AL2</span>                     <span class="cc"># Use Amazon Linux 2 (EKS-optimized)</span>
+  <span class="cK">role</span>: <span class="cs">KarpenterNodeRole-shopeasy-cluster</span>
+  <span class="cc">  # IAM Role for the node (must have AmazonEKSWorkerNodePolicy, AmazonEC2ContainerRegistryReadOnly)</span>
+  <span class="cK">subnetSelectorTerms</span>:
+    <span class="cop">-</span> <span class="cK">tags</span>:
+        <span class="cK">karpenter.sh/discovery</span>: <span class="cs">shopeasy-cluster</span>
+        <span class="cc">        # Karpenter looks for subnets tagged with this key — your VPC private subnets</span>
+  <span class="cK">securityGroupSelectorTerms</span>:
+    <span class="cop">-</span> <span class="cK">tags</span>:
+        <span class="cK">karpenter.sh/discovery</span>: <span class="cs">shopeasy-cluster</span>
+  <span class="cK">blockDeviceMappings</span>:
+    <span class="cop">-</span> <span class="cK">deviceName</span>: <span class="cs">/dev/xvda</span>
+      <span class="cK">ebs</span>:
+        <span class="cK">volumeSize</span>: <span class="cn">50</span><span class="cs">Gi</span>             <span class="cc"># 50GB root volume per node</span>
+        <span class="cK">volumeType</span>: <span class="cs">gp3</span>              <span class="cc"># gp3 is faster and cheaper than gp2</span>
+        <span class="cK">encrypted</span>: <span class="ck">true</span></pre></div>
+      </div>
+
+      <table class="wtbl">
+        <thead><tr><th>Karpenter Field</th><th>What It Does</th><th>Why It Matters</th></tr></thead>
+        <tbody>
+          <tr><td><span class="ci">capacity-type: spot+on-demand</span></td><td>Tries spot first, falls back to on-demand</td><td>Up to 80% cost saving with automatic fallback safety</td></tr>
+          <tr><td><span class="ci">many instance types</span></td><td>Allows Karpenter to pick best option</td><td>More spot pool options = lower chance of interruption</td></tr>
+          <tr><td><span class="ci">consolidationPolicy: WhenUnderutilized</span></td><td>Moves pods off idle nodes and deletes them</td><td>Eliminates waste — no more half-empty nodes</td></tr>
+          <tr><td><span class="ci">expireAfter: 720h</span></td><td>Rotates nodes every 30 days</td><td>Ensures nodes always run latest security patches</td></tr>
+          <tr><td><span class="ci">limits.cpu: 100</span></td><td>Hard cap on total CPU Karpenter can provision</td><td>Prevents runaway scaling and unexpected AWS bills</td></tr>
+        </tbody>
+      </table>
+
+    </section>
+
+    <div class="div"></div>
+
+    <!-- ════ CH 3: MULTI-CLUSTER ════ -->
+    <section class="ch" id="multi">
+      <div class="ch-head">
+        <div class="ch-badge bg-mc">🌐</div>
+        <div>
+          <div class="ch-lbl lbl-mc">Chapter 3 · Enterprise Architecture</div>
+          <h2 class="ch-title">Multi-Cluster EKS — One App, Multiple Regions</h2>
+          <div class="ch-desc">Run ShopEasy across Mumbai, Singapore, and Frankfurt simultaneously for global HA.</div>
+        </div>
+      </div>
+
+      <div class="story">
+        <div class="s-hd">📖 Why Multi-Cluster?</div>
+        <p>ShopEasy has grown. You now have 500,000 users across India, Southeast Asia, and Europe. A single Mumbai EKS cluster gives 200ms latency to European users. If that cluster has an AWS outage, all users are affected simultaneously.</p>
+        <p>The enterprise answer: <strong>3 regional clusters</strong> (Mumbai, Singapore, Frankfurt), with AWS Route53 routing users to the nearest healthy cluster. Each cluster runs a full copy of ShopEasy. A central <strong>management cluster</strong> with ArgoCD deploys to all 3 using ApplicationSets. If Mumbai goes down, Route53 routes traffic to Singapore in under 60 seconds.</p>
+      </div>
+
+      <h3 class="sh"><span class="sh-n">3.1</span> Multi-Cluster Architecture</h3>
+
+      <div class="arch">
+        <div class="a-lbl">User Traffic</div>
+        <div class="a-row">
+          <div class="abox a-aws">🌐 AWS Route53<br><small>Latency-based routing</small></div>
+        </div>
+        <div class="a-row">
+          <span class="a-arr">↙</span><span style="font-size:18px; color:#9e9e9e;">↓</span><span class="a-arr">↘</span>
+        </div>
+        <div class="a-row">
+          <div class="abox a-fg">🇮🇳 Mumbai<br><small>ap-south-1</small></div>
+          <div class="abox a-kp">🇸🇬 Singapore<br><small>ap-southeast-1</small></div>
+          <div class="abox a-mc">🇩🇪 Frankfurt<br><small>eu-central-1</small></div>
+        </div>
+        <div class="a-sep"></div>
+        <div class="a-lbl">GitOps Deployment (Push from Central ArgoCD)</div>
+        <div class="a-row">
+          <div class="abox a-ch">🧭 Management Cluster<br><small>ArgoCD + Monitoring</small></div>
+        </div>
+        <div class="a-row">
+          <span class="a-arr">→</span>
+          <div class="abox a-gr">ApplicationSet<br><small>Deploys to all 3</small></div>
+          <span class="a-arr">→</span>
+          <div class="abox a-aws">Git Repo<br><small>Single source of truth</small></div>
+        </div>
+      </div>
+
+      <h3 class="sh"><span class="sh-n">3.2</span> ArgoCD ApplicationSet — Deploy to All Clusters at Once</h3>
+
+      <div class="cw">
+        <div class="ct">
+          <div class="cdots"><span class="cd cdr"></span><span class="cd cdy"></span><span class="cd cdg"></span><span class="cfn">applicationset-global.yaml</span></div>
+          <span class="clt">YAML · ArgoCD ApplicationSet</span>
+        </div>
+        <div class="cb"><pre><span class="cK">apiVersion</span>: <span class="cs">argoproj.io/v1alpha1</span>
+<span class="cK">kind</span>: <span class="cs">ApplicationSet</span>               <span class="cc"># ArgoCD's "Application factory" — creates many apps at once</span>
+<span class="cK">metadata</span>:
+  <span class="cK">name</span>: <span class="cs">shopeasy-global</span>
+  <span class="cK">namespace</span>: <span class="cs">argocd</span>
+<span class="cK">spec</span>:
+  <span class="cK">generators</span>:                       <span class="cc"># How to generate multiple Applications</span>
+  <span class="cop">-</span> <span class="cK">list</span>:                           <span class="cc"># "list" generator: create one App per item in the list</span>
+      <span class="cK">elements</span>:
+      <span class="cop">-</span> <span class="cK">cluster</span>: <span class="cs">mumbai</span>              <span class="cc"># ShopEasy in Mumbai</span>
+        <span class="cK">url</span>: <span class="cs">https://mumbai-eks.ap-south-1.eks.amazonaws.com</span>
+        <span class="cK">env</span>: <span class="cs">production</span>
+        <span class="cK">region</span>: <span class="cs">ap-south-1</span>
+      <span class="cop">-</span> <span class="cK">cluster</span>: <span class="cs">singapore</span>
+        <span class="cK">url</span>: <span class="cs">https://singapore-eks.ap-southeast-1.eks.amazonaws.com</span>
+        <span class="cK">env</span>: <span class="cs">production</span>
+        <span class="cK">region</span>: <span class="cs">ap-southeast-1</span>
+      <span class="cop">-</span> <span class="cK">cluster</span>: <span class="cs">frankfurt</span>
+        <span class="cK">url</span>: <span class="cs">https://frankfurt-eks.eu-central-1.eks.amazonaws.com</span>
+        <span class="cK">env</span>: <span class="cs">production</span>
+        <span class="cK">region</span>: <span class="cs">eu-central-1</span>
+
+  <span class="cK">template</span>:                         <span class="cc"># The Application template (uses {{ }} variables from list above)</span>
+    <span class="cK">metadata</span>:
+      <span class="cK">name</span>: <span class="cs">shopeasy-{{cluster}}</span>   <span class="cc"># → creates: shopeasy-mumbai, shopeasy-singapore, shopeasy-frankfurt</span>
+    <span class="cK">spec</span>:
+      <span class="cK">project</span>: <span class="cs">default</span>
+      <span class="cK">source</span>:
+        <span class="cK">repoURL</span>: <span class="cs">https://github.com/yourorg/shopeasy-k8s</span>
+        <span class="cK">targetRevision</span>: <span class="cs">HEAD</span>
+        <span class="cK">path</span>: <span class="cs">helm/backend</span>
+        <span class="cK">helm</span>:
+          <span class="cK">valueFiles</span>:
+          <span class="cop">-</span> <span class="cs">values-{{env}}.yaml</span>        <span class="cc"># → uses values-production.yaml for each</span>
+          <span class="cK">parameters</span>:
+          <span class="cop">-</span> <span class="cK">name</span>: <span class="cs">aws.region</span>
+            <span class="cK">value</span>: <span class="cs">{{region}}</span>         <span class="cc"># Each cluster gets its own region value</span>
+      <span class="cK">destination</span>:
+        <span class="cK">server</span>: <span class="cs">{{url}}</span>              <span class="cc"># Deploy to each cluster's API endpoint</span>
+        <span class="cK">namespace</span>: <span class="cs">production</span>
+      <span class="cK">syncPolicy</span>:
+        <span class="cK">automated</span>:
+          <span class="cK">prune</span>: <span class="ck">true</span>
+          <span class="cK">selfHeal</span>: <span class="ck">true</span></pre></div>
+      </div>
+
+      <div class="callout ci-tip">
+        <span class="co-ic">💡</span>
+        <div>
+          <div class="co-ttl">ApplicationSet Superpower</div>
+          <p class="co-bd">Adding a 4th cluster (e.g., Tokyo) is just one line in the generators list. ArgoCD automatically creates, deploys, and manages the new Application. Remove the line → ArgoCD cleans up Tokyo. Git controls your entire global fleet.</p>
+        </div>
+      </div>
+
+    </section>
+
+    <div class="div"></div>
+
+    <!-- ════ CH 4: VELERO ════ -->
+    <section class="ch" id="velero">
+      <div class="ch-head">
+        <div class="ch-badge bg-vl">🛡️</div>
+        <div>
+          <div class="ch-lbl lbl-vl">Chapter 4 · Disaster Recovery</div>
+          <h2 class="ch-title">Velero — Backup & Restore Your Entire Cluster</h2>
+          <div class="ch-desc">When disaster strikes, restore your cluster state in minutes, not days.</div>
+        </div>
+      </div>
+
+      <div class="story">
+        <div class="s-hd">📖 The Disaster Story</div>
+        <p>A junior developer runs <code class="ci">kubectl delete namespace production</code> instead of <code class="ci">kubectl delete namespace staging</code>. All your deployments, services, configmaps, secrets — gone in 2 seconds. Without a backup, you're rebuilding from scratch. With Velero, you restore in 5 minutes.</p>
+        <p><strong>Velero</strong> takes snapshots of all your K8s objects (Deployments, Services, ConfigMaps, Secrets, PVCs) and stores them in S3. It also snapshots your EBS volumes. You can restore the entire cluster, a single namespace, or just one resource. Schedule backups every hour, retain for 30 days.</p>
+      </div>
+
+      <div class="cw">
+        <div class="ct">
+          <div class="cdots"><span class="cd cdr"></span><span class="cd cdy"></span><span class="cd cdg"></span><span class="cfn">velero-backup-schedule.yaml</span></div>
+          <span class="clt">YAML · Velero Backup Schedule</span>
+        </div>
+        <div class="cb"><pre><span class="cc"># Schedule — automatically backup every hour</span>
+<span class="cK">apiVersion</span>: <span class="cs">velero.io/v1</span>
+<span class="cK">kind</span>: <span class="cs">Schedule</span>
+<span class="cK">metadata</span>:
+  <span class="cK">name</span>: <span class="cs">production-hourly-backup</span>
+  <span class="cK">namespace</span>: <span class="cs">velero</span>                <span class="cc"># Velero lives in its own namespace</span>
+<span class="cK">spec</span>:
+  <span class="cK">schedule</span>: <span class="cs">"0 * * * *"</span>           <span class="cc"># Every hour at :00 (cron syntax)</span>
+  <span class="cK">template</span>:
+    <span class="cK">includedNamespaces</span>:           <span class="cc"># Which namespaces to backup</span>
+    <span class="cop">-</span> <span class="cs">production</span>
+    <span class="cop">-</span> <span class="cs">monitoring</span>
+    <span class="cop">-</span> <span class="cs">argocd</span>
+    <span class="cK">snapshotVolumes</span>: <span class="ck">true</span>        <span class="cc"># Also snapshot EBS volumes (EBS Snapshots via AWS API)</span>
+    <span class="cK">storageLocation</span>: <span class="cs">default</span>     <span class="cc"># Where to store: S3 bucket (configured at install)</span>
+    <span class="cK">ttl</span>: <span class="cs">720h</span>                     <span class="cc"># Keep backups for 30 days (720 hours)</span>
+    <span class="cc">                                 # Old backups auto-deleted after TTL</span>
+    <span class="cK">labelSelector</span>:                <span class="cc"># (Optional) backup only pods with these labels</span>
+      <span class="cK">matchLabels</span>:
+        <span class="cK">backup</span>: <span class="cs">"true"</span>            <span class="cc"># Only backup resources tagged backup=true</span></pre></div>
+      </div>
+
+      <div class="lab">
+        <div class="lab-hd"><div class="lab-ic">🛡️</div><div><div class="lab-title">Lab 4 — Install Velero + Run a Backup + Restore</div><div class="lab-sub">Simulate disaster recovery — the most important lab</div></div></div>
+        <div class="cmd">
+          <span class="cmt"># Step 1: Create S3 bucket for backups</span>
+          <span class="pr">$ </span>aws s3 mb s3://shopeasy-velero-backups-ap-south-1 --region ap-south-1<br><br>
+          <span class="cmt"># Step 2: Install Velero CLI</span>
+          <span class="pr">$ </span>brew install velero  # or download from GitHub releases<br><br>
+          <span class="cmt"># Step 3: Install Velero on cluster with AWS S3 backend</span>
+          <span class="pr">$ </span>velero install \<br>
+          &nbsp;&nbsp;--provider aws \<br>
+          &nbsp;&nbsp;--plugins velero/velero-plugin-for-aws:v1.9.0 \<br>
+          &nbsp;&nbsp;--bucket shopeasy-velero-backups-ap-south-1 \<br>
+          &nbsp;&nbsp;--backup-location-config region=ap-south-1 \<br>
+          &nbsp;&nbsp;--snapshot-location-config region=ap-south-1 \<br>
+          &nbsp;&nbsp;--secret-file ./aws-credentials-velero
+        </div>
+        <div class="cmd">
+          <span class="cmt"># Create an on-demand backup RIGHT NOW</span>
+          <span class="pr">$ </span>velero backup create prod-backup-$(date +%Y%m%d-%H%M) \<br>
+          &nbsp;&nbsp;--include-namespaces production \<br>
+          &nbsp;&nbsp;--snapshot-volumes<br><br>
+          <span class="cmt"># Watch backup progress</span>
+          <span class="pr">$ </span>velero backup describe prod-backup-20250615-1200 --details<br>
+          <span class="out"># Phase:   Completed ✅</span><br>
+          <span class="out"># Items Backed Up: 47 (Deployments, Services, Secrets, PVCs, ...)</span><br>
+          <span class="out"># Snapshot: 2 EBS volumes snapshotted</span>
+        </div>
+        <div class="cmd">
+          <span class="cmt"># Simulate disaster: delete the production namespace!</span>
+          <span class="pr">$ </span>kubectl delete namespace production<br>
+          <span class="out"># namespace "production" deleted  ← 😱 EVERYTHING GONE</span><br><br>
+          <span class="cmt"># RESTORE from Velero backup (5 minutes to full recovery!)</span>
+          <span class="pr">$ </span>velero restore create --from-backup prod-backup-20250615-1200<br><br>
+          <span class="cmt"># Watch restore</span>
+          <span class="pr">$ </span>velero restore describe prod-backup-20250615-1200-restore --details<br>
+          <span class="out"># Phase:   Completed ✅</span><br>
+          <span class="pr">$ </span>kubectl get all -n production<br>
+          <span class="out"># Everything is back! 🎉</span>
+        </div>
+      </div>
+
+    </section>
+
+    <div class="div"></div>
+
+    <!-- ════ CH 5: CHAOS ENGINEERING ════ -->
+    <section class="ch" id="chaos">
+      <div class="ch-head">
+        <div class="ch-badge bg-ch">🔥</div>
+        <div>
+          <div class="ch-lbl lbl-ch">Chapter 5 · Resilience</div>
+          <h2 class="ch-title">Chaos Engineering — Break Things Intentionally to Build Confidence</h2>
+          <div class="ch-desc">If you haven't broken it on purpose, it will break at the worst possible time.</div>
+        </div>
+      </div>
+
+      <div class="story">
+        <div class="s-hd">📖 The Netflix Philosophy</div>
+        <p>Netflix runs a tool called <strong>Chaos Monkey</strong> in production. It randomly kills EC2 instances to verify their systems actually recover. Sounds insane — but the philosophy is sound: <em>if failure is inevitable, you should control when, how, and what happens when it occurs.</em></p>
+        <p>For ShopEasy on EKS: Does your app recover when a pod is killed? When a node goes down? When the database connection fails? When the network is slow? Chaos Engineering is the discipline of answering these questions in a controlled way, before your users discover the answers for you.</p>
+        <p><strong>LitmusChaos</strong> is the CNCF-graduated chaos engineering platform for Kubernetes. It injects failures as K8s experiments — kill pods, drain nodes, add network latency, exhaust CPU, fill disk — and measures if your system meets its SLOs.</p>
+      </div>
+
+      <h3 class="sh"><span class="sh-n">5.1</span> LitmusChaos — Install & First Experiment</h3>
+
+      <div class="lab">
+        <div class="lab-hd"><div class="lab-ic">🔥</div><div><div class="lab-title">Lab 5 — Install LitmusChaos + Run Pod Kill Experiment</div><div class="lab-sub">Break ShopEasy on purpose and watch it heal</div></div></div>
+        <div class="cmd">
+          <span class="cmt"># Install Litmus via Helm</span>
+          <span class="pr">$ </span>helm repo add litmuschaos https://litmuschaos.github.io/litmus-helm/<br>
+          <span class="pr">$ </span>helm install chaos litmuschaos/litmus \<br>
+          &nbsp;&nbsp;--namespace litmus \<br>
+          &nbsp;&nbsp;--create-namespace \<br>
+          &nbsp;&nbsp;--set portal.frontend.service.type=LoadBalancer<br><br>
+          <span class="cmt"># Get Litmus UI URL</span>
+          <span class="pr">$ </span>kubectl get svc -n litmus | grep frontend<br>
+          <span class="out"># EXTERNAL-IP: abc123.ap-south-1.elb.amazonaws.com  ← Litmus UI</span>
+        </div>
+        <div class="cmd">
+          <span class="cmt"># Install chaos experiments (pre-built templates)</span>
+          <span class="pr">$ </span>kubectl apply -f https://hub.litmuschaos.io/api/chaos/master?file=charts/generic/pod-delete/experiment.yaml<br>
+          <span class="pr">$ </span>kubectl apply -f https://hub.litmuschaos.io/api/chaos/master?file=charts/generic/pod-cpu-hog/experiment.yaml<br>
+          <span class="pr">$ </span>kubectl apply -f https://hub.litmuschaos.io/api/chaos/master?file=charts/generic/node-drain/experiment.yaml
+        </div>
+      </div>
+
+      <h3 class="sh"><span class="sh-n">5.2</span> ChaosEngine — Pod Kill Experiment</h3>
+
+      <div class="cw">
+        <div class="ct">
+          <div class="cdots"><span class="cd cdr"></span><span class="cd cdy"></span><span class="cd cdg"></span><span class="cfn">chaos-pod-delete.yaml</span></div>
+          <span class="clt">YAML · LitmusChaos ChaosEngine</span>
+        </div>
+        <div class="cb"><pre><span class="cK">apiVersion</span>: <span class="cs">litmuschaos.io/v1alpha1</span>
+<span class="cK">kind</span>: <span class="cs">ChaosEngine</span>                   <span class="cc"># The "run this experiment" object</span>
+<span class="cK">metadata</span>:
+  <span class="cK">name</span>: <span class="cs">backend-pod-kill-test</span>
+  <span class="cK">namespace</span>: <span class="cs">production</span>
+<span class="cK">spec</span>:
+  <span class="cK">appinfo</span>:
+    <span class="cK">appns</span>: <span class="cs">production</span>               <span class="cc"># Which namespace the target app is in</span>
+    <span class="cK">applabel</span>: <span class="cs">app=backend</span>           <span class="cc"># Which pods to target (app=backend)</span>
+    <span class="cK">appkind</span>: <span class="cs">deployment</span>            <span class="cc"># Type of workload (deployment, statefulset)</span>
+
+  <span class="cK">engineState</span>: <span class="cs">active</span>              <span class="cc"># "active" = run the experiment, "stop" = halt</span>
+
+  <span class="cK">chaosServiceAccount</span>: <span class="cs">litmus-admin</span>
+  <span class="cc">  # ServiceAccount with permissions to kill pods</span>
+
+  <span class="cK">monitoring</span>: <span class="ck">true</span>                 <span class="cc"># Export metrics to Prometheus during chaos</span>
+
+  <span class="cK">experiments</span>:
+  <span class="cop">-</span> <span class="cK">name</span>: <span class="cs">pod-delete</span>               <span class="cc"># Which chaos experiment to run</span>
+    <span class="cK">spec</span>:
+      <span class="cK">components</span>:
+        <span class="cK">env</span>:
+        <span class="cop">-</span> <span class="cK">name</span>: <span class="cs">TOTAL_CHAOS_DURATION</span>
+          <span class="cK">value</span>: <span class="cs">"60"</span>               <span class="cc"># Run chaos for 60 seconds</span>
+        <span class="cop">-</span> <span class="cK">name</span>: <span class="cs">CHAOS_INTERVAL</span>
+          <span class="cK">value</span>: <span class="cs">"10"</span>               <span class="cc"># Kill a pod every 10 seconds</span>
+        <span class="cop">-</span> <span class="cK">name</span>: <span class="cs">PODS_AFFECTED_PERC</span>
+          <span class="cK">value</span>: <span class="cs">"33"</span>               <span class="cc"># Kill 33% of backend pods at a time</span>
+        <span class="cop">-</span> <span class="cK">name</span>: <span class="cs">FORCE</span>
+          <span class="cK">value</span>: <span class="cs">"false"</span>            <span class="cc"># Graceful termination (false) vs SIGKILL (true)</span>
+      <span class="cK">probe</span>:                         <span class="cc"># Steady-state hypothesis: is the app still working?</span>
+      <span class="cop">-</span> <span class="cK">name</span>: <span class="cs">http-probe</span>
+        <span class="cK">type</span>: <span class="cs">httpProbe</span>
+        <span class="cK">httpProbe/inputs</span>:
+          <span class="cK">url</span>: <span class="cs">https://shopeasy.yourdomain.com/api/health</span>
+          <span class="cK">insecureSkipVerify</span>: <span class="ck">false</span>
+          <span class="cK">responseTimeout</span>: <span class="cn">2000</span>      <span class="cc"># API must respond within 2 seconds during chaos</span>
+          <span class="cK">method</span>:
+            <span class="cK">get</span>:
+              <span class="cK">criteria</span>: <span class="cs">==</span>
+              <span class="cK">responseCode</span>: <span class="cs">"200"</span>    <span class="cc"># Must return 200 — if not, experiment FAILS</span>
+        <span class="cK">mode</span>: <span class="cs">Continuous</span>            <span class="cc"># Check continuously throughout experiment</span>
+        <span class="cK">runProperties</span>:
+          <span class="cK">probeTimeout</span>: <span class="cn">5</span>           <span class="cc"># 5s timeout per probe check</span>
+          <span class="cK">interval</span>: <span class="cn">5</span>               <span class="cc"># Check every 5 seconds</span>
+          <span class="cK">retry</span>: <span class="cn">3</span>                   <span class="cc"># Allow 3 failures before marking experiment as failed</span></pre></div>
+      </div>
+
+      <h3 class="sh"><span class="sh-n">5.3</span> Chaos Experiment Results — What to Look For</h3>
+
+      <div class="cg">
+        <div class="ccard">
+          <div class="cc-icon">✅</div>
+          <div class="cc-name">Pass: Self-Healing Works</div>
+          <div class="cc-desc">Pods get killed, Deployment restarts them within 10s. HTTP probe stays 200. Your app is resilient.</div>
+        </div>
+        <div class="ccard">
+          <div class="cc-icon">⚠️</div>
+          <div class="cc-name">Partial: Slow Recovery</div>
+          <div class="cc-desc">Pods restart but take 45s. HTTP probe has 5-second gaps. Fix: add readinessProbe + increase replicas.</div>
+        </div>
+        <div class="ccard">
+          <div class="cc-icon">❌</div>
+          <div class="cc-name">Fail: Complete Outage</div>
+          <div class="cc-desc">All pods killed, no traffic. Fix: PodDisruptionBudget + increase minReplicas in HPA.</div>
+        </div>
+        <div class="ccard">
+          <div class="cc-icon">🔍</div>
+          <div class="cc-name">Discovery: Hidden Bug</div>
+          <div class="cc-desc">Pod restart causes DB connection pool to overflow. Fix: add connection retry + circuit breaker.</div>
+        </div>
+      </div>
+
+      <div class="cw">
+        <div class="ct">
+          <div class="cdots"><span class="cd cdr"></span><span class="cd cdy"></span><span class="cd cdg"></span><span class="cfn">pdb-backend.yaml</span></div>
+          <span class="clt">YAML · PodDisruptionBudget</span>
+        </div>
+        <div class="cb"><pre><span class="cc"># PodDisruptionBudget: Tells K8s "never take down more than X pods at once"</span>
+<span class="cK">apiVersion</span>: <span class="cs">policy/v1</span>
+<span class="cK">kind</span>: <span class="cs">PodDisruptionBudget</span>
+<span class="cK">metadata</span>:
+  <span class="cK">name</span>: <span class="cs">backend-pdb</span>
+  <span class="cK">namespace</span>: <span class="cs">production</span>
+<span class="cK">spec</span>:
+  <span class="cK">selector</span>:
+    <span class="cK">matchLabels</span>:
+      <span class="cK">app</span>: <span class="cs">backend</span>
+  <span class="cK">minAvailable</span>: <span class="cn">2</span>                 <span class="cc"># ALWAYS keep at least 2 backend pods running</span>
+  <span class="cc">                                   # So if you have 3 pods, only 1 can be evicted at a time</span>
+  <span class="cc">                                   # Even during: node drain, rolling update, chaos experiment</span></pre></div>
+      </div>
+
+    </section>
+
+    <div class="div"></div>
+
+    <!-- ════ CH 6: COST OPTIMIZATION ════ -->
+    <section class="ch" id="cost">
+      <div class="ch-head">
+        <div class="ch-badge bg-co">💰</div>
+        <div>
+          <div class="ch-lbl lbl-co">Chapter 6 · FinOps</div>
+          <h2 class="ch-title">EKS Cost Optimization — Cut Your AWS Bill by 60%</h2>
+          <div class="ch-desc">Real tactics used by engineering teams to reduce EKS costs from $10,000/month to $4,000/month.</div>
+        </div>
+      </div>
+
+      <div class="story">
+        <div class="s-hd">📖 The $50,000 AWS Bill</div>
+        <p>ShopEasy gets a $12,000 AWS bill. The CTO is furious. You investigate: 40% of your EC2 nodes are running at under 10% CPU utilization. Your dev and staging clusters run 24/7 with nobody using them at night. All your nodes are On-Demand when 70% could be Spot. You have no resource requests set, so the scheduler is flying blind and every node is oversized.</p>
+        <p>This is not unusual. <strong>Most engineering teams waste 50-60% of their Kubernetes spending.</strong> Here are the exact techniques to fix it — from free quick wins to architectural changes.</p>
+      </div>
+
+      <h3 class="sh"><span class="sh-n">6.1</span> Before vs After: Real Cost Breakdown</h3>
+
+      <div class="cost-comp">
+        <div class="cost-card">
+          <div class="cost-title" style="color:#dc2626;">😰 Before Optimization</div>
+          <div class="cost-row"><span class="cost-label">EC2 Nodes (all on-demand)</span><span class="cost-val cv-red">$6,200/mo</span></div>
+          <div class="cost-row"><span class="cost-label">EKS Control Plane (3 clusters)</span><span class="cost-val cv-red">$219/mo</span></div>
+          <div class="cost-row"><span class="cost-label">EBS Volumes (over-provisioned)</span><span class="cost-val cv-red">$1,800/mo</span></div>
+          <div class="cost-row"><span class="cost-label">Data Transfer</span><span class="cost-val cv-red">$900/mo</span></div>
+          <div class="cost-row"><span class="cost-label">Load Balancers (one per service)</span><span class="cost-val cv-red">$600/mo</span></div>
+          <div class="cost-row" style="border-top:2px solid #fca5a5; margin-top:8px; padding-top:8px;"><span class="cost-label"><strong>Total</strong></span><span class="cost-val cv-red"><strong>$9,719/mo</strong></span></div>
+        </div>
+        <div class="cost-card">
+          <div class="cost-title" style="color:#16a34a;">🎉 After Optimization</div>
+          <div class="cost-row"><span class="cost-label">EC2 Nodes (70% Spot + Karpenter)</span><span class="cost-val cv-green">$1,900/mo</span></div>
+          <div class="cost-row"><span class="cost-label">EKS Control Plane (1 prod + 1 dev)</span><span class="cost-val cv-green">$146/mo</span></div>
+          <div class="cost-row"><span class="cost-label">EBS Volumes (right-sized)</span><span class="cost-val cv-green">$540/mo</span></div>
+          <div class="cost-row"><span class="cost-label">Data Transfer (VPC endpoints)</span><span class="cost-val cv-green">$300/mo</span></div>
+          <div class="cost-row"><span class="cost-label">Load Balancers (1 ALB Ingress)</span><span class="cost-val cv-green">$80/mo</span></div>
+          <div class="cost-row" style="border-top:2px solid #86efac; margin-top:8px; padding-top:8px;"><span class="cost-label"><strong>Total</strong></span><span class="cost-val cv-green"><strong>$2,966/mo</strong></span></div>
+        </div>
+      </div>
+
+      <h3 class="sh"><span class="sh-n">6.2</span> Tactic 1 — Spot Instances with Karpenter</h3>
+
+      <p class="bd">Already covered in Chapter 2 — Karpenter's <code class="ci">capacity-type: spot</code> gives you up to 80% savings on EC2 cost. Use multiple instance families to maximize spot pool availability. Run stateless APIs and batch jobs on spot. Keep databases and stateful apps on on-demand.</p>
+
+      <h3 class="sh"><span class="sh-n">6.3</span> Tactic 2 — Cluster Shutdown Schedule (Dev/Staging)</h3>
+
+      <div class="cw">
+        <div class="ct">
+          <div class="cdots"><span class="cd cdr"></span><span class="cd cdy"></span><span class="cd cdg"></span><span class="cfn">shutdown-schedule.yaml + Lambda</span></div>
+          <span class="clt">YAML · Scale Down Dev at Night</span>
+        </div>
+        <div class="cb"><pre><span class="cc"># Scale DOWN dev cluster at 8 PM every day (nobody using it at night)</span>
+<span class="cc"># Scale UP dev cluster at 8 AM every day (team starts work)</span>
+<span class="cc"># Saves ~65% on dev node costs</span>
+
+<span class="cc"># Option A: K8s CronJob that scales deployments to 0 at night</span>
+<span class="cK">apiVersion</span>: <span class="cs">batch/v1</span>
+<span class="cK">kind</span>: <span class="cs">CronJob</span>
+<span class="cK">metadata</span>:
+  <span class="cK">name</span>: <span class="cs">scale-down-dev</span>
+  <span class="cK">namespace</span>: <span class="cs">development</span>
+<span class="cK">spec</span>:
+  <span class="cK">schedule</span>: <span class="cs">"0 20 * * 1-5"</span>         <span class="cc"># 8 PM Monday-Friday (IST = UTC+5:30)</span>
+  <span class="cK">jobTemplate</span>:
+    <span class="cK">spec</span>:
+      <span class="cK">template</span>:
+        <span class="cK">spec</span>:
+          <span class="cK">serviceAccountName</span>: <span class="cs">scale-operator</span>
+          <span class="cK">restartPolicy</span>: <span class="cs">OnFailure</span>
+          <span class="cK">containers</span>:
+          <span class="cop">-</span> <span class="cK">name</span>: <span class="cs">kubectl</span>
+            <span class="cK">image</span>: <span class="cs">bitnami/kubectl:latest</span>
+            <span class="cK">command</span>:
+            <span class="cop">-</span> <span class="cs">/bin/sh</span>
+            <span class="cop">-</span> <span class="cs">-c</span>
+            <span class="cop">-</span> <span class="co">|</span>
+              <span class="cc">              # Scale all deployments in development to 0 replicas</span>
+              kubectl scale deployment --all --replicas=0 -n development
+              <span class="cc">              # This terminates all pods (and their EC2 nodes via Karpenter)</span>
+              echo "Dev cluster scaled down. Saving ~$200/night"
+---
+<span class="cc"># Scale back UP at 8 AM</span>
+<span class="cK">apiVersion</span>: <span class="cs">batch/v1</span>
+<span class="cK">kind</span>: <span class="cs">CronJob</span>
+<span class="cK">metadata</span>:
+  <span class="cK">name</span>: <span class="cs">scale-up-dev</span>
+  <span class="cK">namespace</span>: <span class="cs">development</span>
+<span class="cK">spec</span>:
+  <span class="cK">schedule</span>: <span class="cs">"30 2 * * 1-5"</span>         <span class="cc"># 8 AM IST = 02:30 UTC, Monday-Friday</span>
+  <span class="cK">jobTemplate</span>:
+    <span class="cK">spec</span>:
+      <span class="cK">template</span>:
+        <span class="cK">spec</span>:
+          <span class="cK">serviceAccountName</span>: <span class="cs">scale-operator</span>
+          <span class="cK">restartPolicy</span>: <span class="cs">OnFailure</span>
+          <span class="cK">containers</span>:
+          <span class="cop">-</span> <span class="cK">name</span>: <span class="cs">kubectl</span>
+            <span class="cK">image</span>: <span class="cs">bitnami/kubectl:latest</span>
+            <span class="cK">command</span>: [<span class="cs">"/bin/sh"</span>, <span class="cs">"-c"</span>, <span class="cs">"kubectl scale deployment --all --replicas=2 -n development"</span>]</pre></div>
+      </div>
+
+      <h3 class="sh"><span class="sh-n">6.4</span> Tactic 3 — One ALB Ingress Instead of Many LoadBalancers</h3>
+
+      <p class="bd">Every <code class="ci">type: LoadBalancer</code> Service creates an AWS Classic Load Balancer (~$18/month each). If you have 10 services, that's $180/month just for load balancers, plus data processing fees. <strong>Replace all of them with one AWS ALB Ingress</strong> controller — one ALB routes to all services based on path. Under $10/month total.</p>
+
+      <div class="callout ci-warn">
+        <span class="co-ic">⚠️</span>
+        <div>
+          <div class="co-ttl">Quick Win — Run This Right Now</div>
+          <p class="co-bd">Find all LoadBalancer services: <code class="ci">kubectl get svc --all-namespaces | grep LoadBalancer</code>. Count them. Each one is ~$18/month. Replace with ClusterIP + Ingress and see immediate savings.</p>
+        </div>
+      </div>
+
+      <h3 class="sh"><span class="sh-n">6.5</span> Tactic 4 — Right-Size with VPA (Vertical Pod Autoscaler)</h3>
+
+      <div class="cw">
+        <div class="ct">
+          <div class="cdots"><span class="cd cdr"></span><span class="cd cdy"></span><span class="cd cdg"></span><span class="cfn">vpa-backend.yaml</span></div>
+          <span class="clt">YAML · Vertical Pod Autoscaler</span>
+        </div>
+        <div class="cb"><pre><span class="cc"># VPA watches your pods' actual CPU + memory usage</span>
+<span class="cc"># and recommends (or auto-applies) right-sized resource requests</span>
+<span class="cK">apiVersion</span>: <span class="cs">autoscaling.k8s.io/v1</span>
+<span class="cK">kind</span>: <span class="cs">VerticalPodAutoscaler</span>
+<span class="cK">metadata</span>:
+  <span class="cK">name</span>: <span class="cs">backend-vpa</span>
+  <span class="cK">namespace</span>: <span class="cs">production</span>
+<span class="cK">spec</span>:
+  <span class="cK">targetRef</span>:
+    <span class="cK">apiVersion</span>: <span class="cs">apps/v1</span>
+    <span class="cK">kind</span>: <span class="cs">Deployment</span>
+    <span class="cK">name</span>: <span class="cs">backend-deployment</span>
+  <span class="cK">updatePolicy</span>:
+    <span class="cK">updateMode</span>: <span class="cs">"Off"</span>               <span class="cc"># "Off" = only show recommendations, don't auto-change</span>
+    <span class="cc">                                    # "Auto" = automatically resize pods (causes restarts)</span>
+    <span class="cc">                                    # Use "Off" first to understand recommendations</span>
+<span class="cc">
+# After applying, check VPA recommendations:
+# kubectl get vpa backend-vpa -o yaml
+# Look for: status.recommendation.containerRecommendations
+#   lowerBound: cpu: 180m, memory: 90Mi    ← minimum safe values
+#   target:     cpu: 400m, memory: 200Mi   ← what VPA recommends
+#   upperBound: cpu: 1200m, memory: 600Mi  ← ceiling
+#
+# If you set 1000m but VPA says 400m → you're wasting 600m CPU × every pod × every node!</span></pre></div>
+      </div>
+
+      <h3 class="sh"><span class="sh-n">6.6</span> The EKS Cost Optimization Checklist</h3>
+
+      <ul class="chk">
+        <li><span class="ckbx ck-done">✓</span><strong>Switch to Karpenter</strong> — Spot instances + consolidation. Saves 40-60% on EC2 costs immediately.</li>
+        <li><span class="ckbx ck-done">✓</span><strong>One ALB Ingress</strong> — Replace all LoadBalancer services. Saves ~$18/service/month.</li>
+        <li><span class="ckbx ck-done">✓</span><strong>Scale dev/staging to 0 at night</strong> — CronJob scales to 0 at 8PM, back up at 8AM. Saves ~65%.</li>
+        <li><span class="ckbx ck-done">✓</span><strong>Set resource requests on all pods</strong> — Without requests, nodes overcommit and waste capacity.</li>
+        <li><span class="ckbx ck-done">✓</span><strong>Run VPA in "Off" mode for 1 week</strong> — See actual usage vs allocated. Right-size accordingly.</li>
+        <li><span class="ckbx ck-done">✓</span><strong>Delete orphaned EBS volumes</strong> — <code>aws ec2 describe-volumes --filters Name=status,Values=available</code></li>
+        <li><span class="ckbx ck-done">✓</span><strong>Enable Karpenter consolidation</strong> — Automatically bin-packs pods onto fewer nodes.</li>
+        <li><span class="ckbx ck-done">✓</span><strong>Use Savings Plans for production nodes</strong> — 1-year commitment → 40% discount on on-demand price.</li>
+        <li><span class="ckbx ck-todo"></span>Enable AWS Cost Anomaly Detection for EKS tags</li>
+        <li><span class="ckbx ck-todo"></span>Use Kubecost for per-namespace/team cost attribution</li>
+        <li><span class="ckbx ck-todo"></span>Migrate eligible workloads to AWS Graviton (ARM) — 20% cheaper, 40% better performance</li>
+      </ul>
+
+      <!-- FINAL MODULE COMPLETE -->
+      <h3 class="sh" style="margin-top:44px;"><span class="sh-n">★</span> All 3 Modules Complete — You Are Production-Ready</h3>
+
+      <table class="wtbl">
+        <thead><tr><th>Module</th><th>Topics Mastered</th><th>Status</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><strong>Module 1</strong></td>
+            <td>K8s Architecture · EKS Setup · Pods · Deployments · Services · Ingress · ConfigMaps · HPA · CI/CD</td>
+            <td style="color:#16a34a; font-weight:700;">✅ Complete</td>
+          </tr>
+          <tr>
+            <td><strong>Module 2</strong></td>
+            <td>Helm · RBAC · Network Policies · ArgoCD GitOps · Prometheus + Grafana · StatefulSets · IRSA</td>
+            <td style="color:#16a34a; font-weight:700;">✅ Complete</td>
+          </tr>
+          <tr>
+            <td><strong>Module 3</strong></td>
+            <td>Fargate · Karpenter · Multi-Cluster · Velero Backups · Chaos Engineering · Cost Optimization</td>
+            <td style="color:#16a34a; font-weight:700;">✅ Complete</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="callout ci-tip" style="margin-top:24px;">
+        <span class="co-ic">🏆</span>
+        <div>
+          <div class="co-ttl">Your Next Career Steps</div>
+          <p class="co-bd">You now know more EKS than 95% of DevOps engineers. What to do next: <strong>(1)</strong> Build the ShopEasy project end-to-end on a real AWS account. <strong>(2)</strong> Get the <strong>AWS Certified Kubernetes Administrator (CKA)</strong> certification. <strong>(3)</strong> Get the <strong>AWS Solutions Architect Associate</strong> — covers EKS, networking, IAM deeply. <strong>(4)</strong> Contribute to open-source K8s tools (Karpenter, Velero, ArgoCD). <strong>(5)</strong> Practice chaos experiments on your own cluster weekly. With 4 years of dev experience + this EKS mastery, you're positioned for Senior DevOps / Cloud Engineer / Platform Engineer roles. 🚀</p>
+        </div>
+      </div>
+
+    </section>
+
+  </main>
+</div>
+
+<!-- FOOTER -->
+<footer class="footer">
+  <strong>EKS Kubernetes Mastery · Module 3 of 3 · Complete Series</strong><br>
+  Fargate · Karpenter · Multi-Cluster · Velero · Chaos Engineering · Cost Optimization<br>
+  <span style="font-size:11px; margin-top:6px; display:block; opacity:0.5;">ShopEasy Real Project · AWS DevOps Learning Series · Production Grade</span>
+</footer>
+
+<script>
+  const chs = document.querySelectorAll('.ch');
+  const links = document.querySelectorAll('.sb-link');
+  let maxIdx = 0;
+
+  const obs = new IntersectionObserver(entries => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        const id = e.target.id;
+        links.forEach(l => l.classList.toggle('active', l.getAttribute('href') === `#${id}`));
+        const idx = Array.from(chs).findIndex(c => c.id === id);
+        if (idx > maxIdx) maxIdx = idx;
+        const pct = Math.round(((maxIdx + 1) / chs.length) * 100);
+        document.getElementById('progBar').style.width = pct + '%';
+        document.getElementById('progPct').textContent = pct + '% complete';
+      }
+    });
+  }, { rootMargin: '-20% 0px -70% 0px' });
+
+  chs.forEach(c => obs.observe(c));
+</script>
+</body>
+</html>

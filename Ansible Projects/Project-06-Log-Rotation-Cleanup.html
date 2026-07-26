@@ -1,0 +1,1206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Project 6: Log Rotation & Cleanup Automation — Ansible AAP | SecureBank</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --red:#ee0000;--red-dark:#a30000;--blue:#003366;--blue-light:#0066cc;
+  --bg:#f7f8fa;--card:#ffffff;--border:#e2e5ea;--text:#1a1f2b;--text-dim:#5a6275;
+  --code-bg:#1e2330;--code-text:#e8eaf0;--green:#1a7f37;--amber:#b45309;
+  --shadow:0 1px 3px rgba(20,25,40,0.08),0 1px 2px rgba(20,25,40,0.06);
+}
+*{box-sizing:border-box;}
+body{margin:0;font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);line-height:1.65;}
+.topbar{background:linear-gradient(135deg,var(--blue) 0%,#001f3f 100%);color:#fff;padding:28px 5%;
+  position:sticky;top:0;z-index:100;box-shadow:var(--shadow);display:flex;justify-content:space-between;
+  align-items:center;flex-wrap:wrap;gap:10px;}
+.topbar h1{margin:0;font-size:1.25rem;font-weight:800;}
+.topbar .badge{background:var(--red);padding:4px 12px;border-radius:20px;font-size:0.75rem;font-weight:700;}
+.layout{display:flex;max-width:1500px;margin:0 auto;}
+nav.toc{width:285px;flex-shrink:0;padding:24px 16px;position:sticky;top:88px;align-self:flex-start;
+  max-height:calc(100vh - 110px);overflow-y:auto;}
+nav.toc h3{font-size:0.78rem;text-transform:uppercase;letter-spacing:1px;color:var(--text-dim);margin:0 0 12px 4px;}
+nav.toc a{display:block;padding:7px 10px;border-radius:6px;color:var(--text);text-decoration:none;
+  font-size:0.86rem;margin-bottom:2px;border-left:3px solid transparent;}
+nav.toc a:hover{background:#eef1f6;border-left-color:var(--blue-light);}
+main{flex:1;padding:28px 5% 80px;min-width:0;}
+.hero{background:linear-gradient(135deg,#fff,#eef3fa);border:1px solid var(--border);border-radius:14px;
+  padding:28px;margin-bottom:30px;box-shadow:var(--shadow);}
+.hero h2{margin-top:0;color:var(--blue);font-size:1.6rem;}
+.tag-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;}
+.tag{background:#dbeafe;color:var(--blue);padding:4px 12px;border-radius:20px;font-size:0.75rem;font-weight:600;}
+section{margin-bottom:36px;}
+.card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:22px 26px;
+  box-shadow:var(--shadow);margin-bottom:18px;}
+h2.section-title{font-size:1.35rem;color:var(--blue);border-bottom:3px solid var(--red);padding-bottom:8px;
+  margin-bottom:18px;}
+h3{color:var(--blue);font-size:1.1rem;margin-top:22px;}
+.story-box{background:#fff7ed;border-left:4px solid var(--amber);border-radius:8px;padding:16px 20px;margin:16px 0;font-style:italic;color:#5a4520;}
+.story-box b{font-style:normal;}
+.warn-box{background:#fef2f2;border-left:4px solid var(--red);border-radius:8px;padding:16px 20px;margin:16px 0;}
+.tip-box{background:#ecfdf5;border-left:4px solid var(--green);border-radius:8px;padding:16px 20px;margin:16px 0;}
+details{border:1px solid var(--border);border-radius:10px;margin-bottom:12px;background:#fafbfc;overflow:hidden;}
+summary{padding:13px 18px;cursor:pointer;font-weight:600;color:var(--blue);list-style:none;display:flex;
+  justify-content:space-between;align-items:center;background:#eef3fa;}
+summary::-webkit-details-marker{display:none;}
+summary::after{content:"+";font-size:1.2rem;font-weight:700;color:var(--red);}
+details[open] summary::after{content:"−";}
+details>div.inner{padding:16px 18px;}
+table{border-collapse:collapse;width:100%;margin:14px 0;font-size:0.88rem;}
+th,td{border:1px solid var(--border);padding:9px 12px;text-align:left;vertical-align:top;}
+th{background:var(--blue);color:#fff;}
+tr:nth-child(even){background:#f7f9fc;}
+.code-wrap{position:relative;margin:14px 0;}
+.code-label{background:#151925;color:#9fb3d9;padding:7px 14px;font-size:0.75rem;font-family:'JetBrains Mono',monospace;
+  border-radius:8px 8px 0 0;display:flex;justify-content:space-between;align-items:center;}
+pre{background:var(--code-bg);color:var(--code-text);padding:16px;border-radius:0 0 8px 8px;overflow-x:auto;
+  margin:0;font-family:'JetBrains Mono',monospace;font-size:0.83rem;line-height:1.6;}
+code{font-family:'JetBrains Mono',monospace;}
+.copy-btn{background:var(--red);color:#fff;border:none;padding:4px 10px;border-radius:5px;font-size:0.72rem;cursor:pointer;font-weight:600;}
+.copy-btn:hover{background:var(--red-dark);}
+.ascii{background:#0d1117;color:#7ee787;font-family:'JetBrains Mono',monospace;padding:20px;border-radius:10px;font-size:0.78rem;overflow-x:auto;line-height:1.4;}
+.line-explain{border:1px solid var(--border);border-radius:8px;margin:6px 0;padding:10px 14px;background:#fff;font-size:0.86rem;}
+.line-explain .cf{font-family:'JetBrains Mono',monospace;background:#1e2330;color:#e8eaf0;padding:2px 8px;border-radius:4px;font-size:0.82rem;}
+.flow-step{display:flex;gap:14px;padding:12px 0;border-bottom:1px dashed var(--border);}
+.flow-num{background:var(--blue);color:#fff;width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;flex-shrink:0;font-size:0.85rem;}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:18px;}
+@media(max-width:900px){.grid2{grid-template-columns:1fr;}nav.toc{display:none;}}
+ul,ol{padding-left:22px;}
+li{margin-bottom:6px;}
+.footer-nav{display:flex;justify-content:space-between;padding:20px 0;border-top:2px solid var(--border);margin-top:40px;}
+.btn{background:var(--blue);color:#fff;padding:10px 20px;border-radius:8px;text-decoration:none;font-weight:600;font-size:0.88rem;}
+.btn.red{background:var(--red);}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <h1>🏦 SecureBank DevOps Academy — Ansible &amp; Red Hat AAP</h1>
+  <span class="badge">PROJECT 6 / 15</span>
+</div>
+<div class="layout">
+<nav class="toc">
+  <h3>Table of Contents</h3>
+  <a href="#overview">1. Project Overview</a>
+  <a href="#business">2. Business Requirement</a>
+  <a href="#scenario">3. Real-Time Scenario</a>
+  <a href="#problem">4. Problem Statement</a>
+  <a href="#why">5. Why Automation</a>
+  <a href="#manual">6. Existing Manual Process</a>
+  <a href="#design">7. Automated Solution Design</a>
+  <a href="#arch">8. Architecture Diagram</a>
+  <a href="#components">9. Ansible &amp; AAP Components</a>
+  <a href="#inventory">10. Inventory Structure</a>
+  <a href="#rolestruct">11. Roles Structure</a>
+  <a href="#code">12. Complete Project Code</a>
+  <a href="#aap">13. AAP Job &amp; Workflow Templates</a>
+  <a href="#flow">14. Execution Flow</a>
+  <a href="#lab">15. Lab Setup Guide</a>
+  <a href="#interview">16. Interview Preparation</a>
+  <a href="#wrap">17. Key Learnings &amp; Resume Points</a>
+</nav>
+<main>
+
+<!-- HERO -->
+<div class="hero" id="overview">
+  <h2>Project 6: Log Rotation &amp; Cleanup Automation using Red Hat AAP</h2>
+  <p>SecureBank's 400+ server fleet generates over <b>2TB of logs every day</b> — application logs, transaction audit trails, access logs, security logs, database alert logs, JVM GC logs, and middleware logs — across 14 banking applications. Without disciplined log lifecycle management, application servers hit disk-full conditions that instantly kill running processes, audit logs required for RBI/PCI-DSS compliance are lost before their mandatory retention period, and log forensics during security incidents become impossible because logs were deleted too aggressively. This project automates <b>intelligent, policy-driven log rotation, compression, archival, and purge</b> across the fleet — with retention policies mapped directly to RBI and PCI-DSS mandates, per-application customisation, and pre/post disk-space validation that prevents any cleanup run from accidentally deleting logs that are still needed for a live audit.</p>
+  <div class="tag-row">
+    <span class="tag">RHEL 8/9</span>
+    <span class="tag">Red Hat AAP 2.5</span>
+    <span class="tag">logrotate / journald</span>
+    <span class="tag">RBI 10-Year Audit Retention</span>
+    <span class="tag">PCI-DSS Log Retention</span>
+    <span class="tag">NFS/S3 Archival</span>
+    <span class="tag">Disk-Full Prevention</span>
+    <span class="tag">rsyslog</span>
+  </div>
+</div>
+
+<!-- BUSINESS -->
+<section id="business">
+<h2 class="section-title">📋 1. Business Requirement</h2>
+<div class="card">
+<p>SecureBank's log management must satisfy three competing constraints simultaneously:</p>
+<table>
+<tr><th>Constraint</th><th>Requirement</th><th>Source</th></tr>
+<tr><td><b>Minimum Retention</b></td><td>Transaction audit logs: 10 years. Security/access logs: 5 years. Application logs: 1 year.</td><td>RBI IT Framework §8.2, RBI Cyber Security Framework</td></tr>
+<tr><td><b>PCI-DSS Retention</b></td><td>All CDE audit logs retained for at least 12 months (3 months immediately accessible)</td><td>PCI-DSS v4.0 Req 10.7</td></tr>
+<tr><td><b>Disk Space SLA</b></td><td>Log partition must never exceed 85% utilisation (triggers P2 alert) or 95% (disk-full = application crash)</td><td>SecureBank Internal SLA</td></tr>
+<tr><td><b>Active Audit</b></td><td>Never delete logs that are within the retention window of an active RBI/PCI audit — flagged in a "hold" registry</td><td>InfoSec Legal Hold Policy</td></tr>
+</table>
+<p>The log lifecycle policy for each log category: <b>compress after 1 day → retain compressed on server for 7–30 days → archive to NFS/S3 for retention period → purge after retention window expires</b>. Each application has its own policy defined in the inventory.</p>
+</div>
+</section>
+
+<!-- SCENARIO -->
+<section id="scenario">
+<h2 class="section-title">🏦 2. Real-Time Banking Scenario</h2>
+<div class="story-box">
+<b>The Story:</b> It's 3:22 AM on a Tuesday. SecureBank's CBS application server <code>cbs-app03</code> goes completely dark. The NOC fires a P1 alert — all 12 app tier servers are showing connection timeouts. The on-call engineer, Vikram, SSHs in via the out-of-band console and immediately sees: <code>No space left on device</code>. The <code>/opt/securecore/logs</code> partition is at 100%. Catalina.out has grown to 47GB because a developer pushed a new release with DEBUG logging accidentally left enabled. The application JVM cannot write its GC log and hangs. 40 minutes of complete transaction downtime follows — during month-end, when 200 corporate salary disbursements were pending. Two months later, a forensic investigator from the InfoSec team is investigating a suspected unauthorized access incident from 8 months ago. They request the access logs from that date. The logs don't exist — the previous junior engineer's ad-hoc cleanup script deleted everything older than 30 days, not knowing about the 5-year minimum retention for security logs. Now with the Ansible-driven log lifecycle automation in place, logrotate policies are configured uniformly via templates, disk utilisation is checked before and after every cleanup run, logs are compressed and staged to NFS for long-term retention before being purged locally, and a retention-hold registry prevents deletion of any log under an active legal or audit hold.
+</div>
+</section>
+
+<!-- PROBLEM -->
+<section id="problem">
+<h2 class="section-title">❗ 3. Problem Statement</h2>
+<div class="card">
+<ul>
+  <li>No consistent logrotate configuration across 400 servers — each application team configured their own (or didn't), leading to wildly different rotation schedules, inconsistent compression, and varied retention periods.</li>
+  <li>Disk-full incidents caused by runaway log growth (DEBUG logging left on, exception storms writing megabytes/second) silently kill application processes at 3 AM.</li>
+  <li>No archival pipeline — old logs are deleted locally with no backup to NFS/S3, making forensic investigation and RBI audit evidence retrieval impossible for events older than 30 days.</li>
+  <li>No legal-hold awareness — ad-hoc cleanup scripts delete logs under active RBI inspection or PCI-DSS audit without any check against a hold registry.</li>
+  <li>JVM GC logs, core dump files, and heapdump files are never cleaned up — one OutOfMemoryError produces a 16GB heapdump that fills the disk for weeks.</li>
+  <li>No pre-cleanup validation — engineers sometimes accidentally delete active log files (not just rotated archives) that applications are still writing to, causing application log corruption.</li>
+</ul>
+</div>
+</section>
+
+<!-- WHY -->
+<section id="why">
+<h2 class="section-title">🤖 4. Why Automation Is Required</h2>
+<div class="card">
+<table>
+<tr><th>Manual / Ad-hoc Approach</th><th>Automated (Ansible AAP) Approach</th></tr>
+<tr><td>Inconsistent logrotate configs per server</td><td>Single Jinja2 template renders consistent config per-application from inventory policy variables</td></tr>
+<tr><td>Disk-full discovered after application crash</td><td>Daily disk-space scan with threshold alerts at 75%/85%/95% — proactive, not reactive</td></tr>
+<tr><td>Local delete with no archival — logs lost forever</td><td>Compress → archive to NFS/S3 → validate archive integrity → then purge local copies</td></tr>
+<tr><td>No legal-hold awareness</td><td>Hold registry check before every purge — files under hold are skipped, reported, never deleted</td></tr>
+<tr><td>JVM heapdumps accumulate silently</td><td>Dedicated JVM artifact cleanup role with size-threshold-gated deletion and alert before delete</td></tr>
+<tr><td>Active log files accidentally deleted</td><td>lsof-based check confirms no application process has a file open before any deletion</td></tr>
+</table>
+</div>
+</section>
+
+<!-- MANUAL -->
+<section id="manual">
+<h2 class="section-title">🧑‍💻 5. Existing Manual Process (Before Automation)</h2>
+<div class="card">
+<ol>
+  <li>An engineer notices a monitoring alert or ticket: "Disk space on cbs-app03 at 82%."</li>
+  <li>Engineer SSHs into the server and runs <code>du -sh /opt/*/logs/*</code> to find the biggest files.</li>
+  <li>Engineer manually <code>gzip</code>s or deletes old log files, usually anything with a date older than "a month ago" — without checking retention policy.</li>
+  <li>No archival step — deleted logs are gone permanently.</li>
+  <li>Engineer updates a spreadsheet ticket as "resolved."</li>
+  <li>Three weeks later, the same server is at 82% again — the root cause (over-verbose logging config) is never addressed.</li>
+  <li>No fleet-wide visibility — 399 other servers may be at 90% and nobody knows until they also hit alerts.</li>
+</ol>
+</div>
+</section>
+
+<!-- DESIGN -->
+<section id="design">
+<h2 class="section-title">🛠️ 6. Automated Solution Design</h2>
+<div class="card">
+<p>The solution has <b>four sequential phases</b>, each independently executable as an AAP Job Template:</p>
+<ul>
+  <li><b>Phase 1 — Disk Scan &amp; Report:</b> Runs daily on all 400 servers. Collects disk utilisation per log partition, identifies the top 10 largest log directories, flags servers above thresholds (75% warn / 85% alert / 95% critical), and generates a fleet-wide disk utilisation report pushed to Grafana.</li>
+  <li><b>Phase 2 — Logrotate Config Enforcement:</b> Deploys per-application logrotate configuration from Jinja2 templates based on inventory-defined log policies (rotate frequency, compression, retention count, post-rotate scripts). Ensures logrotate.d files are consistent and current across the fleet. Runs logrotate manually to force a rotation if the server is above the 85% threshold.</li>
+  <li><b>Phase 3 — Archival Pipeline:</b> For each application's log directory, identifies files older than the "local retention" window (typically 7–30 days), checks against the legal-hold registry, compresses any uncompressed files, validates archive integrity (gzip -t), and copies to the designated NFS/S3 archival path — then deletes the local copy only after successful archive validation.</li>
+  <li><b>Phase 4 — JVM Artifact Cleanup:</b> Locates and cleans heapdump (.hprof), core dump, and oversized GC log files that accumulate from JVM crashes. Sends a pre-deletion alert to the application team (heapdumps may be needed for debugging) with a configurable grace period before deletion.</li>
+</ul>
+</div>
+</section>
+
+<!-- ARCH -->
+<section id="arch">
+<h2 class="section-title">🗺️ 7. Architecture Diagram</h2>
+<div class="card">
+<div class="ascii">
+<pre style="background:none;color:inherit;">
+┌──────────────────────────────────────────────────────────┐
+│          Red Hat AAP Controller                           │
+│  Schedule: Phase 1 — Daily 05:00 IST (disk scan)         │
+│            Phase 2 — Daily 05:30 IST (logrotate enforce) │
+│            Phase 3 — Weekly Sunday 01:00 IST (archival)  │
+│            Phase 4 — Weekly Sunday 02:00 IST (JVM clean) │
+└──────────────────────┬───────────────────────────────────┘
+                        │ (forks=50 — all servers parallel)
+                        ▼
+          ┌─────────────────────────────────┐
+          │ Phase 1: Disk Scan & Report      │
+          │ df → top-10 du → threshold flag  │
+          │ → fleet report JSON → Grafana    │
+          └──────────────┬──────────────────┘
+                         │
+          ┌──────────────▼──────────────────┐
+          │ Phase 2: Logrotate Enforcement   │
+          │ Jinja2 → /etc/logrotate.d/app    │
+          │ Force rotate if disk > 85%       │
+          └──────────────┬──────────────────┘
+                         │
+          ┌──────────────▼──────────────────┐
+          │ Phase 3: Archival Pipeline        │
+          │                                  │
+          │  Local Logs                       │
+          │  ├── Check legal-hold registry   │
+          │  ├── gzip compress               │
+          │  ├── gzip -t integrity check     │
+          │  ├── Copy to NFS archive         │
+          │  └── Delete local (post-verify)  │
+          │                                  │
+          │  NFS Archive Structure:           │
+          │  /archive/{app}/{year}/{month}/  │
+          └──────────────┬──────────────────┘
+                         │
+          ┌──────────────▼──────────────────┐
+          │ Phase 4: JVM Artifact Cleanup    │
+          │ find *.hprof / core.* > 1GB      │
+          │ Alert team → grace period →      │
+          │ delete if not under hold         │
+          └─────────────────────────────────┘
+
+  Retention Policy (from inventory):
+  ┌─────────────────┬──────────┬──────────┬────────────┐
+  │ Log Type         │ Local    │ NFS Hold │ Authority  │
+  ├─────────────────┼──────────┼──────────┼────────────┤
+  │ Transaction Audit│ 7 days   │ 10 years │ RBI §8.2   │
+  │ Security/Access  │ 30 days  │ 5 years  │ RBI Cyber  │
+  │ Application      │ 14 days  │ 1 year   │ Internal   │
+  │ CDE Audit (PCI)  │ 90 days  │ 1 year   │ PCI DSS    │
+  │ JVM GC / Debug   │ 3 days   │ 30 days  │ Internal   │
+  └─────────────────┴──────────┴──────────┴────────────┘
+</pre>
+</div>
+</div>
+</section>
+
+<!-- COMPONENTS -->
+<section id="components">
+<h2 class="section-title">⚙️ 8. Ansible &amp; AAP Components Used</h2>
+<div class="grid2">
+<div class="card">
+<h3>Core Ansible Components</h3>
+<ul>
+  <li>Modules: <code>ansible.builtin.find</code>, <code>ansible.builtin.file</code>, <code>ansible.builtin.shell</code>, <code>ansible.builtin.command</code>, <code>ansible.builtin.template</code>, <code>ansible.builtin.copy</code>, <code>ansible.builtin.synchronize</code>, <code>ansible.builtin.uri</code></li>
+  <li>Roles: <code>log_disk_scan</code>, <code>log_rotate_enforce</code>, <code>log_archive</code>, <code>log_jvm_cleanup</code>, <code>log_report</code></li>
+  <li>Jinja2 templates: logrotate.d config per app, fleet disk report JSON, archival manifest CSV</li>
+  <li><code>ansible.builtin.find</code> with <code>age</code>, <code>size</code>, <code>patterns</code> filters — filesystem queries without shell glob risks</li>
+  <li><code>ansible.posix.synchronize</code> (rsync) for efficient NFS archival of large log sets</li>
+  <li>Legal-hold registry as a YAML file fetched from a trusted NFS path — checked before every deletion</li>
+</ul>
+</div>
+<div class="card">
+<h3>Red Hat AAP Components</h3>
+<ul>
+  <li><b>Job Templates:</b> Log-Disk-Scan, Log-Rotate-Enforce, Log-Archive-Pipeline, Log-JVM-Cleanup</li>
+  <li><b>Workflow:</b> Log-Lifecycle-Weekly (chains all 4 phases with disk-scan gate — if scan shows &lt;75%, skip aggressive cleanup)</li>
+  <li><b>Survey:</b> target_hosts (specific server or group), force_archive (bool — skip threshold, always archive), dry_run (bool — preview deletions without executing)</li>
+  <li><b>Schedule:</b> Phase 1 daily; Phases 2–4 weekly Sunday maintenance window</li>
+  <li><b>Notification:</b> Slack #disk-alerts for servers above 85%; Email to app team before JVM heapdump deletion</li>
+  <li><b>RBAC:</b> dry_run launch available to all engineers; actual deletion requires "Log-Lifecycle-Admins" team</li>
+</ul>
+</div>
+</div>
+</section>
+
+<!-- INVENTORY -->
+<section id="inventory">
+<h2 class="section-title">📂 9. Inventory Structure</h2>
+<div class="card">
+<div class="code-wrap">
+<div class="code-label"><span>inventory/log_mgmt/hosts.ini</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+<pre><code>[cbs_app_servers]
+cbs-app01.prod.securebank.in  ansible_host=10.20.2.11
+cbs-app02.prod.securebank.in  ansible_host=10.20.2.12
+cbs-app03.prod.securebank.in  ansible_host=10.20.2.13
+
+[payment_gw_servers]
+paymentgw01.prod.securebank.in ansible_host=10.20.6.11
+
+[nach_servers]
+nach01.prod.securebank.in      ansible_host=10.20.7.11
+
+[all_app_servers:children]
+cbs_app_servers
+payment_gw_servers
+nach_servers</code></pre>
+</div>
+
+<div class="code-wrap">
+<div class="code-label"><span>inventory/log_mgmt/group_vars/all.yml</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+<pre><code>---
+# Disk thresholds
+disk_warn_pct: 75
+disk_alert_pct: 85
+disk_critical_pct: 95
+
+# NFS archival root (mounted on all app servers)
+log_archive_nfs_root: /mnt/log-archive-nfs
+
+# Legal-hold registry location (read-only NFS share, managed by InfoSec)
+legal_hold_registry_path: /mnt/compliance-nfs/legal-holds/active-holds.yml
+
+# Dry run mode (safe default — actual deletion requires explicit false)
+dry_run: true
+
+# Report paths
+log_report_local: /tmp/log-lifecycle-report.json
+log_report_archive: /mnt/compliance-nfs/log-reports</code></pre>
+</div>
+
+<div class="code-wrap">
+<div class="code-label"><span>inventory/log_mgmt/group_vars/cbs_app_servers.yml</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+<pre><code>---
+app_name: securecore-cbs
+log_policies:
+  - name: application_logs
+    log_dir: /opt/securecore/tomcat/logs
+    patterns:
+      - "catalina.out"
+      - "localhost_access_log.*.txt"
+    rotate_frequency: daily
+    rotate_count: 7
+    compress: true
+    local_retention_days: 14
+    archive_retention_days: 365
+    log_category: application
+    archive_subpath: cbs/application
+
+  - name: transaction_audit_logs
+    log_dir: /opt/securecore/audit
+    patterns:
+      - "txn-audit-*.log"
+    rotate_frequency: daily
+    rotate_count: 7
+    compress: true
+    local_retention_days: 7
+    archive_retention_days: 3650   # 10 years — RBI mandate
+    log_category: transaction_audit
+    archive_subpath: cbs/audit
+
+  - name: security_access_logs
+    log_dir: /opt/securecore/security
+    patterns:
+      - "access-*.log"
+      - "auth-*.log"
+    rotate_frequency: daily
+    rotate_count: 30
+    compress: true
+    local_retention_days: 30
+    archive_retention_days: 1825   # 5 years — RBI Cyber mandate
+    log_category: security
+    archive_subpath: cbs/security
+
+  - name: jvm_gc_logs
+    log_dir: /opt/securecore/tomcat/logs
+    patterns:
+      - "gc-*.log"
+      - "gc-*.log.*"
+    rotate_frequency: weekly
+    rotate_count: 3
+    compress: true
+    local_retention_days: 3
+    archive_retention_days: 30
+    log_category: jvm_gc
+    archive_subpath: cbs/jvm
+
+jvm_artifact_paths:
+  - /opt/securecore/tomcat
+  - /opt/securecore
+  - /tmp</code></pre>
+</div>
+
+<div class="code-wrap">
+<div class="code-label"><span>inventory/log_mgmt/group_vars/nach_servers.yml</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+<pre><code>---
+app_name: nach-processor
+log_policies:
+  - name: batch_processing_logs
+    log_dir: /opt/nach/logs
+    patterns:
+      - "nach-processor.log.*"
+      - "batch-run-*.log"
+    rotate_frequency: daily
+    rotate_count: 14
+    compress: true
+    local_retention_days: 14
+    archive_retention_days: 3650   # 10 years — NACH is a regulated transaction log
+    log_category: transaction_audit
+    archive_subpath: nach/batch
+
+jvm_artifact_paths:
+  - /opt/nach
+  - /tmp</code></pre>
+</div>
+</div>
+</section>
+
+<!-- STRUCTURE -->
+<section id="rolestruct">
+<h2 class="section-title">🗂️ 10. Roles Structure</h2>
+<div class="card">
+<div class="ascii">
+<pre style="background:none;color:inherit;">
+log-lifecycle-project/
+├── ansible.cfg
+├── log_disk_scan.yml
+├── log_rotate_enforce.yml
+├── log_archive_pipeline.yml
+├── log_jvm_cleanup.yml
+├── inventory/
+│   └── log_mgmt/
+│       ├── hosts.ini
+│       └── group_vars/
+│           ├── all.yml
+│           ├── cbs_app_servers.yml
+│           └── nach_servers.yml
+└── roles/
+    ├── log_disk_scan/
+    │   └── tasks/main.yml
+    ├── log_rotate_enforce/
+    │   ├── tasks/main.yml
+    │   ├── handlers/main.yml
+    │   └── templates/
+    │       └── logrotate_app.j2
+    ├── log_archive/
+    │   └── tasks/main.yml
+    ├── log_jvm_cleanup/
+    │   └── tasks/main.yml
+    └── log_report/
+        ├── tasks/main.yml
+        └── templates/
+            └── log_lifecycle_report.json.j2
+</pre>
+</div>
+</div>
+</section>
+
+<!-- CODE -->
+<section id="code">
+<h2 class="section-title">💻 11. Complete Project Code (Line-by-Line Explained)</h2>
+
+<!-- DISK SCAN -->
+<div class="card">
+<h3>Role: log_disk_scan</h3>
+<div class="code-wrap">
+<div class="code-label"><span>roles/log_disk_scan/tasks/main.yml</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+<pre><code>---
+- name: Collect disk utilisation for all configured log partitions
+  ansible.builtin.shell: >
+    df -h {{ item.log_dir }} --output=source,size,used,avail,pcent,target |
+    tail -1
+  loop: "{{ log_policies | default([]) }}"
+  loop_control:
+    label: "{{ item.name }}"
+  register: disk_usage_raw
+  changed_when: false
+
+- name: Parse disk utilisation percentage for each log directory
+  ansible.builtin.set_fact:
+    log_disk_stats: >-
+      {{ log_disk_stats | default([]) + [{
+        'policy_name': item.item.name,
+        'log_dir': item.item.log_dir,
+        'disk_info': item.stdout,
+        'disk_pct': item.stdout.split()[-2] | replace('%','') | int
+      }] }}
+  loop: "{{ disk_usage_raw.results }}"
+  loop_control:
+    label: "{{ item.item.name }}"
+
+- name: Find top-10 largest files in each log directory
+  ansible.builtin.shell: >
+    du -sh {{ item.log_dir }}/* 2>/dev/null |
+    sort -rh | head -10
+  loop: "{{ log_policies | default([]) }}"
+  loop_control:
+    label: "{{ item.name }}"
+  register: top_files_raw
+  changed_when: false
+
+- name: Determine overall disk health status per policy
+  ansible.builtin.set_fact:
+    disk_health_status: >-
+      {{
+        'CRITICAL' if log_disk_stats | selectattr('disk_pct','ge', disk_critical_pct) | list | length > 0
+        else 'ALERT'  if log_disk_stats | selectattr('disk_pct','ge', disk_alert_pct) | list | length > 0
+        else 'WARN'   if log_disk_stats | selectattr('disk_pct','ge', disk_warn_pct) | list | length > 0
+        else 'OK'
+      }}
+
+- name: Alert on high disk utilisation via Slack
+  ansible.builtin.uri:
+    url: "{{ vault_slack_webhook_url }}"
+    method: POST
+    body_format: json
+    body:
+      text: >-
+        :warning: *SecureBank Log Disk Alert* on `{{ inventory_hostname }}`
+        Status: *{{ disk_health_status }}*
+        {% for stat in log_disk_stats %}
+        {{ stat.policy_name }}: {{ stat.disk_pct }}% used ({{ stat.log_dir }})
+        {% endfor %}
+  delegate_to: localhost
+  when: disk_health_status in ['ALERT','CRITICAL']
+  failed_when: false</code></pre>
+</div>
+<details>
+<summary>Line-by-Line Explanation</summary>
+<div class="inner">
+<div class="line-explain"><span class="cf">df -h {{ item.log_dir }} --output=source,size,used,avail,pcent,target</span> — We check the disk utilisation of the specific filesystem that contains each log directory, not always just <code>/</code>. In enterprise banks, <code>/opt/securecore/logs</code> is often on a separate LVM volume or NFS mount — checking root disk would give a false-negative if logs are on a dedicated partition filling up independently.</div>
+<div class="line-explain"><span class="cf">item.stdout.split()[-2] | replace('%','') | int</span> — Extracts the percentage field from df output (second-to-last column in the <code>--output</code> format). The <code>replace('%','')</code> strips the percent sign before converting to integer for numeric comparison with thresholds. Using <code>-2</code> (second from end) is more robust than a fixed column index which can shift with different df output widths.</div>
+<div class="line-explain"><span class="cf">du -sh /* | sort -rh | head -10</span> — <code>-r</code> = reverse (largest first), <code>-h</code> = human-readable sort (correctly handles KB/MB/GB ordering). This gives the on-call engineer immediate visibility into which specific log files are consuming the most space — critical for targeted cleanup rather than blind deletion.</div>
+<div class="line-explain"><span class="cf">selectattr('disk_pct','ge', disk_critical_pct)</span> — Jinja2's <code>selectattr</code> with <code>'ge'</code> (greater-than-or-equal) filter across the list of disk stats produces a cascading severity evaluation: if ANY log partition is critical, the overall status is CRITICAL — not just the worst individual one.</div>
+</div>
+</details>
+</div>
+
+<!-- LOGROTATE ENFORCE -->
+<div class="card">
+<h3>Role: log_rotate_enforce</h3>
+<div class="code-wrap">
+<div class="code-label"><span>roles/log_rotate_enforce/tasks/main.yml</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+<pre><code>---
+- name: Deploy per-policy logrotate configuration from template
+  ansible.builtin.template:
+    src: logrotate_app.j2
+    dest: "/etc/logrotate.d/securebank-{{ item.name }}"
+    owner: root
+    group: root
+    mode: '0644'
+    validate: '/usr/sbin/logrotate --debug %s'
+    backup: true
+  loop: "{{ log_policies | default([]) }}"
+  loop_control:
+    label: "{{ item.name }}"
+  notify: Run logrotate now
+
+- name: Verify logrotate global config has sensible defaults
+  ansible.builtin.lineinfile:
+    path: /etc/logrotate.conf
+    regexp: '^compress'
+    line: 'compress'
+    state: present
+
+- name: Ensure logrotate timer is enabled (systemd timer replaces legacy cron)
+  ansible.builtin.systemd:
+    name: logrotate.timer
+    state: started
+    enabled: true
+
+- name: Force immediate logrotate execution if disk is above alert threshold
+  ansible.builtin.command: >
+    /usr/sbin/logrotate -f /etc/logrotate.d/securebank-{{ item.name }}
+  loop: "{{ log_policies | default([]) }}"
+  loop_control:
+    label: "{{ item.name }}"
+  when:
+    - log_disk_stats | selectattr('policy_name','equalto', item.name)
+                     | selectattr('disk_pct','ge', disk_alert_pct)
+                     | list | length > 0
+    - not dry_run | bool
+  register: forced_rotate_result</code></pre>
+</div>
+<div class="code-wrap">
+<div class="code-label"><span>roles/log_rotate_enforce/handlers/main.yml</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+<pre><code>---
+- name: Run logrotate now
+  ansible.builtin.command: /usr/sbin/logrotate /etc/logrotate.conf
+  listen: "Run logrotate now"
+  changed_when: false</code></pre>
+</div>
+<div class="code-wrap">
+<div class="code-label"><span>roles/log_rotate_enforce/templates/logrotate_app.j2</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+<pre><code># Managed by Ansible AAP — SecureBank Log Rotation Policy
+# Application: {{ app_name }} | Policy: {{ item.name }}
+# Log Category: {{ item.log_category }} | Retention: {{ item.archive_retention_days }} days (NFS)
+# DO NOT EDIT MANUALLY — changes will be overwritten on next AAP run
+
+{% for pattern in item.patterns %}
+{{ item.log_dir }}/{{ pattern }} {
+    {{ item.rotate_frequency }}
+    rotate {{ item.rotate_count }}
+    compress
+    delaycompress
+    missingok
+    notifempty
+    dateext
+    dateformat -%Y%m%d
+    copytruncate
+    sharedscripts
+    postrotate
+        /usr/bin/systemctl reload {{ app_name }} > /dev/null 2>&1 || true
+    endscript
+}
+{% endfor %}</code></pre>
+</div>
+<details>
+<summary>Line-by-Line Explanation</summary>
+<div class="inner">
+<div class="line-explain"><span class="cf">validate: '/usr/sbin/logrotate --debug %s'</span> — Before writing the logrotate config file, Ansible validates it using <code>logrotate --debug</code> which parses the config for syntax errors without actually rotating anything. Deploying a malformed logrotate config silently disables log rotation for that application — the validate step catches this before the file is written.</div>
+<div class="line-explain"><span class="cf">delaycompress</span> — Compresses the previous rotation's log (not the most recent one just rotated). This matters because some applications (like Tomcat) re-open the log file by name after rotation and may still be writing to the uncompressed file for a short period. <code>delaycompress</code> prevents gzip from trying to compress a file that's still being written.</div>
+<div class="line-explain"><span class="cf">dateext</span> + <span class="cf">dateformat -%Y%m%d</span> — Appends a date suffix to rotated logs (e.g., <code>catalina.out-20260120</code>) instead of numeric suffixes (<code>catalina.out.1</code>). Date-suffixed rotations are far more useful for forensic investigation and retention management because you can immediately tell which date range a log file covers without reading it.</div>
+<div class="line-explain"><span class="cf">copytruncate</span> — Creates a copy of the current log file, then truncates the original to zero size — as opposed to moving the file and creating a new one. Required for applications that hold a file descriptor open to the log path (most Java/Tomcat apps do this) and cannot be SIGHUP'd to reopen a new file. The trade-off: there's a tiny window between copy and truncate where log entries could be lost — acceptable for application logs, never used for audit logs.</div>
+<div class="line-explain"><span class="cf">Force immediate logrotate if disk above threshold</span> — The <code>-f</code> (force) flag bypasses logrotate's internal "has this already been rotated today?" check, rotating immediately regardless of schedule. Gated by the disk threshold check from the scan role — only triggered when genuinely needed, preventing unnecessary extra rotations on healthy servers.</div>
+</div>
+</details>
+</div>
+
+<!-- ARCHIVE PIPELINE -->
+<div class="card">
+<h3>Role: log_archive — The Core Archival Pipeline</h3>
+<div class="code-wrap">
+<div class="code-label"><span>roles/log_archive/tasks/main.yml</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+<pre><code>---
+- name: Read active legal-hold registry from compliance NFS share
+  ansible.builtin.slurp:
+    src: "{{ legal_hold_registry_path }}"
+  register: legal_hold_raw
+  delegate_to: localhost
+  run_once: true
+  failed_when: false
+
+- name: Parse legal-hold registry into usable fact
+  ansible.builtin.set_fact:
+    legal_hold_registry: "{{ legal_hold_raw.content | default('') | b64decode | from_yaml | default({}) }}"
+  run_once: true
+
+- name: Process each log policy for archival
+  ansible.builtin.include_tasks: archive_policy.yml
+  loop: "{{ log_policies | default([]) }}"
+  loop_control:
+    loop_var: policy
+    label: "{{ policy.name }}"</code></pre>
+</div>
+<div class="code-wrap">
+<div class="code-label"><span>roles/log_archive/tasks/archive_policy.yml</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+<pre><code>---
+- name: "Find rotated log files eligible for archival — {{ policy.name }}"
+  ansible.builtin.find:
+    paths: "{{ policy.log_dir }}"
+    patterns: "{{ policy.patterns | map('regex_replace', '$', '*') | list }}"
+    age: "{{ policy.local_retention_days }}d"
+    age_stamp: mtime
+    recurse: false
+    file_type: file
+  register: files_to_archive
+
+- name: "Compress any uncompressed eligible files before archival — {{ policy.name }}"
+  ansible.builtin.command: "gzip -9 {{ item.path }}"
+  loop: "{{ files_to_archive.files | rejectattr('path', 'match', '.*\\.gz$') | list }}"
+  loop_control:
+    label: "{{ item.path | basename }}"
+  when:
+    - files_to_archive.files | length > 0
+    - not dry_run | bool
+
+- name: "Re-find files after compression (paths have changed to .gz) — {{ policy.name }}"
+  ansible.builtin.find:
+    paths: "{{ policy.log_dir }}"
+    patterns: "{{ policy.patterns | map('regex_replace', '$', '*.gz') | list }}"
+    age: "{{ policy.local_retention_days }}d"
+    age_stamp: mtime
+    recurse: false
+  register: compressed_files_to_archive
+
+- name: "Validate gzip integrity of each file before archival — {{ policy.name }}"
+  ansible.builtin.command: "gzip -t {{ item.path }}"
+  loop: "{{ compressed_files_to_archive.files }}"
+  loop_control:
+    label: "{{ item.path | basename }}"
+  register: gzip_integrity_checks
+  changed_when: false
+
+- name: "Identify files that failed integrity check (never archive corrupt files) — {{ policy.name }}"
+  ansible.builtin.set_fact:
+    corrupt_files: >-
+      {{ gzip_integrity_checks.results
+         | selectattr('rc', 'ne', 0)
+         | map(attribute='item.path')
+         | list }}
+
+- name: "Alert on corrupt log files — {{ policy.name }}"
+  ansible.builtin.debug:
+    msg: "⚠️ CORRUPT LOG FILE on {{ inventory_hostname }}: {{ corrupt_files }} — skipping archival for these files"
+  when: corrupt_files | length > 0
+
+- name: "Check each file against legal-hold registry before archival — {{ policy.name }}"
+  ansible.builtin.set_fact:
+    archivable_files: >-
+      {{ compressed_files_to_archive.files
+         | rejectattr('path', 'in', legal_hold_registry.get('held_file_paths', []))
+         | rejectattr('path', 'in', corrupt_files | default([]))
+         | list }}
+    held_files: >-
+      {{ compressed_files_to_archive.files
+         | selectattr('path', 'in', legal_hold_registry.get('held_file_paths', []))
+         | list }}
+
+- name: "Log held files that are skipped for deletion — {{ policy.name }}"
+  ansible.builtin.debug:
+    msg: >-
+      LEGAL HOLD: Skipping deletion of {{ held_files | length }} file(s) on
+      {{ inventory_hostname }} for policy {{ policy.name }} — files are under active hold:
+      {{ held_files | map(attribute='path') | list }}
+  when: held_files | length > 0
+
+- name: "Create dated archival directory on NFS — {{ policy.name }}"
+  ansible.builtin.file:
+    path: "{{ log_archive_nfs_root }}/{{ policy.archive_subpath }}/{{ ansible_date_time.year }}/{{ ansible_date_time.month }}"
+    state: directory
+    mode: '0755'
+  when:
+    - archivable_files | length > 0
+    - not dry_run | bool
+  delegate_to: "{{ ansible_host }}"
+
+- name: "Copy eligible compressed logs to NFS archive — {{ policy.name }}"
+  ansible.builtin.copy:
+    src: "{{ item.path }}"
+    dest: "{{ log_archive_nfs_root }}/{{ policy.archive_subpath }}/{{ ansible_date_time.year }}/{{ ansible_date_time.month }}/{{ item.path | basename }}"
+    remote_src: true
+    mode: '0444'
+  loop: "{{ archivable_files }}"
+  loop_control:
+    label: "{{ item.path | basename }}"
+  register: archive_copy_results
+  when: not dry_run | bool
+
+- name: "Verify archived file exists on NFS before deleting local copy — {{ policy.name }}"
+  ansible.builtin.stat:
+    path: "{{ log_archive_nfs_root }}/{{ policy.archive_subpath }}/{{ ansible_date_time.year }}/{{ ansible_date_time.month }}/{{ item.path | basename }}"
+  loop: "{{ archivable_files }}"
+  loop_control:
+    label: "{{ item.path | basename }}"
+  register: archive_verify_results
+  when: not dry_run | bool
+
+- name: "Check no application process has the file open (lsof safety check) — {{ policy.name }}"
+  ansible.builtin.shell: "lsof {{ item.path }} 2>/dev/null | wc -l"
+  loop: "{{ archivable_files }}"
+  loop_control:
+    label: "{{ item.path | basename }}"
+  register: lsof_checks
+  changed_when: false
+  when: not dry_run | bool
+
+- name: "Delete local log file ONLY after archive verified AND file not open — {{ policy.name }}"
+  ansible.builtin.file:
+    path: "{{ item.0.path }}"
+    state: absent
+  loop: "{{ archivable_files | zip(archive_verify_results.results, lsof_checks.results) | list }}"
+  loop_control:
+    label: "{{ item.0.path | basename }}"
+  when:
+    - not dry_run | bool
+    - item.1.stat.exists | default(false)
+    - item.2.stdout | int == 0
+  register: deletion_results
+
+- name: "Dry-run summary — what WOULD be archived and deleted — {{ policy.name }}"
+  ansible.builtin.debug:
+    msg: >-
+      [DRY RUN] Policy: {{ policy.name }} on {{ inventory_hostname }}
+      Would archive {{ archivable_files | length }} file(s) to NFS
+      Would skip {{ held_files | length }} file(s) under legal hold
+      Files: {{ archivable_files | map(attribute='path') | map('basename') | list }}
+  when: dry_run | bool</code></pre>
+</div>
+<details>
+<summary>Line-by-Line Explanation</summary>
+<div class="inner">
+<div class="line-explain"><span class="cf">ansible.builtin.find</span> with <span class="cf">age: "{{ policy.local_retention_days }}d"</span> + <span class="cf">age_stamp: mtime</span> — The <code>find</code> module's <code>age</code> parameter uses the file's modification time (<code>mtime</code>) to determine if it's older than the retention threshold. Using the Ansible module instead of a <code>find</code> shell command avoids shell injection risks from filenames with spaces or special characters — a real concern with log files from some middleware systems.</div>
+<div class="line-explain"><span class="cf">gzip -t</span> integrity check — Validates the gzip file's internal checksum without decompressing it. A partially-written gzip file (from a crash mid-compression) will fail this check. We NEVER archive a corrupt file to NFS — corrupted archived evidence is arguably worse than no evidence, since it gives a false sense of compliance while being unrecoverable.</div>
+<div class="line-explain"><span class="cf">legal_hold_registry.get('held_file_paths', [])</span> — The legal hold registry is a YAML file maintained by the InfoSec/Legal team on a compliance NFS share. When a forensic investigation or RBI inspection is in progress, InfoSec adds specific file paths (or glob patterns) to this registry. Our archival pipeline reads it at the start of every run and skips any matching files — preventing deletion of evidence relevant to a live investigation.</div>
+<div class="line-explain"><span class="cf">lsof {{ item.path }} | wc -l</span> — Checks whether any running process currently has the file open for writing. A count of 0 means no process has it open and it's safe to delete. A count &gt; 0 means an application process is still writing to it — deleting it would cause the application to lose log output silently (the process keeps the file descriptor open to the now-deleted file's inode, but disk space is not reclaimed until the FD closes). This is the most important safety check in the entire role.</div>
+<div class="line-explain">Three-way zip loop: <span class="cf">archivable_files | zip(archive_verify_results.results, lsof_checks.results)</span> — Zips three parallel lists together so each deletion decision has access to: (item.0) the file path, (item.1) the NFS archive verification stat result, (item.2) the lsof count. ALL three conditions must be true to delete: file is in archivable list AND NFS copy verified AND no open file handles.</div>
+<div class="line-explain"><span class="cf">dry_run | bool</span> gate on every destructive task — The <code>dry_run: true</code> default in group_vars means running the playbook without explicit <code>-e dry_run=false</code> NEVER deletes anything — it only reports what WOULD be done. This is the production safety default. Engineers must explicitly pass <code>dry_run=false</code> as a survey variable in AAP to perform real deletions. Senior engineers familiar with the pattern will recognise this as a common practice for irreversible operations.</div>
+</div>
+</details>
+</div>
+
+<!-- JVM CLEANUP -->
+<div class="card">
+<h3>Role: log_jvm_cleanup — Heapdump &amp; Core Dump Management</h3>
+<div class="code-wrap">
+<div class="code-label"><span>roles/log_jvm_cleanup/tasks/main.yml</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+<pre><code>---
+- name: Find JVM heapdump files (.hprof) in configured paths
+  ansible.builtin.find:
+    paths: "{{ jvm_artifact_paths | default(['/tmp', '/opt']) }}"
+    patterns:
+      - "*.hprof"
+      - "java_pid*.hprof"
+    recurse: true
+    size: "100m"
+    file_type: file
+  register: heapdump_files
+
+- name: Find Java core dump files
+  ansible.builtin.find:
+    paths: "{{ jvm_artifact_paths | default(['/tmp', '/opt']) }}"
+    patterns:
+      - "core.*"
+      - "hs_err_pid*.log"
+    recurse: true
+    size: "1m"
+    file_type: file
+  register: core_dump_files
+
+- name: Calculate total size of found JVM artifacts
+  ansible.builtin.set_fact:
+    heapdump_total_mb: "{{ heapdump_files.files | sum(attribute='size') // 1048576 }}"
+    coredump_total_mb: "{{ core_dump_files.files | sum(attribute='size') // 1048576 }}"
+
+- name: Notify application team before heapdump deletion (pre-deletion alert)
+  ansible.builtin.uri:
+    url: "{{ vault_slack_webhook_url }}"
+    method: POST
+    body_format: json
+    body:
+      text: >-
+        :warning: *JVM Heapdump Cleanup Scheduled* on `{{ inventory_hostname }}`
+        Found {{ heapdump_files.files | length }} heapdump file(s)
+        totalling *{{ heapdump_total_mb }}MB*
+        Files: {{ heapdump_files.files | map(attribute='path') | list | join(', ') }}
+        These will be deleted in 24 hours unless a hold is placed in the registry.
+        Raise a ServiceNow change to preserve specific dumps.
+  delegate_to: localhost
+  when: heapdump_files.files | length > 0
+  failed_when: false
+
+- name: Delete heapdump files older than grace period (default 24h since alert)
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: absent
+  loop: "{{ heapdump_files.files }}"
+  loop_control:
+    label: "{{ item.path | basename }}"
+  when:
+    - not dry_run | bool
+    - item.path not in legal_hold_registry.get('held_file_paths', [])
+    - (ansible_date_time.epoch | int - item.mtime | int) > 86400
+  register: heapdump_deletion_result
+
+- name: Always delete hs_err (JVM crash log summary) files older than 7 days
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: absent
+  loop: "{{ core_dump_files.files | selectattr('path', 'match', '.*hs_err_pid.*') | list }}"
+  loop_control:
+    label: "{{ item.path | basename }}"
+  when:
+    - not dry_run | bool
+    - (ansible_date_time.epoch | int - item.mtime | int) > 604800</code></pre>
+</div>
+<details>
+<summary>Line-by-Line Explanation</summary>
+<div class="inner">
+<div class="line-explain"><span class="cf">size: "100m"</span> on heapdump find — We only target heapdumps larger than 100MB. Small .hprof files (from JVM shutdown hooks or test frameworks) are common and harmless; the dangerous ones are the full-heap dumps from OutOfMemoryErrors that are typically 2–16GB. The size filter prevents over-aggressive cleanup of legitimate small diagnostic files.</div>
+<div class="line-explain">Pre-deletion alert with a <b>24-hour grace period</b> — Heapdumps are the only artifact that can definitively diagnose a JVM OutOfMemoryError or memory leak. Deleting them immediately destroys irreplaceable diagnostic evidence. The 24-hour window (enforced by checking <code>mtime</code> against current epoch minus 86400 seconds) gives developers time to copy the heapdump to their workstation before it's purged. This is a balance between disk management and incident debugging capability.</div>
+<div class="line-explain"><span class="cf">hs_err_pid*.log</span> — JVM crash log summaries generated automatically by the JVM when it crashes (native crash, SIGSEGV, etc.). Unlike heapdumps, these are small text files (a few KB) containing thread states at crash time. We give these a 7-day retention (604800 seconds) rather than 24 hours because they're small and highly valuable for post-incident analysis.</div>
+<div class="line-explain"><span class="cf">item.mtime</span> from the <code>find</code> module — The <code>find</code> module returns a <code>mtime</code> field (Unix timestamp) for each file in its results. Comparing against <code>ansible_date_time.epoch</code> (current Unix timestamp) gives us age in seconds without any date-string parsing — robust across timezones and locale settings.</div>
+</div>
+</details>
+</div>
+
+<!-- MASTER PLAYBOOKS -->
+<div class="card">
+<h3>Master Playbooks</h3>
+<div class="code-wrap">
+<div class="code-label"><span>log_disk_scan.yml</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+<pre><code>---
+- name: SecureBank — Log Disk Scan and Alerting
+  hosts: all_app_servers
+  become: true
+  gather_facts: true
+  vars_files:
+    - group_vars/vault.yml
+  roles:
+    - log_disk_scan
+    - log_report</code></pre>
+</div>
+
+<div class="code-wrap">
+<div class="code-label"><span>log_rotate_enforce.yml</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+<pre><code>---
+- name: SecureBank — Logrotate Config Enforcement
+  hosts: all_app_servers
+  become: true
+  gather_facts: true
+  serial: "25%"
+  max_fail_percentage: 20
+  vars_files:
+    - group_vars/vault.yml
+  roles:
+    - log_disk_scan
+    - log_rotate_enforce</code></pre>
+</div>
+
+<div class="code-wrap">
+<div class="code-label"><span>log_archive_pipeline.yml</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+<pre><code>---
+- name: SecureBank — Log Archival Pipeline (compress, validate, archive, purge)
+  hosts: all_app_servers
+  become: true
+  gather_facts: true
+  serial: "10%"
+  max_fail_percentage: 0
+  vars_files:
+    - group_vars/vault.yml
+  vars:
+    dry_run: "{{ dry_run | default(true) | bool }}"
+  roles:
+    - log_archive
+    - log_report</code></pre>
+</div>
+
+<div class="code-wrap">
+<div class="code-label"><span>log_jvm_cleanup.yml</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+<pre><code>---
+- name: SecureBank — JVM Artifact Cleanup (heapdumps, core dumps)
+  hosts: all_app_servers
+  become: true
+  gather_facts: true
+  vars_files:
+    - group_vars/vault.yml
+  vars:
+    dry_run: "{{ dry_run | default(true) | bool }}"
+  roles:
+    - log_jvm_cleanup</code></pre>
+</div>
+</div>
+</section>
+
+<!-- AAP -->
+<section id="aap">
+<h2 class="section-title">🔴 12. AAP Job Templates &amp; Workflow</h2>
+<div class="card">
+<table>
+<tr><th>Job Template</th><th>Playbook</th><th>Schedule</th><th>Default Survey: dry_run</th></tr>
+<tr><td>Log-Disk-Scan</td><td>log_disk_scan.yml</td><td>Daily 05:00 IST</td><td>N/A (read-only)</td></tr>
+<tr><td>Log-Rotate-Enforce</td><td>log_rotate_enforce.yml</td><td>Weekly Sun 01:00</td><td>N/A (config, not deletion)</td></tr>
+<tr><td>Log-Archive-Pipeline</td><td>log_archive_pipeline.yml</td><td>Weekly Sun 02:00</td><td>true (safe default)</td></tr>
+<tr><td>Log-JVM-Cleanup</td><td>log_jvm_cleanup.yml</td><td>Weekly Sun 03:00</td><td>true (safe default)</td></tr>
+</table>
+
+<h3>Workflow: Log-Lifecycle-Weekly</h3>
+<div class="ascii">
+<pre style="background:none;color:inherit;">
+[START — Sunday 01:00 IST]
+     │
+     ▼
+┌──────────────────────┐
+│  Log-Disk-Scan         │  (read current disk state)
+└──────────────────────┘
+     │ all servers < 75%      │ any server >= 75%
+     ▼                        ▼
+"Skip archival             ┌──────────────────────┐
+ — disk healthy"            │  Log-Rotate-Enforce    │
+                            └──────────────────────┘
+                                     │ success
+                                     ▼
+                            ┌──────────────────────────┐
+                            │  ⏸ APPROVAL NODE           │
+                            │  "Review dry-run output.   │
+                            │   Approve real archival?"  │
+                            └──────────────────────────┘
+                                     │ approved
+                                     ▼
+                            ┌──────────────────────┐
+                            │  Log-Archive-Pipeline  │
+                            │  (dry_run=false)       │
+                            └──────────────────────┘
+                                     │
+                                     ▼
+                            ┌──────────────────────┐
+                            │  Log-JVM-Cleanup       │
+                            │  (dry_run=false)       │
+                            └──────────────────────┘
+                                     │
+                                     ▼
+                            ┌──────────────────────────────────────┐
+                            │  Notify: Slack #log-management         │
+                            │  "Log lifecycle complete:              │
+                            │   Archived: 142GB | Freed: 89GB"       │
+                            └──────────────────────────────────────┘
+</pre>
+</div>
+</div>
+</section>
+
+<!-- FLOW -->
+<section id="flow">
+<h2 class="section-title">🔄 13. Execution Flow — Start to Finish</h2>
+<div class="card">
+<div class="flow-step"><div class="flow-num">1</div><div>Daily at 05:00 IST, <b>Log-Disk-Scan</b> runs across all 400 servers in parallel. <code>df</code> is run per log partition, top-10 largest files identified, disk health status computed per server.</div></div>
+<div class="flow-step"><div class="flow-num">2</div><div>Any server above 85% disk usage fires a Slack alert to <code>#disk-alerts</code> immediately. Any server above 95% fires a PagerDuty P1 (disk-critical = application crash risk).</div></div>
+<div class="flow-step"><div class="flow-num">3</div><div>Sunday 01:00 IST, <b>Log-Lifecycle-Weekly</b> workflow starts. Disk scan runs first. If all servers are healthy (&lt;75%), the workflow skips the aggressive archival phase — no unnecessary log deletion on healthy systems.</div></div>
+<div class="flow-step"><div class="flow-num">4</div><div><b>Log-Rotate-Enforce</b>: Jinja2 logrotate templates deployed (with <code>logrotate --debug</code> validation). Logrotate.timer confirmed active. For servers above 85%, <code>logrotate -f</code> is run immediately to force rotation.</div></div>
+<div class="flow-step"><div class="flow-num">5</div><div>Workflow pauses at Approval Node. The approver reviews the dry-run output from the previous run (showing exactly which files WOULD be archived and deleted) before approving real execution.</div></div>
+<div class="flow-step"><div class="flow-num">6</div><div><b>Log-Archive-Pipeline</b> runs with <code>dry_run=false</code>. Legal-hold registry fetched from compliance NFS. For each policy, files older than local_retention_days are found, uncompressed ones are <code>gzip -9</code>'d, integrity-checked with <code>gzip -t</code>, NFS-copied, lsof-verified, then deleted locally.</div></div>
+<div class="flow-step"><div class="flow-num">7</div><div>Any held files are logged explicitly in the AAP job output and excluded from deletion. Any corrupt files are logged and excluded from both archival and deletion — they remain local for manual investigation.</div></div>
+<div class="flow-step"><div class="flow-num">8</div><div><b>Log-JVM-Cleanup</b>: heapdumps and core dumps found. Pre-deletion Slack alert sent to the application team. Files older than 24 hours (grace period) and not under legal hold are deleted. hs_err files older than 7 days deleted always.</div></div>
+<div class="flow-step"><div class="flow-num">9</div><div>Log report generated: per-server before/after disk utilisation, total GB archived, total GB freed, count of held files skipped, count of corrupt files found. Archived to compliance NFS and linked in the AAP notification.</div></div>
+</div>
+</section>
+
+<!-- LAB -->
+<section id="lab">
+<h2 class="section-title">🧪 14. Lab Setup — Practice on Your Local Machine</h2>
+<div class="card">
+
+<div class="code-wrap"><div class="code-label"><span>Create realistic test log files on lab VMs</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+<pre><code># On lab VM — create test log directory structure
+sudo mkdir -p /opt/securecore/{tomcat/logs,audit,security}
+
+# Generate test log files with realistic ages
+for i in {1..10}; do
+  date_str=$(date -d "$((i*2)) days ago" +%Y%m%d)
+  echo "Sample log entry for $date_str" | sudo tee \
+    /opt/securecore/tomcat/logs/catalina.out-${date_str} > /dev/null
+  echo "TXN|2026${date_str}|DEBIT|5000|ACCOUNT001" | sudo tee \
+    /opt/securecore/audit/txn-audit-${date_str}.log > /dev/null
+done
+
+# Make some files old enough for archival trigger (>14 days)
+for f in /opt/securecore/tomcat/logs/catalina.out-2026*; do
+  sudo touch -d "20 days ago" "$f"
+done
+
+# Create a fake heapdump
+sudo dd if=/dev/zero bs=1M count=200 \
+  of=/opt/securecore/java_pid12345.hprof 2>/dev/null
+echo "Test heapdump created: $(du -sh /opt/securecore/java_pid12345.hprof)"</code></pre></div>
+
+<div class="code-wrap"><div class="code-label"><span>Create a test legal-hold registry</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+<pre><code>sudo mkdir -p /mnt/compliance-nfs/legal-holds
+cat > /tmp/active-holds.yml << 'EOF'
+---
+# Legal Hold Registry — managed by InfoSec/Legal
+# Files listed here will NOT be deleted by log lifecycle automation
+held_file_paths:
+  - /opt/securecore/audit/txn-audit-20260101.log.gz
+hold_description: "RBI IS Audit 2026 — hold active until 2027-03-31"
+hold_owner: "infosec-compliance@securebank.in"
+EOF
+sudo cp /tmp/active-holds.yml /mnt/compliance-nfs/legal-holds/</code></pre></div>
+
+<div class="code-wrap"><div class="code-label"><span>Run the log lifecycle playbooks</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+<pre><code>cd log-lifecycle-project
+
+# Step 1: Run disk scan (always safe)
+ansible-playbook log_disk_scan.yml -i inventory/log_mgmt/hosts.ini -b
+
+# Step 2: Deploy logrotate configs (dry-run with --check)
+ansible-playbook log_rotate_enforce.yml --check --diff
+
+# Step 3: Archive pipeline — DRY RUN first (default)
+ansible-playbook log_archive_pipeline.yml \
+  -e dry_run=true \
+  -i inventory/log_mgmt/hosts.ini -b
+
+# Review what WOULD be archived/deleted in the output, then:
+
+# Step 4: Run REAL archive (explicit opt-in required)
+ansible-playbook log_archive_pipeline.yml \
+  -e dry_run=false \
+  -i inventory/log_mgmt/hosts.ini -b
+
+# Step 5: JVM cleanup — dry run
+ansible-playbook log_jvm_cleanup.yml -e dry_run=true
+
+# Validate: confirm held file was NOT deleted
+ls -la /opt/securecore/audit/txn-audit-20260101.log.gz
+# Should still exist — confirmed held by legal hold registry</code></pre></div>
+
+<h3>Validation Steps</h3>
+<ol>
+  <li>Confirm files older than <code>local_retention_days</code> are listed in dry-run output as "would be archived."</li>
+  <li>Confirm the held file (<code>txn-audit-20260101.log.gz</code>) appears in the "held files skipped" debug output, NOT in the deletion list.</li>
+  <li>After real run: verify the NFS archive path contains the expected files, local copies are gone, and disk utilisation has decreased.</li>
+  <li>Re-run <code>log_archive_pipeline.yml</code> — it should show "0 files eligible for archival" (idempotent: already archived files won't reappear since they were deleted locally).</li>
+  <li>Run <code>gzip -t</code> manually on a few archived files to confirm integrity was preserved through the pipeline.</li>
+</ol>
+
+<h3>Troubleshooting</h3>
+<table>
+<tr><th>Symptom</th><th>Likely Cause</th><th>Fix</th></tr>
+<tr><td>find module returns 0 files despite old logs existing</td><td>age_stamp: mtime not matching — files' mtime was updated recently (e.g., by logrotate itself)</td><td>Use <code>touch -d "20 days ago"</code> to set realistic mtimes in lab</td></tr>
+<tr><td>Legal hold registry not found (slurp fails)</td><td>NFS path not mounted or file doesn't exist</td><td>The role uses <code>failed_when: false</code> — but defaults to empty registry; create the file or mount the NFS</td></tr>
+<tr><td>gzip -t fails on a log file</td><td>Logrotate was mid-compression when interrupted, producing truncated .gz</td><td>Delete the corrupt partial file manually; root cause is logrotate running during a reboot</td></tr>
+<tr><td>lsof shows open file handle even after rotation</td><td>Application still writing to rotated file (copytruncate didn't help)</td><td>Send SIGHUP to the application (<code>systemctl reload</code>) to make it reopen log file handles</td></tr>
+</table>
+</div>
+</section>
+
+<!-- INTERVIEW -->
+<section id="interview">
+<h2 class="section-title">🎯 15. Interview Preparation</h2>
+<div class="grid2">
+<div class="card">
+<h3>Scenario-Based Questions</h3>
+<details><summary>Q: A production server hits disk-full at 3 AM and the application crashes. Walk through your immediate response and how automation would have prevented it.</summary><div class="inner">Immediate response: SSH via out-of-band console (SSH over main NIC fails if disk is full), identify largest files with <code>du -sh /opt/*/logs/* | sort -rh | head -20</code>, free up space by manually gzipping large plain-text logs, then restart the application. Long-term prevention: the daily disk-scan job would have flagged this server at 85% and triggered a forced logrotate. The weekly archival pipeline would have freed the space before reaching critical. Additionally, setting up /opt/*/logs as a separate LVM volume limits blast radius — a full log partition can't fill the root filesystem that the OS and app binaries need.</div></details>
+<details><summary>Q: How do you handle log files that are still being written to by a running application?</summary><div class="inner">Two-pronged approach: (1) logrotate with <code>copytruncate</code> for applications that can't be SIGHUP'd to reopen log files — creates a copy then truncates the original, keeping the application's open file descriptor valid. (2) The lsof safety check in the archival role — we never delete a file that has active open file handles. Even after rotation, some applications may still have the old inode open; lsof catches this and skips the deletion, protecting the application from losing its log stream.</div></details>
+<details><summary>Q: An auditor asks for a specific transaction log from 3 years ago. How do you retrieve it?</summary><div class="inner">The archival pipeline stores logs in a structured NFS path: <code>/archive/{app}/{year}/{month}/{original_filename}.gz</code>. With the date of the transaction, we can navigate directly to the right year/month path, find the file, <code>gunzip</code> it, and grep for the specific transaction ID. The archival manifest report (generated with every weekly run) also records exactly which files were archived on which dates — a metadata layer on top of the archive for fast forensic navigation.</div></details>
+</div>
+<div class="card">
+<h3>Architecture &amp; Production Questions</h3>
+<details><summary>Q: What is the difference between logrotate's copytruncate and the default create directives?</summary><div class="inner"><code>create</code> (default): renames the current log file (e.g., app.log → app.log.1), creates a new empty app.log, then sends SIGHUP to the application to reopen its log file descriptor to the new file. Requires the application to handle SIGHUP. <code>copytruncate</code>: creates a copy of the current app.log, then truncates the original to zero bytes — the application's existing file descriptor stays valid (still pointing to the same inode, now empty). Used when applications can't be safely SIGHUP'd or don't reopen log files on signal. Trade-off: tiny race condition between copy and truncate where log entries may be lost.</div></details>
+<details><summary>Q: Why use ansible.builtin.find instead of a shell find command?</summary><div class="inner">Several reasons: (1) <code>find</code> module handles filenames with spaces, special characters, and Unicode correctly without shell quoting issues. (2) Results come back as a structured list of dicts with attributes (path, size, mtime) that can be filtered with Jinja2's <code>selectattr</code> and <code>rejectattr</code> — no text parsing required. (3) No shell injection risk — especially important when log directory paths or filenames come from user-provided variables. (4) Consistent behaviour across different operating systems and locales (shell <code>find</code> date parsing can vary).</div></details>
+<details><summary>Q: How do you handle the retention purge for NFS archives — who deletes logs after the 10-year retention period?</summary><div class="inner">A separate scheduled playbook (not shown but part of the full solution) runs annually, finds files in the NFS archive older than the policy-defined retention period, and generates a deletion manifest for InfoSec approval before executing. This is a human-gated deletion because permanently deleting 10-year-old audit logs requires explicit legal sign-off — we never auto-delete from the long-term archive without an approval node in the workflow. In practice, most banks prefer to keep the NFS storage expanding rather than risk accidental deletion of RBI-mandatory audit evidence.</div></details>
+</div>
+</div>
+</section>
+
+<!-- WRAP -->
+<section id="wrap">
+<h2 class="section-title">📝 16. Key Learnings, Mistakes &amp; Resume Points</h2>
+<div class="grid2">
+<div class="card">
+<h3>Key Learnings</h3>
+<ul>
+  <li>The <b>lsof check before deletion</b> is the single most important safety pattern in log lifecycle automation — it's also the one most junior engineers omit.</li>
+  <li><b>dry_run: true as the default</b> prevents accidental deletion during any test run. Force operators to explicitly opt in to real deletion via a survey variable.</li>
+  <li><b>Legal-hold registry checked before every purge</b> — automation must be aware of active investigations; no audit framework accepts "the automation deleted it" as an excuse for missing evidence.</li>
+  <li>gzip -t integrity validation before deletion is mandatory — archiving a corrupt file then deleting the original leaves you with no recoverable evidence.</li>
+</ul>
+<h3>Common Mistakes</h3>
+<ul>
+  <li>Using <code>state: absent</code> directly on log directories rather than files — one wrong path variable deletes an entire application's log history.</li>
+  <li>Not using <code>delaycompress</code> in logrotate — compressing the just-rotated file that an application still has open corrupts it.</li>
+  <li>Archiving to NFS without verifying the copy landed before deleting the source — NFS write errors silently produce zero-byte destination files.</li>
+  <li>Treating JVM heapdumps as "just disk waste" — they're the only artifact that can diagnose an OOM condition, and premature deletion destroys diagnostic capability.</li>
+</ul>
+</div>
+<div class="card">
+<h3>Production Best Practices</h3>
+<ul>
+  <li>Always mount log directories on separate LVM volumes from the root and OS filesystems — a log-full condition can't then kill the OS or other applications.</li>
+  <li>Set logrotate <code>dateext</code> on all policies — date-stamped rotated files make retention management and forensic navigation vastly easier than numeric suffixes.</li>
+  <li>Archive to multiple destinations (NFS primary + S3 secondary) for critical audit logs — NFS is fast but single-datacenter; S3 provides geographic redundancy for regulatory evidence.</li>
+  <li>Keep the legal-hold registry as a versioned, auditable YAML in a compliance-controlled Git repo — so you can prove what holds were active at any point in time.</li>
+</ul>
+<h3>Resume Points</h3>
+<ul>
+  <li>Designed and implemented a policy-driven log lifecycle automation pipeline using Ansible AAP managing 2TB+ of daily log data across 400 banking application servers, with retention policies mapped to RBI (10-year transaction audit) and PCI-DSS (12-month CDE access log) mandates.</li>
+  <li>Engineered a legal-hold-aware archival pipeline with pre-archival gzip integrity validation and lsof-based open-file-handle safety checks, eliminating accidental evidence deletion during active RBI/PCI-DSS audits.</li>
+  <li>Implemented JVM artifact cleanup automation with pre-deletion alerts and configurable grace periods, recovering an average of 300GB/week across the production fleet while preserving heapdumps needed for active incident investigations.</li>
+</ul>
+</div>
+</div>
+</section>
+
+<div class="footer-nav">
+  <span></span>
+  <a class="btn red" href="#">Request Project 7: User Access Management Automation →</a>
+</div>
+
+</main>
+</div>
+<script>
+function copyCode(btn){
+  const pre=btn.closest('.code-wrap').querySelector('pre code')||btn.closest('.code-wrap').querySelector('pre');
+  const text=pre.innerText;
+  navigator.clipboard.writeText(text).then(()=>{
+    const old=btn.innerText;btn.innerText='Copied!';
+    setTimeout(()=>btn.innerText=old,1500);
+  });
+}
+</script>
+</body>
+</html>

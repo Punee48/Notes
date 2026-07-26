@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Project 05 · Windows Service Auto-Recovery | ABC Bank DevOps Academy</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --navy:#0B1F3A; --navy-deep:#081527; --steel:#1B4F72;
+    --bg:#F3F6FA; --card:#FFFFFF; --line:#E2E8F0; --ink:#16233A; --ink-soft:#4B5A72;
+    --gold:#B9832F; --gold-soft:#F4E6CE;
+    --green:#1E7145; --green-soft:#E4F3EA;
+    --amber:#9A6B14; --amber-soft:#FBF0DA;
+    --red:#B3261E; --red-soft:#FBE7E5;
+    --mono:'JetBrains Mono', monospace; --disp:'Space Grotesk', sans-serif; --body:'IBM Plex Sans', sans-serif;
+  }
+  *{box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{margin:0; font-family:var(--body); background:var(--bg); color:var(--ink); display:flex; min-height:100vh;}
+  a{color:var(--steel);}
+  #sidebar{width:280px; min-width:280px; background:var(--navy-deep); color:#DCE6F5; position:sticky; top:0; height:100vh; overflow-y:auto; padding:22px 0 40px; border-right:1px solid #0a1a30;}
+  #sidebar .brand{padding:0 20px 18px; border-bottom:1px solid rgba(255,255,255,.08); margin-bottom:14px;}
+  #sidebar .brand .bank{font-family:var(--disp); font-weight:700; font-size:13px; letter-spacing:.14em; color:var(--gold); text-transform:uppercase;}
+  #sidebar .brand h1{font-family:var(--disp); font-size:18px; margin:6px 0 4px; color:#fff; line-height:1.3;}
+  #sidebar .brand .tag{font-size:12px; color:#93A5C4;}
+  #sidebar nav{padding:0 10px;}
+  #sidebar nav .group-label{font-size:10.5px; text-transform:uppercase; letter-spacing:.12em; color:#5E7398; padding:14px 12px 6px;}
+  #sidebar nav a{display:block; padding:8px 12px; margin:1px 0; border-radius:6px; font-size:13.5px; color:#B9C7DE; text-decoration:none; border-left:2px solid transparent;}
+  #sidebar nav a:hover{background:rgba(255,255,255,.05); color:#fff;}
+  #sidebar nav a.active{background:rgba(185,131,47,.15); color:#fff; border-left:2px solid var(--gold);}
+  main{flex:1; min-width:0; padding:0 0 80px;}
+  .hero{background:radial-gradient(1100px 400px at 15% -10%, #123059 0%, var(--navy) 55%, var(--navy-deep) 100%); color:#fff; padding:52px 56px 40px; position:relative; overflow:hidden;}
+  .hero::after{content:""; position:absolute; right:-60px; top:-60px; width:340px; height:340px; background:radial-gradient(circle, rgba(185,131,47,.18) 0%, transparent 70%);}
+  .hero .eyebrow{font-family:var(--mono); font-size:12px; letter-spacing:.16em; color:var(--gold); text-transform:uppercase;}
+  .hero h1{font-family:var(--disp); font-size:36px; margin:10px 0 12px; max-width:780px; line-height:1.15;}
+  .hero p{color:#B9C7DE; max-width:640px; font-size:15px; line-height:1.6;}
+  .status-strip{display:flex; gap:14px; margin-top:26px; flex-wrap:wrap;}
+  .status-chip{background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.12); border-radius:8px; padding:10px 14px; font-family:var(--mono); font-size:12.5px; display:flex; align-items:center; gap:8px; min-width:150px;}
+  .dot{width:8px; height:8px; border-radius:50%; display:inline-block;}
+  .dot.green{background:#37D67A;} .dot.amber{background:#F0B84E;} .dot.red{background:#F1594F;}
+  section.block{padding:40px 56px; border-bottom:1px solid var(--line); scroll-margin-top:16px;}
+  section.block h2{font-family:var(--disp); font-size:24px; margin:0 0 6px; color:var(--navy); display:flex; align-items:center; gap:10px;}
+  section.block h2 .num{font-family:var(--mono); font-size:13px; color:var(--gold); background:var(--gold-soft); padding:3px 9px; border-radius:5px; font-weight:600;}
+  section.block > .sub{color:var(--ink-soft); font-size:14px; margin-bottom:24px; max-width:820px;}
+  h3{font-family:var(--disp); font-size:17px; color:var(--navy); margin:26px 0 10px;}
+  p{line-height:1.7; font-size:14.5px; color:var(--ink);}
+  ul,ol{line-height:1.75; font-size:14.5px;}
+  strong{color:var(--navy);}
+  .story{background:linear-gradient(180deg,#FFFDF8,#FFF); border:1px solid var(--gold-soft); border-left:4px solid var(--gold); border-radius:10px; padding:22px 24px; margin-bottom:8px;}
+  .story .label{font-family:var(--mono); font-size:11px; letter-spacing:.1em; text-transform:uppercase; color:var(--gold); margin-bottom:8px; display:block;}
+  .story p{margin:0 0 12px; font-size:14.5px;} .story p:last-child{margin-bottom:0;}
+  .grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:16px; margin:18px 0;}
+  .card{background:var(--card); border:1px solid var(--line); border-radius:10px; padding:18px 20px;}
+  .card h4{margin:0 0 8px; font-family:var(--disp); font-size:14.5px; color:var(--navy);}
+  .card p{margin:0; font-size:13.5px; color:var(--ink-soft);}
+  table{width:100%; border-collapse:collapse; margin:14px 0 22px; font-size:13.5px;}
+  th,td{text-align:left; padding:10px 12px; border-bottom:1px solid var(--line);}
+  th{background:#EDF1F7; color:var(--navy); font-family:var(--disp); font-weight:600; font-size:12.5px; text-transform:uppercase; letter-spacing:.03em;}
+  tr:hover td{background:#FAFBFD;}
+  .callout{border-radius:10px; padding:16px 18px; margin:16px 0; font-size:14px; line-height:1.65; border:1px solid; position:relative; padding-left:48px;}
+  .callout::before{position:absolute; left:16px; top:15px; font-family:var(--mono); font-weight:700; font-size:13px;}
+  .callout.tip{background:var(--green-soft); border-color:#BEE3CB; color:#154A2E;} .callout.tip::before{content:"TIP"; color:var(--green);}
+  .callout.note{background:#EAF1FB; border-color:#C9DBF3; color:#1D3557;} .callout.note::before{content:"NOTE"; color:var(--steel);}
+  .callout.warn{background:var(--amber-soft); border-color:#EFD9A6; color:#5C4108;} .callout.warn::before{content:"WARN"; color:var(--amber);}
+  .callout.best{background:var(--gold-soft); border-color:#E9D3A5; color:#5A3E0E; padding-left:48px;} .callout.best::before{content:"BEST\A PRACT."; white-space:pre; line-height:1.1; top:10px; color:var(--gold);}
+  details.concept{background:var(--card); border:1px solid var(--line); border-radius:10px; margin:10px 0; overflow:hidden;}
+  details.concept summary{cursor:pointer; list-style:none; padding:14px 18px; font-family:var(--disp); font-size:14.5px; color:var(--navy); display:flex; justify-content:space-between; align-items:center; font-weight:600;}
+  details.concept summary::-webkit-details-marker{display:none;}
+  details.concept summary::after{content:"+"; font-family:var(--mono); color:var(--gold); font-size:18px;}
+  details.concept[open] summary::after{content:"–";}
+  details.concept .inner{padding:0 18px 18px; font-size:14px; color:var(--ink-soft); border-top:1px solid var(--line); padding-top:14px;}
+  details.concept .inner b{color:var(--navy);}
+  .code-wrap{position:relative; margin:16px 0 26px; border-radius:10px; overflow:hidden; border:1px solid #0a1a30;}
+  .code-head{background:var(--navy-deep); color:#93A5C4; font-family:var(--mono); font-size:12px; padding:9px 14px; display:flex; justify-content:space-between; align-items:center;}
+  .copy-btn{background:rgba(185,131,47,.18); color:var(--gold); border:1px solid rgba(185,131,47,.4); font-family:var(--mono); font-size:11px; padding:4px 10px; border-radius:5px; cursor:pointer;}
+  .copy-btn:hover{background:rgba(185,131,47,.3);}
+  pre{margin:0; background:#0B1526; padding:18px 20px; overflow-x:auto; max-height:640px; overflow-y:auto;}
+  pre code{font-family:var(--mono); font-size:12.6px; line-height:1.65; color:#D6E2F5; white-space:pre;}
+  .c-com{color:#7C93B8;} .c-str{color:#C9DA6E;} .c-kw{color:#E4A94B;} .c-var{color:#79C6E8;} .c-fn{color:#E88DAB;}
+  .lex{border-left:3px solid var(--steel); background:#F7FAFD; padding:10px 14px; margin:8px 0; border-radius:0 8px 8px 0;}
+  .lex code{font-family:var(--mono); font-size:12px; background:#EAF0F8; padding:2px 6px; border-radius:4px; color:var(--navy);}
+  .diagram{background:var(--card); border:1px solid var(--line); border-radius:10px; padding:24px; margin:16px 0; overflow-x:auto;}
+  .badge{display:inline-block; font-family:var(--mono); font-size:11px; padding:2px 9px; border-radius:20px; font-weight:600;}
+  .badge.h{background:var(--green-soft); color:var(--green);} .badge.w{background:var(--amber-soft); color:var(--amber);} .badge.c{background:var(--red-soft); color:var(--red);}
+  .agile-col{background:var(--card); border:1px solid var(--line); border-radius:10px; padding:16px 18px;}
+  .agile-col h4{margin:0 0 10px; font-family:var(--disp); color:var(--navy); font-size:14px; border-bottom:1px solid var(--line); padding-bottom:8px;}
+  .agile-col ul{margin:0; padding-left:18px; font-size:13.5px; color:var(--ink-soft);}
+  .qa{background:var(--card); border:1px solid var(--line); border-radius:10px; padding:16px 18px; margin:10px 0;}
+  .qa .q{font-family:var(--disp); color:var(--navy); font-size:14px; margin-bottom:6px;}
+  .qa .a{font-size:13.5px; color:var(--ink-soft); line-height:1.65;}
+  footer{padding:34px 56px; color:#8896AB; font-size:12.5px; font-family:var(--mono);}
+  @media(max-width:900px){body{flex-direction:column;} #sidebar{position:relative; height:auto; width:100%; min-width:0;} section.block, .hero{padding:28px 20px;}}
+</style>
+</head>
+<body>
+
+<aside id="sidebar">
+  <div class="brand">
+    <div class="bank">ABC Bank · IT Operations</div>
+    <h1>PowerShell DevOps Academy</h1>
+    <div class="tag">Project 05 of 30 · Beginner Track</div>
+  </div>
+  <nav id="nav">
+    <div class="group-label">Orientation</div>
+    <a href="#story">1. The Production Story</a>
+    <a href="#business">2. Business Case</a>
+    <div class="group-label">Foundations</div>
+    <a href="#concepts">3. New Concepts</a>
+    <a href="#architecture">4. Architecture</a>
+    <div class="group-label">Build</div>
+    <a href="#structure">5. Folder Structure</a>
+    <a href="#code">6. The Script</a>
+    <a href="#explain">7. Line-by-Line Explanation</a>
+    <a href="#flow">8. Execution Flow</a>
+    <a href="#internals">9. Windows Internals</a>
+    <div class="group-label">Delivery</div>
+    <a href="#agile">10. Agile Breakdown</a>
+    <a href="#lab">11. Hands-On Lab</a>
+    <a href="#practices">12. Production Best Practices</a>
+    <div class="group-label">Wrap-Up</div>
+    <a href="#interview">13. Interview Prep</a>
+    <a href="#summary">14. Key Learnings &amp; Assignment</a>
+  </nav>
+</aside>
+
+<main>
+  <div class="hero">
+    <div class="eyebrow">Project 05 — Windows Service Auto-Recovery</div>
+    <h1>Don't just tell us a service died. Try to bring it back — safely, with a limit, and always tell someone.</h1>
+    <p>Every project so far has detected problems. Today is the first project that <em>fixes</em> one automatically: a stopped critical service gets restarted with retry logic and backoff, and if it still won't come back, a real email alert goes to the on-call engineer instead of waiting for the next scheduled report.</p>
+    <div class="status-strip">
+      <div class="status-chip"><span class="dot green"></span>Spooler — Auto-recovered on attempt 1</div>
+      <div class="status-chip"><span class="dot amber"></span>W3SVC — Recovered on attempt 3</div>
+      <div class="status-chip"><span class="dot red"></span>MSSQLSERVER — Failed after 3 attempts, alert sent</div>
+    </div>
+  </div>
+
+  <!-- 1. STORY -->
+  <section class="block" id="story">
+    <h2><span class="num">01</span> The Production Story</h2>
+    <div class="sub">Your health check (Project 01) and IIS check (Project 04) are both running on schedule now. Priya has one more request.</div>
+    <div class="story">
+      <span class="label">Thursday, 2:15 AM — On-Call Phone Rings</span>
+      <p>You're the on-call engineer this week. Your phone rings at 2:15 AM: the Print Spooler service crashed on SRV-APP02, which is blocking a batch reporting job that a downstream compliance system depends on. You RDP in, half asleep, and simply click "Start" on the service. It comes back instantly. Fixed in ninety seconds — except you were awake, checked email, and couldn't fall back asleep for an hour.</p>
+      <p>The next morning, Priya says: "That's exactly the kind of thing we shouldn't need a human awake for. Your health check already tells us a service is down — now I want it to <em>try to fix it</em> before waking anyone up. If a non-critical service like Spooler crashes, just restart it, log it, and let us see it in the morning report. But if something like SQL Server won't come back after a few tries, that's different — that needs a real alert, right now, to whoever's on call."</p>
+      <p>"Two rules I want baked in: never retry forever — cap it at three attempts with a short wait between each, so we're not masking a deeper problem by endlessly restarting something broken. And always log every attempt, success or failure, so the next person can see exactly what the automation already tried before they arrived."</p>
+    </div>
+    <div class="callout warn">This is the first project where the script changes production state automatically, without a human approving each action in the moment — which is exactly why the retry cap and escalation rules matter as much as the recovery logic itself.</div>
+  </section>
+
+  <!-- 2. BUSINESS CASE -->
+  <section class="block" id="business">
+    <h2><span class="num">02</span> Business Case</h2>
+    <div class="grid">
+      <div class="card"><h4>Business Requirement</h4><p>Automatically recover common, low-risk service failures without waking an on-call engineer for a 90-second fix.</p></div>
+      <div class="card"><h4>Customer Requirement</h4><p>Ops wants self-healing for routine failures, with real alerting reserved for genuinely serious ones.</p></div>
+      <div class="card"><h4>Banking Scenario</h4><p>Overnight batch jobs, reporting services, and print/queue services occasionally crash for transient reasons and simply need a restart.</p></div>
+      <div class="card"><h4>Current Manual Process</h4><p>An on-call engineer gets paged for every stopped service, regardless of how minor or easily fixed, at any hour.</p></div>
+      <div class="card"><h4>Problems With Current Process</h4><p>Unnecessary sleep disruption for trivial fixes, delayed recovery for the minutes it takes a human to respond, and alert fatigue over time.</p></div>
+      <div class="card"><h4>Business Challenges</h4><p>Auto-restarting the wrong thing, or restarting indefinitely, can mask a deeper problem instead of surfacing it.</p></div>
+      <div class="card"><h4>Risk Analysis</h4><p>A service that fails to recover after a reasonable number of attempts likely has a root cause that needs a human, not more retries.</p></div>
+      <div class="card"><h4>Business Impact</h4><p>Faster recovery for routine failures, better sleep and morale for on-call staff, and alerts that actually mean something when they fire.</p></div>
+      <div class="card"><h4>Why Automation Is Required</h4><p>A human simply can't respond faster than a script that's already watching and can restart in seconds.</p></div>
+      <div class="card"><h4>Solution Design</h4><p>A PowerShell script with capped retry logic, a short backoff between attempts, structured logging, and an email escalation on final failure.</p></div>
+      <div class="card"><h4>Project Scope</h4><p>Phase 1 covers a defined list of critical services, a 3-attempt retry cap, and email alerting on exhaustion.</p></div>
+      <div class="card"><h4>Expected Benefits</h4><p>Most routine service failures resolve in seconds without any human involvement, while real failures still reach a person quickly.</p></div>
+    </div>
+  </section>
+
+  <!-- 3. CONCEPTS -->
+  <section class="block" id="concepts">
+    <h2><span class="num">03</span> New Concepts (Building on Projects 01–04)</h2>
+    <div class="sub">You already know Get-Service, functions, try/catch, and logging. Here's what's new for self-healing automation.</div>
+
+    <details class="concept" open>
+      <summary>Restart-Service (and Start-Service)</summary>
+      <div class="inner">
+        <p><b>What it is:</b> <code>Restart-Service</code> stops and starts a Windows service in one command; <code>Start-Service</code> starts a stopped one directly. Both work against remote computers with <code>-ComputerName</code> in newer PowerShell, or via <code>Invoke-Command</code> for full remote compatibility.</p>
+        <p><b>Why it's used today:</b> This is the actual "fix" action — the automated equivalent of what you did by hand at 2 AM in the story.</p>
+      </div>
+    </details>
+
+    <details class="concept">
+      <summary>Do-While / Do-Until Loops</summary>
+      <div class="inner">
+        <p><b>What it is:</b> Unlike <code>foreach</code> (which loops over a known collection), <code>do { } while (condition)</code> or <code>do { } until (condition)</code> repeats a block until a condition changes — perfect for "keep trying until it works or we hit our attempt limit."</p>
+        <p><b>Why it's used today:</b> We don't know in advance how many attempts a recovery will take (1, 2, or 3) — a do-until loop naturally expresses "try, check, try again if needed, stop either way at the cap."</p>
+      </div>
+    </details>
+
+    <details class="concept">
+      <summary>Retry Logic With Backoff</summary>
+      <div class="inner">
+        <p><b>What it is:</b> Instead of retrying instantly and repeatedly, we wait a short, increasing amount of time between attempts (e.g. 5 seconds, then 10, then 15) using <code>Start-Sleep</code>. This is called backoff.</p>
+        <p><b>Why it matters:</b> An instant, repeated restart can hit the exact same failure condition every time within milliseconds; a short pause gives transient issues (like a brief resource spike) a chance to clear before the next attempt.</p>
+      </div>
+    </details>
+
+    <details class="concept">
+      <summary>Send-MailMessage — Real Alerting</summary>
+      <div class="inner">
+        <p><b>What it is:</b> Sends an actual email from PowerShell through an SMTP relay — this is the real version of the "alert email would go here" comments from earlier projects.</p>
+        <p><b>Why it's used today:</b> Priya wants a genuine page to the on-call engineer when auto-recovery fails, not just a line buried in tomorrow's report.</p>
+        <p><b>Production nuance:</b> Enterprises typically route through an internal relay server that doesn't require a personal email password in the script, and often integrate with a paging system (e.g. PagerDuty) rather than plain email for true 24/7 alerting — email is the simplest version to learn the concept with.</p>
+      </div>
+    </details>
+
+    <details class="concept">
+      <summary>ValidateSet — Constraining Parameter Input</summary>
+      <div class="inner">
+        <p><b>What it is:</b> An attribute you can add to a function's parameter that restricts it to a fixed list of allowed values, e.g. only allowing <code>"Low"</code>, <code>"Medium"</code>, or <code>"High"</code> as valid severities — PowerShell rejects anything else automatically before your code even runs.</p>
+        <p><b>Why it's used today:</b> We classify each service by criticality (Critical vs Routine) — ValidateSet stops a typo like "Critcal" from silently breaking the escalation logic.</p>
+      </div>
+    </details>
+
+    <div class="callout best">Notice the shape of the safety design: cap the retries, wait between them, log everything, and escalate to a human the moment automation has done everything it reasonably can. This pattern — try, limit, log, escalate — applies to almost any self-healing automation you'll ever build.</div>
+  </section>
+
+  <!-- 4. ARCHITECTURE -->
+  <section class="block" id="architecture">
+    <h2><span class="num">04</span> Architecture</h2>
+    <div class="diagram">
+      <svg width="820" height="230" viewBox="0 0 820 230" xmlns="http://www.w3.org/2000/svg" font-family="IBM Plex Sans, sans-serif">
+        <rect x="20" y="90" width="150" height="55" rx="8" fill="#EAF1FB" stroke="#1B4F72"/>
+        <text x="95" y="122" text-anchor="middle" font-size="11.5" fill="#0B1F3A">Service Down</text>
+
+        <rect x="210" y="90" width="150" height="55" rx="8" fill="#F4E6CE" stroke="#B9832F"/>
+        <text x="285" y="112" text-anchor="middle" font-size="11" fill="#0B1F3A">Attempt Restart</text>
+        <text x="285" y="127" text-anchor="middle" font-size="9" fill="#4B5A72">do-until, max 3 tries</text>
+
+        <rect x="400" y="20" width="150" height="55" rx="8" fill="#E4F3EA" stroke="#1E7145"/>
+        <text x="475" y="42" text-anchor="middle" font-size="11" fill="#0B1F3A">Recovered</text>
+        <text x="475" y="57" text-anchor="middle" font-size="9" fill="#4B5A72">Log only</text>
+
+        <rect x="400" y="160" width="150" height="55" rx="8" fill="#FBE7E5" stroke="#B3261E"/>
+        <text x="475" y="182" text-anchor="middle" font-size="11" fill="#0B1F3A">Still Down After 3</text>
+        <text x="475" y="197" text-anchor="middle" font-size="9" fill="#4B5A72">Escalate</text>
+
+        <rect x="610" y="160" width="180" height="55" rx="8" fill="#FBF0DA" stroke="#9A6B14"/>
+        <text x="700" y="182" text-anchor="middle" font-size="11" fill="#0B1F3A">Send-MailMessage</text>
+        <text x="700" y="197" text-anchor="middle" font-size="9" fill="#4B5A72">On-call gets paged</text>
+
+        <path d="M170 117 H210" stroke="#8896AB" stroke-width="1.5" marker-end="url(#a)"/>
+        <path d="M360 105 L400 47" stroke="#8896AB" stroke-width="1.5" marker-end="url(#a)"/>
+        <path d="M360 130 L400 187" stroke="#8896AB" stroke-width="1.5" marker-end="url(#a)"/>
+        <path d="M550 187 H610" stroke="#8896AB" stroke-width="1.5" marker-end="url(#a)"/>
+        <defs><marker id="a" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="#8896AB"/></marker></defs>
+      </svg>
+    </div>
+    <p>This decision tree — try, retry with a limit, then branch to either quiet logging or loud escalation — is the entire design of the script below.</p>
+  </section>
+
+  <!-- 5. FOLDER STRUCTURE -->
+  <section class="block" id="structure">
+    <h2><span class="num">05</span> Project Folder Structure</h2>
+    <div class="code-wrap">
+      <div class="code-head"><span>folder-structure.txt</span></div>
+      <pre><code>C:\ServiceRecovery\
+│
+├── Scripts\
+│   └── Restore-CriticalServices.ps1
+│
+├── Config\
+│   └── critical-services.json    <span class="c-com"># Server, service name, and criticality per entry</span>
+│
+├── Logs\
+│   └── Recovery_20260723_021500.log
+│
+├── Reports\
+│   └── Recovery_20260723_021500.csv
+│
+└── README.md</code></pre>
+    </div>
+    <div class="code-wrap">
+      <div class="code-head"><span>Config\critical-services.json</span></div>
+      <pre><code>[
+  { <span class="c-str">"ServerName"</span>: <span class="c-str">"SRV-APP01"</span>, <span class="c-str">"ServiceName"</span>: <span class="c-str">"Spooler"</span>,      <span class="c-str">"Criticality"</span>: <span class="c-str">"Routine"</span>  },
+  { <span class="c-str">"ServerName"</span>: <span class="c-str">"SRV-APP02"</span>, <span class="c-str">"ServiceName"</span>: <span class="c-str">"W3SVC"</span>,        <span class="c-str">"Criticality"</span>: <span class="c-str">"Critical"</span> },
+  { <span class="c-str">"ServerName"</span>: <span class="c-str">"SRV-DB01"</span>,  <span class="c-str">"ServiceName"</span>: <span class="c-str">"MSSQLSERVER"</span>, <span class="c-str">"Criticality"</span>: <span class="c-str">"Critical"</span> }
+]</code></pre>
+    </div>
+  </section>
+
+  <!-- 6. CODE -->
+  <section class="block" id="code">
+    <h2><span class="num">06</span> The Script — Restore-CriticalServices.ps1</h2>
+
+    <div class="code-wrap">
+      <div class="code-head">
+        <span>Scripts\Restore-CriticalServices.ps1</span>
+        <button class="copy-btn" onclick="copyCode('code1', this)">Copy</button>
+      </div>
+      <pre><code id="code1"><span class="c-com">&lt;#
+.SYNOPSIS
+    Windows Service Auto-Recovery - ABC Bank Production Support
+.DESCRIPTION
+    Detects stopped services from a configured list, attempts automatic
+    restart with capped retries and backoff, and escalates via email
+    only when a service fails to recover after the retry limit.
+#&gt;</span>
+
+<span class="c-com"># ============================================================
+# SECTION 1: CONFIGURATION
+# ============================================================</span>
+
+<span class="c-var">$ServiceList</span> = Get-Content -Path <span class="c-str">"C:\ServiceRecovery\Config\critical-services.json"</span> -Raw | ConvertFrom-Json
+
+<span class="c-var">$MaxAttempts</span>   = 3                         <span class="c-com"># Hard cap — never retry forever</span>
+<span class="c-var">$BackoffSeconds</span> = <span class="c-kw">@</span>(5, 10, 15)               <span class="c-com"># Wait time before attempt 1, 2, 3 respectively</span>
+<span class="c-var">$AlertEmailTo</span>   = <span class="c-str">"oncall-windowsops@abcbank.com"</span>
+<span class="c-var">$AlertEmailFrom</span> = <span class="c-str">"automation@abcbank.com"</span>
+<span class="c-var">$SmtpServer</span>     = <span class="c-str">"smtp-relay.abcbank.internal"</span>   <span class="c-com"># Internal relay — no personal credentials needed</span>
+
+<span class="c-var">$TimeTag</span>   = Get-Date -Format <span class="c-str">'yyyyMMdd_HHmmss'</span>
+<span class="c-var">$LogFile</span>   = <span class="c-str">"C:\ServiceRecovery\Logs\Recovery_$TimeTag.log"</span>
+<span class="c-var">$ReportCSV</span> = <span class="c-str">"C:\ServiceRecovery\Reports\Recovery_$TimeTag.csv"</span>
+
+<span class="c-kw">function</span> <span class="c-fn">Write-Log</span> {
+    <span class="c-kw">param</span>([string]<span class="c-var">$Message</span>, [string]<span class="c-var">$Level</span> = <span class="c-str">"INFO"</span>)
+    <span class="c-var">$Stamp</span> = Get-Date -Format <span class="c-str">"yyyy-MM-dd HH:mm:ss"</span>
+    <span class="c-var">$Entry</span> = <span class="c-str">"[$Stamp] [$Level] $Message"</span>
+    Add-Content -Path <span class="c-var">$LogFile</span> -Value <span class="c-var">$Entry</span>
+    Write-Host <span class="c-var">$Entry</span>
+}
+
+<span class="c-com"># ============================================================
+# SECTION 2: ESCALATION FUNCTION
+# ============================================================</span>
+
+<span class="c-kw">function</span> <span class="c-fn">Send-EscalationAlert</span> {
+    <span class="c-kw">param</span>(
+        [string]<span class="c-var">$ServerName</span>,
+        [string]<span class="c-var">$ServiceName</span>,
+        [int]<span class="c-var">$AttemptsMade</span>
+    )
+    <span class="c-var">$Subject</span> = <span class="c-str">"[ALERT] $ServiceName on $ServerName failed to recover after $AttemptsMade attempts"</span>
+    <span class="c-var">$Body</span>    = <span class="c-str">"Automated recovery could not restart $ServiceName on $ServerName. Manual investigation required. See log: $LogFile"</span>
+
+    <span class="c-kw">try</span> {
+        Send-MailMessage -To <span class="c-var">$AlertEmailTo</span> -From <span class="c-var">$AlertEmailFrom</span> -Subject <span class="c-var">$Subject</span> `
+            -Body <span class="c-var">$Body</span> -SmtpServer <span class="c-var">$SmtpServer</span>                     <span class="c-com"># Sends the real escalation email</span>
+        Write-Log <span class="c-str">"Escalation email sent for $ServiceName on $ServerName"</span> <span class="c-str">"WARNING"</span>
+    }
+    <span class="c-kw">catch</span> {
+        Write-Log <span class="c-str">"FAILED TO SEND ESCALATION EMAIL: $($_.Exception.Message)"</span> <span class="c-str">"ERROR"</span>   <span class="c-com"># Even the alert itself can fail — always log that too</span>
+    }
+}
+
+<span class="c-com"># ============================================================
+# SECTION 3: MAIN RECOVERY FUNCTION
+# ============================================================</span>
+
+<span class="c-kw">function</span> <span class="c-fn">Restore-Service</span> {
+    <span class="c-kw">param</span>(
+        [string]<span class="c-var">$ServerName</span>,
+        [string]<span class="c-var">$ServiceName</span>,
+        <span class="c-kw">[ValidateSet</span>(<span class="c-str">"Critical"</span>,<span class="c-str">"Routine"</span>)]<span class="c-kw">]</span>[string]<span class="c-var">$Criticality</span>   <span class="c-com"># Only these two values are ever accepted</span>
+    )
+
+    <span class="c-var">$Result</span> = [PSCustomObject]<span class="c-kw">@</span>{
+        ServerName    = <span class="c-var">$ServerName</span>
+        ServiceName   = <span class="c-var">$ServiceName</span>
+        Criticality   = <span class="c-var">$Criticality</span>
+        InitialStatus = <span class="c-str">"UNKNOWN"</span>
+        AttemptsMade  = 0
+        FinalStatus   = <span class="c-str">"UNKNOWN"</span>
+        Escalated     = <span class="c-kw">$false</span>
+        CheckedAt     = Get-Date -Format <span class="c-str">"yyyy-MM-dd HH:mm:ss"</span>
+    }
+
+    <span class="c-var">$Svc</span> = Get-Service -ComputerName <span class="c-var">$ServerName</span> -Name <span class="c-var">$ServiceName</span> -ErrorAction SilentlyContinue
+    <span class="c-kw">if</span> (<span class="c-kw">$null</span> -eq <span class="c-var">$Svc</span>) {
+        Write-Log <span class="c-str">"$ServiceName not found on $ServerName"</span> <span class="c-str">"ERROR"</span>
+        <span class="c-var">$Result</span>.FinalStatus = <span class="c-str">"NOT FOUND"</span>
+        <span class="c-kw">return</span> <span class="c-var">$Result</span>
+    }
+    <span class="c-var">$Result</span>.InitialStatus = <span class="c-var">$Svc</span>.Status
+
+    <span class="c-kw">if</span> (<span class="c-var">$Svc</span>.Status -eq <span class="c-str">"Running"</span>) {                     <span class="c-com"># Nothing to do — service is already healthy</span>
+        <span class="c-var">$Result</span>.FinalStatus = <span class="c-str">"ALREADY RUNNING"</span>
+        <span class="c-kw">return</span> <span class="c-var">$Result</span>
+    }
+
+    Write-Log <span class="c-str">"$ServiceName on $ServerName is $($Svc.Status). Beginning recovery ($Criticality)."</span> <span class="c-str">"WARNING"</span>
+
+    <span class="c-var">$Attempt</span> = 0
+    <span class="c-kw">do</span> {                                                     <span class="c-com"># do-until: run at least once, then repeat until recovered or capped</span>
+        <span class="c-var">$Attempt</span>++
+        Start-Sleep -Seconds <span class="c-var">$BackoffSeconds</span>[<span class="c-var">$Attempt</span>-1]      <span class="c-com"># Increasing wait before each attempt (5s, 10s, 15s)</span>
+        Write-Log <span class="c-str">"Attempt $Attempt of $MaxAttempts : restarting $ServiceName on $ServerName"</span> <span class="c-str">"INFO"</span>
+
+        <span class="c-kw">try</span> {
+            Get-Service -ComputerName <span class="c-var">$ServerName</span> -Name <span class="c-var">$ServiceName</span> | Start-Service -ErrorAction Stop   <span class="c-com"># The actual recovery action</span>
+        }
+        <span class="c-kw">catch</span> {
+            Write-Log <span class="c-str">"Attempt $Attempt failed to start $ServiceName : $($_.Exception.Message)"</span> <span class="c-str">"ERROR"</span>
+        }
+
+        <span class="c-var">$CurrentState</span> = (Get-Service -ComputerName <span class="c-var">$ServerName</span> -Name <span class="c-var">$ServiceName</span>).Status   <span class="c-com"># Re-check after the attempt</span>
+
+    } <span class="c-kw">until</span> (<span class="c-var">$CurrentState</span> -eq <span class="c-str">"Running"</span> -or <span class="c-var">$Attempt</span> -ge <span class="c-var">$MaxAttempts</span>)   <span class="c-com"># Stop when recovered OR out of attempts — whichever comes first</span>
+
+    <span class="c-var">$Result</span>.AttemptsMade = <span class="c-var">$Attempt</span>
+    <span class="c-var">$Result</span>.FinalStatus  = <span class="c-var">$CurrentState</span>
+
+    <span class="c-kw">if</span> (<span class="c-var">$CurrentState</span> -eq <span class="c-str">"Running"</span>) {
+        Write-Log <span class="c-str">"$ServiceName on $ServerName RECOVERED after $Attempt attempt(s)"</span> <span class="c-str">"INFO"</span>
+    }
+    <span class="c-kw">else</span> {
+        Write-Log <span class="c-str">"$ServiceName on $ServerName FAILED to recover after $MaxAttempts attempts"</span> <span class="c-str">"ERROR"</span>
+        <span class="c-kw">if</span> (<span class="c-var">$Criticality</span> -eq <span class="c-str">"Critical"</span>) {                   <span class="c-com"># Only page a human for Critical services, per Priya's rule</span>
+            Send-EscalationAlert -ServerName <span class="c-var">$ServerName</span> -ServiceName <span class="c-var">$ServiceName</span> -AttemptsMade <span class="c-var">$Attempt</span>
+            <span class="c-var">$Result</span>.Escalated = <span class="c-kw">$true</span>
+        }
+    }
+
+    <span class="c-kw">return</span> <span class="c-var">$Result</span>
+}
+
+<span class="c-com"># ============================================================
+# SECTION 4: MAIN EXECUTION
+# ============================================================</span>
+
+Write-Log <span class="c-str">"===== Starting Service Recovery Sweep for $($ServiceList.Count) service(s) ====="</span> <span class="c-str">"INFO"</span>
+
+<span class="c-var">$AllResults</span> = <span class="c-kw">foreach</span> (<span class="c-var">$Entry</span> in <span class="c-var">$ServiceList</span>) {
+    Restore-Service -ServerName <span class="c-var">$Entry</span>.ServerName -ServiceName <span class="c-var">$Entry</span>.ServiceName -Criticality <span class="c-var">$Entry</span>.Criticality
+}
+
+<span class="c-var">$AllResults</span> | Sort-Object FinalStatus | Format-Table -AutoSize
+
+<span class="c-var">$AllResults</span> | Export-Csv -Path <span class="c-var">$ReportCSV</span> -NoTypeInformation
+
+Write-Log <span class="c-str">"===== Service Recovery Sweep Completed. Report: $ReportCSV ====="</span> <span class="c-str">"INFO"</span></code></pre>
+    </div>
+  </section>
+
+  <!-- 7. EXPLAIN -->
+  <section class="block" id="explain">
+    <h2><span class="num">07</span> Line-by-Line Explanation</h2>
+
+    <div class="lex"><code>[ValidateSet("Critical","Routine")][string]$Criticality</code><br>PowerShell checks this constraint automatically before the function body even runs — passing anything other than exactly "Critical" or "Routine" produces an immediate, clear error instead of silently misbehaving later in the escalation logic.</div>
+
+    <div class="lex"><code>do { ... } until ($CurrentState -eq "Running" -or $Attempt -ge $MaxAttempts)</code><br>The loop body always runs at least once (unlike a <code>while</code> loop, which checks the condition first). It keeps repeating until <em>either</em> the service is confirmed running <em>or</em> we've hit the attempt cap — whichever happens first, guaranteed to stop.</div>
+
+    <div class="lex"><code>Start-Sleep -Seconds $BackoffSeconds[$Attempt-1]</code><br>Array indexing is zero-based, so attempt 1 uses index 0 (5 seconds), attempt 2 uses index 1 (10 seconds), and attempt 3 uses index 2 (15 seconds) — a simple, readable way to implement increasing backoff without a formula.</div>
+
+    <div class="lex"><code>if ($Criticality -eq "Critical") { Send-EscalationAlert ... }</code><br>This is the line that directly implements Priya's rule from the story: routine services that fail to recover are logged quietly for the morning report; critical ones page a human immediately.</div>
+
+    <div class="callout warn">Common mistake: wrapping the escalation email itself in the same try/catch as the recovery logic. If sending the alert fails too (SMTP relay down), you want that failure logged clearly and separately — silently losing your one and only escalation path is the worst possible failure mode here.</div>
+  </section>
+
+  <!-- 8. FLOW -->
+  <section class="block" id="flow">
+    <h2><span class="num">08</span> Script Execution Flow</h2>
+    <table>
+      <tr><th>Step</th><th>What Happens</th></tr>
+      <tr><td>1. Initial State Check</td><td>If the service is already Running, the script exits early for that entry — no unnecessary action taken on a healthy service.</td></tr>
+      <tr><td>2. Retry Loop Begins</td><td>The do-until loop waits (backoff), attempts a restart, then re-checks state — every iteration produces its own log line.</td></tr>
+      <tr><td>3. Loop Exit</td><td>Exits either because the service reports Running, or because the attempt counter reached the cap — never runs forever.</td></tr>
+      <tr><td>4. Branch: Success</td><td>Recovery logged as INFO; no alert sent — this is the quiet, "nobody needs to wake up" path.</td></tr>
+      <tr><td>5. Branch: Failure</td><td>Logged as ERROR; if the service is Critical, <code>Send-EscalationAlert</code> fires an actual email through the SMTP relay.</td></tr>
+      <tr><td>6. Reporting</td><td>Every service's full attempt history and outcome lands in the CSV report, same pattern as every prior project.</td></tr>
+    </table>
+  </section>
+
+  <!-- 9. INTERNALS -->
+  <section class="block" id="internals">
+    <h2><span class="num">09</span> Windows Internals — In Simple English</h2>
+    <div class="grid">
+      <div class="card"><h4>How Start-Service Talks to the SCM</h4><p>Start-Service sends a start request to the Service Control Manager, the same subsystem Get-Service reads from — it's the OS component actually responsible for launching and tracking every Windows service.</p></div>
+      <div class="card"><h4>Windows' Own Built-In Recovery Options</h4><p>Windows itself has a native "Recovery" tab per service (viewable via <code>sc.exe qfailure</code>) that can auto-restart a crashed service without any script at all — our PowerShell approach adds the escalation and cross-service reporting Windows' built-in feature doesn't provide.</p></div>
+      <div class="card"><h4>How SMTP Relays Work</h4><p>An internal SMTP relay accepts mail from trusted internal systems (like this automation host) and forwards it onward, without requiring each sender to authenticate with a personal mailbox password.</p></div>
+    </div>
+  </section>
+
+  <!-- 10. AGILE -->
+  <section class="block" id="agile">
+    <h2><span class="num">10</span> Agile Breakdown</h2>
+    <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(220px,1fr));">
+      <div class="agile-col"><h4>Epic</h4><ul><li>Reduce on-call burden through safe, capped self-healing automation</li></ul></div>
+      <div class="agile-col"><h4>Feature</h4><ul><li>Auto-restart for stopped services with retry limit and criticality-based escalation</li></ul></div>
+      <div class="agile-col"><h4>User Story</h4><ul><li>As an on-call engineer, I want routine service failures fixed automatically so I'm only paged for things that genuinely need me</li></ul></div>
+      <div class="agile-col"><h4>Acceptance Criteria</h4><ul><li>Never retries beyond the configured cap</li><li>Applies backoff between attempts</li><li>Escalates only Critical services on failure</li><li>Logs every attempt</li></ul></div>
+      <div class="agile-col"><h4>Sprint Backlog</h4><ul><li>Build retry loop</li><li>Build escalation function</li><li>Wire up criticality logic</li><li>Test failure and success paths</li></ul></div>
+      <div class="agile-col"><h4>Definition of Done</h4><ul><li>Tested against a recoverable and an unrecoverable service</li><li>Escalation email confirmed delivered in test</li><li>Peer reviewed</li></ul></div>
+    </div>
+  </section>
+
+  <!-- 11. LAB -->
+  <section class="block" id="lab">
+    <h2><span class="num">11</span> Hands-On Lab</h2>
+    <div class="callout warn">Practice on a test VM. Stopping and restarting real services affects whatever depends on them — never experiment on a machine you rely on.</div>
+
+    <h3>Practice Config for Localhost</h3>
+    <div class="code-wrap">
+      <div class="code-head"><span>Config\critical-services.json for local testing</span><button class="copy-btn" onclick="copyCode('code2', this)">Copy</button></div>
+      <pre><code id="code2">[
+  { <span class="c-str">"ServerName"</span>: <span class="c-str">"localhost"</span>, <span class="c-str">"ServiceName"</span>: <span class="c-str">"Spooler"</span>, <span class="c-str">"Criticality"</span>: <span class="c-str">"Routine"</span> }
+]</code></pre>
+    </div>
+
+    <h3>Practice Run</h3>
+    <ol>
+      <li>Stop the test service first so there's something to recover: <code>Stop-Service -Name Spooler</code></li>
+      <li>Run the script and watch the console log each backoff wait and attempt in real time</li>
+      <li>Confirm the CSV report shows <code>FinalStatus = Running</code> and <code>AttemptsMade = 1</code></li>
+    </ol>
+
+    <div class="callout tip">To safely test the escalation path without real SQL Server, point <code>ServiceName</code> at a service name that doesn't exist, or one you keep disabled — it will exhaust all 3 attempts and (if marked Critical) trigger the email path, letting you test Send-MailMessage against a local test SMTP tool without touching anything important.</div>
+
+    <h3>Troubleshooting</h3>
+    <table>
+      <tr><th>Error</th><th>Cause</th><th>Fix</th></tr>
+      <tr><td>Send-MailMessage: Unable to connect to SMTP server</td><td>No SMTP relay available in your lab</td><td>Use a local test tool like <code>smtp4dev</code> or Papercut for safe local testing</td></tr>
+      <tr><td>Access Denied on Start-Service</td><td>Not running as Administrator</td><td>Re-launch PowerShell elevated</td></tr>
+      <tr><td>Loop seems to run forever</td><td>$MaxAttempts or the until condition was edited incorrectly</td><td>Confirm the until clause includes the attempt-cap condition, not just the running check</td></tr>
+    </table>
+
+    <h3>Practice Exercises</h3>
+    <ul>
+      <li><b>Mini Assignment:</b> Change $MaxAttempts to 2 and $BackoffSeconds accordingly, then confirm the behavior matches your new cap exactly.</li>
+      <li><b>Challenge Task:</b> Add a "Time to Recover" field to the result object using Measure-Command around the whole do-until loop.</li>
+    </ul>
+  </section>
+
+  <!-- 12. BEST PRACTICES -->
+  <section class="block" id="practices">
+    <h2><span class="num">12</span> Production Best Practices</h2>
+    <div class="callout best">Always cap retries — an unbounded retry loop against a genuinely broken service just delays the human response that was actually needed.</div>
+    <div class="callout best">Always apply backoff between attempts — instant repeated retries can hammer the same transient failure without giving it a chance to clear.</div>
+    <div class="callout best">Separate "log it" from "page a human" by criticality — alert fatigue from paging on every minor blip erodes trust in the alerts that matter.</div>
+    <div class="callout best">Never let your escalation path silently fail — log alert-sending failures distinctly, since that's your last line of defense.</div>
+  </section>
+
+  <!-- 13. INTERVIEW -->
+  <section class="block" id="interview">
+    <h2><span class="num">13</span> Interview Preparation</h2>
+    <div class="qa"><div class="q">Q: Why cap retries instead of letting the script keep trying indefinitely?</div><div class="a">A service that won't recover after several reasonable attempts likely has a genuine root cause — continuing to retry indefinitely wastes time and can mask a problem that actually needs human investigation, instead of surfacing it quickly.</div></div>
+    <div class="qa"><div class="q">Q: Why use backoff (increasing wait time) instead of retrying instantly?</div><div class="a">An instant retry can hit the exact same transient condition that caused the first failure; a short, increasing pause gives things like resource contention or a dependency service time to recover before the next attempt.</div></div>
+    <div class="qa"><div class="q">Q: How did you decide which services get email escalation and which don't?</div><div class="a">By business criticality, driven by config, not code — services tied to core banking functions escalate to a human on failure; lower-impact routine services are simply logged for the next scheduled review.</div></div>
+    <div class="qa"><div class="q">Q: What would you add before trusting this fully in production?</div><div class="a">A way to temporarily disable auto-recovery for a specific service during planned maintenance, so the automation doesn't fight against an intentional stop.</div></div>
+  </section>
+
+  <!-- 14. SUMMARY -->
+  <section class="block" id="summary">
+    <h2><span class="num">14</span> Key Learnings &amp; Assignment</h2>
+    <h3>Key Learnings</h3>
+    <ul>
+      <li>Self-healing automation needs a hard retry cap and backoff, never unbounded retries</li>
+      <li>Do-until loops are the natural fit for "keep trying until success or limit reached"</li>
+      <li>Escalation should be driven by business criticality, configured externally, not hardcoded</li>
+      <li>The alert path itself needs its own error handling — it's your last line of defense</li>
+    </ul>
+    <h3>Resume Point</h3>
+    <p>"Designed a self-healing Windows service recovery automation with capped retry logic, exponential backoff, and criticality-based email escalation, reducing after-hours on-call interruptions for routine service failures while preserving fast human escalation for critical outages."</p>
+    <h3>Assignment Before Project 6</h3>
+    <ol>
+      <li>Run the lab against a stopped test service and confirm the log shows every backoff wait and attempt clearly</li>
+      <li>Test the failure/escalation path safely using a non-existent service name and a local test SMTP tool</li>
+      <li>Explain in your own words why "log it" and "page a human" needed to be two separate, deliberate code paths</li>
+    </ol>
+    <div class="callout note">Say <b>"next project"</b> when you're ready, and we'll build Project 06 together.</div>
+  </section>
+
+  <footer>ABC Bank · Windows Operations · PowerShell DevOps Academy — Project 05 of 30</footer>
+</main>
+
+<script>
+  const sections = document.querySelectorAll('section.block');
+  const links = document.querySelectorAll('#nav a');
+  window.addEventListener('scroll', () => {
+    let current = '';
+    sections.forEach(sec => { if (window.scrollY >= sec.offsetTop - 120) current = sec.id; });
+    links.forEach(a => a.classList.toggle('active', a.getAttribute('href') === '#' + current));
+  });
+  function copyCode(id, btn) {
+    const text = document.getElementById(id).innerText;
+    navigator.clipboard.writeText(text).then(() => {
+      const orig = btn.textContent; btn.textContent = 'Copied!';
+      setTimeout(() => btn.textContent = orig, 1500);
+    });
+  }
+</script>
+</body>
+</html>

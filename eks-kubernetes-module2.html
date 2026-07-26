@@ -1,0 +1,1931 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EKS Kubernetes — Module 2: Helm · RBAC · GitOps · Monitoring</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,700&family=JetBrains+Mono:wght@400;500;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --white: #ffffff;
+    --bg: #f9f8f6;
+    --surface: #ffffff;
+    --border: #e8e4dc;
+    --border-soft: #f0ece4;
+    --ink: #111111;
+    --ink-2: #333333;
+    --ink-3: #666666;
+    --ink-4: #999999;
+
+    /* accent palette */
+    --helm:    #7c3aed;
+    --helm-bg: #f5f3ff;
+    --rbac:    #0284c7;
+    --rbac-bg: #f0f9ff;
+    --netpol:  #059669;
+    --netpol-bg: #f0fdf4;
+    --argo:    #e11d48;
+    --argo-bg: #fff1f2;
+    --prom:    #d97706;
+    --prom-bg: #fffbeb;
+    --irsa:    #0f766e;
+    --irsa-bg: #f0fdfa;
+
+    --code-bg:      #13131a;
+    --code-text:    #e2e8f0;
+    --code-comment: #4a5568;
+    --code-kw:      #c084fc;
+    --code-str:     #86efac;
+    --code-num:     #fb923c;
+    --code-key:     #7dd3fc;
+    --code-val:     #34d399;
+    --code-op:      #f87171;
+  }
+
+  * { margin:0; padding:0; box-sizing:border-box; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    line-height: 1.7;
+  }
+
+  /* ── HERO ─────────────────── */
+  .hero {
+    background: var(--white);
+    border-bottom: 1.5px solid var(--border);
+    padding: 52px 0 0;
+  }
+
+  .hero-inner {
+    max-width: 1120px;
+    margin: 0 auto;
+    padding: 0 44px;
+  }
+
+  .module-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    background: var(--ink);
+    color: var(--white);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 2.5px;
+    text-transform: uppercase;
+    padding: 6px 16px;
+    margin-bottom: 30px;
+  }
+
+  .hero h1 {
+    font-family: 'Playfair Display', serif;
+    font-size: clamp(36px, 5.5vw, 66px);
+    font-weight: 900;
+    line-height: 1.06;
+    letter-spacing: -1.5px;
+    color: var(--ink);
+    margin-bottom: 18px;
+  }
+
+  .hero h1 em {
+    font-style: italic;
+    color: var(--helm);
+  }
+
+  .hero-sub {
+    font-size: 16.5px;
+    color: var(--ink-3);
+    font-weight: 300;
+    max-width: 600px;
+    margin-bottom: 44px;
+    line-height: 1.65;
+  }
+
+  .hero-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    padding-bottom: 36px;
+    border-bottom: 1.5px solid var(--border);
+  }
+
+  .pill {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 12.5px;
+    font-weight: 600;
+    padding: 7px 14px;
+    border-radius: 999px;
+    border: 1.5px solid;
+  }
+
+  .pill-helm   { background:var(--helm-bg);   color:var(--helm);   border-color:var(--helm); }
+  .pill-rbac   { background:var(--rbac-bg);   color:var(--rbac);   border-color:var(--rbac); }
+  .pill-net    { background:var(--netpol-bg); color:var(--netpol); border-color:var(--netpol); }
+  .pill-argo   { background:var(--argo-bg);   color:var(--argo);   border-color:var(--argo); }
+  .pill-prom   { background:var(--prom-bg);   color:var(--prom);   border-color:var(--prom); }
+  .pill-irsa   { background:var(--irsa-bg);   color:var(--irsa);   border-color:var(--irsa); }
+
+  .hero-stats {
+    display: flex;
+  }
+
+  .h-stat {
+    flex: 1;
+    padding: 18px 28px;
+    border-right: 1.5px solid var(--border);
+  }
+
+  .h-stat:first-child { padding-left: 0; }
+  .h-stat:last-child  { border-right: none; }
+
+  .h-stat-n {
+    font-family: 'Playfair Display', serif;
+    font-size: 30px;
+    font-weight: 900;
+    color: var(--helm);
+    line-height: 1;
+    margin-bottom: 4px;
+  }
+
+  .h-stat-l {
+    font-size: 11px;
+    color: var(--ink-4);
+    font-weight: 500;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+  }
+
+  /* ── STICKY NAV ───────────── */
+  .sidenav-wrap {
+    display: flex;
+    max-width: 1120px;
+    margin: 0 auto;
+    padding: 0 44px;
+    gap: 52px;
+    padding-top: 60px;
+  }
+
+  /* ── SIDEBAR ──────────────── */
+  .sidebar {
+    width: 220px;
+    flex-shrink: 0;
+    position: sticky;
+    top: 24px;
+    align-self: flex-start;
+    height: fit-content;
+  }
+
+  .sidebar-title {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--ink-4);
+    margin-bottom: 14px;
+  }
+
+  .nav-link {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+    border-radius: 5px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--ink-3);
+    text-decoration: none;
+    transition: all 0.15s;
+    margin-bottom: 3px;
+    border-left: 2px solid transparent;
+  }
+
+  .nav-link:hover {
+    background: var(--bg);
+    color: var(--ink);
+  }
+
+  .nav-link.active {
+    color: var(--ink);
+    font-weight: 600;
+    background: var(--bg);
+  }
+
+  .nav-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .nav-link[data-ch="helm"] .nav-dot, .nav-link.active[data-ch="helm"]   { background: var(--helm); border-left-color: var(--helm); }
+  .nav-link[data-ch="rbac"] .nav-dot                                      { background: var(--rbac); }
+  .nav-link.active[data-ch="rbac"]                                        { border-left-color: var(--rbac); }
+  .nav-link[data-ch="net"] .nav-dot                                       { background: var(--netpol); }
+  .nav-link.active[data-ch="net"]                                         { border-left-color: var(--netpol); }
+  .nav-link[data-ch="argo"] .nav-dot                                      { background: var(--argo); }
+  .nav-link.active[data-ch="argo"]                                        { border-left-color: var(--argo); }
+  .nav-link[data-ch="prom"] .nav-dot                                      { background: var(--prom); }
+  .nav-link.active[data-ch="prom"]                                        { border-left-color: var(--prom); }
+  .nav-link[data-ch="state"] .nav-dot                                     { background: #6b7280; }
+  .nav-link.active[data-ch="state"]                                       { border-left-color: #6b7280; }
+  .nav-link[data-ch="irsa"] .nav-dot                                      { background: var(--irsa); }
+  .nav-link.active[data-ch="irsa"]                                        { border-left-color: var(--irsa); }
+
+  .sidebar-progress {
+    margin-top: 30px;
+    background: var(--border-soft);
+    border-radius: 6px;
+    padding: 14px;
+  }
+
+  .progress-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--ink-3);
+    margin-bottom: 10px;
+  }
+
+  .progress-bar-bg {
+    height: 6px;
+    background: var(--border);
+    border-radius: 99px;
+    overflow: hidden;
+  }
+
+  .progress-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--helm), var(--argo));
+    border-radius: 99px;
+    width: 0;
+    transition: width 0.4s ease;
+  }
+
+  .progress-pct {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--helm);
+    margin-top: 6px;
+  }
+
+  /* ── MAIN CONTENT ─────────── */
+  .content {
+    flex: 1;
+    min-width: 0;
+    padding-bottom: 100px;
+  }
+
+  /* ── CHAPTER ──────────────── */
+  .chapter {
+    margin-bottom: 80px;
+    scroll-margin-top: 30px;
+  }
+
+  .ch-header {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    margin-bottom: 30px;
+    padding-bottom: 20px;
+    border-bottom: 1.5px solid var(--border);
+  }
+
+  .ch-icon {
+    width: 54px;
+    height: 54px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    flex-shrink: 0;
+    border: 1.5px solid;
+  }
+
+  .icon-helm  { background:var(--helm-bg);   border-color:var(--helm);   }
+  .icon-rbac  { background:var(--rbac-bg);   border-color:var(--rbac);   }
+  .icon-net   { background:var(--netpol-bg); border-color:var(--netpol); }
+  .icon-argo  { background:var(--argo-bg);   border-color:var(--argo);   }
+  .icon-prom  { background:var(--prom-bg);   border-color:var(--prom);   }
+  .icon-state { background:#f3f4f6;          border-color:#9ca3af;       }
+  .icon-irsa  { background:var(--irsa-bg);   border-color:var(--irsa);   }
+
+  .ch-meta {}
+
+  .ch-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-bottom: 5px;
+  }
+
+  .lbl-helm  { color:var(--helm); }
+  .lbl-rbac  { color:var(--rbac); }
+  .lbl-net   { color:var(--netpol); }
+  .lbl-argo  { color:var(--argo); }
+  .lbl-prom  { color:var(--prom); }
+  .lbl-state { color:#6b7280; }
+  .lbl-irsa  { color:var(--irsa); }
+
+  .ch-title {
+    font-family: 'Playfair Display', serif;
+    font-size: clamp(22px, 3vw, 34px);
+    font-weight: 900;
+    line-height: 1.15;
+    letter-spacing: -0.5px;
+    color: var(--ink);
+  }
+
+  .ch-desc {
+    font-size: 13.5px;
+    color: var(--ink-3);
+    font-weight: 300;
+    margin-top: 4px;
+  }
+
+  /* ── STORY BOX ────────────── */
+  .story {
+    background: var(--white);
+    border-left: 3px solid var(--ink);
+    padding: 24px 28px;
+    margin: 24px 0;
+    border-radius: 0 8px 8px 0;
+  }
+
+  .story-hd {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--ink-4);
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .story p {
+    font-size: 15px;
+    color: var(--ink-2);
+    font-weight: 300;
+    line-height: 1.8;
+    margin-bottom: 10px;
+  }
+
+  .story p:last-child { margin-bottom: 0; }
+
+  /* ── SECTION HEADING ──────── */
+  .sh {
+    font-family: 'Playfair Display', serif;
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--ink);
+    margin: 32px 0 14px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .sh-num {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--white);
+    background: var(--ink);
+    padding: 2px 8px;
+    border-radius: 3px;
+  }
+
+  p.body {
+    font-size: 14.5px;
+    color: var(--ink-2);
+    line-height: 1.8;
+    font-weight: 300;
+    margin-bottom: 12px;
+  }
+
+  strong { color: var(--ink); font-weight: 600; }
+
+  /* ── CODE BLOCK ───────────── */
+  .code-wrap { margin: 22px 0; }
+
+  .code-top {
+    background: #1e1e2e;
+    border-radius: 8px 8px 0 0;
+    padding: 10px 18px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .code-dots {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+  }
+
+  .cd { width: 11px; height: 11px; border-radius: 50%; }
+  .cd-r { background: #ff5f57; }
+  .cd-y { background: #febc2e; }
+  .cd-g { background: #28c840; }
+
+  .code-filename {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: rgba(255,255,255,0.65);
+    margin-left: 10px;
+  }
+
+  .code-lang-tag {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: rgba(255,255,255,0.3);
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+  }
+
+  .code-body {
+    background: var(--code-bg);
+    padding: 22px 20px;
+    border-radius: 0 0 8px 8px;
+    overflow-x: auto;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    line-height: 1.8;
+    color: var(--code-text);
+  }
+
+  .code-body pre { white-space: pre; }
+
+  /* syntax highlight shortcuts */
+  .ck  { color: var(--code-kw); }
+  .cs  { color: var(--code-str); }
+  .cn  { color: var(--code-num); }
+  .cK  { color: var(--code-key); }
+  .cV  { color: var(--code-val); }
+  .cc  { color: var(--code-comment); font-style: italic; }
+  .cop { color: var(--code-op); }
+
+  /* ── WORD EXPLAINER TABLE ─── */
+  .wtbl {
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--white);
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1.5px solid var(--border);
+    margin: 20px 0;
+    font-size: 13.5px;
+  }
+
+  .wtbl thead th {
+    background: var(--ink);
+    color: var(--white);
+    padding: 11px 18px;
+    text-align: left;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+
+  .wtbl tbody tr { border-bottom: 1px solid var(--border-soft); }
+  .wtbl tbody tr:last-child { border-bottom: none; }
+  .wtbl tbody tr:nth-child(even) { background: #fafaf9; }
+
+  .wtbl td {
+    padding: 12px 18px;
+    vertical-align: top;
+    line-height: 1.65;
+    color: var(--ink-2);
+  }
+
+  .ci {
+    font-family: 'JetBrains Mono', monospace;
+    background: #f3f0eb;
+    color: var(--rbac);
+    padding: 2px 7px;
+    border-radius: 3px;
+    font-size: 12px;
+    white-space: nowrap;
+  }
+
+  /* ── HANDS-ON ─────────────── */
+  .lab {
+    background: #f8fff8;
+    border: 1.5px solid #86efac;
+    border-radius: 10px;
+    padding: 26px 30px;
+    margin: 26px 0;
+  }
+
+  .lab-hd {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 18px;
+  }
+
+  .lab-badge {
+    background: #16a34a;
+    color: white;
+    border-radius: 50%;
+    width: 38px;
+    height: 38px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    flex-shrink: 0;
+  }
+
+  .lab-title { font-family:'Playfair Display',serif; font-size:18px; font-weight:700; color:#166534; }
+  .lab-sub   { font-size:12px; color:#15803d; font-weight:400; }
+
+  .cmd {
+    background: var(--code-bg);
+    border-radius: 6px;
+    padding: 14px 18px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12.5px;
+    color: var(--code-text);
+    margin: 10px 0;
+    overflow-x: auto;
+  }
+
+  .cmd .pr  { color: #a6e3a1; user-select:none; }
+  .cmd .cmt { color: var(--code-comment); font-style:italic; display:block; margin-bottom:3px; }
+  .cmd .out { color: #94e2d5; }
+
+  /* ── CALLOUT ──────────────── */
+  .callout {
+    display: flex;
+    gap: 14px;
+    padding: 16px 20px;
+    border-radius: 7px;
+    margin: 18px 0;
+    align-items: flex-start;
+    font-size: 14px;
+    line-height: 1.65;
+  }
+
+  .callout-info { background:#eff6ff; border-left:3px solid #3b82f6; }
+  .callout-warn { background:#fffbeb; border-left:3px solid #f59e0b; }
+  .callout-tip  { background:#f0fdf4; border-left:3px solid #22c55e; }
+  .callout-imp  { background:#fff1f2; border-left:3px solid #f43f5e; }
+
+  .callout-ico { font-size:20px; flex-shrink:0; margin-top:1px; }
+  .callout-body {}
+  .callout-body .ct { font-size:11px; font-weight:700; letter-spacing:1px; text-transform:uppercase; margin-bottom:5px; }
+  .callout-body p   { font-size:13.5px; color:var(--ink-2); }
+
+  /* ── CONCEPT GRID ─────────── */
+  .cgrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 16px;
+    margin: 20px 0;
+  }
+
+  .ccard {
+    background: var(--white);
+    border: 1.5px solid var(--border);
+    border-radius: 8px;
+    padding: 20px;
+    transition: box-shadow 0.15s, transform 0.15s;
+  }
+
+  .ccard:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0,0,0,0.06);
+  }
+
+  .ccard-icon { font-size: 24px; margin-bottom: 12px; }
+  .ccard-name { font-weight: 700; font-size: 14.5px; color:var(--ink); margin-bottom: 7px; }
+  .ccard-desc { font-size: 13px; color:var(--ink-3); line-height:1.6; font-weight:300; }
+
+  /* ── ARCH DIAGRAM ─────────── */
+  .arch {
+    background: var(--white);
+    border: 1.5px solid var(--border);
+    border-radius: 10px;
+    padding: 28px;
+    margin: 22px 0;
+    text-align: center;
+    font-size: 13px;
+  }
+
+  .arch-row { display:flex; justify-content:center; align-items:center; gap:10px; flex-wrap:wrap; margin:8px 0; }
+  .arch-box {
+    border-radius: 6px;
+    padding: 10px 16px;
+    font-size: 12px;
+    font-weight: 600;
+    min-width: 100px;
+    text-align: center;
+    border: 1.5px solid;
+    transition: transform 0.15s;
+    cursor: default;
+  }
+  .arch-box:hover { transform:scale(1.05); }
+  .ab-helm  { background:var(--helm-bg);  border-color:var(--helm);   color:var(--helm); }
+  .ab-k8s   { background:#ede9fe;         border-color:#8b5cf6;       color:#5b21b6; }
+  .ab-aws   { background:#fff7ed;         border-color:#f97316;       color:#9a3412; }
+  .ab-git   { background:#f1f5f9;         border-color:#64748b;       color:#1e293b; }
+  .ab-argo  { background:var(--argo-bg);  border-color:var(--argo);   color:var(--argo); }
+  .ab-prom  { background:var(--prom-bg);  border-color:var(--prom);   color:var(--prom); }
+  .ab-green { background:#f0fdf4;         border-color:#16a34a;       color:#14532d; }
+  .ab-blue  { background:#eff6ff;         border-color:#3b82f6;       color:#1e40af; }
+  .arch-arrow { font-size:18px; color:var(--ink-4); }
+  .arch-sep { width:100%; height:1px; background:var(--border); margin:10px 0; }
+  .arch-lbl { font-size:11px; font-weight:700; letter-spacing:1.5px; text-transform:uppercase; color:var(--ink-4); margin:6px 0; }
+
+  /* ── TABS ─────────────────── */
+  .tabs { margin: 22px 0; }
+  .tab-nav { display:flex; gap:0; border-bottom:1.5px solid var(--border); overflow-x:auto; }
+
+  .tab-btn {
+    padding:9px 18px; font-size:13px; font-weight:600; color:var(--ink-3);
+    cursor:pointer; border:none; background:none;
+    border-bottom:2px solid transparent; margin-bottom:-2px;
+    white-space:nowrap; transition:color 0.15s;
+  }
+
+  .tab-btn.active { color:var(--ink); border-bottom-color:var(--ink); }
+  .tab-pane { display:none; padding:20px 0; }
+  .tab-pane.active { display:block; }
+
+  /* ── CHECKLIST ────────────── */
+  .chk { list-style:none; margin:16px 0; }
+  .chk li { display:flex; align-items:flex-start; gap:12px; padding:9px 0; border-bottom:1px solid var(--border-soft); font-size:14px; color:var(--ink-2); }
+  .chk li:last-child { border-bottom:none; }
+  .chk-bx { width:20px; height:20px; border-radius:4px; display:flex; align-items:center; justify-content:center; flex-shrink:0; font-size:11px; font-weight:700; margin-top:2px; }
+  .done  { background:#dcfce7; color:#16a34a; border:1px solid #86efac; }
+  .todo  { background:#f3f4f6; color:#9ca3af; border:1px solid #e5e7eb; }
+  .now   { background:#fef9c3; color:#854d0e; border:1px solid #fde047; }
+
+  /* ── DIVIDER ──────────────── */
+  .divider { height:1px; background:var(--border); margin:56px 0; }
+
+  /* ── FOOTER ───────────────── */
+  .footer {
+    background: var(--ink);
+    color: rgba(255,255,255,0.5);
+    text-align:center;
+    padding:28px;
+    font-size:13px;
+  }
+  .footer strong { color:rgba(255,255,255,0.85); }
+
+  @media (max-width: 768px) {
+    .sidenav-wrap { flex-direction:column; padding:0 20px; }
+    .sidebar { width:100%; position:static; }
+    .hero-inner { padding:0 20px; }
+    .hero-stats { flex-wrap:wrap; }
+    .h-stat { min-width:50%; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ════ HERO ════ -->
+<header class="hero">
+  <div class="hero-inner">
+    <div class="module-tag">⚙️ AWS DevOps Series · Module 2 of 3</div>
+    <h1>Advanced EKS:<br><em>Helm · RBAC · GitOps</em><br>Monitoring & Storage</h1>
+    <p class="hero-sub">You can deploy to EKS. Now learn to operate it — package apps with Helm, lock down with RBAC, automate with ArgoCD, and observe everything with Prometheus + Grafana.</p>
+    <div class="hero-pills">
+      <span class="pill pill-helm">📦 Helm Charts</span>
+      <span class="pill pill-rbac">🔐 RBAC</span>
+      <span class="pill pill-net">🛡️ Network Policies</span>
+      <span class="pill pill-argo">♻️ ArgoCD GitOps</span>
+      <span class="pill pill-prom">📊 Prometheus + Grafana</span>
+      <span class="pill pill-irsa">🔑 IRSA</span>
+    </div>
+    <div class="hero-stats">
+      <div class="h-stat"><div class="h-stat-n">7</div><div class="h-stat-l">Deep Chapters</div></div>
+      <div class="h-stat"><div class="h-stat-n">20+</div><div class="h-stat-l">Hands-on Labs</div></div>
+      <div class="h-stat"><div class="h-stat-n">60+</div><div class="h-stat-l">YAML Lines Explained</div></div>
+      <div class="h-stat"><div class="h-stat-n">1</div><div class="h-stat-l">Real Project</div></div>
+    </div>
+  </div>
+</header>
+
+<!-- ════ LAYOUT ════ -->
+<div class="sidenav-wrap">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sidebar-title">Module 2 Contents</div>
+
+    <a class="nav-link active" href="#helm" data-ch="helm"><span class="nav-dot"></span>1. Helm Charts</a>
+    <a class="nav-link" href="#rbac" data-ch="rbac"><span class="nav-dot"></span>2. RBAC</a>
+    <a class="nav-link" href="#netpol" data-ch="net"><span class="nav-dot"></span>3. Network Policies</a>
+    <a class="nav-link" href="#argo" data-ch="argo"><span class="nav-dot"></span>4. ArgoCD GitOps</a>
+    <a class="nav-link" href="#prom" data-ch="prom"><span class="nav-dot"></span>5. Prometheus + Grafana</a>
+    <a class="nav-link" href="#state" data-ch="state"><span class="nav-dot"></span>6. StatefulSets + EBS</a>
+    <a class="nav-link" href="#irsa" data-ch="irsa"><span class="nav-dot"></span>7. IRSA</a>
+
+    <div class="sidebar-progress">
+      <div class="progress-label">Module Progress</div>
+      <div class="progress-bar-bg">
+        <div class="progress-bar-fill" id="progressFill"></div>
+      </div>
+      <div class="progress-pct" id="progressPct">0%</div>
+    </div>
+  </aside>
+
+  <!-- MAIN CONTENT -->
+  <main class="content">
+
+    <!-- ══════════════════════════ CHAPTER 1: HELM -->
+    <section class="chapter" id="helm">
+      <div class="ch-header">
+        <div class="ch-icon icon-helm">📦</div>
+        <div class="ch-meta">
+          <div class="ch-label lbl-helm">Chapter 1 · Package Manager</div>
+          <h2 class="ch-title">Helm — The apt-get of Kubernetes</h2>
+          <div class="ch-desc">Stop copy-pasting YAMLs. Package, version, and install apps in seconds.</div>
+        </div>
+      </div>
+
+      <div class="story">
+        <div class="story-hd">📖 The Problem Helm Solves</div>
+        <p>In Module 1, you wrote separate YAML files for your Deployment, Service, ConfigMap, Secret, HPA, and Ingress. That's <strong>6+ files per service</strong>. ShopEasy has 3 services → 18+ files. And when you need a dev, staging, and production environment with slightly different values (different image tags, replica counts, domain names) — you'd need <strong>54 files</strong>, mostly identical.</p>
+        <p><strong>Helm</strong> solves this with <em>templating + packaging</em>. You write one set of templates with variables (<span style="font-family:monospace; background:#f3f0eb; padding:1px 5px; font-size:13px;">{{ .Values.replicaCount }}</span>), and a <strong>values.yaml</strong> file per environment. One command installs or upgrades the entire app. Helm also tracks history so you can rollback a whole release, not just one deployment.</p>
+      </div>
+
+      <h3 class="sh"><span class="sh-num">1.1</span> Helm Core Concepts</h3>
+
+      <div class="cgrid">
+        <div class="ccard">
+          <div class="ccard-icon">📁</div>
+          <div class="ccard-name">Chart</div>
+          <div class="ccard-desc">A folder of K8s YAML templates. Like a Docker image for your entire app stack. Can be shared on Artifact Hub.</div>
+        </div>
+        <div class="ccard">
+          <div class="ccard-icon">⚙️</div>
+          <div class="ccard-name">Values</div>
+          <div class="ccard-desc">A <code style="font-family:monospace;font-size:12px;">values.yaml</code> file with default variable values. Override per environment without touching templates.</div>
+        </div>
+        <div class="ccard">
+          <div class="ccard-icon">🚀</div>
+          <div class="ccard-name">Release</div>
+          <div class="ccard-desc">A deployed instance of a Chart. Installing a chart creates a Release. You can have multiple releases of the same chart in different namespaces.</div>
+        </div>
+        <div class="ccard">
+          <div class="ccard-icon">🗂️</div>
+          <div class="ccard-name">Repository</div>
+          <div class="ccard-desc">A collection of Charts (like Docker Hub but for Helm). Use Artifact Hub, Bitnami, or your own ECR repo.</div>
+        </div>
+      </div>
+
+      <h3 class="sh"><span class="sh-num">1.2</span> Helm Chart Directory Structure</h3>
+
+      <div class="code-wrap">
+        <div class="code-top">
+          <div class="code-dots"><span class="cd cd-r"></span><span class="cd cd-y"></span><span class="cd cd-g"></span>
+            <span class="code-filename">shopeasy-backend/ (Helm Chart)</span>
+          </div>
+          <span class="code-lang-tag">File Tree</span>
+        </div>
+        <div class="code-body"><pre><span class="cK">shopeasy-backend/</span>               <span class="cc"># Root folder = the Chart name</span>
+├── <span class="cK">Chart.yaml</span>                  <span class="cc"># Chart metadata: name, version, description</span>
+├── <span class="cK">values.yaml</span>                 <span class="cc"># DEFAULT values (overridden per environment)</span>
+├── <span class="cK">values-staging.yaml</span>         <span class="cc"># Staging overrides</span>
+├── <span class="cK">values-production.yaml</span>       <span class="cc"># Production overrides</span>
+├── <span class="cK">templates/</span>                  <span class="cc"># All K8s YAML templates live here</span>
+│   ├── <span class="cK">deployment.yaml</span>         <span class="cc"># Deployment template (uses {{ .Values.xxx }})</span>
+│   ├── <span class="cK">service.yaml</span>             <span class="cc"># Service template</span>
+│   ├── <span class="cK">ingress.yaml</span>             <span class="cc"># Ingress template</span>
+│   ├── <span class="cK">hpa.yaml</span>                 <span class="cc"># HPA template</span>
+│   ├── <span class="cK">configmap.yaml</span>           <span class="cc"># ConfigMap template</span>
+│   └── <span class="cK">_helpers.tpl</span>             <span class="cc"># Reusable template snippets (like functions)</span>
+└── <span class="cK">.helmignore</span>                 <span class="cc"># Files to ignore when packaging (like .gitignore)</span></pre></div>
+      </div>
+
+      <h3 class="sh"><span class="sh-num">1.3</span> Chart.yaml — Word by Word</h3>
+
+      <div class="code-wrap">
+        <div class="code-top">
+          <div class="code-dots"><span class="cd cd-r"></span><span class="cd cd-y"></span><span class="cd cd-g"></span>
+            <span class="code-filename">Chart.yaml</span>
+          </div><span class="code-lang-tag">YAML</span>
+        </div>
+        <div class="code-body"><pre><span class="cK">apiVersion</span>: <span class="cs">v2</span>                      <span class="cc"># v2 = Helm 3 (v1 = Helm 2, now deprecated)</span>
+<span class="cK">name</span>: <span class="cs">shopeasy-backend</span>             <span class="cc"># Chart name (used in: helm install &lt;release&gt; &lt;chart&gt;)</span>
+<span class="cK">description</span>: <span class="cs">ShopEasy Backend API</span>  <span class="cc"># Human-readable description</span>
+<span class="cK">type</span>: <span class="cs">application</span>                   <span class="cc"># "application" = runnable. "library" = shared templates only</span>
+<span class="cK">version</span>: <span class="cs">0.1.0</span>                      <span class="cc"># CHART version (YOUR packaging version — not app version)</span>
+<span class="cK">appVersion</span>: <span class="cs">"2.4.1"</span>                <span class="cc"># The version of the APP inside (informational only)</span>
+<span class="cK">keywords</span>:                           <span class="cc"># Tags for Artifact Hub search</span>
+  - <span class="cs">nodejs</span>
+  - <span class="cs">api</span>
+  - <span class="cs">shopeasy</span>
+<span class="cK">maintainers</span>:
+  - <span class="cK">name</span>: <span class="cs">Your Name</span>
+    <span class="cK">email</span>: <span class="cs">you@company.com</span></pre></div>
+      </div>
+
+      <h3 class="sh"><span class="sh-num">1.4</span> values.yaml — The Power of Templating</h3>
+
+      <div class="code-wrap">
+        <div class="code-top">
+          <div class="code-dots"><span class="cd cd-r"></span><span class="cd cd-y"></span><span class="cd cd-g"></span>
+            <span class="code-filename">values.yaml (defaults)</span>
+          </div><span class="code-lang-tag">YAML</span>
+        </div>
+        <div class="code-body"><pre><span class="cc"># ── These are DEFAULT values. Override in values-production.yaml ──</span>
+
+<span class="cK">replicaCount</span>: <span class="cn">2</span>                   <span class="cc"># Default: 2 pods. Production overrides to 5.</span>
+
+<span class="cK">image</span>:
+  <span class="cK">repository</span>: <span class="cs">123456.dkr.ecr.ap-south-1.amazonaws.com/shopeasy-backend</span>
+  <span class="cK">tag</span>: <span class="cs">"latest"</span>                   <span class="cc"># CI/CD will override: --set image.tag=$GIT_SHA</span>
+  <span class="cK">pullPolicy</span>: <span class="cs">IfNotPresent</span>        <span class="cc"># Don't re-pull if image exists locally</span>
+
+<span class="cK">service</span>:
+  <span class="cK">type</span>: <span class="cs">ClusterIP</span>
+  <span class="cK">port</span>: <span class="cn">80</span>
+  <span class="cK">targetPort</span>: <span class="cn">3000</span>
+
+<span class="cK">ingress</span>:
+  <span class="cK">enabled</span>: <span class="ck">true</span>                   <span class="cc"># true in prod, false in dev (use port-forward)</span>
+  <span class="cK">host</span>: <span class="cs">api.shopeasy.com</span>
+  <span class="cK">tls</span>: <span class="ck">true</span>
+  <span class="cK">certificateArn</span>: <span class="cs">arn:aws:acm:ap-south-1:123:certificate/xxx</span>
+
+<span class="cK">resources</span>:
+  <span class="cK">requests</span>:
+    <span class="cK">memory</span>: <span class="cs">"128Mi"</span>
+    <span class="cK">cpu</span>: <span class="cs">"250m"</span>
+  <span class="cK">limits</span>:
+    <span class="cK">memory</span>: <span class="cs">"512Mi"</span>
+    <span class="cK">cpu</span>: <span class="cs">"1000m"</span>
+
+<span class="cK">autoscaling</span>:
+  <span class="cK">enabled</span>: <span class="ck">false</span>                  <span class="cc"># Disable HPA in dev. Enable in production.</span>
+  <span class="cK">minReplicas</span>: <span class="cn">2</span>
+  <span class="cK">maxReplicas</span>: <span class="cn">20</span>
+  <span class="cK">targetCPUUtilizationPercentage</span>: <span class="cn">70</span>
+
+<span class="cK">config</span>:
+  <span class="cK">NODE_ENV</span>: <span class="cs">production</span>
+  <span class="cK">DB_HOST</span>: <span class="cs">postgres-service</span>
+  <span class="cK">LOG_LEVEL</span>: <span class="cs">info</span>
+
+<span class="cK">livenessProbe</span>:
+  <span class="cK">path</span>: <span class="cs">/health</span>
+  <span class="cK">initialDelaySeconds</span>: <span class="cn">30</span>
+
+<span class="cK">readinessProbe</span>:
+  <span class="cK">path</span>: <span class="cs">/ready</span>
+  <span class="cK">initialDelaySeconds</span>: <span class="cn">5</span></pre></div>
+      </div>
+
+      <h3 class="sh"><span class="sh-num">1.5</span> Deployment Template — Helm Templating Syntax</h3>
+
+      <div class="code-wrap">
+        <div class="code-top">
+          <div class="code-dots"><span class="cd cd-r"></span><span class="cd cd-y"></span><span class="cd cd-g"></span>
+            <span class="code-filename">templates/deployment.yaml</span>
+          </div><span class="code-lang-tag">YAML · Helm Template</span>
+        </div>
+        <div class="code-body"><pre><span class="cK">apiVersion</span>: apps/v1
+<span class="cK">kind</span>: Deployment
+<span class="cK">metadata</span>:
+  <span class="cK">name</span>: <span class="cop">{{ include "shopeasy-backend.fullname" . }}</span>
+  <span class="cc">  # "include" calls a named template from _helpers.tpl</span>
+  <span class="cc">  # "." passes the current context (chart + values) into it</span>
+  <span class="cK">labels</span>:
+    <span class="cop">{{- include "shopeasy-backend.labels" . | nindent 4 }}</span>
+    <span class="cc">    # "nindent 4" = add a newline then indent 4 spaces (YAML formatting)</span>
+    <span class="cc">    # The dash "-" in {{- trims whitespace BEFORE the tag</span>
+<span class="cK">spec</span>:
+  <span class="cop">{{- if not .Values.autoscaling.enabled }}</span>
+  <span class="cc">  # if autoscaling is OFF, hardcode replicas (otherwise HPA controls it)</span>
+  <span class="cK">replicas</span>: <span class="cop">{{ .Values.replicaCount }}</span>
+  <span class="cop">{{- end }}</span>
+  <span class="cK">selector</span>:
+    <span class="cK">matchLabels</span>:
+      <span class="cop">{{- include "shopeasy-backend.selectorLabels" . | nindent 6 }}</span>
+  <span class="cK">template</span>:
+    <span class="cK">metadata</span>:
+      <span class="cK">labels</span>:
+        <span class="cop">{{- include "shopeasy-backend.selectorLabels" . | nindent 8 }}</span>
+      <span class="cK">annotations</span>:
+        <span class="cK">checksum/config</span>: <span class="cop">{{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}</span>
+        <span class="cc">        # CLEVER TRICK: When ConfigMap changes, annotation changes → pods restart automatically</span>
+    <span class="cK">spec</span>:
+      <span class="cK">containers</span>:
+      - <span class="cK">name</span>: <span class="cop">{{ .Chart.Name }}</span>
+        <span class="cK">image</span>: <span class="cs">"</span><span class="cop">{{ .Values.image.repository }}:{{ .Values.image.tag }}</span><span class="cs">"</span>
+        <span class="cc">        # Combines repo + tag: 123456.dkr.ecr.../backend:abc1234</span>
+        <span class="cK">imagePullPolicy</span>: <span class="cop">{{ .Values.image.pullPolicy }}</span>
+        <span class="cK">ports</span>:
+        - <span class="cK">containerPort</span>: <span class="cop">{{ .Values.service.targetPort }}</span>
+        <span class="cK">envFrom</span>:
+        - <span class="cK">configMapRef</span>:
+            <span class="cK">name</span>: <span class="cop">{{ include "shopeasy-backend.fullname" . }}-config</span>
+        <span class="cK">resources</span>:
+          <span class="cop">{{- toYaml .Values.resources | nindent 10 }}</span>
+          <span class="cc">          # "toYaml" converts the Go struct to YAML string. "nindent 10" = 10 spaces indent</span>
+        <span class="cK">livenessProbe</span>:
+          <span class="cK">httpGet</span>:
+            <span class="cK">path</span>: <span class="cop">{{ .Values.livenessProbe.path }}</span>
+            <span class="cK">port</span>: <span class="cop">{{ .Values.service.targetPort }}</span>
+          <span class="cK">initialDelaySeconds</span>: <span class="cop">{{ .Values.livenessProbe.initialDelaySeconds }}</span></pre></div>
+      </div>
+
+      <table class="wtbl">
+        <thead><tr><th>Helm Syntax</th><th>Meaning</th><th>Example Output</th></tr></thead>
+        <tbody>
+          <tr><td><span class="ci">{{ .Values.x }}</span></td><td>Read a value from values.yaml</td><td><span class="ci">{{ .Values.replicaCount }}</span> → <code>2</code></td></tr>
+          <tr><td><span class="ci">{{ .Chart.Name }}</span></td><td>The chart name from Chart.yaml</td><td><code>shopeasy-backend</code></td></tr>
+          <tr><td><span class="ci">{{ .Release.Name }}</span></td><td>The release name given at install time</td><td><code>shopeasy-prod</code></td></tr>
+          <tr><td><span class="ci">{{ .Release.Namespace }}</span></td><td>The K8s namespace being deployed into</td><td><code>production</code></td></tr>
+          <tr><td><span class="ci">{{- if .Values.x }}</span></td><td>Conditional block. Only renders if x is truthy</td><td>Renders HPA only if autoscaling.enabled = true</td></tr>
+          <tr><td><span class="ci">{{ toYaml .Values.x | nindent N }}</span></td><td>Convert a map/list to YAML and indent N spaces</td><td>Renders resource requests/limits block</td></tr>
+          <tr><td><span class="ci">{{ include "tpl-name" . }}</span></td><td>Call a named template from _helpers.tpl</td><td>Reusable label blocks</td></tr>
+          <tr><td><span class="ci">{{- trimmed }}</span></td><td>The <code>-</code> trims whitespace/newlines BEFORE the tag</td><td>Avoids blank lines in rendered YAML</td></tr>
+        </tbody>
+      </table>
+
+      <div class="lab">
+        <div class="lab-hd">
+          <div class="lab-badge">🪄</div>
+          <div><div class="lab-title">Lab 1 — Create, Install & Upgrade a Helm Chart</div>
+          <div class="lab-sub">Essential Helm commands you'll use every single day</div></div>
+        </div>
+        <div class="cmd">
+          <span class="cmt"># Install Helm</span>
+          <span class="pr">$ </span>curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash<br>
+          <span class="pr">$ </span>helm version
+        </div>
+        <div class="cmd">
+          <span class="cmt"># Scaffold a new chart (creates the directory structure for you)</span>
+          <span class="pr">$ </span>helm create shopeasy-backend<br><br>
+          <span class="cmt"># Dry-run: see what K8s YAML Helm will generate WITHOUT deploying</span>
+          <span class="pr">$ </span>helm template shopeasy-backend ./shopeasy-backend -f values-production.yaml<br><br>
+          <span class="cmt"># Install chart into production namespace</span>
+          <span class="pr">$ </span>helm install shopeasy-prod ./shopeasy-backend \<br>
+          &nbsp;&nbsp;--namespace production \<br>
+          &nbsp;&nbsp;--create-namespace \<br>
+          &nbsp;&nbsp;-f ./shopeasy-backend/values-production.yaml \<br>
+          &nbsp;&nbsp;--set image.tag=abc1234<br><br>
+          <span class="out"># NAME: shopeasy-prod</span><br>
+          <span class="out"># NAMESPACE: production</span><br>
+          <span class="out"># STATUS: deployed</span>
+        </div>
+        <div class="cmd">
+          <span class="cmt"># Upgrade (new image, config change, anything)</span>
+          <span class="pr">$ </span>helm upgrade shopeasy-prod ./shopeasy-backend \<br>
+          &nbsp;&nbsp;--namespace production \<br>
+          &nbsp;&nbsp;--set image.tag=def5678<br><br>
+          <span class="cmt"># List all installed releases</span>
+          <span class="pr">$ </span>helm list -n production<br><br>
+          <span class="cmt"># View release history</span>
+          <span class="pr">$ </span>helm history shopeasy-prod -n production<br><br>
+          <span class="cmt"># ROLLBACK to revision 2 (entire app stack!)</span>
+          <span class="pr">$ </span>helm rollback shopeasy-prod 2 -n production<br><br>
+          <span class="cmt"># Install a public chart (Nginx Ingress from Artifact Hub)</span>
+          <span class="pr">$ </span>helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx<br>
+          <span class="pr">$ </span>helm install nginx-ingress ingress-nginx/ingress-nginx -n ingress-nginx --create-namespace
+        </div>
+      </div>
+
+    </section>
+
+    <div class="divider"></div>
+
+    <!-- ══════════════════════════ CHAPTER 2: RBAC -->
+    <section class="chapter" id="rbac">
+      <div class="ch-header">
+        <div class="ch-icon icon-rbac">🔐</div>
+        <div class="ch-meta">
+          <div class="ch-label lbl-rbac">Chapter 2 · Security</div>
+          <h2 class="ch-title">RBAC — Who Can Do What in Your Cluster</h2>
+          <div class="ch-desc">Lock down your EKS cluster so only the right people and services have the right permissions.</div>
+        </div>
+      </div>
+
+      <div class="story">
+        <div class="story-hd">📖 The RBAC Story</div>
+        <p>ShopEasy now has 5 developers, 2 DevOps engineers, and an on-call ops team. By default in K8s, anyone with access to the cluster has <strong>full admin powers</strong> — they can delete namespaces, read secrets, exec into any pod. That's a disaster waiting to happen.</p>
+        <p><strong>RBAC (Role-Based Access Control)</strong> solves this with a simple principle: <em>give people only the permissions they absolutely need</em>. A developer should be able to view logs and port-forward but NOT delete secrets. A CI/CD system should only be able to update images in its own namespace, nothing else.</p>
+      </div>
+
+      <h3 class="sh"><span class="sh-num">2.1</span> RBAC — 4 Core Objects</h3>
+
+      <div class="cgrid">
+        <div class="ccard">
+          <div class="ccard-icon">📋</div>
+          <div class="ccard-name">Role</div>
+          <div class="ccard-desc">A list of permissions within <strong>ONE namespace</strong>. E.g. "can get/list pods in the production namespace". Like a job description.</div>
+        </div>
+        <div class="ccard">
+          <div class="ccard-icon">🌐</div>
+          <div class="ccard-name">ClusterRole</div>
+          <div class="ccard-desc">Same as Role but <strong>cluster-wide</strong> (all namespaces). Use for cluster-level resources like nodes, PersistentVolumes.</div>
+        </div>
+        <div class="ccard">
+          <div class="ccard-icon">🔗</div>
+          <div class="ccard-name">RoleBinding</div>
+          <div class="ccard-desc">Attaches a Role to a User or ServiceAccount in ONE namespace. "Give Alice the developer role in production."</div>
+        </div>
+        <div class="ccard">
+          <div class="ccard-icon">🌍</div>
+          <div class="ccard-name">ClusterRoleBinding</div>
+          <div class="ccard-desc">Attaches a ClusterRole to a User/ServiceAccount across ALL namespaces. Reserved for cluster-admins.</div>
+        </div>
+      </div>
+
+      <h3 class="sh"><span class="sh-num">2.2</span> Real Scenario — Developer Role</h3>
+
+      <div class="code-wrap">
+        <div class="code-top">
+          <div class="code-dots"><span class="cd cd-r"></span><span class="cd cd-y"></span><span class="cd cd-g"></span>
+            <span class="code-filename">rbac-developer.yaml</span>
+          </div><span class="code-lang-tag">YAML · Role + RoleBinding</span>
+        </div>
+        <div class="code-body"><pre><span class="cc"># ─────────────────────────────────────────────────────────────</span>
+<span class="cc"># PART 1: Define WHAT a developer is allowed to do</span>
+<span class="cc"># ─────────────────────────────────────────────────────────────</span>
+<span class="cK">apiVersion</span>: rbac.authorization.k8s.io/v1
+<span class="cK">kind</span>: <span class="cs">Role</span>                           <span class="cc"># Scoped to ONE namespace (production)</span>
+<span class="cK">metadata</span>:
+  <span class="cK">name</span>: <span class="cs">developer-role</span>
+  <span class="cK">namespace</span>: <span class="cs">production</span>
+<span class="cK">rules</span>:                               <span class="cc"># List of permissions (allow-list, no deny)</span>
+
+<span class="cc">  # Permission set 1: Read pods and their logs</span>
+- <span class="cK">apiGroups</span>: [<span class="cs">""</span>]                   <span class="cc"># "" = core API group (pods, services, configmaps)</span>
+  <span class="cK">resources</span>: [<span class="cs">"pods"</span>, <span class="cs">"pods/log"</span>]  <span class="cc"># WHAT resources</span>
+  <span class="cK">verbs</span>: [<span class="cs">"get"</span>, <span class="cs">"list"</span>, <span class="cs">"watch"</span>]  <span class="cc"># WHAT actions: get=single, list=all, watch=stream</span>
+
+<span class="cc">  # Permission set 2: Port-forward to pods (for local debugging)</span>
+- <span class="cK">apiGroups</span>: [<span class="cs">""</span>]
+  <span class="cK">resources</span>: [<span class="cs">"pods/portforward"</span>]
+  <span class="cK">verbs</span>: [<span class="cs">"create"</span>]                 <span class="cc"># Port-forward = creating a tunnel (needs create)</span>
+
+<span class="cc">  # Permission set 3: Read deployments and services (NOT modify)</span>
+- <span class="cK">apiGroups</span>: [<span class="cs">"apps"</span>]              <span class="cc"># "apps" group = Deployments, StatefulSets, DaemonSets</span>
+  <span class="cK">resources</span>: [<span class="cs">"deployments"</span>]
+  <span class="cK">verbs</span>: [<span class="cs">"get"</span>, <span class="cs">"list"</span>]          <span class="cc"># Can VIEW but NOT update/delete/create</span>
+
+<span class="cc">  # ❌ Developers CANNOT: delete pods, read secrets, exec into pods</span>
+<span class="cc">  # (anything not listed here is implicitly DENIED)</span>
+
+---
+<span class="cc"># ─────────────────────────────────────────────────────────────</span>
+<span class="cc"># PART 2: GIVE the role to a specific person (Alice)</span>
+<span class="cc"># ─────────────────────────────────────────────────────────────</span>
+<span class="cK">apiVersion</span>: rbac.authorization.k8s.io/v1
+<span class="cK">kind</span>: <span class="cs">RoleBinding</span>                   <span class="cc"># Bind role to a subject in this namespace</span>
+<span class="cK">metadata</span>:
+  <span class="cK">name</span>: <span class="cs">alice-developer-binding</span>
+  <span class="cK">namespace</span>: <span class="cs">production</span>
+<span class="cK">subjects</span>:                           <span class="cc"># WHO gets the role (can be multiple)</span>
+- <span class="cK">kind</span>: <span class="cs">User</span>                       <span class="cc"># User = AWS IAM user (mapped via aws-auth ConfigMap)</span>
+  <span class="cK">name</span>: <span class="cs">alice@shopeasy.com</span>         <span class="cc"># Must match the IAM username EXACTLY</span>
+  <span class="cK">apiGroup</span>: <span class="cs">rbac.authorization.k8s.io</span>
+<span class="cK">roleRef</span>:                            <span class="cc"># WHICH role to bind</span>
+  <span class="cK">kind</span>: <span class="cs">Role</span>
+  <span class="cK">name</span>: <span class="cs">developer-role</span>             <span class="cc"># Must match the Role name above</span>
+  <span class="cK">apiGroup</span>: <span class="cs">rbac.authorization.k8s.io</span></pre></div>
+      </div>
+
+      <h3 class="sh"><span class="sh-num">2.3</span> ServiceAccount — Identity for Your Pods</h3>
+
+      <p class="body">Every Pod needs an identity too — for when it calls the K8s API (like an HPA, operator, or ArgoCD agent would). That identity is a <strong>ServiceAccount</strong>. By default, pods use the <code class="ci">default</code> ServiceAccount which has no permissions. Always create dedicated ServiceAccounts for apps.</p>
+
+      <div class="code-wrap">
+        <div class="code-top">
+          <div class="code-dots"><span class="cd cd-r"></span><span class="cd cd-y"></span><span class="cd cd-g"></span>
+            <span class="code-filename">ci-serviceaccount.yaml</span>
+          </div><span class="code-lang-tag">YAML · ServiceAccount</span>
+        </div>
+        <div class="code-body"><pre><span class="cc"># ServiceAccount: Identity for our CI/CD pipeline</span>
+<span class="cK">apiVersion</span>: v1
+<span class="cK">kind</span>: <span class="cs">ServiceAccount</span>
+<span class="cK">metadata</span>:
+  <span class="cK">name</span>: <span class="cs">cicd-deployer</span>              <span class="cc"># Name pods/processes will use</span>
+  <span class="cK">namespace</span>: <span class="cs">production</span>
+
+---
+<span class="cc"># Give the CI/CD deployer permission to update deployments only</span>
+<span class="cK">apiVersion</span>: rbac.authorization.k8s.io/v1
+<span class="cK">kind</span>: <span class="cs">Role</span>
+<span class="cK">metadata</span>:
+  <span class="cK">name</span>: <span class="cs">deployment-updater</span>
+  <span class="cK">namespace</span>: <span class="cs">production</span>
+<span class="cK">rules</span>:
+- <span class="cK">apiGroups</span>: [<span class="cs">"apps"</span>]
+  <span class="cK">resources</span>: [<span class="cs">"deployments"</span>]
+  <span class="cK">verbs</span>: [<span class="cs">"get"</span>, <span class="cs">"list"</span>, <span class="cs">"patch"</span>, <span class="cs">"update"</span>]
+  <span class="cc">  # patch = change specific fields (image tag). update = replace entire spec.</span>
+
+---
+<span class="cK">apiVersion</span>: rbac.authorization.k8s.io/v1
+<span class="cK">kind</span>: <span class="cs">RoleBinding</span>
+<span class="cK">metadata</span>:
+  <span class="cK">name</span>: <span class="cs">cicd-binding</span>
+  <span class="cK">namespace</span>: <span class="cs">production</span>
+<span class="cK">subjects</span>:
+- <span class="cK">kind</span>: <span class="cs">ServiceAccount</span>             <span class="cc"># Kind = ServiceAccount (not User)</span>
+  <span class="cK">name</span>: <span class="cs">cicd-deployer</span>             <span class="cc"># The SA we created above</span>
+  <span class="cK">namespace</span>: <span class="cs">production</span>
+<span class="cK">roleRef</span>:
+  <span class="cK">kind</span>: <span class="cs">Role</span>
+  <span class="cK">name</span>: <span class="cs">deployment-updater</span>
+  <span class="cK">apiGroup</span>: <span class="cs">rbac.authorization.k8s.io</span></pre></div>
+      </div>
+
+      <div class="lab">
+        <div class="lab-hd">
+          <div class="lab-badge">🔐</div>
+          <div><div class="lab-title">Lab 2 — RBAC Commands + AWS IAM Mapping</div>
+          <div class="lab-sub">Add AWS users to EKS and test permissions</div></div>
+        </div>
+        <div class="cmd">
+          <span class="cmt"># Apply RBAC rules</span>
+          <span class="pr">$ </span>kubectl apply -f rbac-developer.yaml<br><br>
+          <span class="cmt"># Test: can alice list pods? (YES, per our role)</span>
+          <span class="pr">$ </span>kubectl auth can-i list pods --namespace production --as alice@shopeasy.com<br>
+          <span class="out"># yes</span><br><br>
+          <span class="cmt"># Test: can alice delete secrets? (NO, not in role)</span>
+          <span class="pr">$ </span>kubectl auth can-i delete secrets --namespace production --as alice@shopeasy.com<br>
+          <span class="out"># no</span>
+        </div>
+        <div class="cmd">
+          <span class="cmt"># Add AWS IAM user to EKS (edit aws-auth ConfigMap)</span>
+          <span class="pr">$ </span>eksctl create iamidentitymapping \<br>
+          &nbsp;&nbsp;--cluster shopeasy-cluster \<br>
+          &nbsp;&nbsp;--region ap-south-1 \<br>
+          &nbsp;&nbsp;--arn arn:aws:iam::123456789:user/alice \<br>
+          &nbsp;&nbsp;--username alice@shopeasy.com \<br>
+          &nbsp;&nbsp;--group system:masters   <span class="cmt"># or a custom group</span>
+        </div>
+      </div>
+
+    </section>
+
+    <div class="divider"></div>
+
+    <!-- ══════════════════════════ CHAPTER 3: NETWORK POLICIES -->
+    <section class="chapter" id="netpol">
+      <div class="ch-header">
+        <div class="ch-icon icon-net">🛡️</div>
+        <div class="ch-meta">
+          <div class="ch-label lbl-net">Chapter 3 · Network Security</div>
+          <h2 class="ch-title">Network Policies — Firewalls Between Pods</h2>
+          <div class="ch-desc">By default ALL pods can talk to ALL pods. Lock it down.</div>
+        </div>
+      </div>
+
+      <div class="story">
+        <div class="story-hd">📖 Why This Matters</div>
+        <p>In your EKS cluster, the frontend, backend, and database pods can freely talk to each other — even if they're in different namespaces. If an attacker compromises your frontend pod, they can directly hit your PostgreSQL database.</p>
+        <p><strong>Network Policies</strong> are like firewall rules at the pod level. You declare: "Only the backend pod can talk to PostgreSQL on port 5432. Everyone else is blocked." This is called <strong>Zero Trust Networking</strong> and is mandatory for any production cluster.</p>
+      </div>
+
+      <div class="code-wrap">
+        <div class="code-top">
+          <div class="code-dots"><span class="cd cd-r"></span><span class="cd cd-y"></span><span class="cd cd-g"></span>
+            <span class="code-filename">netpol-database.yaml</span>
+          </div><span class="code-lang-tag">YAML · NetworkPolicy</span>
+        </div>
+        <div class="code-body"><pre><span class="cK">apiVersion</span>: networking.k8s.io/v1
+<span class="cK">kind</span>: <span class="cs">NetworkPolicy</span>
+<span class="cK">metadata</span>:
+  <span class="cK">name</span>: <span class="cs">postgres-network-policy</span>
+  <span class="cK">namespace</span>: <span class="cs">production</span>
+
+<span class="cK">spec</span>:
+  <span class="cK">podSelector</span>:                      <span class="cc"># WHICH pods does this policy apply to?</span>
+    <span class="cK">matchLabels</span>:
+      <span class="cK">app</span>: <span class="cs">postgres</span>               <span class="cc"># This policy protects pods with label app=postgres</span>
+
+  <span class="cK">policyTypes</span>:
+  - <span class="cs">Ingress</span>                        <span class="cc"># Control INCOMING traffic to postgres pods</span>
+  - <span class="cs">Egress</span>                         <span class="cc"># Control OUTGOING traffic from postgres pods</span>
+
+  <span class="cK">ingress</span>:                          <span class="cc"># WHO is allowed IN to postgres?</span>
+  - <span class="cK">from</span>:
+    - <span class="cK">podSelector</span>:
+        <span class="cK">matchLabels</span>:
+          <span class="cK">app</span>: <span class="cs">backend</span>           <span class="cc"># ONLY pods with app=backend can connect</span>
+                                    <span class="cc"># Frontend pods: BLOCKED. Other namespaces: BLOCKED.</span>
+    <span class="cK">ports</span>:
+    - <span class="cK">protocol</span>: <span class="cs">TCP</span>
+      <span class="cK">port</span>: <span class="cn">5432</span>                  <span class="cc"># Only on PostgreSQL port (not 80, not 443)</span>
+
+  <span class="cK">egress</span>:                           <span class="cc"># WHERE can postgres send traffic OUT?</span>
+  - <span class="cK">ports</span>:                         <span class="cc"># Allow DNS resolution (CoreDNS on port 53)</span>
+    - <span class="cK">protocol</span>: <span class="cs">UDP</span>
+      <span class="cK">port</span>: <span class="cn">53</span>                    <span class="cc"># Without this, DNS breaks and pod can't resolve names</span>
+
+---
+<span class="cc"># Default deny-all: Block ALL traffic in production namespace</span>
+<span class="cc"># Apply FIRST, then whitelist what's needed</span>
+<span class="cK">apiVersion</span>: networking.k8s.io/v1
+<span class="cK">kind</span>: <span class="cs">NetworkPolicy</span>
+<span class="cK">metadata</span>:
+  <span class="cK">name</span>: <span class="cs">default-deny-all</span>
+  <span class="cK">namespace</span>: <span class="cs">production</span>
+<span class="cK">spec</span>:
+  <span class="cK">podSelector</span>: {}                   <span class="cc"># {} = applies to ALL pods in namespace</span>
+  <span class="cK">policyTypes</span>:
+  - <span class="cs">Ingress</span>
+  - <span class="cs">Egress</span>
+  <span class="cc">  # No "ingress" or "egress" rules = deny everything by default</span></pre></div>
+      </div>
+
+      <div class="callout callout-warn">
+        <span class="callout-ico">⚠️</span>
+        <div class="callout-body">
+          <div class="ct">Requires CNI Support</div>
+          <p>Network Policies only work if your CNI plugin supports them. EKS uses <strong>AWS VPC CNI</strong> which does NOT enforce NetworkPolicies by default. You need to install <strong>Calico</strong> or enable the <strong>Network Policy controller addon</strong>: <code class="ci">eksctl create addon --name vpc-cni --cluster shopeasy-cluster --configuration-values '{"enableNetworkPolicy":"true"}'</code></p>
+        </div>
+      </div>
+
+    </section>
+
+    <div class="divider"></div>
+
+    <!-- ══════════════════════════ CHAPTER 4: ARGOCD -->
+    <section class="chapter" id="argo">
+      <div class="ch-header">
+        <div class="ch-icon icon-argo">♻️</div>
+        <div class="ch-meta">
+          <div class="ch-label lbl-argo">Chapter 4 · GitOps</div>
+          <h2 class="ch-title">ArgoCD — Your Cluster Continuously Mirrors Git</h2>
+          <div class="ch-desc">The most powerful deployment pattern: Git is the single source of truth. ArgoCD makes it real.</div>
+        </div>
+      </div>
+
+      <div class="story">
+        <div class="story-hd">📖 The GitOps Revolution</div>
+        <p>In Module 1, CI/CD ran <code class="ci">kubectl apply</code> from GitHub Actions. That works — but it's <em>push-based</em>. The pipeline pushes changes to the cluster. Problems: if someone manually changes something in the cluster (drift), you won't know. If the pipeline breaks, nothing deploys.</p>
+        <p><strong>GitOps flips this.</strong> ArgoCD runs <strong>inside</strong> your cluster and continuously <em>watches your Git repo</em>. When it detects that the cluster state differs from Git, it <em>pulls</em> the changes and syncs. Git becomes the single source of truth. Manual changes to the cluster are detected and overwritten. Every change is traceable, reviewable, and reversible via Git.</p>
+      </div>
+
+      <h3 class="sh"><span class="sh-num">4.1</span> GitOps Architecture</h3>
+
+      <div class="arch">
+        <div class="arch-lbl">Developer Workflow</div>
+        <div class="arch-row">
+          <div class="arch-box ab-git">👨‍💻 Developer<br><small>Push YAML to Git</small></div>
+          <span class="arch-arrow">→</span>
+          <div class="arch-box ab-git">📁 GitHub Repo<br><small>manifests/ folder</small></div>
+          <span class="arch-arrow">→</span>
+          <div class="arch-box ab-git">🔀 Pull Request<br><small>Review + Merge</small></div>
+        </div>
+        <div class="arch-row"><span class="arch-arrow">↓ merge to main</span></div>
+        <div class="arch-row">
+          <div class="arch-box ab-argo">👁️ ArgoCD<br><small>Detects change in Git</small></div>
+          <span class="arch-arrow">→</span>
+          <div class="arch-box ab-argo">🔄 Sync<br><small>Applies to cluster</small></div>
+          <span class="arch-arrow">→</span>
+          <div class="arch-box ab-green">✅ EKS Cluster<br><small>Matches Git exactly</small></div>
+        </div>
+        <div class="arch-sep"></div>
+        <div class="arch-lbl">Drift Detection</div>
+        <div class="arch-row">
+          <div class="arch-box ab-blue">😈 Manual kubectl apply<br><small>(someone edits directly)</small></div>
+          <span class="arch-arrow">→</span>
+          <div class="arch-box ab-argo">🚨 ArgoCD detects drift</div>
+          <span class="arch-arrow">→</span>
+          <div class="arch-box ab-green">🔧 Auto-reverts to Git state</div>
+        </div>
+      </div>
+
+      <h3 class="sh"><span class="sh-num">4.2</span> Install ArgoCD on EKS</h3>
+
+      <div class="lab">
+        <div class="lab-hd">
+          <div class="lab-badge">🚀</div>
+          <div><div class="lab-title">Lab 3 — Install ArgoCD + Expose the UI</div>
+          <div class="lab-sub">ArgoCD installs inside K8s itself — pure containers</div></div>
+        </div>
+        <div class="cmd">
+          <span class="cmt"># Create namespace for ArgoCD</span>
+          <span class="pr">$ </span>kubectl create namespace argocd<br><br>
+          <span class="cmt"># Install ArgoCD (official manifest — installs ~6 ArgoCD services)</span>
+          <span class="pr">$ </span>kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml<br><br>
+          <span class="cmt"># Watch ArgoCD pods start up</span>
+          <span class="pr">$ </span>kubectl get pods -n argocd -w<br>
+          <span class="out"># argocd-server-xxx                   1/1   Running   ✅</span><br>
+          <span class="out"># argocd-repo-server-xxx              1/1   Running   ✅</span><br>
+          <span class="out"># argocd-application-controller-xxx   1/1   Running   ✅</span>
+        </div>
+        <div class="cmd">
+          <span class="cmt"># Get the initial admin password (auto-generated)</span>
+          <span class="pr">$ </span>kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d<br><br>
+          <span class="cmt"># Access ArgoCD UI via port-forward (localhost:8080)</span>
+          <span class="pr">$ </span>kubectl port-forward svc/argocd-server -n argocd 8080:443<br>
+          <span class="cmt"># Open: https://localhost:8080  Username: admin  Password: (from above)</span>
+        </div>
+        <div class="cmd">
+          <span class="cmt"># Or expose via LoadBalancer (gives public URL)</span>
+          <span class="pr">$ </span>kubectl patch svc argocd-server -n argocd -p '{"spec": {"type": "LoadBalancer"}}'<br>
+          <span class="pr">$ </span>kubectl get svc argocd-server -n argocd<br>
+          <span class="out"># EXTERNAL-IP: abc123.ap-south-1.elb.amazonaws.com  ← your ArgoCD URL</span>
+        </div>
+      </div>
+
+      <h3 class="sh"><span class="sh-num">4.3</span> ArgoCD Application — Connect Git to EKS</h3>
+
+      <div class="code-wrap">
+        <div class="code-top">
+          <div class="code-dots"><span class="cd cd-r"></span><span class="cd cd-y"></span><span class="cd cd-g"></span>
+            <span class="code-filename">argocd-app-shopeasy.yaml</span>
+          </div><span class="code-lang-tag">YAML · ArgoCD Application</span>
+        </div>
+        <div class="code-body"><pre><span class="cK">apiVersion</span>: argoproj.io/v1alpha1
+<span class="cK">kind</span>: <span class="cs">Application</span>                   <span class="cc"># ArgoCD custom resource — an "Application" to manage</span>
+<span class="cK">metadata</span>:
+  <span class="cK">name</span>: <span class="cs">shopeasy-backend</span>
+  <span class="cK">namespace</span>: <span class="cs">argocd</span>               <span class="cc"># All ArgoCD resources live in argocd namespace</span>
+<span class="cK">spec</span>:
+  <span class="cK">project</span>: <span class="cs">default</span>               <span class="cc"># ArgoCD project (for grouping and RBAC)</span>
+
+  <span class="cK">source</span>:                          <span class="cc"># WHERE to get the desired state from</span>
+    <span class="cK">repoURL</span>: <span class="cs">https://github.com/yourorg/shopeasy-k8s</span>
+    <span class="cc">    # The Git repo containing your Helm charts or plain YAML manifests</span>
+    <span class="cK">targetRevision</span>: <span class="cs">HEAD</span>          <span class="cc"># HEAD = latest commit on default branch</span>
+    <span class="cK">path</span>: <span class="cs">backend/helm</span>             <span class="cc"># Folder inside the repo with the chart</span>
+    <span class="cK">helm</span>:                          <span class="cc"># Helm-specific config</span>
+      <span class="cK">releaseName</span>: <span class="cs">shopeasy-prod</span>
+      <span class="cK">valueFiles</span>:
+      - <span class="cs">values-production.yaml</span>     <span class="cc"># Use production values file</span>
+      <span class="cK">parameters</span>:                   <span class="cc"># Dynamic overrides (image tag from CI)</span>
+      - <span class="cK">name</span>: <span class="cs">image.tag</span>
+        <span class="cK">value</span>: <span class="cs">abc1234</span>             <span class="cc"># CI updates this via: argocd app set ... --helm-set image.tag=newsha</span>
+
+  <span class="cK">destination</span>:                     <span class="cc"># WHERE to deploy (which cluster + namespace)</span>
+    <span class="cK">server</span>: <span class="cs">https://kubernetes.default.svc</span>
+    <span class="cc">    # "kubernetes.default.svc" = the cluster ArgoCD itself runs in (in-cluster)</span>
+    <span class="cK">namespace</span>: <span class="cs">production</span>
+
+  <span class="cK">syncPolicy</span>:                      <span class="cc"># HOW should ArgoCD sync changes</span>
+    <span class="cK">automated</span>:                     <span class="cc"># Enable auto-sync (no manual click needed)</span>
+      <span class="cK">prune</span>: <span class="ck">true</span>                  <span class="cc"># Delete K8s resources that are removed from Git</span>
+      <span class="cK">selfHeal</span>: <span class="ck">true</span>               <span class="cc"># If someone manually changes cluster, auto-revert to Git state</span>
+    <span class="cK">syncOptions</span>:
+    - <span class="cs">CreateNamespace=true</span>         <span class="cc"># Auto-create namespace if it doesn't exist</span>
+    - <span class="cs">PrunePropagationPolicy=foreground</span>
+    <span class="cK">retry</span>:                         <span class="cc"># Retry if sync fails</span>
+      <span class="cK">limit</span>: <span class="cn">5</span>                     <span class="cc"># Try up to 5 times</span>
+      <span class="cK">backoff</span>:
+        <span class="cK">duration</span>: <span class="cs">5s</span>               <span class="cc"># Wait 5s between retries</span>
+        <span class="cK">factor</span>: <span class="cn">2</span>                  <span class="cc"># Double wait each time (5s → 10s → 20s)</span>
+
+  <span class="cK">revisionHistoryLimit</span>: <span class="cn">10</span>        <span class="cc"># Keep last 10 sync histories (for rollback)</span></pre></div>
+      </div>
+
+      <table class="wtbl">
+        <thead><tr><th>ArgoCD Field</th><th>What It Does</th><th>Why It Matters</th></tr></thead>
+        <tbody>
+          <tr><td><span class="ci">automated.prune: true</span></td><td>Deletes K8s resources removed from Git</td><td>Prevents "zombie" resources cluttering your cluster</td></tr>
+          <tr><td><span class="ci">automated.selfHeal: true</span></td><td>Reverts manual kubectl changes</td><td>Enforces Git as the only valid way to change infra</td></tr>
+          <tr><td><span class="ci">targetRevision: HEAD</span></td><td>Tracks latest commit</td><td>Can also pin to a branch, tag, or specific commit SHA for stability</td></tr>
+          <tr><td><span class="ci">retry.backoff</span></td><td>Exponential backoff on failure</td><td>Prevents thrashing when a deployment fails repeatedly</td></tr>
+          <tr><td><span class="ci">server: kubernetes.default.svc</span></td><td>Deploy to the same cluster ArgoCD runs in</td><td>For multi-cluster, use the remote cluster's API URL + kubeconfig</td></tr>
+        </tbody>
+      </table>
+
+      <div class="lab">
+        <div class="lab-hd">
+          <div class="lab-badge">♻️</div>
+          <div><div class="lab-title">Lab 4 — GitOps Workflow in Action</div>
+          <div class="lab-sub">Change YAML in Git → Watch ArgoCD deploy automatically</div></div>
+        </div>
+        <div class="cmd">
+          <span class="cmt"># Apply the ArgoCD Application manifest</span>
+          <span class="pr">$ </span>kubectl apply -f argocd-app-shopeasy.yaml<br><br>
+          <span class="cmt"># Check sync status</span>
+          <span class="pr">$ </span>argocd app get shopeasy-backend<br>
+          <span class="out"># Name:               shopeasy-backend</span><br>
+          <span class="out"># Sync Status:        Synced</span><br>
+          <span class="out"># Health Status:      Healthy ✅</span><br><br>
+          <span class="cmt"># Now: Edit values-production.yaml in Git and push...</span>
+          <span class="cmt"># ArgoCD detects change within 3 minutes and auto-syncs!</span><br><br>
+          <span class="cmt"># Force sync immediately (no wait)</span>
+          <span class="pr">$ </span>argocd app sync shopeasy-backend<br><br>
+          <span class="cmt"># Rollback to previous Git commit</span>
+          <span class="pr">$ </span>argocd app rollback shopeasy-backend 1<br><br>
+          <span class="cmt"># View app history</span>
+          <span class="pr">$ </span>argocd app history shopeasy-backend
+        </div>
+      </div>
+
+    </section>
+
+    <div class="divider"></div>
+
+    <!-- ══════════════════════════ CHAPTER 5: PROMETHEUS + GRAFANA -->
+    <section class="chapter" id="prom">
+      <div class="ch-header">
+        <div class="ch-icon icon-prom">📊</div>
+        <div class="ch-meta">
+          <div class="ch-label lbl-prom">Chapter 5 · Observability</div>
+          <h2 class="ch-title">Prometheus + Grafana — See Everything in Your Cluster</h2>
+          <div class="ch-desc">Metrics collection, dashboards, and alerting — all running inside K8s.</div>
+        </div>
+      </div>
+
+      <div class="story">
+        <div class="story-hd">📖 Why You Need Observability</div>
+        <p>ShopEasy is live in production. At 2 AM, checkout starts failing. Without monitoring, you'd have no idea why — pods look healthy, no obvious errors. But Grafana shows CPU on the backend spiked to 100% at 1:47 AM. Prometheus shows the database connection pool was exhausted. You find the query with missing indexes and fix it in 10 minutes instead of 2 hours.</p>
+        <p><strong>Prometheus</strong> scrapes metrics from every pod every 15 seconds. <strong>Grafana</strong> visualizes them in real-time dashboards. <strong>Alertmanager</strong> fires PagerDuty/Slack alerts when thresholds are crossed. The <strong>kube-prometheus-stack</strong> Helm chart installs ALL of these in one command.</p>
+      </div>
+
+      <h3 class="sh"><span class="sh-num">5.1</span> The Observability Stack</h3>
+
+      <div class="arch">
+        <div class="arch-lbl">Data Collection</div>
+        <div class="arch-row">
+          <div class="arch-box ab-k8s">📦 Pods<br><small>Expose /metrics</small></div>
+          <span class="arch-arrow">→</span>
+          <div class="arch-box ab-prom">🔍 Prometheus<br><small>Scrape every 15s</small></div>
+          <span class="arch-arrow">→</span>
+          <div class="arch-box ab-prom">🗄️ TSDB<br><small>Store time-series</small></div>
+        </div>
+        <div class="arch-sep"></div>
+        <div class="arch-lbl">Visualization & Alerting</div>
+        <div class="arch-row">
+          <div class="arch-box ab-prom">🗄️ Prometheus</div>
+          <span class="arch-arrow">→</span>
+          <div class="arch-box ab-helm">📊 Grafana<br><small>Dashboards</small></div>
+          <span class="arch-arrow">+</span>
+          <div class="arch-box ab-argo">🚨 Alertmanager<br><small>Slack/PagerDuty</small></div>
+        </div>
+        <div class="arch-sep"></div>
+        <div class="arch-lbl">K8s-Specific Metrics</div>
+        <div class="arch-row">
+          <div class="arch-box ab-green">📡 Node Exporter<br><small>Host metrics</small></div>
+          <span class="arch-arrow">+</span>
+          <div class="arch-box ab-green">⚙️ kube-state-metrics<br><small>K8s object metrics</small></div>
+          <span class="arch-arrow">+</span>
+          <div class="arch-box ab-blue">📈 Metrics Server<br><small>CPU/RAM (for HPA)</small></div>
+        </div>
+      </div>
+
+      <div class="lab">
+        <div class="lab-hd">
+          <div class="lab-badge">📊</div>
+          <div><div class="lab-title">Lab 5 — Install kube-prometheus-stack via Helm</div>
+          <div class="lab-sub">One Helm command = Prometheus + Grafana + Alertmanager + Node Exporter</div></div>
+        </div>
+        <div class="cmd">
+          <span class="cmt"># Add the prometheus community Helm repo</span>
+          <span class="pr">$ </span>helm repo add prometheus-community https://prometheus-community.github.io/helm-charts<br>
+          <span class="pr">$ </span>helm repo update<br><br>
+          <span class="cmt"># Create monitoring namespace</span>
+          <span class="pr">$ </span>kubectl create namespace monitoring<br><br>
+          <span class="cmt"># Install the full stack (this deploys ~15 pods)</span>
+          <span class="pr">$ </span>helm install kube-prometheus-stack \<br>
+          &nbsp;&nbsp;prometheus-community/kube-prometheus-stack \<br>
+          &nbsp;&nbsp;--namespace monitoring \<br>
+          &nbsp;&nbsp;--set grafana.adminPassword="YourSecurePass!" \<br>
+          &nbsp;&nbsp;--set prometheus.prometheusSpec.storageSpec.volumeClaimTemplate.spec.storageClassName=gp2 \<br>
+          &nbsp;&nbsp;--set prometheus.prometheusSpec.storageSpec.volumeClaimTemplate.spec.resources.requests.storage=10Gi
+        </div>
+        <div class="cmd">
+          <span class="cmt"># Access Grafana UI (port-forward to localhost:3000)</span>
+          <span class="pr">$ </span>kubectl port-forward svc/kube-prometheus-stack-grafana 3000:80 -n monitoring<br>
+          <span class="cmt"># Open: http://localhost:3000  Username: admin  Password: YourSecurePass!</span><br><br>
+          <span class="cmt"># Access Prometheus UI (port-forward to localhost:9090)</span>
+          <span class="pr">$ </span>kubectl port-forward svc/kube-prometheus-stack-prometheus 9090:9090 -n monitoring
+        </div>
+      </div>
+
+      <h3 class="sh"><span class="sh-num">5.2</span> Instrument Your App — Add /metrics Endpoint</h3>
+
+      <div class="code-wrap">
+        <div class="code-top">
+          <div class="code-dots"><span class="cd cd-r"></span><span class="cd cd-y"></span><span class="cd cd-g"></span>
+            <span class="code-filename">backend/server.js (add metrics)</span>
+          </div><span class="code-lang-tag">JavaScript · Node.js</span>
+        </div>
+        <div class="code-body"><pre><span class="cc">// Install: npm install prom-client</span>
+<span class="ck">const</span> client = <span class="ck">require</span>(<span class="cs">'prom-client'</span>);      <span class="cc">// Prometheus client library for Node.js</span>
+
+<span class="cc">// Create a Registry — container for all your metrics</span>
+<span class="ck">const</span> register = <span class="ck">new</span> <span class="cK">client.Registry</span>();
+
+<span class="cc">// Collect DEFAULT Node.js metrics (memory, CPU, GC, event loop lag)</span>
+client.collectDefaultMetrics({ register });   <span class="cc">// This adds ~20 standard metrics automatically</span>
+
+<span class="cc">// Create a CUSTOM metric: count HTTP requests by route + status code</span>
+<span class="ck">const</span> httpRequestCounter = <span class="ck">new</span> client.<span class="cK">Counter</span>({
+  <span class="cK">name</span>: <span class="cs">'http_requests_total'</span>,             <span class="cc">// Metric name (used in Prometheus queries)</span>
+  <span class="cK">help</span>: <span class="cs">'Total number of HTTP requests'</span>,    <span class="cc">// Human description in Prometheus UI</span>
+  <span class="cK">labelNames</span>: [<span class="cs">'method'</span>, <span class="cs">'route'</span>, <span class="cs">'status'</span>], <span class="cc">// Dimensions to slice data by</span>
+  register,                                  <span class="cc">// Register with our registry</span>
+});
+
+<span class="cc">// Create a HISTOGRAM: measure API response times</span>
+<span class="ck">const</span> httpDuration = <span class="ck">new</span> client.<span class="cK">Histogram</span>({
+  <span class="cK">name</span>: <span class="cs">'http_request_duration_seconds'</span>,
+  <span class="cK">help</span>: <span class="cs">'HTTP request duration in seconds'</span>,
+  <span class="cK">labelNames</span>: [<span class="cs">'method'</span>, <span class="cs">'route'</span>],
+  <span class="cK">buckets</span>: [<span class="cn">0.01</span>, <span class="cn">0.05</span>, <span class="cn">0.1</span>, <span class="cn">0.5</span>, <span class="cn">1</span>, <span class="cn">3</span>], <span class="cc">// Measure latency buckets: 10ms, 50ms, 100ms...</span>
+  register,
+});
+
+<span class="cc">// Expose /metrics endpoint — Prometheus scrapes this every 15 seconds</span>
+app.get(<span class="cs">'/metrics'</span>, <span class="ck">async</span> (req, res) => {
+  res.set(<span class="cs">'Content-Type'</span>, register.contentType); <span class="cc">// Required content type for Prometheus</span>
+  res.end(<span class="ck">await</span> register.metrics());             <span class="cc">// Returns all metrics in Prometheus text format</span>
+});</pre></div>
+      </div>
+
+      <h3 class="sh"><span class="sh-num">5.3</span> ServiceMonitor — Tell Prometheus to Scrape Your App</h3>
+
+      <div class="code-wrap">
+        <div class="code-top">
+          <div class="code-dots"><span class="cd cd-r"></span><span class="cd cd-y"></span><span class="cd cd-g"></span>
+            <span class="code-filename">backend-servicemonitor.yaml</span>
+          </div><span class="code-lang-tag">YAML · ServiceMonitor</span>
+        </div>
+        <div class="code-body"><pre><span class="cK">apiVersion</span>: monitoring.coreos.com/v1        <span class="cc"># API group from kube-prometheus-stack CRDs</span>
+<span class="cK">kind</span>: <span class="cs">ServiceMonitor</span>                        <span class="cc"># Tells Prometheus: "scrape this service"</span>
+<span class="cK">metadata</span>:
+  <span class="cK">name</span>: <span class="cs">backend-monitor</span>
+  <span class="cK">namespace</span>: <span class="cs">production</span>
+  <span class="cK">labels</span>:
+    <span class="cK">release</span>: <span class="cs">kube-prometheus-stack</span>          <span class="cc"># MUST match Prometheus selector label</span>
+<span class="cK">spec</span>:
+  <span class="cK">selector</span>:                                  <span class="cc"># Which K8s Service to monitor</span>
+    <span class="cK">matchLabels</span>:
+      <span class="cK">app</span>: <span class="cs">backend</span>                          <span class="cc"># Service with label app=backend</span>
+  <span class="cK">endpoints</span>:
+  - <span class="cK">port</span>: <span class="cs">http</span>                             <span class="cc"># Port name on the Service</span>
+    <span class="cK">path</span>: <span class="cs">/metrics</span>                         <span class="cc"># Path to scrape (your Express endpoint)</span>
+    <span class="cK">interval</span>: <span class="cs">15s</span>                          <span class="cc"># Scrape every 15 seconds</span>
+    <span class="cK">scrapeTimeout</span>: <span class="cs">10s</span>                     <span class="cc"># Give up after 10s if no response</span></pre></div>
+      </div>
+
+      <h3 class="sh"><span class="sh-num">5.4</span> PrometheusRule — Automated Alerts</h3>
+
+      <div class="code-wrap">
+        <div class="code-top">
+          <div class="code-dots"><span class="cd cd-r"></span><span class="cd cd-y"></span><span class="cd cd-g"></span>
+            <span class="code-filename">backend-alerts.yaml</span>
+          </div><span class="code-lang-tag">YAML · PrometheusRule</span>
+        </div>
+        <div class="code-body"><pre><span class="cK">apiVersion</span>: monitoring.coreos.com/v1
+<span class="cK">kind</span>: <span class="cs">PrometheusRule</span>
+<span class="cK">metadata</span>:
+  <span class="cK">name</span>: <span class="cs">backend-alerts</span>
+  <span class="cK">namespace</span>: <span class="cs">production</span>
+  <span class="cK">labels</span>:
+    <span class="cK">release</span>: <span class="cs">kube-prometheus-stack</span>
+<span class="cK">spec</span>:
+  <span class="cK">groups</span>:
+  - <span class="cK">name</span>: <span class="cs">backend.rules</span>
+    <span class="cK">rules</span>:
+
+    <span class="cc">    # Alert 1: High error rate</span>
+    - <span class="cK">alert</span>: <span class="cs">HighErrorRate</span>
+      <span class="cK">expr</span>: |                                     <span class="cc"># PromQL expression</span>
+        rate(http_requests_total{status=~"5.."}[5m])
+        /
+        rate(http_requests_total[5m]) > 0.05
+        <span class="cc">        # If more than 5% of requests in last 5min are 5xx errors → alert!</span>
+      <span class="cK">for</span>: <span class="cs">1m</span>                                  <span class="cc"># Must be true for 1 minute before firing</span>
+      <span class="cK">labels</span>:
+        <span class="cK">severity</span>: <span class="cs">critical</span>                    <span class="cc"># Shown in Alertmanager + Slack</span>
+      <span class="cK">annotations</span>:
+        <span class="cK">summary</span>: <span class="cs">"High error rate on backend"</span>
+        <span class="cK">description</span>: <span class="cs">"Error rate is {{ $value | humanizePercentage }} in last 5 minutes"</span>
+
+    <span class="cc">    # Alert 2: Pod crash looping</span>
+    - <span class="cK">alert</span>: <span class="cs">PodCrashLooping</span>
+      <span class="cK">expr</span>: <span class="cs">kube_pod_container_status_restarts_total > 5</span>
+      <span class="cc">      # Built-in kube-state-metrics: alert if any pod restarts more than 5 times</span>
+      <span class="cK">for</span>: <span class="cs">5m</span>
+      <span class="cK">labels</span>:
+        <span class="cK">severity</span>: <span class="cs">warning</span>
+      <span class="cK">annotations</span>:
+        <span class="cK">summary</span>: <span class="cs">"Pod {{ $labels.pod }} is crash looping"</span></pre></div>
+      </div>
+
+    </section>
+
+    <div class="divider"></div>
+
+    <!-- ══════════════════════════ CHAPTER 6: STATEFULSETS -->
+    <section class="chapter" id="state">
+      <div class="ch-header">
+        <div class="ch-icon icon-state">🗄️</div>
+        <div class="ch-meta">
+          <div class="ch-label lbl-state">Chapter 6 · Stateful Apps</div>
+          <h2 class="ch-title">StatefulSets + EBS — Running PostgreSQL on EKS</h2>
+          <div class="ch-desc">Deployments are for stateless apps. Databases need StatefulSets + persistent storage.</div>
+        </div>
+      </div>
+
+      <div class="story">
+        <div class="story-hd">📖 Stateful vs Stateless</div>
+        <p>Your Node.js backend is <strong>stateless</strong> — you can kill it and restart it on any node without data loss, because it stores nothing locally. But PostgreSQL is <strong>stateful</strong> — it stores data on disk. If you move it to a new node, the data must follow.</p>
+        <p>A Deployment gives each pod a random name (<code class="ci">postgres-7d8b9-xxxxx</code>). A <strong>StatefulSet</strong> gives stable, ordered names (<code class="ci">postgres-0</code>, <code class="ci">postgres-1</code>). Each pod gets its own <strong>PersistentVolumeClaim</strong> backed by an AWS EBS volume. Even when the pod is rescheduled to a different node, EBS re-attaches and the data is intact.</p>
+      </div>
+
+      <div class="code-wrap">
+        <div class="code-top">
+          <div class="code-dots"><span class="cd cd-r"></span><span class="cd cd-y"></span><span class="cd cd-g"></span>
+            <span class="code-filename">postgres-statefulset.yaml</span>
+          </div><span class="code-lang-tag">YAML · StatefulSet + PVC</span>
+        </div>
+        <div class="code-body"><pre><span class="cc"># First: Create a StorageClass for EBS gp3 volumes</span>
+<span class="cK">apiVersion</span>: storage.k8s.io/v1
+<span class="cK">kind</span>: <span class="cs">StorageClass</span>                    <span class="cc"># Defines HOW to provision storage</span>
+<span class="cK">metadata</span>:
+  <span class="cK">name</span>: <span class="cs">ebs-gp3</span>                       <span class="cc"># Name used in PVC's storageClassName</span>
+<span class="cK">provisioner</span>: <span class="cs">ebs.csi.aws.com</span>         <span class="cc"># AWS EBS CSI driver (installed in Module 1)</span>
+<span class="cK">parameters</span>:
+  <span class="cK">type</span>: <span class="cs">gp3</span>                          <span class="cc"># EBS volume type: gp3 is faster + cheaper than gp2</span>
+  <span class="cK">encrypted</span>: <span class="cs">"true"</span>                  <span class="cc"># Encrypt data at rest (compliance requirement)</span>
+<span class="cK">volumeBindingMode</span>: <span class="cs">WaitForFirstConsumer</span>
+<span class="cc">  # Don't create EBS volume until a pod actually needs it (saves cost + ensures right AZ)</span>
+<span class="cK">reclaimPolicy</span>: <span class="cs">Retain</span>               <span class="cc"># When PVC deleted: KEEP the EBS volume (don't delete data!)</span>
+
+---
+<span class="cK">apiVersion</span>: apps/v1
+<span class="cK">kind</span>: <span class="cs">StatefulSet</span>                    <span class="cc"># NOT a Deployment — this is for stateful apps</span>
+<span class="cK">metadata</span>:
+  <span class="cK">name</span>: <span class="cs">postgres</span>
+  <span class="cK">namespace</span>: <span class="cs">production</span>
+<span class="cK">spec</span>:
+  <span class="cK">serviceName</span>: <span class="cs">postgres-headless</span>    <span class="cc"># MUST reference a headless Service (for stable DNS)</span>
+  <span class="cK">replicas</span>: <span class="cn">1</span>                        <span class="cc"># 1 for standalone. 3 for HA (with Patroni/replication)</span>
+  <span class="cK">selector</span>:
+    <span class="cK">matchLabels</span>:
+      <span class="cK">app</span>: <span class="cs">postgres</span>
+  <span class="cK">template</span>:
+    <span class="cK">metadata</span>:
+      <span class="cK">labels</span>:
+        <span class="cK">app</span>: <span class="cs">postgres</span>
+    <span class="cK">spec</span>:
+      <span class="cK">containers</span>:
+      - <span class="cK">name</span>: <span class="cs">postgres</span>
+        <span class="cK">image</span>: <span class="cs">postgres:15-alpine</span>    <span class="cc"># Alpine = smaller image. :15 = major version only</span>
+        <span class="cK">ports</span>:
+        - <span class="cK">containerPort</span>: <span class="cn">5432</span>
+        <span class="cK">env</span>:
+        - <span class="cK">name</span>: <span class="cs">POSTGRES_DB</span>
+          <span class="cK">value</span>: <span class="cs">shopeasy</span>
+        - <span class="cK">name</span>: <span class="cs">POSTGRES_USER</span>
+          <span class="cK">valueFrom</span>:
+            <span class="cK">secretKeyRef</span>:             <span class="cc"># Pull specific key from Secret (not entire Secret)</span>
+              <span class="cK">name</span>: <span class="cs">postgres-secret</span>
+              <span class="cK">key</span>: <span class="cs">POSTGRES_USER</span>
+        - <span class="cK">name</span>: <span class="cs">POSTGRES_PASSWORD</span>
+          <span class="cK">valueFrom</span>:
+            <span class="cK">secretKeyRef</span>:
+              <span class="cK">name</span>: <span class="cs">postgres-secret</span>
+              <span class="cK">key</span>: <span class="cs">POSTGRES_PASSWORD</span>
+        <span class="cK">volumeMounts</span>:                 <span class="cc"># WHERE inside the container to mount the volume</span>
+        - <span class="cK">name</span>: <span class="cs">postgres-data</span>
+          <span class="cK">mountPath</span>: <span class="cs">/var/lib/postgresql/data</span>
+          <span class="cc">          # PostgreSQL stores all its data here. This maps to EBS volume.</span>
+        <span class="cK">resources</span>:
+          <span class="cK">requests</span>:
+            <span class="cK">memory</span>: <span class="cs">"512Mi"</span>
+            <span class="cK">cpu</span>: <span class="cs">"500m"</span>
+          <span class="cK">limits</span>:
+            <span class="cK">memory</span>: <span class="cs">"2Gi"</span>
+            <span class="cK">cpu</span>: <span class="cs">"2000m"</span>
+
+  <span class="cK">volumeClaimTemplates</span>:             <span class="cc"># KEY DIFFERENCE: StatefulSet creates PVC per pod</span>
+  - <span class="cK">metadata</span>:
+      <span class="cK">name</span>: <span class="cs">postgres-data</span>           <span class="cc"># pod 0 gets: postgres-data-postgres-0</span>
+                                     <span class="cc"># pod 1 gets: postgres-data-postgres-1 (different EBS!)</span>
+    <span class="cK">spec</span>:
+      <span class="cK">accessModes</span>: [<span class="cs">"ReadWriteOnce"</span>] <span class="cc"># Only ONE pod/node can mount at a time (EBS limitation)</span>
+      <span class="cK">storageClassName</span>: <span class="cs">ebs-gp3</span>    <span class="cc"># Use our StorageClass above</span>
+      <span class="cK">resources</span>:
+        <span class="cK">requests</span>:
+          <span class="cK">storage</span>: <span class="cs">50Gi</span>           <span class="cc"># Provision a 50GB EBS gp3 volume</span></pre></div>
+      </div>
+
+      <div class="lab">
+        <div class="lab-hd">
+          <div class="lab-badge">🗄️</div>
+          <div><div class="lab-title">Lab 6 — Deploy PostgreSQL + Verify Persistence</div>
+          <div class="lab-sub">Write data, delete pod, verify data survives restart</div></div>
+        </div>
+        <div class="cmd">
+          <span class="cmt"># Create postgres secret</span>
+          <span class="pr">$ </span>kubectl create secret generic postgres-secret \<br>
+          &nbsp;&nbsp;--from-literal=POSTGRES_USER=shopuser \<br>
+          &nbsp;&nbsp;--from-literal=POSTGRES_PASSWORD=securepass123 \<br>
+          &nbsp;&nbsp;-n production<br><br>
+          <span class="cmt"># Apply StatefulSet</span>
+          <span class="pr">$ </span>kubectl apply -f postgres-statefulset.yaml<br><br>
+          <span class="cmt"># Watch stable pod name: postgres-0 (not random!)</span>
+          <span class="pr">$ </span>kubectl get pods -n production -w<br>
+          <span class="out"># postgres-0   1/1   Running   ✅  ← stable name</span>
+        </div>
+        <div class="cmd">
+          <span class="cmt"># Shell into postgres and create test data</span>
+          <span class="pr">$ </span>kubectl exec -it postgres-0 -n production -- psql -U shopuser shopeasy<br>
+          <span class="pr">shopeasy=# </span>CREATE TABLE test (id serial, name text);<br>
+          <span class="pr">shopeasy=# </span>INSERT INTO test (name) VALUES ('data survives!');<br>
+          <span class="pr">shopeasy=# </span>\q<br><br>
+          <span class="cmt"># Delete the pod (simulates crash)</span>
+          <span class="pr">$ </span>kubectl delete pod postgres-0 -n production<br><br>
+          <span class="cmt"># StatefulSet recreates postgres-0 → EBS re-attaches → data intact!</span>
+          <span class="pr">$ </span>kubectl exec -it postgres-0 -n production -- psql -U shopuser shopeasy -c "SELECT * FROM test;"<br>
+          <span class="out"># id |      name</span><br>
+          <span class="out">#  1 | data survives! ← ✅ PERSISTED!</span>
+        </div>
+      </div>
+
+    </section>
+
+    <div class="divider"></div>
+
+    <!-- ══════════════════════════ CHAPTER 7: IRSA -->
+    <section class="chapter" id="irsa">
+      <div class="ch-header">
+        <div class="ch-icon icon-irsa">🔑</div>
+        <div class="ch-meta">
+          <div class="ch-label lbl-irsa">Chapter 7 · AWS Security</div>
+          <h2 class="ch-title">IRSA — Pods Get AWS Permissions Without Keys</h2>
+          <div class="ch-desc">IAM Roles for Service Accounts: the most secure way to grant AWS access to pods.</div>
+        </div>
+      </div>
+
+      <div class="story">
+        <div class="story-hd">📖 The Problem IRSA Solves</div>
+        <p>Your backend pod needs to upload files to S3. The old (bad) way: put <code class="ci">AWS_ACCESS_KEY_ID</code> and <code class="ci">AWS_SECRET_ACCESS_KEY</code> into a K8s Secret. Problems: the keys can leak, they don't expire, you have to rotate them manually, and they give access to your entire AWS account.</p>
+        <p><strong>IRSA (IAM Roles for Service Accounts)</strong> is the modern approach. A Pod's ServiceAccount is linked to an IAM Role via OIDC (Open ID Connect). When the pod calls <code class="ci">s3.putObject()</code>, AWS SDK automatically gets temporary credentials from the EKS OIDC provider. The credentials expire every hour, are scoped to exactly what the role allows, and there's zero key management.</p>
+      </div>
+
+      <div class="arch">
+        <div class="arch-lbl">IRSA Token Flow</div>
+        <div class="arch-row">
+          <div class="arch-box ab-k8s">📦 Pod<br><small>Needs S3 access</small></div>
+          <span class="arch-arrow">→</span>
+          <div class="arch-box ab-blue">🎫 K8s OIDC<br><small>Issues JWT token</small></div>
+          <span class="arch-arrow">→</span>
+          <div class="arch-box ab-aws">🔑 AWS STS<br><small>Validates token</small></div>
+          <span class="arch-arrow">→</span>
+          <div class="arch-box ab-green">⏱️ Temp Creds<br><small>1 hour, scoped</small></div>
+        </div>
+        <div class="arch-row">
+          <span class="arch-arrow">↓</span>
+        </div>
+        <div class="arch-row">
+          <div class="arch-box ab-aws">☁️ S3 / DynamoDB / Secrets Manager<br><small>Only what the IAM Role allows</small></div>
+        </div>
+      </div>
+
+      <div class="lab">
+        <div class="lab-hd">
+          <div class="lab-badge">🔑</div>
+          <div><div class="lab-title">Lab 7 — Set Up IRSA for S3 Access</div>
+          <div class="lab-sub">5 steps from zero to passwordless AWS access</div></div>
+        </div>
+
+        <div class="cmd">
+          <span class="cmt"># STEP 1: Enable OIDC provider on your EKS cluster</span>
+          <span class="pr">$ </span>eksctl utils associate-iam-oidc-provider \<br>
+          &nbsp;&nbsp;--region ap-south-1 \<br>
+          &nbsp;&nbsp;--cluster shopeasy-cluster \<br>
+          &nbsp;&nbsp;--approve<br>
+          <span class="out"># [✔]  associated IAM OIDC provider for cluster...</span>
+        </div>
+        <div class="cmd">
+          <span class="cmt"># STEP 2: Create IAM policy for S3 access</span>
+          <span class="pr">$ </span>cat &gt; s3-policy.json &lt;&lt; 'EOF'<br>
+          {<br>
+          &nbsp;&nbsp;"Version": "2012-10-17",<br>
+          &nbsp;&nbsp;"Statement": [{<br>
+          &nbsp;&nbsp;&nbsp;&nbsp;"Effect": "Allow",<br>
+          &nbsp;&nbsp;&nbsp;&nbsp;"Action": ["s3:PutObject", "s3:GetObject", "s3:DeleteObject"],<br>
+          &nbsp;&nbsp;&nbsp;&nbsp;"Resource": "arn:aws:s3:::shopeasy-uploads/*"<br>
+          &nbsp;&nbsp;}]<br>
+          }<br>
+          EOF<br>
+          <span class="pr">$ </span>aws iam create-policy --policy-name shopeasy-s3-policy --policy-document file://s3-policy.json
+        </div>
+        <div class="cmd">
+          <span class="cmt"># STEP 3: Create IAM Role + ServiceAccount in ONE eksctl command</span>
+          <span class="pr">$ </span>eksctl create iamserviceaccount \<br>
+          &nbsp;&nbsp;--name backend-s3-sa \<br>
+          &nbsp;&nbsp;--namespace production \<br>
+          &nbsp;&nbsp;--cluster shopeasy-cluster \<br>
+          &nbsp;&nbsp;--region ap-south-1 \<br>
+          &nbsp;&nbsp;--attach-policy-arn arn:aws:iam::123456789:policy/shopeasy-s3-policy \<br>
+          &nbsp;&nbsp;--approve \<br>
+          &nbsp;&nbsp;--override-existing-serviceaccounts<br><br>
+          <span class="cmt"># This creates: IAM Role + K8s ServiceAccount with annotation</span>
+          <span class="pr">$ </span>kubectl describe sa backend-s3-sa -n production<br>
+          <span class="out"># Annotations: eks.amazonaws.com/role-arn: arn:aws:iam::123456789:role/...</span>
+        </div>
+        <div class="cmd">
+          <span class="cmt"># STEP 4: Use the ServiceAccount in your Deployment</span>
+          <span class="cmt"># Add this to your deployment spec.template.spec:</span>
+          <span class="cmt"># serviceAccountName: backend-s3-sa</span><br><br>
+          <span class="cmt"># STEP 5: In your Node.js code — NO KEYS NEEDED!</span>
+          <span class="cmt"># const s3 = new AWS.S3();  ← SDK auto-gets creds via IRSA token</span>
+          <span class="cmt"># s3.putObject({ Bucket: 'shopeasy-uploads', ... }) ← just works!</span>
+        </div>
+      </div>
+
+      <div class="callout callout-tip">
+        <span class="callout-ico">💡</span>
+        <div class="callout-body">
+          <div class="ct">IRSA Also Works For…</div>
+          <p>Any AWS SDK call: <strong>DynamoDB, SQS, SNS, Secrets Manager, SSM Parameter Store, ECR, CloudWatch</strong>. Use separate ServiceAccounts with minimal IAM roles for each microservice. The backend gets S3 + SQS. The frontend gets nothing. The cronjob gets only SES for emails. Principle of least privilege.</p>
+        </div>
+      </div>
+
+      <!-- FINAL CHECKLIST -->
+      <h3 class="sh" style="margin-top:40px;"><span class="sh-num">★</span> Module 2 Complete — What You've Mastered</h3>
+
+      <ul class="chk">
+        <li><span class="chk-bx done">✓</span><strong>Helm Charts</strong> — Templated K8s manifests, install/upgrade/rollback entire app stacks</li>
+        <li><span class="chk-bx done">✓</span><strong>RBAC</strong> — Roles, RoleBindings, ServiceAccounts — least-privilege access control</li>
+        <li><span class="chk-bx done">✓</span><strong>Network Policies</strong> — Pod-level firewalls, default-deny-all + whitelist approach</li>
+        <li><span class="chk-bx done">✓</span><strong>ArgoCD GitOps</strong> — Git as single source of truth, auto-sync, drift detection, rollback</li>
+        <li><span class="chk-bx done">✓</span><strong>Prometheus + Grafana</strong> — Metrics collection, dashboards, PrometheusRule alerts</li>
+        <li><span class="chk-bx done">✓</span><strong>StatefulSets + EBS</strong> — Run PostgreSQL on K8s with persistent, stable storage</li>
+        <li><span class="chk-bx done">✓</span><strong>IRSA</strong> — Pods access AWS services with zero hardcoded credentials</li>
+        <li><span class="chk-bx now">→</span><strong>Module 3 Next</strong> — Multi-cluster, Fargate, Karpenter, Cost Optimization, Chaos Engineering</li>
+      </ul>
+
+      <div class="callout callout-info" style="margin-top:24px;">
+        <span class="callout-ico">🚀</span>
+        <div class="callout-body">
+          <div class="ct">Module 3 Preview</div>
+          <p>Next: <strong>EKS with Fargate</strong> (serverless nodes), <strong>Karpenter</strong> (next-gen autoscaler), <strong>Multi-cluster federation</strong>, <strong>Velero backups</strong>, <strong>Chaos Engineering with LitmusChaos</strong>, and full <strong>production cost optimization</strong> strategies for EKS. You'll finish with a production-grade, enterprise-ready cluster.</p>
+        </div>
+      </div>
+
+    </section>
+
+  </main><!-- end content -->
+</div><!-- end sidenav-wrap -->
+
+<!-- ════ FOOTER ════ -->
+<footer class="footer">
+  <strong>EKS Kubernetes Mastery · Module 2 of 3</strong> &nbsp;·&nbsp;
+  Helm · RBAC · Network Policies · ArgoCD · Prometheus · StatefulSets · IRSA<br>
+  <span style="font-size:12px; margin-top:6px; display:block;">ShopEasy Project · AWS DevOps Learning Series</span>
+</footer>
+
+<script>
+  // ── Tab switching ──
+  function initTabs() {
+    document.querySelectorAll('.tab-nav').forEach(nav => {
+      nav.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const group = btn.closest('.tabs');
+          group.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+          group.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+          document.getElementById(btn.dataset.tab).classList.add('active');
+          btn.classList.add('active');
+        });
+      });
+    });
+  }
+
+  // ── Sidebar active highlight + progress ──
+  const chapters = document.querySelectorAll('.chapter');
+  const navLinks = document.querySelectorAll('.nav-link');
+  const total = chapters.length;
+  let maxSeen = 0;
+
+  const obs = new IntersectionObserver(entries => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        const id = e.target.id;
+        navLinks.forEach(l => {
+          l.classList.toggle('active', l.getAttribute('href') === `#${id}`);
+        });
+        // progress
+        const idx = Array.from(chapters).findIndex(c => c.id === id);
+        if (idx > maxSeen) maxSeen = idx;
+        const pct = Math.round(((maxSeen + 1) / total) * 100);
+        document.getElementById('progressFill').style.width = pct + '%';
+        document.getElementById('progressPct').textContent = pct + '% complete';
+      }
+    });
+  }, { rootMargin: '-20% 0px -70% 0px' });
+
+  chapters.forEach(c => obs.observe(c));
+  initTabs();
+</script>
+</body>
+</html>

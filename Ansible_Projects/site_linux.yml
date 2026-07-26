@@ -1,0 +1,89 @@
+---
+- name: Enterprise Linux Administration 
+  hosts: localhost
+  gather_facts: yes 
+  tasks:
+    - name: Patch Redhat/CentOs System 
+      ansible.builtin.dnf:
+        name: '*'
+        state: latest
+        security: true 
+      when: ansible_os_family == "RedHat"
+
+
+    - name: Patch Ubuntu System 
+      ansible.builtin.apt:
+        update-cache: true
+        upgrade: dist
+      when: ansible_os_family == "Debian"
+
+
+    - name: Enforce SSH Hardening - Disable Root Login 
+      ansible.builtin.lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: '^PermitRootLogin'
+        line: 'PermitRootLogin no'
+        state: present 
+      notify: Restart SSH Service 
+
+
+    - name: Set strict permission for /etc/shadow
+      ansible.builtin.file:
+        path: /etc/shadow
+        owner: root
+        group: root
+        mode: '000'
+
+
+    - name: Verify Webserver SSL Certificate Status
+      community.crypto.x509_certificate_info:
+        path: /etc/ssl/certs/webserver.crt 
+      register: cert_info
+
+    - name: Notify if the certificate is expiring 
+      ansible.builtin.assert: 
+        that: 
+          - cert_info.valid_days_left > 21
+        fail_msg: "SSL Certificate is near expiration! Please execute renewal sequence."
+
+
+    - name: Validate MongoDB Cluster Ping Status
+      community.mongodb.mongodb_status:
+        login_host: localhost
+        login_port: 27017
+      register: mongo_status
+      when: "'mongo-server' in inventory_hostname or 'db-server' in inventory_hostname"
+
+
+    - name: Check Oracle Database Listener Status
+      ansible.builtin.shell: |
+        lsnrctl status
+
+      become_user: oracle
+      register: oracle_status
+      changed_when: false
+      when: "'oracle' in inventory_hostname"
+
+
+    - name: Mongo Database Dump 
+      community.mongodb.mongodb_shell:
+        login_host: localhost
+        script: |
+          db.runCommand({ fsync: 1, lock: true })
+      when: "'mongo' in inventory_hostname"
+
+
+    - name: MongoDB Directory backup
+      ansible.builtin.archive:
+        path: /var/lib/mongo
+        dest: /var/backups/mongo_backup_{{ ansible_date_time.date }}.tar.gz
+        format: gz
+      when: "'mongo' in inventory_hostname"
+
+
+  handlers:
+    - name: Restart SSH Service
+      ansible.builtin.service:
+        name: sshd
+        state: restarted
+          

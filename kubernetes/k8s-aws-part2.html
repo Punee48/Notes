@@ -1,0 +1,897 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Kubernetes on AWS — Part 2: Workloads & Scaling</title>
+<style>
+  :root {
+    --bg:#F7F8FA; --surface:#FFFFFF; --border:#E2E6ED;
+    --accent:#2563EB; --accent2:#16A34A; --accent3:#DC2626;
+    --accent-lt:#EFF6FF; --text:#111827; --muted:#6B7280;
+    --code-bg:#1E293B; --code-text:#E2E8F0;
+    --yellow:#FEF9C3; --yellow-b:#CA8A04;
+    --green-lt:#DCFCE7; --green-b:#15803D;
+    --purple-lt:#F5F3FF; --purple-b:#7C3AED;
+    --radius:10px; --shadow:0 2px 12px rgba(0,0,0,.07);
+    font-family:'Segoe UI',system-ui,-apple-system,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{background:var(--bg);color:var(--text);line-height:1.7;font-size:16px;}
+  .page{max-width:960px;margin:0 auto;padding:40px 24px 80px;}
+  .header{background:linear-gradient(135deg,#1E3A5F,#7C3AED 60%,#6D28D9);color:white;border-radius:16px;padding:48px 40px;margin-bottom:40px;}
+  .header .badge{font-size:12px;font-weight:700;letter-spacing:2px;background:rgba(255,255,255,.15);padding:4px 14px;border-radius:20px;display:inline-block;margin-bottom:16px;text-transform:uppercase;}
+  .header h1{font-size:2.4rem;font-weight:800;line-height:1.2;margin-bottom:12px;}
+  .header p{font-size:1.1rem;opacity:.85;max-width:620px;}
+  .header .meta{margin-top:24px;display:flex;gap:24px;flex-wrap:wrap;}
+  .header .meta span{font-size:.85rem;opacity:.8;}
+  .header .meta strong{opacity:1;}
+  .parts-nav{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:36px;}
+  .parts-nav a{padding:8px 18px;border-radius:24px;font-size:.85rem;font-weight:600;text-decoration:none;border:2px solid var(--border);color:var(--muted);background:var(--surface);transition:all .2s;}
+  .parts-nav a.active{background:var(--accent);color:white;border-color:var(--accent);}
+  .parts-nav a:hover:not(.active){border-color:var(--accent);color:var(--accent);}
+  .toc{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:28px 32px;margin-bottom:40px;box-shadow:var(--shadow);}
+  .toc h2{font-size:1rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:16px;}
+  .toc ol{padding-left:20px;}
+  .toc li{margin-bottom:8px;}
+  .toc a{color:var(--accent);text-decoration:none;font-size:.95rem;}
+  .toc a:hover{text-decoration:underline;}
+  .section{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:36px 40px;margin-bottom:32px;box-shadow:var(--shadow);}
+  .section-num{display:inline-block;background:var(--accent);color:white;font-size:.75rem;font-weight:800;padding:2px 10px;border-radius:20px;margin-bottom:12px;}
+  .section h2{font-size:1.6rem;font-weight:700;color:var(--text);margin-bottom:16px;}
+  .section h3{font-size:1.15rem;font-weight:700;color:var(--accent);margin:28px 0 10px;}
+  .section h4{font-size:1rem;font-weight:700;margin:20px 0 8px;}
+  .section p{margin-bottom:14px;color:#374151;}
+  .section ul,.section ol{padding-left:22px;margin-bottom:14px;}
+  .section li{margin-bottom:6px;color:#374151;}
+  .story{background:linear-gradient(135deg,#EFF6FF,#DBEAFE);border-left:4px solid var(--accent);border-radius:0 var(--radius) var(--radius) 0;padding:20px 24px;margin:24px 0;}
+  .story .story-label{font-size:.75rem;font-weight:800;color:var(--accent);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:8px;}
+  .story p{color:#1E40AF;margin:0;}
+  .code-block{background:var(--code-bg);border-radius:var(--radius);overflow:hidden;margin:20px 0;box-shadow:0 4px 16px rgba(0,0,0,.15);}
+  .code-header{background:#0F172A;padding:10px 18px;display:flex;justify-content:space-between;align-items:center;}
+  .code-header .lang{font-size:.75rem;color:#94A3B8;font-weight:600;text-transform:uppercase;letter-spacing:1px;}
+  .code-header .filename{font-size:.75rem;color:#64748B;font-family:monospace;}
+  pre{padding:20px 22px;overflow-x:auto;}
+  code{font-family:'Cascadia Code','Fira Code','Consolas',monospace;font-size:.88rem;line-height:1.7;color:var(--code-text);}
+  .inline-code{background:#E8EDF5;color:#2563EB;padding:2px 7px;border-radius:5px;font-family:monospace;font-size:.87em;}
+  .annotate-row{display:grid;grid-template-columns:1fr 2fr;gap:0;border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:10px;}
+  .annotate-code{background:var(--code-bg);padding:12px 16px;font-family:monospace;font-size:.85rem;color:var(--code-text);word-break:break-all;}
+  .annotate-desc{background:var(--surface);padding:12px 16px;font-size:.9rem;color:var(--text);border-left:1px solid var(--border);}
+  .annotate-desc strong{color:var(--accent);display:block;margin-bottom:4px;}
+  .cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:16px;margin:20px 0;}
+  .card{background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);padding:20px;}
+  .card .icon{font-size:1.8rem;margin-bottom:10px;}
+  .card h4{font-size:.95rem;font-weight:700;margin-bottom:6px;}
+  .card p{font-size:.85rem;color:var(--muted);margin:0;}
+  .tip{background:var(--yellow);border-left:4px solid var(--yellow-b);border-radius:0 var(--radius) var(--radius) 0;padding:16px 20px;margin:20px 0;}
+  .tip strong{color:var(--yellow-b);}
+  .success{background:var(--green-lt);border-left:4px solid var(--green-b);border-radius:0 var(--radius) var(--radius) 0;padding:16px 20px;margin:20px 0;}
+  .success strong{color:var(--green-b);}
+  .danger{background:#FFF1F2;border-left:4px solid var(--accent3);border-radius:0 var(--radius) var(--radius) 0;padding:16px 20px;margin:20px 0;}
+  .danger strong{color:var(--accent3);}
+  .interview{background:var(--purple-lt);border:1px solid #E9D5FF;border-radius:var(--radius);padding:20px 24px;margin:24px 0;}
+  .interview-label{font-size:.75rem;font-weight:800;color:var(--purple-b);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:12px;}
+  .interview .q{font-weight:700;color:#6D28D9;margin-bottom:6px;}
+  .interview .a{color:#374151;margin-bottom:12px;padding-left:14px;border-left:3px solid #C4B5FD;}
+  .arch-diagram{background:var(--bg);border:2px dashed var(--border);border-radius:var(--radius);padding:24px;margin:20px 0;font-family:monospace;font-size:.82rem;line-height:1.9;color:var(--text);white-space:pre;overflow-x:auto;}
+  .lab{background:#F0FDF4;border:2px solid #86EFAC;border-radius:var(--radius);padding:28px 32px;margin:28px 0;}
+  .lab-header{display:flex;align-items:center;gap:12px;margin-bottom:20px;}
+  .lab-header .lab-icon{font-size:1.6rem;}
+  .lab-header h3{font-size:1.1rem;font-weight:700;color:#15803D;margin:0;}
+  .lab .step{display:flex;gap:14px;margin-bottom:18px;}
+  .lab .step-num{background:#15803D;color:white;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.8rem;font-weight:700;flex-shrink:0;margin-top:3px;}
+  .lab .step-body p{margin-bottom:8px;font-size:.95rem;}
+  .compare{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:20px 0;}
+  .compare-box{background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);padding:20px;}
+  .compare-box h4{font-size:.95rem;font-weight:700;margin-bottom:10px;color:var(--accent);}
+  .compare-box p,.compare-box li{font-size:.9rem;color:#374151;}
+  table{width:100%;border-collapse:collapse;margin:20px 0;font-size:.9rem;}
+  th{background:var(--accent);color:white;padding:12px 16px;text-align:left;font-weight:600;}
+  td{padding:11px 16px;border-bottom:1px solid var(--border);}
+  tr:nth-child(even) td{background:var(--bg);}
+  .footer{text-align:center;padding:40px 0 0;color:var(--muted);font-size:.85rem;}
+  .footer .next-btn{display:inline-block;margin-bottom:20px;background:var(--accent);color:white;padding:14px 32px;border-radius:30px;text-decoration:none;font-weight:700;font-size:1rem;}
+  .footer .prev-btn{display:inline-block;margin:0 10px 20px;background:var(--surface);color:var(--accent);padding:14px 32px;border-radius:30px;text-decoration:none;font-weight:700;font-size:1rem;border:2px solid var(--accent);}
+  @media(max-width:600px){.header{padding:32px 20px;}.header h1{font-size:1.7rem;}.section{padding:24px 20px;}.annotate-row{grid-template-columns:1fr;}.compare{grid-template-columns:1fr;}}
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="header">
+    <div class="badge">Complete Course · Part 2 of 6</div>
+    <h1>Kubernetes Workloads<br>& Auto-Scaling</h1>
+    <p>Master every workload type: Deployments, StatefulSets, DaemonSets, Jobs, CronJobs — plus HPA, VPA, and KEDA for production-grade scaling.</p>
+    <div class="meta">
+      <span>🎯 <strong>Level:</strong> Intermediate</span>
+      <span>📦 <strong>Part 2 of 6</strong> — Workloads & Scaling</span>
+      <span>⏱ <strong>~3 hours</strong> reading + labs</span>
+    </div>
+  </div>
+
+  <div class="parts-nav">
+    <a href="k8s-aws-part1.html">Part 1 · Foundations</a>
+    <a href="k8s-aws-part2.html" class="active">Part 2 · Workloads</a>
+    <a href="k8s-aws-part3.html">Part 3 · Networking</a>
+    <a href="k8s-aws-part4.html">Part 4 · Storage & Config</a>
+    <a href="k8s-aws-part5.html">Part 5 · Security & RBAC</a>
+    <a href="k8s-aws-part6.html">Part 6 · Real Project + Interview</a>
+  </div>
+
+  <div class="toc">
+    <h2>📋 Part 2 — Table of Contents</h2>
+    <ol>
+      <li><a href="#workload-types">Workload Types — The Full Map</a></li>
+      <li><a href="#statefulset">StatefulSet — For Databases & Stateful Apps</a></li>
+      <li><a href="#daemonset">DaemonSet — One Pod Per Node</a></li>
+      <li><a href="#jobs">Jobs & CronJobs — Batch Processing</a></li>
+      <li><a href="#hpa">HPA — Horizontal Pod Autoscaler</a></li>
+      <li><a href="#vpa">VPA — Vertical Pod Autoscaler</a></li>
+      <li><a href="#keda">KEDA — Event-Driven Autoscaling</a></li>
+      <li><a href="#labs">Hands-On Labs</a></li>
+      <li><a href="#interview">Interview Questions — Part 2</a></li>
+    </ol>
+  </div>
+
+  <!-- SECTION 1 — WORKLOAD MAP -->
+  <div class="section" id="workload-types">
+    <span class="section-num">SECTION 1</span>
+    <h2>🗺️ Workload Types — Choosing the Right Controller</h2>
+
+    <div class="story">
+      <div class="story-label">📖 Story</div>
+      <p>ShopNow has grown. The team now runs: a stateless API server, a MySQL database, a log collector on every node, a nightly invoice generator, and a checkout service that spikes 50x on weekends. Each app needs a different Kubernetes workload type. One size does NOT fit all.</p>
+    </div>
+
+    <table>
+      <tr><th>Workload</th><th>Use Case</th><th>Key Characteristic</th></tr>
+      <tr><td><strong>Deployment</strong></td><td>Stateless apps (APIs, web servers)</td><td>Pods are interchangeable, any can be killed/replaced</td></tr>
+      <tr><td><strong>StatefulSet</strong></td><td>Databases, Kafka, Elasticsearch</td><td>Pods have stable identity, ordered startup/shutdown</td></tr>
+      <tr><td><strong>DaemonSet</strong></td><td>Log collectors, monitoring agents, network plugins</td><td>Exactly one pod per node (or selected nodes)</td></tr>
+      <tr><td><strong>Job</strong></td><td>One-time batch tasks, DB migrations</td><td>Runs until completion, then stops</td></tr>
+      <tr><td><strong>CronJob</strong></td><td>Scheduled tasks (reports, backups, cleanups)</td><td>Creates Jobs on a cron schedule</td></tr>
+      <tr><td><strong>ReplicaSet</strong></td><td>Rarely used directly — managed by Deployment</td><td>Ensures N replicas, no rolling update logic</td></tr>
+    </table>
+  </div>
+
+  <!-- SECTION 2 — STATEFULSET -->
+  <div class="section" id="statefulset">
+    <span class="section-num">SECTION 2</span>
+    <h2>🗄️ StatefulSet — For Databases & Stateful Applications</h2>
+
+    <div class="story">
+      <div class="story-label">📖 Story — Why Deployment Fails for MySQL</div>
+      <p>You try running MySQL as a Deployment. Three replicas start, but they all try to write to data at the same time — disaster. When you restart a pod, it gets a new hostname (nginx-abc123) and a new volume — all data is lost! Databases need: stable names, stable storage, and ordered start/stop. That's StatefulSet.</p>
+    </div>
+
+    <h3>Deployment vs StatefulSet</h3>
+    <div class="compare">
+      <div class="compare-box">
+        <h4>Deployment (stateless)</h4>
+        <ul>
+          <li>Pods: nginx-<strong>abc123</strong> (random hash)</li>
+          <li>Pods are identical and interchangeable</li>
+          <li>Start/stop in any order</li>
+          <li>Shared or no persistent storage</li>
+          <li>Any pod can serve any request</li>
+        </ul>
+      </div>
+      <div class="compare-box">
+        <h4>StatefulSet (stateful)</h4>
+        <ul>
+          <li>Pods: mysql-<strong>0</strong>, mysql-<strong>1</strong>, mysql-<strong>2</strong></li>
+          <li>Each pod has a unique, stable identity</li>
+          <li>Start sequentially (0, 1, 2) — stop in reverse</li>
+          <li>Each pod gets its own PersistentVolume</li>
+          <li>mysql-0 is the primary, mysql-1/2 are replicas</li>
+        </ul>
+      </div>
+    </div>
+
+    <h3>StatefulSet YAML — Complete with Annotations</h3>
+    <div class="code-block">
+      <div class="code-header"><span class="lang">YAML</span><span class="filename">mysql-statefulset.yaml</span></div>
+      <pre><code>apiVersion: apps/v1
+kind: StatefulSet              # ← Key: not Deployment
+metadata:
+  name: mysql
+  namespace: shopnow
+spec:
+  serviceName: "mysql"         # ← REQUIRED: name of the Headless Service
+                               #   This gives pods DNS: mysql-0.mysql.shopnow.svc.cluster.local
+  replicas: 3                  # ← Creates mysql-0, mysql-1, mysql-2
+  selector:
+    matchLabels:
+      app: mysql
+  template:
+    metadata:
+      labels:
+        app: mysql
+    spec:
+      initContainers:          # ← Runs BEFORE main container; used for setup
+      - name: init-mysql
+        image: mysql:8.0
+        command:               # ← Shell script to assign server-id
+        - bash
+        - "-c"
+        - |
+          # mysql-0 gets server-id=1, mysql-1 gets server-id=2, etc.
+          [[ $HOSTNAME =~ -([0-9]+)$ ]] && echo $((${BASH_REMATCH[1]} + 1)) > /mnt/conf.d/server-id.cnf
+        volumeMounts:
+        - name: conf
+          mountPath: /mnt/conf.d
+      containers:
+      - name: mysql
+        image: mysql:8.0
+        env:
+        - name: MYSQL_ROOT_PASSWORD
+          valueFrom:
+            secretKeyRef:      # ← Read password from a Secret (not hardcoded!)
+              name: mysql-secret
+              key: password
+        ports:
+        - containerPort: 3306
+          name: mysql
+        volumeMounts:
+        - name: data           # ← References volumeClaimTemplates below
+          mountPath: /var/lib/mysql
+        - name: conf
+          mountPath: /etc/mysql/conf.d
+        resources:
+          requests:
+            cpu: "500m"
+            memory: "512Mi"
+          limits:
+            cpu: "1000m"
+            memory: "1Gi"
+        livenessProbe:
+          exec:
+            command: ["mysqladmin", "ping"]   # ← Check if MySQL is responsive
+          initialDelaySeconds: 30
+          periodSeconds: 10
+      volumes:
+      - name: conf
+        emptyDir: {}           # ← Temporary volume shared between init + main container
+
+  volumeClaimTemplates:        # ← THIS is what makes StatefulSet special!
+  - metadata:
+      name: data               # ← Each pod gets: data-mysql-0, data-mysql-1, data-mysql-2
+    spec:
+      accessModes: ["ReadWriteOnce"]  # ← Only ONE pod can mount at a time (block storage)
+      storageClassName: gp2           # ← AWS EBS gp2 SSD (or gp3 for newer clusters)
+      resources:
+        requests:
+          storage: 10Gi               # ← 10GB per pod = 30GB total for 3 replicas</code></pre>
+    </div>
+
+    <h3>Word-by-Word: The Critical Parts</h3>
+    <div class="annotate-row">
+      <div class="annotate-code">serviceName: "mysql"</div>
+      <div class="annotate-desc"><strong>Why it's required:</strong> StatefulSet needs a <em>Headless Service</em> (clusterIP: None) to create stable DNS entries for each pod. Without this, pods can't address each other by stable hostname — critical for database replication.</div>
+    </div>
+    <div class="annotate-row">
+      <div class="annotate-code">volumeClaimTemplates</div>
+      <div class="annotate-desc"><strong>What it does:</strong> Automatically creates a unique PersistentVolumeClaim for EACH pod. mysql-0 gets PVC <code>data-mysql-0</code>, mysql-1 gets <code>data-mysql-1</code>. When a pod is deleted and recreated, it reattaches to the SAME PVC — data survives pod restarts.</div>
+    </div>
+    <div class="annotate-row">
+      <div class="annotate-code">initContainers</div>
+      <div class="annotate-desc"><strong>What it does:</strong> Runs to completion BEFORE the main container starts. Used for setup tasks: copying config files, waiting for dependencies, DB schema migration. The main container starts only after all initContainers succeed.</div>
+    </div>
+
+    <h3>Headless Service for StatefulSet</h3>
+    <div class="code-block">
+      <div class="code-header"><span class="lang">YAML</span><span class="filename">mysql-headless-svc.yaml</span></div>
+      <pre><code>apiVersion: v1
+kind: Service
+metadata:
+  name: mysql          # ← Must match StatefulSet's spec.serviceName
+  namespace: shopnow
+spec:
+  clusterIP: None      # ← THIS makes it "headless" — no virtual IP created
+                       #   Instead, DNS returns individual pod IPs directly
+  selector:
+    app: mysql
+  ports:
+  - port: 3306
+    name: mysql
+# Result: Stable DNS names per pod:
+# mysql-0.mysql.shopnow.svc.cluster.local → 10.0.1.5
+# mysql-1.mysql.shopnow.svc.cluster.local → 10.0.1.6
+# mysql-2.mysql.shopnow.svc.cluster.local → 10.0.1.7</code></pre>
+    </div>
+
+    <div class="tip">
+      <strong>💡 Interview Gold:</strong> "Why does StatefulSet need a Headless Service?" — Because Kubernetes creates stable DNS entries (<code>pod-name.service-name.namespace.svc.cluster.local</code>) for each StatefulSet pod using the headless service. This allows replicas to find the primary node by a predictable hostname, which is essential for database replication configuration.
+    </div>
+  </div>
+
+  <!-- SECTION 3 — DAEMONSET -->
+  <div class="section" id="daemonset">
+    <span class="section-num">SECTION 3</span>
+    <h2>👾 DaemonSet — One Pod Per Node</h2>
+
+    <div class="story">
+      <div class="story-label">📖 Story</div>
+      <p>ShopNow's ops team needs log collection (Fluentd) and monitoring (Prometheus Node Exporter) running on EVERY server. When a new EC2 node joins the cluster, it must automatically get these agents. When a node is removed, the agent should stop. This is exactly what DaemonSet does.</p>
+    </div>
+
+    <p>A <strong>DaemonSet</strong> ensures that <em>all</em> (or some) nodes run a copy of a specific pod. When new nodes are added to the cluster, pods are automatically added. When nodes are removed, pods are garbage collected.</p>
+
+    <h3>Common DaemonSet Use Cases</h3>
+    <div class="cards">
+      <div class="card"><div class="icon">📋</div><h4>Log Collectors</h4><p>Fluentd, Filebeat, Fluent Bit — reads logs from node filesystem</p></div>
+      <div class="card"><div class="icon">📊</div><h4>Metrics Agents</h4><p>Prometheus Node Exporter, Datadog Agent — collect node-level metrics</p></div>
+      <div class="card"><div class="icon">🔒</div><h4>Security Agents</h4><p>Falco, AWS GuardDuty agent — security scanning per node</p></div>
+      <div class="card"><div class="icon">🌐</div><h4>Network Plugins</h4><p>AWS VPC CNI, Calico — must run on every node to set up networking</p></div>
+    </div>
+
+    <div class="code-block">
+      <div class="code-header"><span class="lang">YAML</span><span class="filename">fluentd-daemonset.yaml</span></div>
+      <pre><code>apiVersion: apps/v1
+kind: DaemonSet                # ← Automatically runs on every node
+metadata:
+  name: fluentd
+  namespace: kube-system       # ← System-level agents go in kube-system
+spec:
+  selector:
+    matchLabels:
+      app: fluentd
+  updateStrategy:
+    type: RollingUpdate        # ← Update nodes one by one (vs OnDelete)
+    rollingUpdate:
+      maxUnavailable: 1        # ← Update 1 node at a time
+  template:
+    metadata:
+      labels:
+        app: fluentd
+    spec:
+      tolerations:             # ← CRITICAL: Allow pod to run on control-plane nodes too
+      - key: node-role.kubernetes.io/control-plane
+        operator: Exists
+        effect: NoSchedule
+      containers:
+      - name: fluentd
+        image: fluent/fluentd-kubernetes-daemonset:v1.16
+        env:
+        - name: FLUENT_ELASTICSEARCH_HOST
+          value: "elasticsearch.logging.svc.cluster.local"
+        - name: FLUENT_ELASTICSEARCH_PORT
+          value: "9200"
+        resources:
+          limits:
+            memory: 200Mi      # ← Log agents should be lightweight
+          requests:
+            cpu: 100m
+            memory: 200Mi
+        volumeMounts:
+        - name: varlog          # ← Mount host's /var/log to read container logs
+          mountPath: /var/log
+        - name: varlibdockercontainers
+          mountPath: /var/lib/docker/containers
+          readOnly: true
+      terminationGracePeriodSeconds: 30
+      volumes:
+      - name: varlog
+        hostPath:              # ← hostPath: mounts a DIRECTORY from the NODE filesystem
+          path: /var/log       #   into the container — needed to read log files
+      - name: varlibdockercontainers
+        hostPath:
+          path: /var/lib/docker/containers</code></pre>
+    </div>
+
+    <div class="annotate-row" style="margin-top:16px;">
+      <div class="annotate-code">tolerations: NoSchedule</div>
+      <div class="annotate-desc"><strong>Why it matters:</strong> Control-plane nodes have a <em>taint</em> that prevents regular pods from being scheduled there. Tolerations allow the DaemonSet pod to "tolerate" (ignore) that taint and still run on control-plane nodes — essential for cluster-wide agents.</div>
+    </div>
+    <div class="annotate-row">
+      <div class="annotate-code">hostPath volumes</div>
+      <div class="annotate-desc"><strong>What it does:</strong> Mounts a path from the HOST node's filesystem into the container. DaemonSet log collectors need this to access the actual log files written by other containers on the node. Security note: hostPath is powerful and should be used only for system-level pods.</div>
+    </div>
+  </div>
+
+  <!-- SECTION 4 — JOBS & CRONJOBS -->
+  <div class="section" id="jobs">
+    <span class="section-num">SECTION 4</span>
+    <h2>⏱️ Jobs & CronJobs — Batch Processing</h2>
+
+    <h3>Job — Run Once, Complete, Done</h3>
+    <div class="story">
+      <div class="story-label">📖 Story</div>
+      <p>ShopNow launches a new feature. Before going live, the team needs to run a database migration script once — adding new columns to the orders table. This should run, complete successfully, and stop. Never restart unless it fails. That's a <strong>Job</strong>.</p>
+    </div>
+
+    <div class="code-block">
+      <div class="code-header"><span class="lang">YAML</span><span class="filename">db-migration-job.yaml</span></div>
+      <pre><code>apiVersion: batch/v1            # ← Jobs are in the 'batch' API group
+kind: Job
+metadata:
+  name: db-migration-v2
+  namespace: shopnow
+spec:
+  completions: 1               # ← Run 1 successful pod (default)
+  parallelism: 1               # ← Run 1 pod at a time
+  backoffLimit: 3              # ← Retry up to 3 times if pod fails
+  activeDeadlineSeconds: 300   # ← Kill job if it runs more than 5 minutes
+  ttlSecondsAfterFinished: 600 # ← Auto-delete job 10 min after completion (cleanup)
+  template:
+    spec:
+      restartPolicy: OnFailure # ← REQUIRED for Jobs: Never or OnFailure
+                               #   (NOT Always — that would loop forever!)
+      containers:
+      - name: migration
+        image: shopnow/backend:v2.0
+        command: ["python", "manage.py", "migrate"]  # ← Run django migrations
+        env:
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: db-credentials
+              key: url
+        resources:
+          requests:
+            cpu: "200m"
+            memory: "256Mi"</code></pre>
+    </div>
+
+    <div class="annotate-row" style="margin-top:16px;">
+      <div class="annotate-code">restartPolicy: OnFailure</div>
+      <div class="annotate-desc"><strong>Critical difference:</strong> Regular pods use <code>Always</code> (restart forever). Jobs must use <code>OnFailure</code> or <code>Never</code>. <code>OnFailure</code> restarts the container on the SAME pod if it crashes. <code>Never</code> creates a NEW pod if it fails (useful to preserve logs of failed attempt).</div>
+    </div>
+    <div class="annotate-row">
+      <div class="annotate-code">completions &amp; parallelism</div>
+      <div class="annotate-desc"><strong>Power combo:</strong> Set <code>completions: 10, parallelism: 3</code> to process 10 tasks with 3 workers at a time — like a worker queue. Each pod processes one item. When 3 finish, 3 more start, until all 10 complete.</div>
+    </div>
+
+    <h3>CronJob — Scheduled Jobs</h3>
+    <div class="code-block">
+      <div class="code-header"><span class="lang">YAML</span><span class="filename">nightly-report-cronjob.yaml</span></div>
+      <pre><code>apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: nightly-sales-report
+  namespace: shopnow
+spec:
+  schedule: "0 2 * * *"          # ← Cron syntax: minute hour day month weekday
+                                  #   "0 2 * * *" = 2:00 AM every day
+                                  #   "*/15 * * * *" = every 15 minutes
+                                  #   "0 9 * * 1" = 9 AM every Monday
+  concurrencyPolicy: Forbid       # ← If prev job still running, SKIP new one
+                                  #   Options: Allow | Forbid | Replace
+  successfulJobsHistoryLimit: 3   # ← Keep last 3 successful job logs
+  failedJobsHistoryLimit: 1       # ← Keep last 1 failed job log
+  startingDeadlineSeconds: 60     # ← If missed schedule, only start if within 60s
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+          - name: report-generator
+            image: shopnow/reports:latest
+            command: ["python", "generate_sales_report.py", "--date=yesterday"]
+            resources:
+              requests:
+                cpu: "100m"
+                memory: "128Mi"</code></pre>
+    </div>
+
+    <div class="tip">
+      <strong>📅 Cron Cheatsheet:</strong><br>
+      <code>* * * * *</code> = every minute<br>
+      <code>0 * * * *</code> = every hour at :00<br>
+      <code>0 2 * * *</code> = 2:00 AM daily<br>
+      <code>0 2 * * 0</code> = 2:00 AM every Sunday<br>
+      <code>0 2 1 * *</code> = 2:00 AM on 1st of every month<br>
+      Use <a href="https://crontab.guru" target="_blank">crontab.guru</a> to verify your schedule.
+    </div>
+  </div>
+
+  <!-- SECTION 5 — HPA -->
+  <div class="section" id="hpa">
+    <span class="section-num">SECTION 5</span>
+    <h2>📈 HPA — Horizontal Pod Autoscaler</h2>
+
+    <div class="story">
+      <div class="story-label">📖 Story</div>
+      <p>It's 9 PM on a Saturday. ShopNow's checkout service goes from 10 req/sec to 1000 req/sec. The team is asleep. Manually scaling would be too slow. <strong>HPA</strong> detects the CPU spike and automatically adds pods — from 2 to 20 — in minutes. When traffic drops at 2 AM, it scales back down to save costs. No human needed.</p>
+    </div>
+
+    <h3>How HPA Works</h3>
+    <div class="arch-diagram">
+┌────────────────────────────────────────────────────────────┐
+│                    HPA Control Loop (every 15s)            │
+│                                                            │
+│  1. HPA reads metrics from Metrics Server                  │
+│     (CPU: 450m used / 200m requested = 225% utilization)  │
+│                                                            │
+│  2. Calculate desired replicas:                            │
+│     desiredReplicas = ceil(currentReplicas × (current/target))
+│     = ceil(2 × (225%/50%)) = ceil(9) = 9 replicas         │
+│                                                            │
+│  3. Scale Deployment from 2 → 9 replicas                  │
+│                                                            │
+│  4. Wait for stabilization window (300s) before scaling in │
+└────────────────────────────────────────────────────────────┘
+    </div>
+
+    <h3>Step 1: Install Metrics Server (required for CPU/Memory HPA)</h3>
+    <div class="code-block">
+      <div class="code-header"><span class="lang">bash</span></div>
+      <pre><code># On Minikube
+minikube addons enable metrics-server
+
+# On EKS (using Helm or manifest)
+kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml
+
+# Verify metrics server is working
+kubectl top nodes        # Shows CPU/Memory per node
+kubectl top pods -n shopnow  # Shows CPU/Memory per pod</code></pre>
+    </div>
+
+    <h3>HPA YAML — CPU & Memory Scaling</h3>
+    <div class="code-block">
+      <div class="code-header"><span class="lang">YAML</span><span class="filename">checkout-hpa.yaml</span></div>
+      <pre><code>apiVersion: autoscaling/v2          # ← v2 supports multiple metrics
+kind: HorizontalPodAutoscaler
+metadata:
+  name: checkout-hpa
+  namespace: shopnow
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: checkout-service            # ← Which Deployment to scale
+  minReplicas: 2                      # ← Never go below 2 (for HA)
+  maxReplicas: 20                     # ← Never exceed 20 pods
+  metrics:
+  - type: Resource                    # ← CPU-based scaling
+    resource:
+      name: cpu
+      target:
+        type: Utilization             # ← Percentage of requested CPU
+        averageUtilization: 50        # ← Scale up if avg CPU > 50% of requests
+                                      #   Scale down if avg CPU < 50%
+  - type: Resource                    # ← Memory-based scaling
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 70        # ← Scale up if avg memory > 70%
+  behavior:                           # ← Control HOW FAST it scales
+    scaleUp:
+      stabilizationWindowSeconds: 0   # ← Scale up immediately (no wait)
+      policies:
+      - type: Pods
+        value: 4                      # ← Add at most 4 pods per 60s
+        periodSeconds: 60
+      - type: Percent
+        value: 100                    # ← Or double the pods per 60s
+        periodSeconds: 60
+      selectPolicy: Max               # ← Use whichever policy scales MORE
+    scaleDown:
+      stabilizationWindowSeconds: 300 # ← Wait 5 min before scaling down
+                                      #   (avoids flapping during traffic spikes)
+      policies:
+      - type: Pods
+        value: 2                      # ← Remove at most 2 pods per 60s
+        periodSeconds: 60</code></pre>
+    </div>
+
+    <div class="annotate-row" style="margin-top:16px;">
+      <div class="annotate-code">averageUtilization: 50</div>
+      <div class="annotate-desc"><strong>Important:</strong> This is % of the pod's CPU <em>request</em>, not the node's total CPU. If pod requests 200m CPU and uses 120m, that's 60% — HPA would scale up. If you don't set resource requests on pods, HPA cannot calculate utilization and won't work!</div>
+    </div>
+    <div class="annotate-row">
+      <div class="annotate-code">stabilizationWindowSeconds: 300</div>
+      <div class="annotate-desc"><strong>Why it matters:</strong> Without a stabilization window on scale-down, HPA would remove pods as soon as CPU drops — then immediately add them back as the remaining pods get overloaded. The 5-minute window prevents this "flapping" pattern.</div>
+    </div>
+
+    <div class="tip">
+      <strong>⚠️ Common HPA Mistake:</strong> HPA requires <code>resources.requests</code> to be set on containers. If requests are missing, <code>kubectl get hpa</code> shows <code>&lt;unknown&gt;/50%</code> for current utilization and scaling never works.
+    </div>
+  </div>
+
+  <!-- SECTION 6 — VPA -->
+  <div class="section" id="vpa">
+    <span class="section-num">SECTION 6</span>
+    <h2>⚖️ VPA — Vertical Pod Autoscaler</h2>
+
+    <p><strong>VPA</strong> adjusts the CPU/memory <em>requests and limits</em> of containers automatically — making containers bigger or smaller instead of adding/removing replicas. Use VPA for apps that can't scale horizontally (single-instance databases, ML training jobs).</p>
+
+    <div class="compare">
+      <div class="compare-box">
+        <h4>HPA (Horizontal)</h4>
+        <ul>
+          <li>Adds/removes PODS</li>
+          <li>Best for stateless apps</li>
+          <li>Requires app to handle multiple replicas</li>
+          <li>Scales fast (seconds)</li>
+        </ul>
+      </div>
+      <div class="compare-box">
+        <h4>VPA (Vertical)</h4>
+        <ul>
+          <li>Adjusts CPU/Memory of existing pods</li>
+          <li>Best for stateful or single-instance apps</li>
+          <li>Pod must restart to apply new limits</li>
+          <li>Good for rightsizing resource requests</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="code-block">
+      <div class="code-header"><span class="lang">YAML</span><span class="filename">vpa.yaml</span></div>
+      <pre><code># First install VPA:
+# kubectl apply -f https://github.com/kubernetes/autoscaler/releases/latest/download/vertical-pod-autoscaler.yaml
+
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: mysql-vpa
+  namespace: shopnow
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: StatefulSet
+    name: mysql
+  updatePolicy:
+    updateMode: "Auto"          # ← Options:
+                                #   "Off" = only recommend, don't apply
+                                #   "Initial" = set only on new pods
+                                #   "Auto" = evict and recreate pods with new limits
+  resourcePolicy:
+    containerPolicies:
+    - containerName: mysql
+      minAllowed:               # ← Never go below this
+        cpu: 250m
+        memory: 256Mi
+      maxAllowed:               # ← Never exceed this
+        cpu: 4
+        memory: 8Gi
+      controlledResources:      # ← Which resources VPA manages
+        - cpu
+        - memory</code></pre>
+    </div>
+
+    <div class="danger">
+      <strong>⚠️ Warning:</strong> Do NOT use HPA and VPA (Auto mode) together on the same deployment for CPU/memory — they conflict. Use VPA in "Off" mode for recommendations only, then manually apply the suggested values to your resource requests.
+    </div>
+  </div>
+
+  <!-- SECTION 7 — KEDA -->
+  <div class="section" id="keda">
+    <span class="section-num">SECTION 7</span>
+    <h2>⚡ KEDA — Event-Driven Autoscaling</h2>
+
+    <div class="story">
+      <div class="story-label">📖 Story</div>
+      <p>ShopNow processes orders via an SQS queue. When queue depth is 0, the processing pods should scale to 0 (no cost!). When 10,000 orders flood in, scale to 50 pods immediately — based on queue length, not CPU. Standard HPA can't do this. <strong>KEDA</strong> (Kubernetes Event-Driven Autoscaling) can scale to/from zero based on external event sources.</p>
+    </div>
+
+    <div class="code-block">
+      <div class="code-header"><span class="lang">bash</span></div>
+      <pre><code># Install KEDA on EKS
+helm repo add kedacore https://kedacore.github.io/charts
+helm repo update
+helm install keda kedacore/keda --namespace keda --create-namespace</code></pre>
+    </div>
+
+    <div class="code-block">
+      <div class="code-header"><span class="lang">YAML</span><span class="filename">sqs-keda-scaler.yaml</span></div>
+      <pre><code>apiVersion: keda.sh/v1alpha1
+kind: ScaledObject                    # ← KEDA's custom resource
+metadata:
+  name: order-processor-scaler
+  namespace: shopnow
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: order-processor             # ← Which Deployment to scale
+  minReplicaCount: 0                  # ← Scale TO ZERO when queue is empty (saves cost!)
+  maxReplicaCount: 50
+  cooldownPeriod: 300                 # ← Wait 5 min before scaling to zero
+  pollingInterval: 15                 # ← Check queue every 15 seconds
+  triggers:
+  - type: aws-sqs-queue               # ← Trigger type: SQS queue depth
+    authenticationRef:
+      name: aws-credentials           # ← Reference to credentials (TriggerAuthentication)
+    metadata:
+      queueURL: https://sqs.ap-south-1.amazonaws.com/123456789/orders-queue
+      queueLength: "100"              # ← Add 1 replica per 100 messages in queue
+      awsRegion: ap-south-1</code></pre>
+    </div>
+
+    <p>KEDA supports 50+ scalers including: <strong>SQS, Kafka, RabbitMQ, Redis, Prometheus metrics, HTTP requests, CloudWatch, Azure Service Bus</strong>, and many more.</p>
+  </div>
+
+  <!-- SECTION 8 — LABS -->
+  <div class="section" id="labs">
+    <span class="section-num">SECTION 8</span>
+    <h2>🧪 Hands-On Labs</h2>
+
+    <div class="lab">
+      <div class="lab-header"><span class="lab-icon">📊</span><h3>Lab 3: Deploy HPA and Watch It Scale</h3></div>
+
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-body">
+          <p>Create a CPU-intensive deployment with HPA:</p>
+          <div class="code-block">
+            <div class="code-header"><span class="lang">bash</span></div>
+            <pre><code># Enable metrics server on minikube (if not done)
+minikube addons enable metrics-server
+
+# Create a test deployment that can be stressed
+kubectl create deployment php-apache \
+  --image=registry.k8s.io/hpa-example \
+  --requests=cpu=200m \
+  -n shopnow
+
+kubectl expose deployment php-apache \
+  --port=80 \
+  --type=ClusterIP \
+  -n shopnow
+
+# Create HPA
+kubectl autoscale deployment php-apache \
+  --cpu-percent=50 \
+  --min=1 \
+  --max=10 \
+  -n shopnow
+
+# Check HPA status
+kubectl get hpa -n shopnow
+# NAME         REFERENCE               TARGETS   MINPODS   MAXPODS   REPLICAS
+# php-apache   Deployment/php-apache   0%/50%    1         10        1</code></pre>
+          </div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-body">
+          <p>Generate load in a separate terminal to trigger HPA:</p>
+          <div class="code-block">
+            <div class="code-header"><span class="lang">bash</span></div>
+            <pre><code># Terminal 1: Generate load
+kubectl run -i --tty load-generator \
+  --rm \
+  --image=busybox:1.28 \
+  --restart=Never \
+  -n shopnow \
+  -- /bin/sh -c "while sleep 0.01; do wget -q -O- http://php-apache; done"
+
+# Terminal 2: Watch HPA respond (run in separate terminal)
+kubectl get hpa -n shopnow -w
+# TARGETS will climb above 50%, and REPLICAS will increase automatically!
+# 0%/50% → 250%/50% → REPLICAS scales: 1 → 4 → 7 → 10
+
+# Terminal 3: Watch pods being created
+kubectl get pods -n shopnow -w
+
+# Stop the load generator (Ctrl+C in Terminal 1)
+# Watch HPA scale back down (takes ~5 minutes due to stabilization window)</code></pre>
+          </div>
+          <div class="success">
+            <strong>✅ You just watched Kubernetes auto-scale from 1 to 10 pods under load, then back to 1!</strong>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="lab">
+      <div class="lab-header"><span class="lab-icon">⏱️</span><h3>Lab 4: Run a Job and a CronJob</h3></div>
+
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-body">
+          <div class="code-block">
+            <div class="code-header"><span class="lang">bash</span></div>
+            <pre><code># Create and run a simple Job (compute pi to 2000 digits)
+cat > pi-job.yaml &lt;&lt;'EOF'
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: pi-calculator
+  namespace: shopnow
+spec:
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: pi
+        image: perl:5.34
+        command: ["perl", "-Mbignum=bpi", "-wle", "print bpi(2000)"]
+        resources:
+          requests: {cpu: "200m", memory: "64Mi"}
+EOF
+
+kubectl apply -f pi-job.yaml
+
+# Watch the job
+kubectl get jobs -n shopnow -w
+# NAME           COMPLETIONS   DURATION   AGE
+# pi-calculator  0/1           3s         3s
+# pi-calculator  1/1           8s         8s  ← Done!
+
+# See the output
+kubectl logs job/pi-calculator -n shopnow
+# 3.14159265358979323846...
+
+# Create a CronJob that runs every minute (for testing)
+cat > test-cron.yaml &lt;&lt;'EOF'
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: hello-every-minute
+  namespace: shopnow
+spec:
+  schedule: "* * * * *"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+          - name: hello
+            image: busybox:1.28
+            command: ["/bin/sh", "-c", "date; echo Hello from CronJob"]
+EOF
+
+kubectl apply -f test-cron.yaml
+
+# Wait 1 minute, then check
+kubectl get cronjobs -n shopnow
+kubectl get jobs -n shopnow     # New jobs created every minute
+kubectl logs -l job-name=hello-every-minute-xxxxx -n shopnow
+
+# Clean up
+kubectl delete cronjob hello-every-minute -n shopnow</code></pre>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SECTION 9 — INTERVIEW -->
+  <div class="section" id="interview">
+    <span class="section-num">SECTION 9</span>
+    <h2>🎯 Interview Questions & Answers — Part 2</h2>
+
+    <div class="interview">
+      <div class="interview-label">🎯 Interview Prep — 4 YOE Level</div>
+
+      <p class="q">Q1: When would you use a StatefulSet instead of a Deployment?</p>
+      <div class="a">A: StatefulSet is for applications that require stable network identity, stable persistent storage, and ordered deployment/scaling. Examples: MySQL, PostgreSQL, MongoDB, Kafka, Elasticsearch, ZooKeeper. The key differentiators are: (1) Pods get stable names (mysql-0, mysql-1) — critical for primary/replica configuration, (2) Each pod gets its own PVC via volumeClaimTemplates — data survives pod restarts, (3) Pods start and stop in a defined order — mysql-0 starts before mysql-1, ensuring the primary is ready before replicas connect.</div>
+
+      <p class="q">Q2: Explain how HPA calculates the desired number of replicas.</p>
+      <div class="a">A: HPA uses the formula: <code>desiredReplicas = ceil(currentReplicas × (currentMetricValue / targetMetricValue))</code>. For example, if 3 pods are running and avg CPU is 90% with a target of 50%: desired = ceil(3 × 90/50) = ceil(5.4) = 6 replicas. HPA reads metrics every 15 seconds from the Metrics Server. It has a scale-down stabilization window (default 5 minutes) to prevent flapping.</div>
+
+      <p class="q">Q3: What is the difference between HPA and VPA? Can you use both?</p>
+      <div class="a">A: HPA scales horizontally — adds/removes pod replicas. VPA scales vertically — adjusts CPU/memory requests of pods. Both should NOT be used together on the same resource metric (both managing CPU causes conflicts). However, you can use VPA in "Off" mode for recommendations while HPA manages CPU scaling. A valid combination: VPA manages memory, HPA manages custom metrics (like queue depth via KEDA). Also, Cluster Autoscaler can be combined with HPA — HPA adds pods, Cluster Autoscaler adds nodes when pods are Pending due to insufficient resources.</div>
+
+      <p class="q">Q4: What is a DaemonSet used for? Give three real examples.</p>
+      <div class="a">A: DaemonSet ensures exactly one pod runs on every (or selected) node. Real examples: (1) <strong>Fluentd/Fluent Bit</strong> — reads log files from /var/log on every node and ships to Elasticsearch. (2) <strong>Prometheus Node Exporter</strong> — collects OS-level metrics (disk, network, CPU) from each node. (3) <strong>AWS VPC CNI</strong> — manages pod networking on every EKS node. DaemonSets automatically add pods when new nodes join the cluster and remove pods when nodes leave — no manual scaling needed.</div>
+
+      <p class="q">Q5: What is KEDA and when would you use it over standard HPA?</p>
+      <div class="a">A: KEDA (Kubernetes Event Driven Autoscaling) extends HPA to scale based on external event sources like message queue depth, HTTP requests per second, database query counts, or Prometheus metrics. The key advantage over standard HPA is the ability to scale TO ZERO — when there are no events, KEDA can scale the deployment to 0 pods (saving 100% of cost), and scale back up when events arrive. Use KEDA when: you process SQS/Kafka/RabbitMQ messages, you have bursty or time-based workloads, or you want scale-to-zero for cost optimization.</div>
+
+      <p class="q">Q6: What is restartPolicy in a Job and what values are valid?</p>
+      <div class="a">A: <code>restartPolicy</code> defines what happens when a container in a pod exits. For Jobs, valid values are: <strong>Never</strong> (create a new pod on failure — preserves logs of failed pods) and <strong>OnFailure</strong> (restart the container within the same pod on failure). The value <strong>Always</strong> is NOT valid for Jobs — it would cause the Job to restart indefinitely even after success. Deployments use <code>Always</code> because their pods should keep running.</div>
+    </div>
+
+    <div class="success">
+      <strong>✅ Part 2 Complete!</strong> You now master all Kubernetes workload types and autoscaling strategies. Continue to Part 3 to dive deep into Kubernetes Networking — Ingress, Network Policies, DNS, and AWS Load Balancer integration.
+    </div>
+  </div>
+
+  <div class="footer">
+    <a href="k8s-aws-part1.html" class="prev-btn">← Part 1: Foundations</a>
+    <a href="k8s-aws-part3.html" class="next-btn">Continue to Part 3: Networking →</a>
+    <p>Part 2 of 6 · Kubernetes Administration on AWS · Built for 4 YOE Engineers</p>
+  </div>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,829 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Project 01 · Windows Server Health Check | ABC Bank DevOps Academy</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --navy:#0B1F3A;
+    --navy-deep:#081527;
+    --steel:#1B4F72;
+    --bg:#F3F6FA;
+    --card:#FFFFFF;
+    --line:#E2E8F0;
+    --ink:#16233A;
+    --ink-soft:#4B5A72;
+    --gold:#B9832F;
+    --gold-soft:#F4E6CE;
+    --green:#1E7145;
+    --green-soft:#E4F3EA;
+    --amber:#9A6B14;
+    --amber-soft:#FBF0DA;
+    --red:#B3261E;
+    --red-soft:#FBE7E5;
+    --mono:'JetBrains Mono', monospace;
+    --disp:'Space Grotesk', sans-serif;
+    --body:'IBM Plex Sans', sans-serif;
+  }
+  *{box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{
+    margin:0; font-family:var(--body); background:var(--bg); color:var(--ink);
+    display:flex; min-height:100vh;
+  }
+  a{color:var(--steel);}
+
+  /* ===== SIDEBAR ===== */
+  #sidebar{
+    width:280px; min-width:280px; background:var(--navy-deep); color:#DCE6F5;
+    position:sticky; top:0; height:100vh; overflow-y:auto; padding:22px 0 40px;
+    border-right:1px solid #0a1a30;
+  }
+  #sidebar .brand{
+    padding:0 20px 18px; border-bottom:1px solid rgba(255,255,255,.08); margin-bottom:14px;
+  }
+  #sidebar .brand .bank{ font-family:var(--disp); font-weight:700; font-size:13px; letter-spacing:.14em; color:var(--gold); text-transform:uppercase;}
+  #sidebar .brand h1{font-family:var(--disp); font-size:18px; margin:6px 0 4px; color:#fff; line-height:1.3;}
+  #sidebar .brand .tag{font-size:12px; color:#93A5C4;}
+  #sidebar nav{padding:0 10px;}
+  #sidebar nav .group-label{
+    font-size:10.5px; text-transform:uppercase; letter-spacing:.12em; color:#5E7398;
+    padding:14px 12px 6px;
+  }
+  #sidebar nav a{
+    display:block; padding:8px 12px; margin:1px 0; border-radius:6px; font-size:13.5px;
+    color:#B9C7DE; text-decoration:none; border-left:2px solid transparent;
+  }
+  #sidebar nav a:hover{ background:rgba(255,255,255,.05); color:#fff; }
+  #sidebar nav a.active{ background:rgba(185,131,47,.15); color:#fff; border-left:2px solid var(--gold); }
+
+  /* ===== MAIN ===== */
+  main{flex:1; min-width:0; padding:0 0 80px;}
+  .hero{
+    background:radial-gradient(1100px 400px at 15% -10%, #123059 0%, var(--navy) 55%, var(--navy-deep) 100%);
+    color:#fff; padding:52px 56px 40px; position:relative; overflow:hidden;
+  }
+  .hero::after{
+    content:""; position:absolute; right:-60px; top:-60px; width:340px; height:340px;
+    background:radial-gradient(circle, rgba(185,131,47,.18) 0%, transparent 70%);
+  }
+  .hero .eyebrow{ font-family:var(--mono); font-size:12px; letter-spacing:.16em; color:var(--gold); text-transform:uppercase;}
+  .hero h1{ font-family:var(--disp); font-size:38px; margin:10px 0 12px; max-width:780px; line-height:1.15;}
+  .hero p{ color:#B9C7DE; max-width:640px; font-size:15px; line-height:1.6;}
+
+  .status-strip{ display:flex; gap:14px; margin-top:26px; flex-wrap:wrap;}
+  .status-chip{
+    background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.12); border-radius:8px;
+    padding:10px 14px; font-family:var(--mono); font-size:12.5px; display:flex; align-items:center; gap:8px;
+    min-width:150px;
+  }
+  .dot{width:8px; height:8px; border-radius:50%; display:inline-block;}
+  .dot.green{background:#37D67A;} .dot.amber{background:#F0B84E;} .dot.red{background:#F1594F;}
+
+  section.block{ padding:40px 56px; border-bottom:1px solid var(--line); scroll-margin-top:16px;}
+  section.block h2{
+    font-family:var(--disp); font-size:24px; margin:0 0 6px; color:var(--navy);
+    display:flex; align-items:center; gap:10px;
+  }
+  section.block h2 .num{
+    font-family:var(--mono); font-size:13px; color:var(--gold); background:var(--gold-soft);
+    padding:3px 9px; border-radius:5px; font-weight:600;
+  }
+  section.block > .sub{ color:var(--ink-soft); font-size:14px; margin-bottom:24px; max-width:820px;}
+  h3{font-family:var(--disp); font-size:17px; color:var(--navy); margin:26px 0 10px;}
+  p{line-height:1.7; font-size:14.5px; color:var(--ink);}
+  ul,ol{line-height:1.75; font-size:14.5px;}
+  strong{color:var(--navy);}
+
+  /* story card */
+  .story{
+    background:linear-gradient(180deg,#FFFDF8,#FFF); border:1px solid var(--gold-soft); border-left:4px solid var(--gold);
+    border-radius:10px; padding:22px 24px; margin-bottom:8px; position:relative;
+  }
+  .story .label{font-family:var(--mono); font-size:11px; letter-spacing:.1em; text-transform:uppercase; color:var(--gold); margin-bottom:8px; display:block;}
+  .story p{margin:0 0 12px; font-size:14.5px;}
+  .story p:last-child{margin-bottom:0;}
+
+  /* cards grid */
+  .grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:16px; margin:18px 0;}
+  .card{ background:var(--card); border:1px solid var(--line); border-radius:10px; padding:18px 20px;}
+  .card h4{margin:0 0 8px; font-family:var(--disp); font-size:14.5px; color:var(--navy);}
+  .card p{margin:0; font-size:13.5px; color:var(--ink-soft);}
+
+  table{width:100%; border-collapse:collapse; margin:14px 0 22px; font-size:13.5px;}
+  th,td{ text-align:left; padding:10px 12px; border-bottom:1px solid var(--line);}
+  th{background:#EDF1F7; color:var(--navy); font-family:var(--disp); font-weight:600; font-size:12.5px; text-transform:uppercase; letter-spacing:.03em;}
+  tr:hover td{background:#FAFBFD;}
+
+  /* callouts */
+  .callout{ border-radius:10px; padding:16px 18px; margin:16px 0; font-size:14px; line-height:1.65; border:1px solid; position:relative; padding-left:48px;}
+  .callout::before{ position:absolute; left:16px; top:15px; font-family:var(--mono); font-weight:700; font-size:13px;}
+  .callout.tip{ background:var(--green-soft); border-color:#BEE3CB; color:#154A2E;}
+  .callout.tip::before{content:"TIP"; color:var(--green);}
+  .callout.note{ background:#EAF1FB; border-color:#C9DBF3; color:#1D3557;}
+  .callout.note::before{content:"NOTE"; color:var(--steel);}
+  .callout.warn{ background:var(--amber-soft); border-color:#EFD9A6; color:#5C4108;}
+  .callout.warn::before{content:"WARN"; color:var(--amber);}
+  .callout.best{ background:var(--gold-soft); border-color:#E9D3A5; color:#5A3E0E;}
+  .callout.best::before{content:"BEST\A PRACT."; white-space:pre; line-height:1.1; top:10px;}
+
+  /* concept accordion */
+  details.concept{ background:var(--card); border:1px solid var(--line); border-radius:10px; margin:10px 0; overflow:hidden;}
+  details.concept summary{
+    cursor:pointer; list-style:none; padding:14px 18px; font-family:var(--disp); font-size:14.5px; color:var(--navy);
+    display:flex; justify-content:space-between; align-items:center; font-weight:600;
+  }
+  details.concept summary::-webkit-details-marker{display:none;}
+  details.concept summary::after{content:"+"; font-family:var(--mono); color:var(--gold); font-size:18px;}
+  details.concept[open] summary::after{content:"–";}
+  details.concept .inner{padding:0 18px 18px; font-size:14px; color:var(--ink-soft); border-top:1px solid var(--line); padding-top:14px;}
+  details.concept .inner b{color:var(--navy);}
+
+  /* code block */
+  .code-wrap{ position:relative; margin:16px 0 26px; border-radius:10px; overflow:hidden; border:1px solid #0a1a30;}
+  .code-head{
+    background:var(--navy-deep); color:#93A5C4; font-family:var(--mono); font-size:12px; padding:9px 14px;
+    display:flex; justify-content:space-between; align-items:center;
+  }
+  .copy-btn{
+    background:rgba(185,131,47,.18); color:var(--gold); border:1px solid rgba(185,131,47,.4);
+    font-family:var(--mono); font-size:11px; padding:4px 10px; border-radius:5px; cursor:pointer;
+  }
+  .copy-btn:hover{background:rgba(185,131,47,.3);}
+  pre{ margin:0; background:#0B1526; padding:18px 20px; overflow-x:auto; max-height:640px; overflow-y:auto;}
+  pre code{ font-family:var(--mono); font-size:12.6px; line-height:1.65; color:#D6E2F5; white-space:pre;}
+  .c-com{color:#7C93B8;} .c-str{color:#C9DA6E;} .c-kw{color:#E4A94B;} .c-var{color:#79C6E8;} .c-fn{color:#E88DAB;}
+
+  /* line explanation table */
+  .lex{border-left:3px solid var(--steel); background:#F7FAFD; padding:10px 14px; margin:8px 0; border-radius:0 8px 8px 0;}
+  .lex code{font-family:var(--mono); font-size:12px; background:#EAF0F8; padding:2px 6px; border-radius:4px; color:var(--navy);}
+
+  /* diagram */
+  .diagram{ background:var(--card); border:1px solid var(--line); border-radius:10px; padding:24px; margin:16px 0; overflow-x:auto;}
+  .diagram svg{display:block; margin:0 auto;}
+
+  /* badges */
+  .badge{ display:inline-block; font-family:var(--mono); font-size:11px; padding:2px 9px; border-radius:20px; font-weight:600;}
+  .badge.h{background:var(--green-soft); color:var(--green);}
+  .badge.w{background:var(--amber-soft); color:var(--amber);}
+  .badge.c{background:var(--red-soft); color:var(--red);}
+
+  .agile-col{background:var(--card); border:1px solid var(--line); border-radius:10px; padding:16px 18px;}
+  .agile-col h4{margin:0 0 10px; font-family:var(--disp); color:var(--navy); font-size:14px; border-bottom:1px solid var(--line); padding-bottom:8px;}
+  .agile-col ul{margin:0; padding-left:18px; font-size:13.5px; color:var(--ink-soft);}
+
+  .qa{ background:var(--card); border:1px solid var(--line); border-radius:10px; padding:16px 18px; margin:10px 0;}
+  .qa .q{font-family:var(--disp); color:var(--navy); font-size:14px; margin-bottom:6px;}
+  .qa .a{font-size:13.5px; color:var(--ink-soft); line-height:1.65;}
+
+  footer{padding:34px 56px; color:#8896AB; font-size:12.5px; font-family:var(--mono);}
+
+  @media(max-width:900px){
+    body{flex-direction:column;}
+    #sidebar{position:relative; height:auto; width:100%; min-width:0;}
+    section.block, .hero{padding:28px 20px;}
+  }
+</style>
+</head>
+<body>
+
+<aside id="sidebar">
+  <div class="brand">
+    <div class="bank">ABC Bank · IT Operations</div>
+    <h1>PowerShell DevOps Academy</h1>
+    <div class="tag">Project 01 of 30 · Beginner Track</div>
+  </div>
+  <nav id="nav">
+    <div class="group-label">Orientation</div>
+    <a href="#story">1. The Production Story</a>
+    <a href="#business">2. Business Case</a>
+    <div class="group-label">Foundations</div>
+    <a href="#concepts">3. Concepts You Need First</a>
+    <a href="#architecture">4. Architecture</a>
+    <div class="group-label">Build</div>
+    <a href="#structure">5. Folder Structure</a>
+    <a href="#code">6. The Script</a>
+    <a href="#explain">7. Line-by-Line Explanation</a>
+    <a href="#flow">8. Execution Flow</a>
+    <a href="#internals">9. Windows Internals</a>
+    <div class="group-label">Delivery</div>
+    <a href="#agile">10. Agile Breakdown</a>
+    <a href="#lab">11. Hands-On Lab</a>
+    <a href="#practices">12. Production Best Practices</a>
+    <div class="group-label">Wrap-Up</div>
+    <a href="#interview">13. Interview Prep</a>
+    <a href="#summary">14. Key Learnings &amp; Assignment</a>
+  </nav>
+</aside>
+
+<main>
+  <div class="hero">
+    <div class="eyebrow">Project 01 — Windows Server Health Check</div>
+    <h1>Automating the morning health check for 500+ Windows servers at ABC Bank</h1>
+    <p>Your first production automation as a Windows/DevOps engineer on the Banking Operations team. Ping, CPU, memory, disk, and critical services — checked in seconds, not hours, with a clean audit trail for compliance.</p>
+    <div class="status-strip">
+      <div class="status-chip"><span class="dot green"></span>SRV-APP01 — HEALTHY</div>
+      <div class="status-chip"><span class="dot amber"></span>SRV-APP02 — WARNING (Disk 18GB free)</div>
+      <div class="status-chip"><span class="dot red"></span>SRV-DB01 — CRITICAL (MSSQLSERVER stopped)</div>
+    </div>
+  </div>
+
+  <!-- 1. STORY -->
+  <section class="block" id="story">
+    <h2><span class="num">01</span> The Production Story</h2>
+    <div class="sub">Every project in this academy starts with a real Banking Operations scenario. This is the situation you are walking into on day one.</div>
+
+    <div class="story">
+      <span class="label">Monday, 6:45 AM — NOC War Room, ABC Bank Data Center</span>
+      <p>You've just joined ABC Bank as a Windows/DevOps Engineer on the Production Support team. Your Team Lead, Priya, is already on her third coffee when she waves you over.</p>
+      <p>"Welcome aboard. Here's how mornings work here: the Windows Operations team manages over <strong>500 Windows Servers</strong> — IIS web farms for online banking, SQL Servers for the core banking database, and middleware for payment gateways. Every single morning, before the branches open at 9 AM, someone has to confirm every server is healthy."</p>
+      <p>She pulls up a spreadsheet. "Right now, two engineers RDP into servers one by one. They check: Is it pingable? What's CPU and memory doing? Is the C: drive filling up? Are the critical services — IIS, SQL, the payment gateway service — actually running? Then they paste the results into this spreadsheet by hand."</p>
+      <p>"Last Thursday, SRV-DB01's SQL Server service had silently stopped overnight. Nobody caught it until 9:20 AM when the mobile banking app started throwing errors. That's 20 minutes of a banking outage that could have been caught before the branches even opened."</p>
+      <p>"Your first task: build a PowerShell script that checks every server automatically, flags anything unhealthy, and produces a report we can hand to management and auditors. Let's build it together, step by step."</p>
+    </div>
+
+    <div class="callout note">This story repeats with variations across all 30 projects — you are the same engineer, ABC Bank is the same employer, and each project adds a new capability to the automation suite you are building over your first year on the team.</div>
+  </section>
+
+  <!-- 2. BUSINESS CASE -->
+  <section class="block" id="business">
+    <h2><span class="num">02</span> Business Case</h2>
+    <div class="sub">Before writing a single line of code, a Senior Engineer always frames the business problem. This is what separates a script-writer from an engineer who gets trusted with production.</div>
+
+    <div class="grid">
+      <div class="card"><h4>Business Requirement</h4><p>Confirm the health of all production Windows servers before the banking day starts, with a defensible audit record.</p></div>
+      <div class="card"><h4>Customer Requirement</h4><p>Operations management wants a single daily report, not 500 individual manual checks, delivered before 8:30 AM.</p></div>
+      <div class="card"><h4>Banking Scenario</h4><p>Online banking, mobile banking, and payment gateways all depend on this server fleet being healthy before branch opening.</p></div>
+      <div class="card"><h4>Current Manual Process</h4><p>Two engineers RDP into servers one at a time, eyeball Task Manager and Services.msc, and record results in a shared spreadsheet.</p></div>
+      <div class="card"><h4>Problems With Current Process</h4><p>Slow, error-prone, inconsistent between engineers, no audit trail, and easy to miss a stopped service at 6 AM.</p></div>
+      <div class="card"><h4>Business Challenges</h4><p>Regulatory audits require proof that health checks happened; a spreadsheet with manual entries doesn't hold up well.</p></div>
+      <div class="card"><h4>Risk Analysis</h4><p>An undetected outage on a payment or core banking server directly impacts customer transactions and regulatory SLAs.</p></div>
+      <div class="card"><h4>Business Impact</h4><p>Every hour of delayed detection risks reputational damage, customer complaints, and potential financial penalties.</p></div>
+      <div class="card"><h4>Why Automation Is Required</h4><p>500 servers cannot be checked reliably by hand in the 90-minute pre-market window every single day, indefinitely.</p></div>
+      <div class="card"><h4>Solution Design</h4><p>A PowerShell script that loops through the server list, checks CPU/memory/disk/services, and outputs CSV + HTML reports with logging.</p></div>
+      <div class="card"><h4>Project Scope</h4><p>Phase 1 covers connectivity, resource usage, and critical service status for a defined server list, with reporting and logging.</p></div>
+      <div class="card"><h4>Expected Benefits</h4><p>Health checks drop from ~3 hours to under 5 minutes, with a consistent, auditable, repeatable result every morning.</p></div>
+    </div>
+  </section>
+
+  <!-- 3. CONCEPTS -->
+  <section class="block" id="concepts">
+    <h2><span class="num">03</span> Concepts You Need First</h2>
+    <div class="sub">Assume nothing. Every concept used in today's script is explained here before you see it in code. Click each one open.</div>
+
+    <details class="concept" open>
+      <summary>Variables — <span style="font-weight:400;color:#93A5C4;">$Something</span></summary>
+      <div class="inner">
+        <p><b>What it is:</b> A named container that holds a value in memory while your script runs. In PowerShell every variable name starts with a dollar sign, e.g. <code>$ServerName</code>.</p>
+        <p><b>Why it exists:</b> You need somewhere to store the server list, the results, thresholds, and file paths so you can reuse them instead of retyping values.</p>
+        <p><b>Internally:</b> PowerShell variables live in a "variable drive" called <code>Variable:</code> for the current session — you can literally run <code>dir Variable:</code> to see every variable currently in memory.</p>
+        <p><b>Best practice:</b> Use PascalCase names that describe the content (<code>$CriticalServices</code>, not <code>$x</code>). <b>Common mistake:</b> forgetting the <code>$</code> when reading a variable — PowerShell will treat the bare word as plain text instead.</p>
+      </div>
+    </details>
+
+    <details class="concept">
+      <summary>Objects (not just text)</summary>
+      <div class="inner">
+        <p><b>What it is:</b> Every single thing that comes out of a PowerShell command is a structured .NET object with named properties — not a line of plain text like in old-school batch scripting.</p>
+        <p><b>Why it matters here:</b> When we run <code>Get-Service</code>, we don't get text we have to parse with regular expressions — we get an object with a real <code>.Status</code> property we can compare directly, e.g. <code>$Service.Status -eq "Running"</code>.</p>
+        <p><b>Production use case:</b> This is the single biggest reason PowerShell beats batch/VBScript for enterprise automation — reliable, structured data instead of fragile text-scraping.</p>
+      </div>
+    </details>
+
+    <details class="concept">
+      <summary>The Pipeline — <span style="font-weight:400;color:#93A5C4;">Cmdlet-A | Cmdlet-B</span></summary>
+      <div class="inner">
+        <p><b>What it is:</b> The <code>|</b></code> symbol passes the object output of one cmdlet directly into the next cmdlet as input, one object at a time.</p>
+        <p><b>Why it exists:</b> It lets you build a chain of small, single-purpose commands instead of one giant block of code — e.g. <code>Get-Service | Where-Object {...} | Export-Csv ...</code>.</p>
+        <p><b>Internally:</b> PowerShell streams objects through the pipeline one at a time where possible, which keeps memory usage efficient even over large result sets.</p>
+      </div>
+    </details>
+
+    <details class="concept">
+      <summary>Cmdlets &amp; Aliases</summary>
+      <div class="inner">
+        <p><b>Cmdlets:</b> PowerShell's built-in commands, always named <code>Verb-Noun</code> (e.g. <code>Get-Service</code>, <code>Test-Connection</code>). The consistent naming is deliberate so commands are predictable.</p>
+        <p><b>Aliases:</b> Short nicknames for cmdlets, e.g. <code>gsv</code> for <code>Get-Service</code>, or <code>%</code> for <code>ForEach-Object</code>. <b>Best practice:</b> use full cmdlet names in production scripts — aliases are fine for interactive typing but hurt readability in code that a teammate will maintain at 2 AM during an incident.</p>
+      </div>
+    </details>
+
+    <details class="concept">
+      <summary>Functions &amp; Parameters</summary>
+      <div class="inner">
+        <p><b>What it is:</b> A named, reusable block of code defined with <code>function Name { }</code>. A <code>param()</code> block declares the inputs it accepts, just like arguments to a method in any programming language.</p>
+        <p><b>Why it's used today:</b> We define <code>Get-ServerHealth</code> once and call it once per server, instead of copy-pasting the same 20 lines of checking logic 500 times.</p>
+      </div>
+    </details>
+
+    <details class="concept">
+      <summary>Arrays &amp; Hash Tables</summary>
+      <div class="inner">
+        <p><b>Array:</b> An ordered list of values, e.g. <code>@("SRV-APP01","SRV-APP02")</code>. We use it to hold the list of servers and the list of critical services.</p>
+        <p><b>Hash Table:</b> A collection of Key = Value pairs, e.g. <code>@{ CPUWarning = 70 }</code>. We use it to hold our threshold configuration, because it's more readable than five separate variables.</p>
+      </div>
+    </details>
+
+    <details class="concept">
+      <summary>Loops &amp; Conditions — <span style="font-weight:400;color:#93A5C4;">foreach / if / elseif</span></summary>
+      <div class="inner">
+        <p><b>foreach:</b> Repeats a block of code once for every item in a collection — we use it to run the health check function against every server in the list.</p>
+        <p><b>if / elseif / else:</b> Branches logic based on a condition — we use it to decide whether a server's status is HEALTHY, WARNING, or CRITICAL based on the thresholds.</p>
+      </div>
+    </details>
+
+    <details class="concept">
+      <summary>Error Handling — Try / Catch</summary>
+      <div class="inner">
+        <p><b>What it is:</b> <code>try { }</code> wraps code that might fail; <code>catch { }</code> runs only if an error occurs inside the try block, letting you handle it gracefully instead of crashing the whole script.</p>
+        <p><b>Why it's critical in banking:</b> If one server is unreachable or misbehaves, the script must keep checking the other 499 servers — not crash and leave the whole morning report missing.</p>
+      </div>
+    </details>
+
+    <details class="concept">
+      <summary>CIM / WMI — <span style="font-weight:400;color:#93A5C4;">Get-CimInstance</span></summary>
+      <div class="inner">
+        <p><b>What it is:</b> Windows Management Instrumentation (WMI) is a built-in Windows subsystem that exposes hardware and OS information — CPU load, memory, disk, and much more — as queryable data. <code>Get-CimInstance</code> is the modern PowerShell way to query it.</p>
+        <p><b>Why it's used:</b> It's the standard, reliable way to pull CPU/memory/disk stats from both local and remote Windows servers without installing anything extra.</p>
+      </div>
+    </details>
+
+    <details class="concept">
+      <summary>Test-Connection, Get-Service, Export-Csv, ConvertTo-Html</summary>
+      <div class="inner">
+        <p><b>Test-Connection:</b> PowerShell's version of "ping" — confirms whether a server responds on the network before we bother querying it further.</p>
+        <p><b>Get-Service:</b> Returns Windows service objects with a live <code>.Status</code> property (Running, Stopped, etc.), locally or on a remote computer.</p>
+        <p><b>Export-Csv:</b> Writes objects to a CSV file — the standard format Operations and Audit teams open in Excel.</p>
+        <p><b>ConvertTo-Html:</b> Turns objects into a formatted HTML table — useful for emailing a readable report to management.</p>
+      </div>
+    </details>
+
+    <div class="callout best">Notice the pattern: nearly every cmdlet here is <code>Verb-Noun</code> and returns an object. Learn this pattern once and you can guess the name of most PowerShell commands correctly on your first try.</div>
+  </section>
+
+  <!-- 4. ARCHITECTURE -->
+  <section class="block" id="architecture">
+    <h2><span class="num">04</span> Architecture</h2>
+    <div class="sub">How the script fits into ABC Bank's infrastructure, and what happens internally when it runs.</div>
+
+    <h3>High-Level Architecture</h3>
+    <div class="diagram">
+      <svg width="820" height="230" viewBox="0 0 820 230" xmlns="http://www.w3.org/2000/svg" font-family="IBM Plex Sans, sans-serif">
+        <rect x="20" y="80" width="150" height="70" rx="8" fill="#EAF1FB" stroke="#1B4F72"/>
+        <text x="95" y="110" text-anchor="middle" font-size="12" fill="#0B1F3A" font-weight="600">Scheduled Task</text>
+        <text x="95" y="128" text-anchor="middle" font-size="10.5" fill="#4B5A72">6:00 AM Trigger</text>
+
+        <rect x="220" y="70" width="180" height="90" rx="8" fill="#F4E6CE" stroke="#B9832F"/>
+        <text x="310" y="100" text-anchor="middle" font-size="12" fill="#0B1F3A" font-weight="600">HealthCheck.ps1</text>
+        <text x="310" y="118" text-anchor="middle" font-size="10.5" fill="#4B5A72">Runs on Jump Server</text>
+        <text x="310" y="134" text-anchor="middle" font-size="10.5" fill="#4B5A72">(Automation Host)</text>
+
+        <rect x="460" y="20" width="160" height="55" rx="8" fill="#E4F3EA" stroke="#1E7145"/>
+        <text x="540" y="52" text-anchor="middle" font-size="11.5" fill="#0B1F3A">IIS / App Servers</text>
+
+        <rect x="460" y="90" width="160" height="55" rx="8" fill="#E4F3EA" stroke="#1E7145"/>
+        <text x="540" y="122" text-anchor="middle" font-size="11.5" fill="#0B1F3A">SQL Servers</text>
+
+        <rect x="460" y="160" width="160" height="55" rx="8" fill="#E4F3EA" stroke="#1E7145"/>
+        <text x="540" y="192" text-anchor="middle" font-size="11.5" fill="#0B1F3A">Middleware Servers</text>
+
+        <rect x="670" y="80" width="130" height="70" rx="8" fill="#FBE7E5" stroke="#B3261E"/>
+        <text x="735" y="108" text-anchor="middle" font-size="12" fill="#0B1F3A" font-weight="600">Reports</text>
+        <text x="735" y="126" text-anchor="middle" font-size="10.5" fill="#4B5A72">CSV + HTML + Log</text>
+
+        <path d="M170 112 H220" stroke="#8896AB" stroke-width="1.5" marker-end="url(#arrow)"/>
+        <path d="M400 100 L460 48" stroke="#8896AB" stroke-width="1.5" marker-end="url(#arrow)"/>
+        <path d="M400 112 H460" stroke="#8896AB" stroke-width="1.5" marker-end="url(#arrow)"/>
+        <path d="M400 130 L460 188" stroke="#8896AB" stroke-width="1.5" marker-end="url(#arrow)"/>
+        <path d="M620 112 H670" stroke="#8896AB" stroke-width="1.5" marker-end="url(#arrow)"/>
+        <defs>
+          <marker id="arrow" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+            <path d="M0,0 L6,3 L0,6 Z" fill="#8896AB"/>
+          </marker>
+        </defs>
+      </svg>
+    </div>
+
+    <h3>PowerShell Execution Flow (Low-Level)</h3>
+    <div class="diagram">
+      <svg width="820" height="140" viewBox="0 0 820 140" xmlns="http://www.w3.org/2000/svg" font-family="IBM Plex Sans, sans-serif">
+        <g font-size="11">
+          <rect x="0" y="35" width="120" height="55" rx="8" fill="#EAF1FB" stroke="#1B4F72"/>
+          <text x="60" y="65" text-anchor="middle">Load Script</text>
+
+          <rect x="150" y="35" width="120" height="55" rx="8" fill="#EAF1FB" stroke="#1B4F72"/>
+          <text x="210" y="65" text-anchor="middle">Read Config</text>
+
+          <rect x="300" y="35" width="140" height="55" rx="8" fill="#F4E6CE" stroke="#B9832F"/>
+          <text x="370" y="60" text-anchor="middle">foreach Server</text>
+          <text x="370" y="74" text-anchor="middle" font-size="9.5" fill="#4B5A72">CIM Query + Test-Connection</text>
+
+          <rect x="470" y="35" width="120" height="55" rx="8" fill="#F4E6CE" stroke="#B9832F"/>
+          <text x="530" y="65" text-anchor="middle">Evaluate Status</text>
+
+          <rect x="620" y="35" width="100" height="55" rx="8" fill="#E4F3EA" stroke="#1E7145"/>
+          <text x="670" y="58" text-anchor="middle">Export</text>
+          <text x="670" y="72" text-anchor="middle" font-size="9.5" fill="#4B5A72">CSV / HTML</text>
+
+          <rect x="750" y="35" width="60" height="55" rx="8" fill="#FBE7E5" stroke="#B3261E"/>
+          <text x="780" y="65" text-anchor="middle">Log</text>
+        </g>
+        <g stroke="#8896AB" stroke-width="1.5" marker-end="url(#arrow2)">
+          <path d="M120 62 H150"/><path d="M270 62 H300"/><path d="M440 62 H470"/><path d="M590 62 H620"/><path d="M720 62 H750"/>
+        </g>
+        <defs>
+          <marker id="arrow2" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+            <path d="M0,0 L6,3 L0,6 Z" fill="#8896AB"/>
+          </marker>
+        </defs>
+      </svg>
+    </div>
+    <p>Every stage writes to the log function, so if the script dies at "Evaluate Status," you know exactly which server and which line — no guessing during an incident review.</p>
+  </section>
+
+  <!-- 5. FOLDER STRUCTURE -->
+  <section class="block" id="structure">
+    <h2><span class="num">05</span> Project Folder Structure</h2>
+    <div class="sub">This is the exact folder layout you'll create on the automation host. Keep every project in its own folder like this.</div>
+    <div class="code-wrap">
+      <div class="code-head"><span>folder-structure.txt</span></div>
+      <pre><code>C:\HealthCheck\
+│
+├── Scripts\
+│   └── Get-WindowsServerHealth.ps1      <span class="c-com"># Main automation script</span>
+│
+├── Config\
+│   └── servers.json                     <span class="c-com"># Server list + thresholds (Phase 2 upgrade)</span>
+│
+├── Logs\
+│   └── HealthCheck_20260722_060000.log  <span class="c-com"># One timestamped log file per run</span>
+│
+├── Reports\
+│   ├── HealthCheck_20260722_060000.csv  <span class="c-com"># Audit-ready CSV report</span>
+│   └── HealthCheck_20260722_060000.html <span class="c-com"># Readable HTML report for management</span>
+│
+└── README.md                            <span class="c-com"># What this does, how to run it, who owns it</span></code></pre>
+    </div>
+  </section>
+
+  <!-- 6. CODE -->
+  <section class="block" id="code">
+    <h2><span class="num">06</span> The Script — Get-WindowsServerHealth.ps1</h2>
+    <div class="sub">Complete, production-ready, and fully commented — every line explains itself, then we explain it again in Section 7.</div>
+
+    <div class="code-wrap">
+      <div class="code-head">
+        <span>Scripts\Get-WindowsServerHealth.ps1</span>
+        <button class="copy-btn" onclick="copyCode('code1', this)">Copy</button>
+      </div>
+      <pre><code id="code1"><span class="c-com">&lt;#
+.SYNOPSIS
+    Daily Windows Server Health Check - ABC Bank Production Support
+.DESCRIPTION
+    Checks connectivity, CPU, memory, disk space, and critical services
+    across the production Windows server fleet, then produces CSV/HTML
+    reports and a timestamped log for audit purposes.
+.AUTHOR
+    Windows Operations Team - ABC Bank
+#&gt;</span>
+
+<span class="c-com"># ============================================================
+# SECTION 1: CONFIGURATION
+# ============================================================</span>
+
+<span class="c-var">$Servers</span> = <span class="c-kw">@</span>(<span class="c-str">"SRV-APP01"</span>,<span class="c-str">"SRV-APP02"</span>,<span class="c-str">"SRV-DB01"</span>)   <span class="c-com"># Array holding the list of target servers to check</span>
+
+<span class="c-var">$CriticalServices</span> = <span class="c-kw">@</span>(<span class="c-str">"W3SVC"</span>,<span class="c-str">"MSSQLSERVER"</span>,<span class="c-str">"Spooler"</span>)  <span class="c-com"># Services considered critical to the bank</span>
+
+<span class="c-var">$Thresholds</span> = <span class="c-kw">@</span>{                       <span class="c-com"># Hash table storing warning/critical thresholds</span>
+    CPUWarning     = 70          <span class="c-com"># CPU % above this triggers WARNING</span>
+    CPUCritical    = 90          <span class="c-com"># CPU % above this triggers CRITICAL</span>
+    MemWarning     = 75          <span class="c-com"># Memory % above this triggers WARNING</span>
+    MemCritical    = 90          <span class="c-com"># Memory % above this triggers CRITICAL</span>
+    DiskWarningGB  = 20          <span class="c-com"># Free disk space below this (GB) triggers WARNING</span>
+    DiskCriticalGB = 10          <span class="c-com"># Free disk space below this (GB) triggers CRITICAL</span>
+}
+
+<span class="c-var">$TimeTag</span>    = Get-Date -Format <span class="c-str">'yyyyMMdd_HHmmss'</span>              <span class="c-com"># One shared timestamp used in every filename this run</span>
+<span class="c-var">$LogFile</span>    = <span class="c-str">"C:\HealthCheck\Logs\HealthCheck_$TimeTag.log"</span>    <span class="c-com"># Build the log file path</span>
+<span class="c-var">$ReportCSV</span>  = <span class="c-str">"C:\HealthCheck\Reports\HealthCheck_$TimeTag.csv"</span>  <span class="c-com"># Build the CSV report path</span>
+<span class="c-var">$ReportHTML</span> = <span class="c-str">"C:\HealthCheck\Reports\HealthCheck_$TimeTag.html"</span> <span class="c-com"># Build the HTML report path</span>
+
+<span class="c-com"># ============================================================
+# SECTION 2: LOGGING FUNCTION
+# ============================================================</span>
+
+<span class="c-kw">function</span> <span class="c-fn">Write-Log</span> {                                  <span class="c-com"># Reusable function to write timestamped log entries</span>
+    <span class="c-kw">param</span>(
+        [string]<span class="c-var">$Message</span>,                              <span class="c-com"># The text to log</span>
+        [string]<span class="c-var">$Level</span> = <span class="c-str">"INFO"</span>                        <span class="c-com"># Severity: INFO, WARNING, or ERROR</span>
+    )
+    <span class="c-var">$Stamp</span> = Get-Date -Format <span class="c-str">"yyyy-MM-dd HH:mm:ss"</span>       <span class="c-com"># Current time, human readable</span>
+    <span class="c-var">$Entry</span> = <span class="c-str">"[$Stamp] [$Level] $Message"</span>              <span class="c-com"># Build the full log line</span>
+    Add-Content -Path <span class="c-var">$LogFile</span> -Value <span class="c-var">$Entry</span>         <span class="c-com"># Append the line to the log file on disk</span>
+    Write-Host <span class="c-var">$Entry</span>                                    <span class="c-com"># Also print it live to the console</span>
+}
+
+<span class="c-com"># ============================================================
+# SECTION 3: MAIN HEALTH CHECK FUNCTION
+# ============================================================</span>
+
+<span class="c-kw">function</span> <span class="c-fn">Get-ServerHealth</span> {                          <span class="c-com"># Checks ONE server and returns ONE result object</span>
+    <span class="c-kw">param</span>(
+        [string]<span class="c-var">$ComputerName</span>                            <span class="c-com"># The server name passed in from the main loop</span>
+    )
+
+    <span class="c-var">$Result</span> = [PSCustomObject]<span class="c-kw">@</span>{                      <span class="c-com"># Build an empty result object with all fields we'll fill in</span>
+        ServerName    = <span class="c-var">$ComputerName</span>
+        Reachable     = <span class="c-kw">$false</span>
+        CPUUsage      = <span class="c-kw">$null</span>
+        MemoryUsage   = <span class="c-kw">$null</span>
+        FreeDiskGB    = <span class="c-kw">$null</span>
+        ServiceStatus = <span class="c-str">"N/A"</span>
+        OverallStatus = <span class="c-str">"UNKNOWN"</span>
+        CheckedAt     = Get-Date -Format <span class="c-str">"yyyy-MM-dd HH:mm:ss"</span>
+    }
+
+    <span class="c-kw">try</span> {                                                <span class="c-com"># Everything that could fail per-server goes inside try</span>
+        <span class="c-kw">if</span> (-not (Test-Connection -ComputerName <span class="c-var">$ComputerName</span> -Count 2 -Quiet)) {  <span class="c-com"># Ping twice, -Quiet returns True/False</span>
+            Write-Log <span class="c-str">"$ComputerName is UNREACHABLE"</span> <span class="c-str">"ERROR"</span>
+            <span class="c-var">$Result</span>.OverallStatus = <span class="c-str">"CRITICAL - UNREACHABLE"</span>
+            <span class="c-kw">return</span> <span class="c-var">$Result</span>                                  <span class="c-com"># Stop here for this server, no point checking further</span>
+        }
+
+        <span class="c-var">$Result</span>.Reachable = <span class="c-kw">$true</span>
+        Write-Log <span class="c-str">"$ComputerName is reachable. Proceeding with checks."</span> <span class="c-str">"INFO"</span>
+
+        <span class="c-com"># ---- CPU CHECK ----</span>
+        <span class="c-var">$CPU</span> = Get-CimInstance -ClassName Win32_Processor -ComputerName <span class="c-var">$ComputerName</span> |  <span class="c-com"># Query CPU load</span>
+               Measure-Object -Property LoadPercentage -Average                          <span class="c-com"># Average across all cores/CPUs</span>
+        <span class="c-var">$Result</span>.CPUUsage = [math]::Round(<span class="c-var">$CPU</span>.Average, 2)  <span class="c-com"># Round to 2 decimals</span>
+
+        <span class="c-com"># ---- MEMORY CHECK ----</span>
+        <span class="c-var">$OS</span> = Get-CimInstance -ClassName Win32_OperatingSystem -ComputerName <span class="c-var">$ComputerName</span>  <span class="c-com"># OS-level memory stats</span>
+        <span class="c-var">$UsedMemPct</span> = [math]::Round( ((<span class="c-var">$OS</span>.TotalVisibleMemorySize - <span class="c-var">$OS</span>.FreePhysicalMemory) / <span class="c-var">$OS</span>.TotalVisibleMemorySize) * 100, 2 )  <span class="c-com"># % memory used</span>
+        <span class="c-var">$Result</span>.MemoryUsage = <span class="c-var">$UsedMemPct</span>
+
+        <span class="c-com"># ---- DISK CHECK ----</span>
+        <span class="c-var">$Disk</span> = Get-CimInstance -ClassName Win32_LogicalDisk -ComputerName <span class="c-var">$ComputerName</span> -Filter <span class="c-str">"DeviceID='C:'"</span>  <span class="c-com"># C: drive info</span>
+        <span class="c-var">$Result</span>.FreeDiskGB = [math]::Round(<span class="c-var">$Disk</span>.FreeSpace / 1GB, 2)  <span class="c-com"># Bytes to GB</span>
+
+        <span class="c-com"># ---- SERVICE CHECK ----</span>
+        <span class="c-var">$FailedServices</span> = <span class="c-kw">@</span>()                              <span class="c-com"># Collects any critical service that is NOT running</span>
+        <span class="c-kw">foreach</span> (<span class="c-var">$Svc</span> in <span class="c-var">$CriticalServices</span>) {              <span class="c-com"># Loop through each critical service name</span>
+            <span class="c-var">$SvcStatus</span> = Get-Service -ComputerName <span class="c-var">$ComputerName</span> -Name <span class="c-var">$Svc</span> -ErrorAction SilentlyContinue  <span class="c-com"># Don't crash if service doesn't exist here</span>
+            <span class="c-kw">if</span> (<span class="c-kw">$null</span> -eq <span class="c-var">$SvcStatus</span> -or <span class="c-var">$SvcStatus</span>.Status -ne <span class="c-str">"Running"</span>) {
+                <span class="c-var">$FailedServices</span> += <span class="c-var">$Svc</span>                     <span class="c-com"># Add to the failed list</span>
+            }
+        }
+        <span class="c-var">$Result</span>.ServiceStatus = <span class="c-kw">if</span> (<span class="c-var">$FailedServices</span>.Count -eq 0) { <span class="c-str">"All Critical Services Running"</span> }
+                                <span class="c-kw">else</span> { <span class="c-str">"STOPPED: "</span> + (<span class="c-var">$FailedServices</span> -join <span class="c-str">", "</span>) }
+
+        <span class="c-com"># ---- OVERALL STATUS DECISION ----</span>
+        <span class="c-kw">if</span> (<span class="c-var">$Result</span>.CPUUsage -ge <span class="c-var">$Thresholds</span>.CPUCritical -or
+            <span class="c-var">$Result</span>.MemoryUsage -ge <span class="c-var">$Thresholds</span>.MemCritical -or
+            <span class="c-var">$Result</span>.FreeDiskGB -le <span class="c-var">$Thresholds</span>.DiskCriticalGB -or
+            <span class="c-var">$FailedServices</span>.Count -gt 0) {
+            <span class="c-var">$Result</span>.OverallStatus = <span class="c-str">"CRITICAL"</span>              <span class="c-com"># Any critical breach OR a stopped service = CRITICAL</span>
+        }
+        <span class="c-kw">elseif</span> (<span class="c-var">$Result</span>.CPUUsage -ge <span class="c-var">$Thresholds</span>.CPUWarning -or
+              <span class="c-var">$Result</span>.MemoryUsage -ge <span class="c-var">$Thresholds</span>.MemWarning -or
+              <span class="c-var">$Result</span>.FreeDiskGB -le <span class="c-var">$Thresholds</span>.DiskWarningGB) {
+            <span class="c-var">$Result</span>.OverallStatus = <span class="c-str">"WARNING"</span>
+        }
+        <span class="c-kw">else</span> {
+            <span class="c-var">$Result</span>.OverallStatus = <span class="c-str">"HEALTHY"</span>
+        }
+
+        Write-Log <span class="c-str">"$ComputerName check complete. Status: $($Result.OverallStatus)"</span> <span class="c-str">"INFO"</span>
+    }
+    <span class="c-kw">catch</span> {                                              <span class="c-com"># Catches ANY unexpected error during the checks above</span>
+        Write-Log <span class="c-str">"Error checking $ComputerName : $($_.Exception.Message)"</span> <span class="c-str">"ERROR"</span>
+        <span class="c-var">$Result</span>.OverallStatus = <span class="c-str">"CRITICAL - CHECK FAILED"</span>   <span class="c-com"># We couldn't verify it, so treat it as critical</span>
+    }
+
+    <span class="c-kw">return</span> <span class="c-var">$Result</span>                                        <span class="c-com"># Hand the finished object back to the main loop</span>
+}
+
+<span class="c-com"># ============================================================
+# SECTION 4: MAIN EXECUTION
+# ============================================================</span>
+
+Write-Log <span class="c-str">"===== Starting Health Check for $($Servers.Count) servers ====="</span> <span class="c-str">"INFO"</span>
+
+<span class="c-var">$AllResults</span> = <span class="c-kw">foreach</span> (<span class="c-var">$Server</span> in <span class="c-var">$Servers</span>) {           <span class="c-com"># Loop through every server in the list</span>
+    Get-ServerHealth -ComputerName <span class="c-var">$Server</span>                 <span class="c-com"># Call the function, collect its returned object</span>
+}
+
+<span class="c-var">$AllResults</span> | Sort-Object OverallStatus | Format-Table -AutoSize   <span class="c-com"># Console preview, worst statuses grouped together</span>
+
+<span class="c-var">$AllResults</span> | Export-Csv -Path <span class="c-var">$ReportCSV</span> -NoTypeInformation     <span class="c-com"># Save audit-ready CSV</span>
+
+<span class="c-var">$AllResults</span> | ConvertTo-Html -Title <span class="c-str">"ABC Bank Daily Server Health Report"</span> `
+    -PreContent <span class="c-str">"&lt;h1&gt;Daily Windows Server Health Report&lt;/h1&gt;"</span> |
+    Out-File -FilePath <span class="c-var">$ReportHTML</span>                       <span class="c-com"># Save readable HTML report</span>
+
+<span class="c-var">$CriticalCount</span> = (<span class="c-var">$AllResults</span> | Where-Object { <span class="c-var">$_</span>.OverallStatus -like <span class="c-str">"CRITICAL*"</span> }).Count
+<span class="c-kw">if</span> (<span class="c-var">$CriticalCount</span> -gt 0) {
+    Write-Log <span class="c-str">"$CriticalCount server(s) are CRITICAL. Alert email would be sent here."</span> <span class="c-str">"WARNING"</span>
+    <span class="c-com"># Send-MailMessage goes here in production, via the bank's secure internal relay</span>
+}
+
+Write-Log <span class="c-str">"===== Health Check Completed. Report: $ReportHTML ====="</span> <span class="c-str">"INFO"</span></code></pre>
+    </div>
+  </section>
+
+  <!-- 7. EXPLAIN -->
+  <section class="block" id="explain">
+    <h2><span class="num">07</span> Line-by-Line Explanation</h2>
+    <div class="sub">The highlights teams get asked about most in code review and production support. Every block above is commented; here are the parts worth slowing down on.</div>
+
+    <div class="lex"><code>Test-Connection -ComputerName $ComputerName -Count 2 -Quiet</code><br>Pings the server twice. <code>-Quiet</code> collapses the result to a single <code>$true</code>/<code>$false</code> instead of detailed ping objects — perfect for a simple reachability gate. <b>Alternative:</b> <code>Test-NetConnection</code> gives more detail (port testing) but is slower for a simple sweep of 500 servers.</div>
+
+    <div class="lex"><code>Get-CimInstance -ClassName Win32_Processor -ComputerName $ComputerName</code><br>CIM is the modern successor to WMI (<code>Get-WmiObject</code>, now deprecated). It queries the remote server's management interface for live CPU data. <b>Common mistake:</b> using the old <code>Get-WmiObject</code> in new scripts — it's on its way out and doesn't support the newer WinRM-based remoting cleanly.</div>
+
+    <div class="lex"><code>-ErrorAction SilentlyContinue</code> on <code>Get-Service</code><br>If a service name doesn't exist on a particular server, PowerShell would normally throw a red error. This tells it to continue quietly so one missing service on one server doesn't disrupt the loop — we still catch it because <code>$SvcStatus</code> will be <code>$null</code>.</div>
+
+    <div class="lex"><code>[PSCustomObject]@{ ... }</code><br>Builds our own structured object with exactly the properties we want, in a fixed order. This is what makes <code>Export-Csv</code> and <code>ConvertTo-Html</code> produce clean, consistent columns every time.</div>
+
+    <div class="lex"><code>$AllResults = foreach ($Server in $Servers) { Get-ServerHealth ... }</code><br>Assigning a loop directly to a variable automatically collects every object the loop produces into an array — no need for a separate <code>$AllResults += ...</code> line inside the loop, which is slower and considered poor practice for large collections.</div>
+
+    <div class="callout warn">Common mistake in production: forgetting <code>-ErrorAction SilentlyContinue</code> combined with a try/catch means one unreachable server can throw a wall of red text into an otherwise clean scheduled task log, making real problems harder to spot.</div>
+  </section>
+
+  <!-- 8. FLOW -->
+  <section class="block" id="flow">
+    <h2><span class="num">08</span> Script Execution Flow — What Happens Internally</h2>
+    <table>
+      <tr><th>Step</th><th>What Happens</th></tr>
+      <tr><td>1. Execution Policy Check</td><td>Windows checks the local Execution Policy (<code>Restricted</code>, <code>RemoteSigned</code>, etc.) before allowing the .ps1 file to run at all. On production servers this is normally set to <code>RemoteSigned</code>.</td></tr>
+      <tr><td>2. Script Loaded by Engine</td><td>The PowerShell engine (<code>pwsh.exe</code> or <code>powershell.exe</code>) parses the whole script into an Abstract Syntax Tree before executing a single line.</td></tr>
+      <tr><td>3. Variables &amp; Functions Defined</td><td>Section 1–3 run top to bottom: config variables and both functions are loaded into memory, but <code>Get-ServerHealth</code> doesn't execute yet — only defined.</td></tr>
+      <tr><td>4. Main Loop Executes</td><td>For each server, the CIM/WMI calls use WinRM (Windows Remote Management) to talk to the remote server's management service over the network.</td></tr>
+      <tr><td>5. Object Creation</td><td>Each check builds a <code>[PSCustomObject]</code> in memory — nothing is written to disk until the loop finishes.</td></tr>
+      <tr><td>6. Export &amp; Logging</td><td><code>Export-Csv</code> and <code>ConvertTo-Html</code> serialize the in-memory objects to disk; <code>Write-Log</code> has already been appending to the log file throughout the run.</td></tr>
+      <tr><td>7. Exit</td><td>The script ends naturally after the last line; a Scheduled Task wrapper captures the exit code to know if the run "succeeded" at the process level.</td></tr>
+    </table>
+  </section>
+
+  <!-- 9. INTERNALS -->
+  <section class="block" id="internals">
+    <h2><span class="num">09</span> Windows Internals — In Simple English</h2>
+    <div class="grid">
+      <div class="card"><h4>How Windows Services Work</h4><p>A Windows Service is a background program managed by the Service Control Manager (SCM). Each has a state: Running, Stopped, Paused. <code>Get-Service</code> just asks the SCM for that state.</p></div>
+      <div class="card"><h4>How WinRM Works</h4><p>Windows Remote Management is the transport that lets one server ask another server questions (like CIM queries) securely over HTTP/HTTPS, without an interactive login.</p></div>
+      <div class="card"><h4>How WMI/CIM Works</h4><p>WMI is a database-like repository built into Windows that describes hardware and OS state. CIM is the current standards-based way PowerShell talks to that repository.</p></div>
+      <div class="card"><h4>How Task Scheduler Works</h4><p>A Scheduled Task tells Windows: "at this time, run this program, as this account." It's how our script runs unattended every morning at 6 AM without a human present.</p></div>
+    </div>
+  </section>
+
+  <!-- 10. AGILE -->
+  <section class="block" id="agile">
+    <h2><span class="num">10</span> Agile Breakdown</h2>
+    <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(220px,1fr));">
+      <div class="agile-col"><h4>Epic</h4><ul><li>Automate daily production server health verification across the Windows fleet</li></ul></div>
+      <div class="agile-col"><h4>Feature</h4><ul><li>Automated multi-server health check with CPU, memory, disk, and service status</li></ul></div>
+      <div class="agile-col"><h4>User Story</h4><ul><li>As an Ops Engineer, I want a single automated report each morning so I don't manually check 500 servers</li></ul></div>
+      <div class="agile-col"><h4>Acceptance Criteria</h4><ul><li>Script checks all servers in the list</li><li>Produces CSV + HTML report</li><li>Flags CRITICAL/WARNING correctly</li><li>Logs every action with a timestamp</li></ul></div>
+      <div class="agile-col"><h4>Sprint Backlog</h4><ul><li>Build config section</li><li>Build logging function</li><li>Build health check function</li><li>Build export/reporting</li></ul></div>
+      <div class="agile-col"><h4>Definition of Done</h4><ul><li>Tested against reachable and unreachable servers</li><li>Peer reviewed</li><li>Runs cleanly under a Scheduled Task</li></ul></div>
+    </div>
+  </section>
+
+  <!-- 11. LAB -->
+  <section class="block" id="lab">
+    <h2><span class="num">11</span> Hands-On Lab</h2>
+
+    <h3>Prerequisites</h3>
+    <ul>
+      <li>Windows 10/11 or Windows Server 2016+</li>
+      <li>PowerShell 7.x (recommended) — Windows PowerShell 5.1 also works for this script</li>
+      <li>Visual Studio Code with the PowerShell extension</li>
+      <li>Local administrator rights on your practice machine</li>
+    </ul>
+
+    <h3>Install PowerShell 7</h3>
+    <div class="code-wrap">
+      <div class="code-head"><span>PowerShell (as Administrator)</span><button class="copy-btn" onclick="copyCode('code2', this)">Copy</button></div>
+      <pre><code id="code2">winget install --id Microsoft.PowerShell --source winget</code></pre>
+    </div>
+
+    <h3>Install VS Code + PowerShell Extension</h3>
+    <div class="code-wrap">
+      <div class="code-head"><span>PowerShell</span><button class="copy-btn" onclick="copyCode('code3', this)">Copy</button></div>
+      <pre><code id="code3">winget install -e --id Microsoft.VisualStudioCode
+code --install-extension ms-vscode.powershell</code></pre>
+    </div>
+
+    <h3>Practice Run (Local Machine Only)</h3>
+    <p>Since you likely don't have 500 real servers on your laptop, replace the <code>$Servers</code> array with just your own machine name so every check runs locally, no remoting required:</p>
+    <div class="code-wrap">
+      <div class="code-head"><span>Quick edit for local testing</span><button class="copy-btn" onclick="copyCode('code4', this)">Copy</button></div>
+      <pre><code id="code4"><span class="c-var">$Servers</span> = <span class="c-kw">@</span>(<span class="c-var">$env:COMPUTERNAME</span>)   <span class="c-com"># Test against your own PC first</span></code></pre>
+    </div>
+    <ol>
+      <li>Create the folders exactly as shown in Section 5</li>
+      <li>Save the script into <code>C:\HealthCheck\Scripts\Get-WindowsServerHealth.ps1</code></li>
+      <li>Open PowerShell 7 as Administrator, run: <code>cd C:\HealthCheck\Scripts</code></li>
+      <li>Run: <code>.\Get-WindowsServerHealth.ps1</code></li>
+      <li>Check the Reports folder for the new CSV and HTML files</li>
+    </ol>
+
+    <div class="callout tip">Expected output: a console table showing your machine with an <span class="badge h">HEALTHY</span> status (unless your C: drive is genuinely low on space — try it and see!).</div>
+
+    <h3>Troubleshooting</h3>
+    <table>
+      <tr><th>Error</th><th>Cause</th><th>Fix</th></tr>
+      <tr><td>"running scripts is disabled on this system"</td><td>Execution Policy is Restricted</td><td>Run <code>Set-ExecutionPolicy RemoteSigned -Scope CurrentUser</code></td></tr>
+      <tr><td>Access denied on Get-CimInstance</td><td>Not running as Administrator</td><td>Re-launch PowerShell "Run as Administrator"</td></tr>
+      <tr><td>Path not found writing log/report</td><td>Folders from Section 5 weren't created</td><td>Create Logs and Reports folders first</td></tr>
+    </table>
+
+    <h3>Practice Exercises</h3>
+    <ul>
+      <li><b>Mini Assignment:</b> Add a fourth check for the "Print Spooler" style — pick any one more critical service on your PC and add it to <code>$CriticalServices</code>.</li>
+      <li><b>Challenge Task:</b> Change the disk check to loop through <em>all</em> drive letters instead of only <code>C:</code>.</li>
+    </ul>
+  </section>
+
+  <!-- 12. BEST PRACTICES -->
+  <section class="block" id="practices">
+    <h2><span class="num">12</span> Production Best Practices</h2>
+    <div class="callout best">Log everything with a timestamp and severity level — during a 2 AM incident, the log file is often the only evidence of what actually happened.</div>
+    <div class="callout best">Wrap every remote call in try/catch — one bad server should never take down a run covering 500 others.</div>
+    <div class="callout best">Never hardcode credentials — production versions store server lists in a config file, and any credentials in a secure vault (e.g. Windows Credential Manager or a secrets manager), never in plain text in the script.</div>
+    <div class="callout best">Give the automation account least privilege — read-only monitoring rights are enough for a health check; it should never have rights to change anything on the target servers.</div>
+    <div class="callout best">Timestamp every output file — never overwrite yesterday's report; auditors and incident reviews need history.</div>
+  </section>
+
+  <!-- 13. INTERVIEW -->
+  <section class="block" id="interview">
+    <h2><span class="num">13</span> Interview Preparation</h2>
+
+    <div class="qa"><div class="q">Q: Why did you use Get-CimInstance instead of Get-WmiObject?</div><div class="a">CIM is the current standard, uses WinRM instead of legacy DCOM for remoting (better firewall/security compatibility), and Get-WmiObject is deprecated in newer PowerShell versions.</div></div>
+
+    <div class="qa"><div class="q">Q: How does your script handle a server that is completely down?</div><div class="a">Test-Connection fails first, so the script marks it CRITICAL - UNREACHABLE and returns immediately without wasting time on further checks against a dead server — and the loop continues to the next one.</div></div>
+
+    <div class="qa"><div class="q">Q: A production incident: your report showed a server as HEALTHY, but it was actually down five minutes later. How do you explain this to your manager?</div><div class="a">A health check is a point-in-time snapshot, not continuous monitoring. I'd explain the check interval (once daily) versus real-time monitoring tools, and recommend increasing frequency or layering in a dedicated monitoring solution for critical systems if that gap is unacceptable.</div></div>
+
+    <div class="qa"><div class="q">Q: Why use a hash table for thresholds instead of separate variables?</div><div class="a">It groups related configuration together, is easier to read and maintain, and could later be loaded from an external JSON config file without changing the rest of the script's logic.</div></div>
+
+    <div class="qa"><div class="q">Q: What would you change to make this ready for 500 real servers instead of 3?</div><div class="a">Move the server list to an external config file, add parallel execution (e.g. PowerShell 7 <code>ForEach-Object -Parallel</code> or runspaces) so 500 sequential remote calls don't take too long, and add retry logic for transient network blips.</div></div>
+  </section>
+
+  <!-- 14. SUMMARY -->
+  <section class="block" id="summary">
+    <h2><span class="num">14</span> Key Learnings &amp; Assignment</h2>
+
+    <h3>Key Learnings</h3>
+    <ul>
+      <li>PowerShell works with real objects, not text — this is its core advantage for enterprise automation</li>
+      <li>Try/Catch keeps a multi-server script resilient to individual failures</li>
+      <li>CIM/WMI is how you pull hardware and OS-level data from Windows, locally or remotely</li>
+      <li>Structured logging is not optional in a banking production environment</li>
+    </ul>
+
+    <h3>Resume Point</h3>
+    <p>"Designed and developed a PowerShell automation to perform daily health checks (connectivity, CPU, memory, disk, critical services) across production Windows servers, reducing manual checking time from ~3 hours to under 5 minutes and producing audit-ready CSV/HTML reports."</p>
+
+    <h3>Assignment Before Project 2</h3>
+    <ol>
+      <li>Run the script locally against your own machine and confirm a HEALTHY report is generated</li>
+      <li>Deliberately stop a non-critical service on your test PC, add it to <code>$CriticalServices</code>, and confirm the script correctly reports CRITICAL</li>
+      <li>Review the generated log file line by line and make sure you understand every entry</li>
+    </ol>
+
+    <div class="callout note">When you're ready, just say <b>"next project"</b> and we'll build Project 02, following the same story, ABC Bank, and this same growing automation suite.</div>
+  </section>
+
+  <footer>ABC Bank · Windows Operations · PowerShell DevOps Academy — Project 01 of 30</footer>
+</main>
+
+<script>
+  // Highlight active sidebar link based on scroll position
+  const sections = document.querySelectorAll('section.block');
+  const links = document.querySelectorAll('#nav a');
+  window.addEventListener('scroll', () => {
+    let current = '';
+    sections.forEach(sec => {
+      if (window.scrollY >= sec.offsetTop - 120) current = sec.id;
+    });
+    links.forEach(a => {
+      a.classList.toggle('active', a.getAttribute('href') === '#' + current);
+    });
+  });
+
+  function copyCode(id, btn) {
+    const text = document.getElementById(id).innerText;
+    navigator.clipboard.writeText(text).then(() => {
+      const orig = btn.textContent;
+      btn.textContent = 'Copied!';
+      setTimeout(() => btn.textContent = orig, 1500);
+    });
+  }
+</script>
+
+</body>
+</html>

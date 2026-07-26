@@ -1,0 +1,1719 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AAP Project 07 – Monitoring Integration | Prometheus · Grafana · Splunk · ELK</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+<style>
+  :root {
+    --primary:#065f46;--primary-dark:#022c22;--secondary:#052e16;
+    --accent:#10b981;--accent2:#34d399;
+    --prom:#e6522c;--graf:#f46800;--splunk:#65a637;--elk:#005571;--teams:#464eb8;--slack:#4a154b;--pager:#06ac38;
+    --bg:#f0fdf4;--card:#fff;--sidebar-bg:#022c22;
+    --sidebar-text:#a7f3d0;--border:#bbf7d0;
+    --text:#052e16;--text-light:#065f46;
+    --success:#15803d;--warning:#b45309;--danger:#b91c1c;
+    --info:#0369a1;--tip:#0d9488;
+    --code-bg:#0d1117;--code-text:#e6edf3;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);display:flex;min-height:100vh;}
+  #sidebar{width:272px;min-height:100vh;background:var(--sidebar-bg);position:fixed;top:0;left:0;overflow-y:auto;z-index:100;transition:transform .3s;}
+  #sidebar .brand{padding:16px 14px;background:#011910;border-bottom:2px solid var(--accent);}
+  #sidebar .brand h2{color:#fff;font-size:.89rem;font-weight:700;}
+  #sidebar .brand p{color:#047857;font-size:.70rem;margin-top:3px;}
+  #sidebar .brand .pb{display:inline-block;background:var(--accent);color:#fff;font-size:.62rem;font-weight:700;padding:2px 8px;border-radius:10px;margin-top:5px;}
+  #sidebar nav{padding:9px 0;}
+  #sidebar nav .sl{color:#047857;font-size:.61rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;padding:9px 13px 3px;}
+  #sidebar nav a{display:block;color:var(--sidebar-text);text-decoration:none;padding:7px 13px 7px 17px;font-size:.79rem;border-left:3px solid transparent;transition:all .2s;}
+  #sidebar nav a:hover,#sidebar nav a.active{background:rgba(16,185,129,.18);border-left-color:var(--accent2);color:#fff;}
+  #main{margin-left:272px;flex:1;}
+  .hero{background:linear-gradient(135deg,#022c22 0%,#065f46 55%,#10b981 100%);color:#fff;padding:44px 40px;position:relative;overflow:hidden;}
+  .hero::before{content:'📊';position:absolute;right:20px;top:-5px;font-size:10rem;opacity:.07;}
+  .hero .badge{display:inline-block;background:var(--accent);color:#fff;font-size:.67rem;font-weight:700;padding:3px 12px;border-radius:20px;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;}
+  .hero h1{font-size:1.85rem;font-weight:800;margin-bottom:10px;line-height:1.25;}
+  .hero p{font-size:.94rem;opacity:.88;max-width:740px;line-height:1.65;}
+  .hero .meta{margin-top:17px;display:flex;gap:14px;flex-wrap:wrap;}
+  .hero .meta span{background:rgba(255,255,255,.12);padding:5px 13px;border-radius:20px;font-size:.75rem;font-weight:600;}
+  .hero .tool-badges{margin-top:13px;display:flex;gap:9px;flex-wrap:wrap;}
+  .tb{padding:5px 14px;border-radius:6px;font-size:.77rem;font-weight:700;}
+  .content{padding:30px 38px;max-width:1090px;}
+  section{margin-bottom:46px;scroll-margin-top:16px;}
+  section h2{font-size:1.3rem;font-weight:800;color:var(--secondary);border-bottom:3px solid var(--accent);padding-bottom:9px;margin-bottom:18px;display:flex;align-items:center;gap:10px;}
+  section h2 .num{background:var(--accent);color:#fff;width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.8rem;font-weight:700;flex-shrink:0;}
+  section h3{font-size:1.03rem;font-weight:700;color:var(--primary-dark);margin:18px 0 9px;}
+  section h4{font-size:.91rem;font-weight:700;color:var(--secondary);margin:12px 0 7px;}
+  p{line-height:1.78;margin-bottom:11px;font-size:.91rem;}
+  .card{background:var(--card);border-radius:10px;padding:21px;margin-bottom:17px;border:1px solid var(--border);box-shadow:0 2px 7px rgba(0,0,0,.05);}
+  .callout{border-radius:8px;padding:14px 18px;margin:13px 0;border-left:4px solid;font-size:.875rem;line-height:1.72;}
+  .callout .ct{font-weight:700;margin-bottom:5px;font-size:.77rem;text-transform:uppercase;letter-spacing:.5px;}
+  .callout.info{background:#ecfdf5;border-color:var(--accent);} .callout.info .ct{color:var(--primary);}
+  .callout.warning{background:#fff3e0;border-color:var(--warning);} .callout.warning .ct{color:var(--warning);}
+  .callout.danger{background:#ffebee;border-color:var(--danger);} .callout.danger .ct{color:var(--danger);}
+  .callout.success{background:#f0fdf4;border-color:var(--success);} .callout.success .ct{color:var(--success);}
+  .callout.tip{background:#f0fdfa;border-color:var(--tip);} .callout.tip .ct{color:var(--tip);}
+  .callout.prom{background:#fff5f2;border-color:var(--prom);} .callout.prom .ct{color:var(--prom);}
+  .callout.elk{background:#e0f7fa;border-color:var(--elk);} .callout.elk .ct{color:var(--elk);}
+  .code-block{background:var(--code-bg);border-radius:8px;margin:13px 0;overflow:hidden;border:1px solid #30363d;}
+  .code-block .ch{background:#161b22;padding:7px 14px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #30363d;}
+  .code-block .ch span{color:#8b949e;font-size:.71rem;font-family:monospace;}
+  .code-block .ch .lang{font-weight:700;font-size:.69rem;padding:2px 8px;border-radius:10px;}
+  .lang-yaml{color:#f2cc60;background:rgba(242,204,96,.1);}
+  .lang-bash{color:#56d364;background:rgba(86,211,100,.1);}
+  .lang-json{color:#79c0ff;background:rgba(121,192,255,.1);}
+  .lang-python{color:#d2a8ff;background:rgba(210,168,255,.1);}
+  .lang-ini{color:#ffa657;background:rgba(255,166,87,.1);}
+  .code-block pre{padding:17px;overflow-x:auto;}
+  .code-block code{color:var(--code-text);font-family:'Cascadia Code','Fira Code',Consolas,monospace;font-size:.80rem;line-height:1.72;white-space:pre;}
+  .kw{color:#ff7b72;}.st{color:#a5d6ff;}.cm{color:#8b949e;font-style:italic;}
+  .nm{color:#79c0ff;}.vl{color:#f2cc60;}.op{color:#ffa657;}.bl{color:#56d364;}
+  .explain{background:#f0fdf4;border:1px solid var(--border);border-radius:8px;margin:11px 0;}
+  .explain table{width:100%;border-collapse:collapse;font-size:.80rem;}
+  .explain table th{background:#bbf7d0;padding:8px 12px;text-align:left;font-weight:700;color:var(--secondary);}
+  .explain table td{padding:8px 12px;border-top:1px solid var(--border);vertical-align:top;line-height:1.56;}
+  .explain table td:first-child{font-family:monospace;color:var(--accent);font-weight:600;white-space:nowrap;}
+  .explain table tr:hover td{background:#dcfce7;}
+  .dt{width:100%;border-collapse:collapse;font-size:.83rem;margin:13px 0;}
+  .dt th{background:var(--secondary);color:#fff;padding:9px 13px;text-align:left;}
+  .dt td{padding:8px 13px;border-bottom:1px solid var(--border);}
+  .dt tr:nth-child(even) td{background:#f0fdf4;}
+  .dt tr:hover td{background:#dcfce7;}
+  .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+  .grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:13px;}
+  .grid-4{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;}
+  .step{display:flex;gap:13px;margin-bottom:17px;align-items:flex-start;}
+  .step .sn{background:var(--accent);color:#fff;width:29px;height:29px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.80rem;flex-shrink:0;margin-top:2px;}
+  .step .sb{flex:1;}.step .sb strong{display:block;margin-bottom:3px;color:var(--secondary);}
+  .scenario{background:linear-gradient(135deg,#dcfce7 0%,#fff 100%);border:1px solid #86efac;border-radius:10px;padding:19px 22px;margin:13px 0;}
+  .scenario .st{font-weight:700;color:var(--primary-dark);font-size:.92rem;margin-bottom:8px;}
+  .trouble{border:1px solid #fca5a5;border-radius:8px;margin:13px 0;overflow:hidden;}
+  .trouble-header{background:var(--danger);color:#fff;padding:10px 15px;font-weight:700;font-size:.85rem;}
+  .trouble-body{padding:13px 15px;background:#fff;}
+  .tl{font-weight:700;color:var(--secondary);font-size:.75rem;text-transform:uppercase;letter-spacing:.5px;margin:8px 0 3px;}
+  .iq{border:1px solid var(--border);border-radius:8px;margin:10px 0;overflow:hidden;}
+  .iq-q{background:#ecfdf5;padding:12px 15px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;font-weight:600;font-size:.85rem;color:var(--secondary);border-left:4px solid var(--accent);}
+  .iq-q::after{content:'▼';font-size:.67rem;color:var(--accent);}
+  .iq-q.open::after{content:'▲';}
+  .iq-a{background:#fff;padding:12px 15px;font-size:.83rem;line-height:1.78;display:none;border-top:1px solid var(--border);}
+  .iq-a.show{display:block;}
+  .mw{background:#fff;border:1px solid var(--border);border-radius:10px;padding:18px;margin:13px 0;text-align:center;overflow-x:auto;}
+  .mw p.cap{font-size:.75rem;color:var(--text-light);margin-top:7px;font-style:italic;}
+  /* TOOL HEADER CARDS */
+  .tool-card{background:var(--card);border-radius:10px;padding:16px 18px;border:1px solid var(--border);margin-bottom:14px;}
+  .tool-card.prom{border-top:4px solid var(--prom);}
+  .tool-card.graf{border-top:4px solid var(--graf);}
+  .tool-card.splunk{border-top:4px solid var(--splunk);}
+  .tool-card.elk{border-top:4px solid var(--elk);}
+  .tool-card.slack-c{border-top:4px solid var(--slack);}
+  .tool-card.teams-c{border-top:4px solid var(--teams);}
+  .tool-card h4{margin-bottom:6px;}
+  /* ALERT VISUAL */
+  .alert-card{background:#fff;border-radius:8px;border:1px solid var(--border);padding:14px 16px;margin:10px 0;display:flex;gap:12px;align-items:flex-start;}
+  .alert-icon{font-size:1.5rem;flex-shrink:0;}
+  .alert-body{flex:1;font-size:.82rem;line-height:1.6;}
+  .alert-body .alert-title{font-weight:700;margin-bottom:3px;}
+  .alert-firing{border-left:4px solid var(--danger);}
+  .alert-resolved{border-left:4px solid var(--success);}
+  @media(max-width:900px){#sidebar{transform:translateX(-100%);} #sidebar.open{transform:translateX(0);} #main{margin-left:0;} .content{padding:16px 13px;} .hero{padding:26px 16px;} .grid-2,.grid-3,.grid-4{grid-template-columns:1fr;} .hero h1{font-size:1.3rem;}}
+  #menu-btn{display:none;position:fixed;top:12px;left:12px;z-index:200;background:var(--accent);color:#fff;border:none;border-radius:6px;padding:7px 11px;cursor:pointer;font-size:1rem;}
+  @media(max-width:900px){#menu-btn{display:block;}}
+  .scroll-top{position:fixed;bottom:22px;right:22px;background:var(--accent);color:#fff;border:none;border-radius:50%;width:42px;height:42px;font-size:1.1rem;cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,.2);display:none;z-index:50;align-items:center;justify-content:center;}
+</style>
+</head>
+<body>
+<button id="menu-btn" onclick="document.getElementById('sidebar').classList.toggle('open')">☰</button>
+<aside id="sidebar">
+  <div class="brand">
+    <h2>🤖 Ansible AAP</h2>
+    <p>Project 07 — Monitoring Integration</p>
+    <div class="pb">GlobalTrust Bank</div>
+  </div>
+  <nav>
+    <div class="sl">Introduction</div>
+    <a href="#overview">📋 Overview</a>
+    <a href="#business">🏦 Business Problem</a>
+    <a href="#story">📖 Project Story</a>
+    <a href="#architecture">🏗️ Architecture</a>
+
+    <div class="sl">Prometheus + Grafana</div>
+    <a href="#prom-install">📦 Install via Ansible</a>
+    <a href="#node-exporter">📡 Node Exporter Deploy</a>
+    <a href="#prom-config">⚙️ Prometheus Config</a>
+    <a href="#alertmanager">🚨 Alertmanager</a>
+    <a href="#grafana-setup">📊 Grafana Dashboards</a>
+
+    <div class="sl">Splunk Integration</div>
+    <a href="#splunk-uf">🔍 Splunk UF Deployment</a>
+    <a href="#splunk-inputs">📥 Inputs Configuration</a>
+    <a href="#splunk-ansible-alert">⚡ Splunk → AAP Trigger</a>
+
+    <div class="sl">ELK Stack</div>
+    <a href="#elk-deploy">📚 ELK Deployment</a>
+    <a href="#filebeat">📄 Filebeat Config</a>
+
+    <div class="sl">Notifications</div>
+    <a href="#aap-notif">🔔 AAP Notification System</a>
+    <a href="#slack-notif">💬 Slack Notifications</a>
+    <a href="#teams-notif">💙 Microsoft Teams</a>
+    <a href="#email-notif">📧 Email Notifications</a>
+    <a href="#pagerduty">🟢 PagerDuty Integration</a>
+
+    <div class="sl">Advanced</div>
+    <a href="#callback-plugin">🔌 Custom Callback Plugin</a>
+    <a href="#aap-as-alertmanager">🔄 AlertManager → AAP</a>
+    <a href="#workflow">🔀 Full Monitoring Workflow</a>
+
+    <div class="sl">Operations</div>
+    <a href="#troubleshoot">🔍 Troubleshooting</a>
+    <a href="#interview">🎯 Interview Prep</a>
+  </nav>
+</aside>
+<main id="main">
+  <div class="hero">
+    <div class="badge">Project 07 of N</div>
+    <h1>📊 Monitoring Integration with Ansible AAP<br><span style="font-size:1.05rem;font-weight:400;opacity:.85">Prometheus · Grafana · Splunk · ELK · Slack · Teams · PagerDuty · Callback Plugins</span></h1>
+    <p>GlobalTrust Bank's 450+ servers generate millions of metrics and log lines every day. This project uses Ansible AAP to deploy, configure, and integrate the entire monitoring stack — and then closes the loop by making monitoring alerts automatically trigger Ansible remediation playbooks, creating a fully self-healing infrastructure.</p>
+    <div class="meta">
+      <span>🏦 Domain: BFSI Observability</span>
+      <span>📊 Prometheus + Grafana</span>
+      <span>🔍 Splunk + ELK</span>
+      <span>📅 Level: Intermediate → Advanced</span>
+    </div>
+    <div class="tool-badges">
+      <span class="tb" style="background:var(--prom);color:#fff">🔴 Prometheus</span>
+      <span class="tb" style="background:var(--graf);color:#fff">🟠 Grafana</span>
+      <span class="tb" style="background:var(--splunk);color:#fff">🟢 Splunk</span>
+      <span class="tb" style="background:var(--elk);color:#fff">🔵 ELK Stack</span>
+      <span class="tb" style="background:var(--slack);color:#fff">💬 Slack</span>
+      <span class="tb" style="background:var(--teams);color:#fff">💙 Teams</span>
+    </div>
+  </div>
+  <div class="content">
+
+    <!-- ═══ SECTION 1: OVERVIEW ═══ -->
+    <section id="overview">
+      <h2><span class="num">1</span> Project Overview</h2>
+      <div class="callout info">
+        <div class="ct">📌 The Big Picture — Monitoring + Automation = Self-Healing Infrastructure</div>
+        Most organisations treat monitoring and automation as two separate disciplines. This project connects them. The goal is simple: when Prometheus detects a high-memory server, don't send a Slack alert that wakes up an engineer — send the alert AND automatically trigger an Ansible playbook that restarts the service causing the leak. When Splunk sees an nginx error spike, automatically run the nginx restart playbook. When a disk fills, auto-clean. When Grafana's dashboard shows a deployment anomaly, auto-rollback. This is <strong>self-healing infrastructure</strong> — the monitoring system drives the automation system, and humans only intervene for truly complex problems that need judgment.
+      </div>
+
+      <div class="grid-4">
+        <div class="card" style="border-top:3px solid var(--prom)">
+          <h4>🔴 Prometheus</h4>
+          <p>Metrics collection and alerting for all Linux/Windows servers and applications. Node Exporter on every server.</p>
+        </div>
+        <div class="card" style="border-top:3px solid var(--graf)">
+          <h4>🟠 Grafana</h4>
+          <p>Dashboards for infrastructure health. Deployment status panels. Real-time Ansible job metrics.</p>
+        </div>
+        <div class="card" style="border-top:3px solid var(--splunk)">
+          <h4>🟢 Splunk</h4>
+          <p>Log analysis, SIEM, and compliance reporting. Splunk Universal Forwarder on every server.</p>
+        </div>
+        <div class="card" style="border-top:3px solid var(--elk)">
+          <h4>🔵 ELK Stack</h4>
+          <p>Application log aggregation for Java Spring Boot and Python microservices. Filebeat ships logs.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══ SECTION 2: BUSINESS ═══ -->
+    <section id="business">
+      <h2><span class="num">2</span> Business Problem</h2>
+      <div class="callout danger">
+        <div class="ct">🚨 The 2 AM Pattern — What Prompted This Project</div>
+        Before this project, GlobalTrust Bank's on-call rotation received an average of 23 pager alerts per week outside business hours. 71% of those alerts were for problems that had known, repeatable fixes — disk full (clean logs), service crashed (restart), memory leak (restart service, send to dev team). An engineer was being woken up at 3 AM to type three commands on a server. The engineer spends 45 minutes resolving what a script could fix in 90 seconds. Times 16 such alerts per month, times 12 DevOps engineers in rotation — that is 192 hours of lost engineer sleep per year, significant burnout, and three resignation letters in 2023 citing on-call exhaustion.
+      </div>
+      <div class="callout success">
+        <div class="ct">✅ After Monitoring + Ansible Integration</div>
+        <div class="grid-2">
+          <ul style="padding-left:15px;line-height:2;font-size:.87rem">
+            <li>Prometheus alert fires → Ansible remediates in under 2 minutes</li>
+            <li>On-call alert volume reduced from 23/week to 4/week (83% reduction)</li>
+            <li>Splunk UF deployed to 450 servers in 20 minutes via Ansible</li>
+            <li>Grafana shows Ansible job status alongside server health</li>
+          </ul>
+          <ul style="padding-left:15px;line-height:2;font-size:.87rem">
+            <li>All 3 resignations rescinded after on-call load reduced</li>
+            <li>MTTR (Mean Time To Repair) dropped from 45 min to 4 min</li>
+            <li>RBI: Full audit log of every remediation in Splunk</li>
+            <li>Slack/Teams alerts now fire AFTER auto-fix, not instead of it</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══ SECTION 3: STORY ═══ -->
+    <section id="story">
+      <h2><span class="num">3</span> Project Story</h2>
+      <div class="scenario">
+        <div class="st">📖 The Story — The Night Arjun Slept Through an Alert</div>
+        <p>It is 2:47 AM. Prometheus fires an alert: <code>DiskSpaceCritical</code> — prod-db-012, /var/lib/mysql partition at 96%. Alertmanager receives it. Old behaviour: page Arjun. New behaviour: Alertmanager sends a webhook to AAP. AAP launches the <code>disk_emergency_cleanup</code> playbook. The playbook runs on prod-db-012, identifies and archives 47 GB of old MySQL binary logs to S3, disk drops to 62%, playbook exits successfully. Alertmanager fires a RESOLVED webhook to AAP — AAP sends a Slack message to <code>#infrastructure-alerts</code>: "✅ RESOLVED — prod-db-012 disk cleared automatically (96%→62%) in 3m22s. [View AAP Job]". Arjun sees this at 8 AM with his coffee. He does not know he was almost paged at 3 AM. He goes on to have a very productive morning. Priya shows this story at the next all-hands meeting as proof that DevOps automation has directly improved team wellbeing. This is that project.</p>
+      </div>
+    </section>
+
+    <!-- ═══ SECTION 4: ARCHITECTURE ═══ -->
+    <section id="architecture">
+      <h2><span class="num">4</span> Architecture Diagram</h2>
+      <div class="mw">
+        <div class="mermaid">
+graph TB
+    subgraph SERVERS["🖥️ Managed Infrastructure (450+ Servers)"]
+        NE["Node Exporter :9100\nCPU, Memory, Disk, Network"]
+        APP_EXP["App Exporters\nJVM :8080/metrics\nnginx :9113\nMySQL :9104"]
+        UF["Splunk Universal Forwarder\n/var/log/* → Splunk Heavy Forwarder"]
+        FB["Filebeat\n/var/log/app/*.log → Elasticsearch"]
+    end
+
+    subgraph MONITORING["📊 Monitoring Stack (AAP-Deployed)"]
+        PROM["Prometheus Server\nScrapes metrics every 15s\nRetention: 15 days"]
+        AM["Alertmanager\nRoutes alerts by severity\nFires webhooks to AAP"]
+        GRAF["Grafana\nDashboards + Ansible panels"]
+        ES["Elasticsearch Cluster\n3-node setup"]
+        KB["Kibana\nLog dashboards + SIEM"]
+        SPLUNK_IDX["Splunk Indexer Cluster\nSearch Head + Indexers"]
+    end
+
+    subgraph AAP_SYSTEM["🤖 AAP 2.4 — Automation Controller"]
+        WH_RECV["Webhook Receiver\nReceives Alertmanager webhooks"]
+        JT_AUTO["Auto-Remediation Job Templates\ndisk_cleanup | restart_service\nclear_java_heap | nginx_reload"]
+        NOTIF["Notification Templates\nSlack | Teams | Email | PagerDuty"]
+    end
+
+    subgraph NOTIFY["📢 Notification Channels"]
+        SLACK_CH["Slack #infra-alerts"]
+        TEAMS_CH["MS Teams\nDevOps Channel"]
+        EMAIL_CH["Email\nNOC / On-call"]
+        PD["PagerDuty\nCritical only"]
+        SNOW_INC["ServiceNow\nAuto-Incident"]
+    end
+
+    NE -->|HTTP scrape :9100| PROM
+    APP_EXP -->|HTTP scrape| PROM
+    UF -->|Syslog TCP 9997| SPLUNK_IDX
+    FB -->|HTTP 9200| ES
+    PROM --> AM
+    PROM --> GRAF
+    ES --> KB
+    ES --> GRAF
+    AM -->|FIRING webhook POST| WH_RECV
+    AM -->|RESOLVED webhook POST| WH_RECV
+    WH_RECV --> JT_AUTO
+    JT_AUTO -->|SSH remediation| SERVERS
+    JT_AUTO --> NOTIF
+    NOTIF --> SLACK_CH
+    NOTIF --> TEAMS_CH
+    NOTIF --> EMAIL_CH
+    NOTIF --> PD
+    NOTIF --> SNOW_INC
+        </div>
+        <p class="cap">Figure 1: Complete Monitoring Integration Architecture — Monitoring alerts drive Ansible auto-remediation</p>
+      </div>
+    </section>
+
+    <!-- ═══ SECTION 5: PROMETHEUS INSTALL ═══ -->
+    <section id="prom-install">
+      <h2><span class="num">5</span> Prometheus Server — Deploy with Ansible</h2>
+      <div class="callout prom">
+        <div class="ct">🔴 Prometheus in GlobalTrust Bank</div>
+        GlobalTrust Bank runs a centralised Prometheus server (3 replicas with Thanos for long-term storage) that scrapes metrics from all 450+ Linux and Windows servers, 35 application exporters, and AAP itself. The entire Prometheus deployment — server, Alertmanager, all configuration files, service setup, and firewall rules — is managed by Ansible. If someone accidentally changes prometheus.yml directly on the server, the next Ansible run restores it. Infrastructure as code enforced.
+      </div>
+
+      <div class="code-block">
+        <div class="ch"><span>roles/prometheus/tasks/main.yml</span><span class="lang lang-yaml">YAML</span></div>
+        <pre><code><span class="cm">---</span>
+<span class="cm"># GlobalTrust Bank — Prometheus Server Installation Role</span>
+<span class="cm"># Idempotent: safe to run again if Prometheus already installed</span>
+
+- <span class="nm">name</span>: <span class="st">Create prometheus system group</span>
+  <span class="op">ansible.builtin.group</span>:
+    <span class="nm">name</span>: <span class="st">prometheus</span>
+    <span class="nm">system</span>: <span class="bl">true</span>
+    <span class="nm">state</span>: <span class="st">present</span>
+
+- <span class="nm">name</span>: <span class="st">Create prometheus system user</span>
+  <span class="op">ansible.builtin.user</span>:
+    <span class="nm">name</span>: <span class="st">prometheus</span>
+    <span class="nm">group</span>: <span class="st">prometheus</span>
+    <span class="nm">system</span>: <span class="bl">true</span>
+    <span class="nm">shell</span>: <span class="st">/bin/false</span>              <span class="cm"># No login shell — service account only</span>
+    <span class="nm">create_home</span>: <span class="bl">false</span>
+    <span class="nm">state</span>: <span class="st">present</span>
+
+- <span class="nm">name</span>: <span class="st">Create Prometheus directories</span>
+  <span class="op">ansible.builtin.file</span>:
+    <span class="nm">path</span>: <span class="st">"{{ item }}"</span>
+    <span class="nm">state</span>: <span class="st">directory</span>
+    <span class="nm">owner</span>: <span class="st">prometheus</span>
+    <span class="nm">group</span>: <span class="st">prometheus</span>
+    <span class="nm">mode</span>: <span class="st">'0755'</span>
+  <span class="nm">loop</span>:
+    - <span class="st">/etc/prometheus</span>
+    - <span class="st">/etc/prometheus/rules</span>                 <span class="cm"># Alert rules directory</span>
+    - <span class="st">/var/lib/prometheus</span>                     <span class="cm"># Data directory (TSDB)</span>
+    - <span class="st">/var/log/prometheus</span>
+
+- <span class="nm">name</span>: <span class="st">Download Prometheus binary</span>
+  <span class="op">ansible.builtin.unarchive</span>:
+    <span class="nm">src</span>: <span class="st">"https://github.com/prometheus/prometheus/releases/download/v{{ prometheus_version }}/prometheus-{{ prometheus_version }}.linux-amd64.tar.gz"</span>
+    <span class="nm">dest</span>: <span class="st">/tmp/</span>
+    <span class="nm">remote_src</span>: <span class="bl">true</span>                      <span class="cm"># Download on the remote server (not locally)</span>
+
+- <span class="nm">name</span>: <span class="st">Copy prometheus and promtool binaries to /usr/local/bin</span>
+  <span class="op">ansible.builtin.copy</span>:
+    <span class="nm">src</span>: <span class="st">"/tmp/prometheus-{{ prometheus_version }}.linux-amd64/{{ item }}"</span>
+    <span class="nm">dest</span>: <span class="st">"/usr/local/bin/{{ item }}"</span>
+    <span class="nm">owner</span>: <span class="st">root</span>
+    <span class="nm">group</span>: <span class="st">root</span>
+    <span class="nm">mode</span>: <span class="st">'0755'</span>
+    <span class="nm">remote_src</span>: <span class="bl">true</span>
+  <span class="nm">loop</span>:
+    - <span class="st">prometheus</span>
+    - <span class="st">promtool</span>                               <span class="cm"># Tool for validating config and rules</span>
+  <span class="nm">notify</span>: <span class="st">Restart prometheus</span>
+
+- <span class="nm">name</span>: <span class="st">Deploy prometheus.yml from template</span>
+  <span class="op">ansible.builtin.template</span>:
+    <span class="nm">src</span>: <span class="st">prometheus.yml.j2</span>
+    <span class="nm">dest</span>: <span class="st">/etc/prometheus/prometheus.yml</span>
+    <span class="nm">owner</span>: <span class="st">prometheus</span>
+    <span class="nm">group</span>: <span class="st">prometheus</span>
+    <span class="nm">mode</span>: <span class="st">'0644'</span>
+    <span class="nm">validate</span>: <span class="st">'/usr/local/bin/promtool check config %s'</span>  <span class="cm"># Validate before applying</span>
+  <span class="nm">notify</span>: <span class="st">Reload prometheus config</span>
+
+- <span class="nm">name</span>: <span class="st">Deploy Prometheus alert rules</span>
+  <span class="op">ansible.builtin.template</span>:
+    <span class="nm">src</span>: <span class="st">"{{ item }}.j2"</span>
+    <span class="nm">dest</span>: <span class="st">"/etc/prometheus/rules/{{ item }}"</span>
+    <span class="nm">owner</span>: <span class="st">prometheus</span>
+    <span class="nm">group</span>: <span class="st">prometheus</span>
+    <span class="nm">mode</span>: <span class="st">'0644'</span>
+    <span class="nm">validate</span>: <span class="st">'/usr/local/bin/promtool check rules %s'</span>    <span class="cm"># Validate rules before applying</span>
+  <span class="nm">loop</span>:
+    - <span class="st">disk_alerts.yml</span>
+    - <span class="st">memory_alerts.yml</span>
+    - <span class="st">cpu_alerts.yml</span>
+    - <span class="st">service_alerts.yml</span>
+    - <span class="st">application_alerts.yml</span>
+  <span class="nm">notify</span>: <span class="st">Reload prometheus config</span>
+
+- <span class="nm">name</span>: <span class="st">Deploy Prometheus systemd service</span>
+  <span class="op">ansible.builtin.template</span>:
+    <span class="nm">src</span>: <span class="st">prometheus.service.j2</span>
+    <span class="nm">dest</span>: <span class="st">/etc/systemd/system/prometheus.service</span>
+    <span class="nm">mode</span>: <span class="st">'0644'</span>
+  <span class="nm">notify</span>: <span class="st">Reload systemd</span>
+
+- <span class="nm">name</span>: <span class="st">Ensure Prometheus is enabled and running</span>
+  <span class="op">ansible.builtin.systemd</span>:
+    <span class="nm">name</span>: <span class="st">prometheus</span>
+    <span class="nm">state</span>: <span class="st">started</span>
+    <span class="nm">enabled</span>: <span class="bl">true</span>
+    <span class="nm">daemon_reload</span>: <span class="bl">true</span>
+
+- <span class="nm">name</span>: <span class="st">Open Prometheus port in firewall</span>
+  <span class="op">ansible.posix.firewalld</span>:
+    <span class="nm">port</span>: <span class="st">"{{ item }}/tcp"</span>
+    <span class="nm">permanent</span>: <span class="bl">true</span>
+    <span class="nm">state</span>: <span class="st">enabled</span>
+    <span class="nm">immediate</span>: <span class="bl">true</span>
+  <span class="nm">loop</span>:
+    - <span class="st">"9090"</span>            <span class="cm"># Prometheus UI and API</span>
+    - <span class="st">"9093"</span>            <span class="cm"># Alertmanager</span></code></pre>
+      </div>
+
+      <div class="code-block">
+        <div class="ch"><span>templates/prometheus.service.j2 — Systemd unit file</span><span class="lang lang-ini">INI</span></div>
+        <pre><code>[Unit]
+Description=Prometheus Metrics Server
+Documentation=https://prometheus.io/docs
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=prometheus
+Group=prometheus
+ExecStart=/usr/local/bin/prometheus \
+    --config.file=/etc/prometheus/prometheus.yml \
+    --storage.tsdb.path=/var/lib/prometheus \
+    --storage.tsdb.retention.time={{ prometheus_retention_days }}d \
+    --web.listen-address=0.0.0.0:9090 \
+    --web.enable-lifecycle \            <span class="cm"># Enables /-/reload API for config reload without restart</span>
+    --log.level=info
+
+ExecReload=/bin/kill -HUP $MAINPID    <span class="cm"># SIGHUP = reload config gracefully</span>
+Restart=always
+RestartSec=5s
+
+[Install]
+WantedBy=multi-user.target</code></pre>
+      </div>
+
+      <div class="explain">
+        <table>
+          <thead><tr><th>Concept</th><th>Explanation</th></tr></thead>
+          <tbody>
+            <tr><td>validate: promtool check config %s</td><td>Before Ansible applies the prometheus.yml file, it runs <code>promtool check config</code> on it. If the config has syntax errors or invalid references, the file is NOT deployed and the play fails safely. The %s is replaced by a temp file path. This prevents deploying a broken config that would crash Prometheus. Same pattern for alert rules with <code>promtool check rules</code>.</td></tr>
+            <tr><td>notify: Reload prometheus config</td><td>Instead of restarting Prometheus (which causes a brief metrics gap), we use a reload — Prometheus reloads config live with no downtime. The handler sends SIGHUP to the process: <code>systemctl kill -s HUP prometheus</code>. Only triggered when config actually changed (Ansible's idempotency at work). Binary changes still require a full restart, hence the separate "Restart prometheus" handler.</td></tr>
+            <tr><td>--web.enable-lifecycle</td><td>This flag enables the HTTP reload API: POST http://localhost:9090/-/reload triggers a config reload without SIGHUP. Useful for automation and health checks. Our Ansible handler can also use <code>ansible.builtin.uri</code> to POST to this endpoint instead of using systemctl.</td></tr>
+            <tr><td>--storage.tsdb.retention.time=15d</td><td>Prometheus stores metrics for 15 days in its local time-series database (TSDB). After 15 days, old data is deleted. For longer retention (6 months for RBI compliance), we feed Prometheus remote_write into a Thanos cluster or VictoriaMetrics. The value comes from the {{ prometheus_retention_days }} Ansible variable — one change in group_vars updates all Prometheus servers.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ═══ SECTION 6: NODE EXPORTER ═══ -->
+    <section id="node-exporter">
+      <h2><span class="num">6</span> Node Exporter — Deploy to All 450 Servers</h2>
+      <div class="callout info">
+        <div class="ct">📡 What is Node Exporter?</div>
+        Node Exporter is a lightweight Prometheus agent that runs on every Linux server and exposes system metrics — CPU usage, memory, disk, network, filesystem — as an HTTP endpoint on port 9100. Prometheus scrapes this endpoint every 15 seconds. Deploying Node Exporter to 450 servers manually would take hours. With Ansible, it takes 8 minutes across all servers simultaneously. And when a new server is provisioned (Project 04), the Node Exporter role runs automatically as part of the provisioning playbook.
+      </div>
+
+      <div class="code-block">
+        <div class="ch"><span>roles/node_exporter/tasks/main.yml — Deploy to ALL Linux servers</span><span class="lang lang-yaml">YAML</span></div>
+        <pre><code><span class="cm">---</span>
+<span class="nm">- <span class="nm">name</span>: <span class="st">Download Node Exporter</span></span>
+  <span class="op">ansible.builtin.unarchive</span>:
+    <span class="nm">src</span>: <span class="st">"https://github.com/prometheus/node_exporter/releases/download/v{{ node_exporter_version }}/node_exporter-{{ node_exporter_version }}.linux-amd64.tar.gz"</span>
+    <span class="nm">dest</span>: <span class="st">/tmp/</span>
+    <span class="nm">remote_src</span>: <span class="bl">true</span>
+    <span class="nm">creates</span>: <span class="st">"/tmp/node_exporter-{{ node_exporter_version }}.linux-amd64/node_exporter"</span>
+
+- <span class="nm">name</span>: <span class="st">Install node_exporter binary</span>
+  <span class="op">ansible.builtin.copy</span>:
+    <span class="nm">src</span>: <span class="st">"/tmp/node_exporter-{{ node_exporter_version }}.linux-amd64/node_exporter"</span>
+    <span class="nm">dest</span>: <span class="st">/usr/local/bin/node_exporter</span>
+    <span class="nm">owner</span>: <span class="st">root</span>
+    <span class="nm">group</span>: <span class="st">root</span>
+    <span class="nm">mode</span>: <span class="st">'0755'</span>
+    <span class="nm">remote_src</span>: <span class="bl">true</span>
+  <span class="nm">notify</span>: <span class="st">Restart node_exporter</span>
+
+- <span class="nm">name</span>: <span class="st">Create node_exporter systemd service</span>
+  <span class="op">ansible.builtin.copy</span>:
+    <span class="nm">content</span>: |
+      <span class="st">[Unit]
+      Description=Node Exporter — Prometheus system metrics
+      After=network-online.target
+
+      [Service]
+      Type=simple
+      User=nobody
+      ExecStart=/usr/local/bin/node_exporter \
+          --collector.systemd \
+          --collector.processes \
+          --web.listen-address=:9100
+
+      Restart=always
+      RestartSec=5s
+
+      [Install]
+      WantedBy=multi-user.target</span>
+    <span class="nm">dest</span>: <span class="st">/etc/systemd/system/node_exporter.service</span>
+    <span class="nm">mode</span>: <span class="st">'0644'</span>
+  <span class="nm">notify</span>:
+    - <span class="st">Reload systemd</span>
+    - <span class="st">Restart node_exporter</span>
+
+- <span class="nm">name</span>: <span class="st">Enable and start node_exporter</span>
+  <span class="op">ansible.builtin.systemd</span>:
+    <span class="nm">name</span>: <span class="st">node_exporter</span>
+    <span class="nm">state</span>: <span class="st">started</span>
+    <span class="nm">enabled</span>: <span class="bl">true</span>
+    <span class="nm">daemon_reload</span>: <span class="bl">true</span>
+
+- <span class="nm">name</span>: <span class="st">Allow node_exporter port in firewall (only from Prometheus server)</span>
+  <span class="op">ansible.posix.firewalld</span>:
+    <span class="nm">rich_rule</span>: <span class="st">"rule family='ipv4' source address='{{ prometheus_server_ip }}' port port='9100' protocol='tcp' accept"</span>
+    <span class="nm">permanent</span>: <span class="bl">true</span>
+    <span class="nm">state</span>: <span class="st">enabled</span>
+    <span class="nm">immediate</span>: <span class="bl">true</span>
+  <span class="cm"># Only allow Prometheus server to scrape — not open to the world</span>
+
+- <span class="nm">name</span>: <span class="st">Verify node_exporter is responding</span>
+  <span class="op">ansible.builtin.uri</span>:
+    <span class="nm">url</span>: <span class="st">http://localhost:9100/metrics</span>
+    <span class="nm">status_code</span>: <span class="vl">200</span>
+  <span class="nm">register</span>: <span class="st">ne_check</span>
+  <span class="nm">retries</span>: <span class="vl">5</span>
+  <span class="nm">delay</span>: <span class="vl">5</span></code></pre>
+      </div>
+    </section>
+
+    <!-- ═══ SECTION 7: PROMETHEUS CONFIG ═══ -->
+    <section id="prom-config">
+      <h2><span class="num">7</span> Prometheus Configuration — Scrape Configs and Alert Rules</h2>
+
+      <div class="code-block">
+        <div class="ch"><span>templates/prometheus.yml.j2 — Main Prometheus config template</span><span class="lang lang-yaml">YAML</span></div>
+        <pre><code><span class="cm"># GlobalTrust Bank — Prometheus Configuration</span>
+<span class="cm"># Managed by Ansible AAP — DO NOT EDIT DIRECTLY</span>
+<span class="nm">global</span>:
+  <span class="nm">scrape_interval</span>: <span class="st">15s</span>              <span class="cm"># How often Prometheus collects metrics</span>
+  <span class="nm">evaluation_interval</span>: <span class="st">15s</span>         <span class="cm"># How often Prometheus evaluates alert rules</span>
+  <span class="nm">scrape_timeout</span>: <span class="st">10s</span>
+  <span class="nm">external_labels</span>:
+    <span class="nm">cluster</span>: <span class="st">globaltrust-production</span>
+    <span class="nm">region</span>: <span class="st">ap-south-1</span>
+
+<span class="nm">alerting</span>:
+  <span class="nm">alertmanagers</span>:
+    - <span class="nm">static_configs</span>:
+        - <span class="nm">targets</span>: [<span class="st">'localhost:9093'</span>]    <span class="cm"># Alertmanager runs on same server</span>
+
+<span class="nm">rule_files</span>:                            <span class="cm"># Load all alert rule files</span>
+  - <span class="st">"/etc/prometheus/rules/*.yml"</span>
+
+<span class="nm">scrape_configs</span>:
+
+  <span class="cm"># ===== Linux Servers via Node Exporter =====</span>
+  - <span class="nm">job_name</span>: <span class="st">node_exporter</span>
+    <span class="nm">file_sd_configs</span>:                   <span class="cm"># File-based Service Discovery</span>
+      - <span class="nm">files</span>:
+          - <span class="st">/etc/prometheus/targets/linux_servers.yml</span>
+        <span class="nm">refresh_interval</span>: <span class="st">5m</span>           <span class="cm"># Re-read target file every 5 min</span>
+    <span class="nm">relabel_configs</span>:
+      - <span class="nm">source_labels</span>: [<span class="st">__address__</span>]
+        <span class="nm">regex</span>: <span class="st">(.*):\d+</span>
+        <span class="nm">target_label</span>: <span class="st">hostname</span>        <span class="cm"># Extract hostname from address label</span>
+
+  <span class="cm"># ===== AWS EC2 Service Discovery (auto-discovers EC2 instances) =====</span>
+  - <span class="nm">job_name</span>: <span class="st">ec2_node_exporter</span>
+    <span class="nm">ec2_sd_configs</span>:                    <span class="cm"># Prometheus native EC2 service discovery</span>
+      - <span class="nm">region</span>: <span class="st">ap-south-1</span>
+        <span class="nm">access_key</span>: <span class="st">"{{ vault_prometheus_aws_key }}"</span>
+        <span class="nm">secret_key</span>: <span class="st">"{{ vault_prometheus_aws_secret }}"</span>
+        <span class="nm">port</span>: <span class="vl">9100</span>
+        <span class="nm">filters</span>:
+          - <span class="nm">name</span>: <span class="st">tag:MonitoringEnabled</span>
+            <span class="nm">values</span>: [<span class="st">'true'</span>]
+    <span class="nm">relabel_configs</span>:
+      - <span class="nm">source_labels</span>: [<span class="st">__meta_ec2_tag_Name</span>]  <span class="cm"># Use EC2 Name tag as instance label</span>
+        <span class="nm">target_label</span>: <span class="st">instance</span>
+      - <span class="nm">source_labels</span>: [<span class="st">__meta_ec2_tag_Environment</span>]
+        <span class="nm">target_label</span>: <span class="st">environment</span>
+      - <span class="nm">source_labels</span>: [<span class="st">__meta_ec2_tag_Role</span>]
+        <span class="nm">target_label</span>: <span class="st">role</span>
+
+  <span class="cm"># ===== Application Exporters =====</span>
+  - <span class="nm">job_name</span>: <span class="st">nginx_exporter</span>
+    <span class="nm">static_configs</span>:
+      - <span class="nm">targets</span>: [<span class="st">'web-01:9113'</span>, <span class="st">'web-02:9113'</span>, <span class="st">'web-03:9113'</span>]
+        <span class="nm">labels</span>:
+          <span class="nm">role</span>: <span class="st">webserver</span>
+
+  <span class="cm"># ===== AAP Automation Controller metrics =====</span>
+  - <span class="nm">job_name</span>: <span class="st">ansible_aap</span>
+    <span class="nm">static_configs</span>:
+      - <span class="nm">targets</span>: [<span class="st">'aap-ctrl.globaltrust.in:9090'</span>]  <span class="cm"># AAP exposes Prometheus metrics</span>
+    <span class="nm">metrics_path</span>: <span class="st">/api/v2/metrics</span>   <span class="cm"># AAP-specific metrics path</span>
+    <span class="nm">scheme</span>: <span class="st">https</span>
+    <span class="nm">basic_auth</span>:
+      <span class="nm">username</span>: <span class="st">prometheus-reader</span>
+      <span class="nm">password</span>: <span class="st">"{{ vault_aap_prom_password }}"</span></code></pre>
+      </div>
+
+      <h3>🚨 Alert Rules — Banking-Specific Thresholds</h3>
+      <div class="code-block">
+        <div class="ch"><span>templates/disk_alerts.yml.j2 — Production disk alert rules</span><span class="lang lang-yaml">YAML</span></div>
+        <pre><code><span class="cm">---</span>
+<span class="nm">groups</span>:
+  - <span class="nm">name</span>: <span class="st">disk_alerts</span>
+    <span class="nm">rules</span>:
+
+      - <span class="nm">alert</span>: <span class="st">DiskSpaceWarning</span>
+        <span class="nm">expr</span>: <span class="st">(1 - node_filesystem_avail_bytes{mountpoint!~"/boot.*|/sys.*|/proc.*"} / node_filesystem_size_bytes) * 100 > 80</span>
+        <span class="nm">for</span>: <span class="st">5m</span>                          <span class="cm"># Alert only if condition persists for 5 minutes</span>
+        <span class="nm">labels</span>:
+          <span class="nm">severity</span>: <span class="st">warning</span>
+          <span class="nm">team</span>: <span class="st">linux-ops</span>
+          <span class="nm">auto_remediate</span>: <span class="st">"false"</span>       <span class="cm"># At warning level, just notify — don't auto-fix</span>
+        <span class="nm">annotations</span>:
+          <span class="nm">summary</span>: <span class="st">"Disk usage WARNING: {{ $labels.instance }} mount {{ $labels.mountpoint }} at {{ $value | printf \"%.1f\" }}%"</span>
+          <span class="nm">description</span>: <span class="st">"Disk {{ $labels.mountpoint }} on {{ $labels.instance }} is {{ $value | printf \"%.1f\" }}% full. Consider investigation before it becomes critical."</span>
+          <span class="nm">runbook_url</span>: <span class="st">"https://wiki.globaltrust.in/runbooks/disk-full"</span>
+
+      - <span class="nm">alert</span>: <span class="st">DiskSpaceCritical</span>
+        <span class="nm">expr</span>: <span class="st">(1 - node_filesystem_avail_bytes{mountpoint!~"/boot.*|/sys.*|/proc.*"} / node_filesystem_size_bytes) * 100 > 90</span>
+        <span class="nm">for</span>: <span class="st">2m</span>                          <span class="cm"># Faster alert threshold for critical level</span>
+        <span class="nm">labels</span>:
+          <span class="nm">severity</span>: <span class="st">critical</span>
+          <span class="nm">team</span>: <span class="st">linux-ops</span>
+          <span class="nm">auto_remediate</span>: <span class="st">"true"</span>        <span class="cm"># CRITICAL: trigger auto-remediation via AAP</span>
+          <span class="nm">aap_job_template</span>: <span class="st">"disk_emergency_cleanup"</span>  <span class="cm"># Which AAP job to trigger</span>
+        <span class="nm">annotations</span>:
+          <span class="nm">summary</span>: <span class="st">"Disk CRITICAL: {{ $labels.instance }} at {{ $value | printf \"%.1f\" }}%"</span>
+          <span class="nm">description</span>: <span class="st">"CRITICAL disk space on {{ $labels.instance }}:{{ $labels.mountpoint }}. AAP auto-remediation will trigger within 60 seconds."</span>
+          <span class="nm">runbook_url</span>: <span class="st">"https://wiki.globaltrust.in/runbooks/disk-full"</span>
+
+      - <span class="nm">alert</span>: <span class="st">MemoryUsageCritical</span>
+        <span class="nm">expr</span>: <span class="st">(1 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) * 100 > 92</span>
+        <span class="nm">for</span>: <span class="st">5m</span>
+        <span class="nm">labels</span>:
+          <span class="nm">severity</span>: <span class="st">critical</span>
+          <span class="nm">auto_remediate</span>: <span class="st">"true"</span>
+          <span class="nm">aap_job_template</span>: <span class="st">"memory_pressure_remediate"</span>
+        <span class="nm">annotations</span>:
+          <span class="nm">summary</span>: <span class="st">"Memory CRITICAL: {{ $labels.instance }} at {{ $value | printf \"%.1f\" }}%"</span>
+
+      - <span class="nm">alert</span>: <span class="st">ServiceDown</span>
+        <span class="nm">expr</span>: <span class="st">up{job!="prometheus"} == 0</span>   <span class="cm"># Any target that is not responding</span>
+        <span class="nm">for</span>: <span class="st">1m</span>
+        <span class="nm">labels</span>:
+          <span class="nm">severity</span>: <span class="st">critical</span>
+          <span class="nm">auto_remediate</span>: <span class="st">"true"</span>
+          <span class="nm">aap_job_template</span>: <span class="st">"service_restart"</span>
+        <span class="nm">annotations</span>:
+          <span class="nm">summary</span>: <span class="st">"Service DOWN: {{ $labels.job }} on {{ $labels.instance }}"</span></code></pre>
+      </div>
+    </section>
+
+    <!-- ═══ SECTION 8: ALERTMANAGER ═══ -->
+    <section id="alertmanager">
+      <h2><span class="num">8</span> Alertmanager — Route Alerts to AAP + Notifications</h2>
+      <div class="callout prom">
+        <div class="ct">🔴 Alertmanager's Job in This Architecture</div>
+        Prometheus evaluates alert rules and sends all firing alerts to Alertmanager. Alertmanager's job is to route alerts intelligently — based on severity, time-of-day, team, and whether auto-remediation is available. Critical alerts with auto_remediate=true go to AAP's webhook first, then to Slack as information. Warning alerts go to Slack only. P1 alerts (banking system down) go to PagerDuty for human escalation. Maintenance window alerts are silenced. This intelligence lives in alertmanager.yml — deployed and managed by Ansible.
+      </div>
+      <div class="code-block">
+        <div class="ch"><span>templates/alertmanager.yml.j2 — Complete Alertmanager routing config</span><span class="lang lang-yaml">YAML</span></div>
+        <pre><code><span class="cm"># GlobalTrust Bank — Alertmanager Configuration</span>
+<span class="cm"># Managed by Ansible AAP — DO NOT EDIT DIRECTLY</span>
+
+<span class="nm">global</span>:
+  <span class="nm">resolve_timeout</span>: <span class="st">5m</span>               <span class="cm"># How long before an alert is marked as resolved</span>
+  <span class="nm">slack_api_url</span>: <span class="st">"{{ vault_slack_webhook_url }}"</span>
+  <span class="nm">pagerduty_url</span>: <span class="st">'https://events.pagerduty.com/v2/enqueue'</span>
+
+<span class="nm">templates</span>:
+  - <span class="st">'/etc/alertmanager/templates/*.tmpl'</span>
+
+<span class="nm">route</span>:
+  <span class="nm">group_by</span>: [<span class="st">alertname</span>, <span class="st">instance</span>, <span class="st">severity</span>]
+  <span class="nm">group_wait</span>: <span class="st">30s</span>                   <span class="cm"># Wait 30s before sending first alert in a group</span>
+  <span class="nm">group_interval</span>: <span class="st">5m</span>               <span class="cm"># Wait 5m before sending additional alerts for same group</span>
+  <span class="nm">repeat_interval</span>: <span class="st">4h</span>              <span class="cm"># Resend alert every 4h if still firing</span>
+  <span class="nm">receiver</span>: <span class="st">slack-infra-default</span>    <span class="cm"># Default receiver</span>
+
+  <span class="nm">routes</span>:
+    <span class="cm"># Route 1: Critical alerts with auto_remediate=true → AAP FIRST</span>
+    - <span class="nm">match</span>:
+        <span class="nm">severity</span>: <span class="st">critical</span>
+        <span class="nm">auto_remediate</span>: <span class="st">"true"</span>
+      <span class="nm">receiver</span>: <span class="st">aap-auto-remediate</span>
+      <span class="nm">continue</span>: <span class="bl">true</span>                  <span class="cm"># CRITICAL: continue=true means ALSO send to default route</span>
+
+    <span class="cm"># Route 2: P1 — Core Banking Down → PagerDuty (for human escalation)</span>
+    - <span class="nm">match</span>:
+        <span class="nm">severity</span>: <span class="st">critical</span>
+        <span class="nm">team</span>: <span class="st">core-banking</span>
+      <span class="nm">receiver</span>: <span class="st">pagerduty-critical</span>
+      <span class="nm">continue</span>: <span class="bl">true</span>
+
+    <span class="cm"># Route 3: Warning → Slack only, no PagerDuty, no AAP auto-fix</span>
+    - <span class="nm">match</span>:
+        <span class="nm">severity</span>: <span class="st">warning</span>
+      <span class="nm">receiver</span>: <span class="st">slack-infra-warning</span>
+      <span class="nm">repeat_interval</span>: <span class="st">2h</span>
+
+<span class="nm">receivers</span>:
+
+  <span class="cm"># ===== AAP AUTO-REMEDIATION RECEIVER =====</span>
+  - <span class="nm">name</span>: <span class="st">aap-auto-remediate</span>
+    <span class="nm">webhook_configs</span>:
+      - <span class="nm">url</span>: <span class="st">"https://aap-ctrl.globaltrust.in/api/v2/job_templates/{{ aap_remediation_webhook_jt_id }}/launch/"</span>
+        <span class="nm">http_config</span>:
+          <span class="nm">bearer_token</span>: <span class="st">"{{ vault_aap_alertmanager_token }}"</span>
+        <span class="nm">send_resolved</span>: <span class="bl">true</span>             <span class="cm"># Also send webhook when alert resolves</span>
+        <span class="nm">max_alerts</span>: <span class="vl">20</span>                  <span class="cm"># Max alerts per webhook call</span>
+
+  <span class="cm"># ===== SLACK — CRITICAL =====</span>
+  - <span class="nm">name</span>: <span class="st">slack-infra-default</span>
+    <span class="nm">slack_configs</span>:
+      - <span class="nm">channel</span>: <span class="st">'#infrastructure-alerts'</span>
+        <span class="nm">send_resolved</span>: <span class="bl">true</span>
+        <span class="nm">icon_emoji</span>: <span class="st">':prometheus:'</span>
+        <span class="nm">title</span>: <span class="st">'{{ template "slack.title" . }}'</span>
+        <span class="nm">text</span>: <span class="st">'{{ template "slack.text" . }}'</span>
+        <span class="nm">color</span>: <span class="st">'{{ if eq .Status "firing" }}danger{{ else }}good{{ end }}'</span>
+        <span class="nm">actions</span>:
+          - <span class="nm">type</span>: <span class="st">button</span>
+            <span class="nm">text</span>: <span class="st">View in Grafana</span>
+            <span class="nm">url</span>: <span class="st">'{{ (index .Alerts 0).Annotations.grafana_url }}'</span>
+          - <span class="nm">type</span>: <span class="st">button</span>
+            <span class="nm">text</span>: <span class="st">View AAP Job</span>
+            <span class="nm">url</span>: <span class="st">'https://aap-ctrl.globaltrust.in'</span>
+
+  <span class="cm"># ===== SLACK — WARNING ONLY =====</span>
+  - <span class="nm">name</span>: <span class="st">slack-infra-warning</span>
+    <span class="nm">slack_configs</span>:
+      - <span class="nm">channel</span>: <span class="st">'#infrastructure-warnings'</span>
+        <span class="nm">color</span>: <span class="st">'warning'</span>
+        <span class="nm">send_resolved</span>: <span class="bl">true</span>
+
+  <span class="cm"># ===== PAGERDUTY — P1 CRITICAL =====</span>
+  - <span class="nm">name</span>: <span class="st">pagerduty-critical</span>
+    <span class="nm">pagerduty_configs</span>:
+      - <span class="nm">routing_key</span>: <span class="st">"{{ vault_pagerduty_integration_key }}"</span>
+        <span class="nm">severity</span>: <span class="st">critical</span>
+        <span class="nm">description</span>: <span class="st">'{{ .CommonAnnotations.summary }}'</span>
+        <span class="nm">details</span>:
+          <span class="nm">instance</span>: <span class="st">'{{ .CommonLabels.instance }}'</span>
+          <span class="nm">runbook</span>: <span class="st">'{{ .CommonAnnotations.runbook_url }}'</span></code></pre>
+      </div>
+
+      <div class="explain">
+        <table>
+          <thead><tr><th>Concept</th><th>Explanation</th></tr></thead>
+          <tbody>
+            <tr><td>continue: true</td><td>By default, Alertmanager stops at the first matching route and only sends to that receiver. <code>continue: true</code> tells it to keep checking routes after the match. In our config, a DiskSpaceCritical alert with auto_remediate=true matches Route 1 (sends to AAP) and because continue=true, also continues to match Route 3 (sends to Slack). So the alert triggers AAP AND notifies Slack. Without continue: true, only AAP would receive it.</td></tr>
+            <tr><td>aap-auto-remediate receiver</td><td>This is the most important receiver. It sends a POST to AAP's job template launch API (same as Project 05). When DiskSpaceCritical fires, Alertmanager calls the AAP API, which launches the disk_emergency_cleanup job template. The affected server hostname is in the Alertmanager payload — the playbook reads it from the webhook data using the <code>awx_webhook_payload</code> variable. No human involved.</td></tr>
+            <tr><td>send_resolved: true</td><td>When Alertmanager sends to AAP's webhook with send_resolved: true, AAP also receives a RESOLVED notification when the condition clears. This lets the playbook send a "RESOLVED" Slack message: "✅ Disk on prod-db-012 automatically cleaned. Space: 96% → 62%." The on-call engineer sees a resolved alert in the morning instead of being woken up.</td></tr>
+            <tr><td>group_wait / group_interval</td><td>group_wait=30s means Alertmanager waits 30 seconds before sending the first notification. This prevents alert storms where 10 servers hit 90% disk simultaneously — Alertmanager groups them into one notification per group (alertname+severity). group_interval=5m means after the first notification, wait 5 minutes before sending updates. repeat_interval=4h means resend the alert every 4 hours if still firing.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ═══ SECTION 9: GRAFANA ═══ -->
+    <section id="grafana-setup">
+      <h2><span class="num">9</span> Grafana — Deploy and Configure via Ansible</h2>
+      <div class="code-block">
+        <div class="ch"><span>roles/grafana/tasks/main.yml — Install and configure Grafana</span><span class="lang lang-yaml">YAML</span></div>
+        <pre><code><span class="cm">---</span>
+- <span class="nm">name</span>: <span class="st">Add Grafana YUM repository</span>
+  <span class="op">ansible.builtin.copy</span>:
+    <span class="nm">content</span>: |
+      <span class="st">[grafana]
+      name=grafana
+      baseurl=https://packages.grafana.com/oss/rpm
+      repo_gpgcheck=1
+      enabled=1
+      gpgcheck=1
+      gpgkey=https://packages.grafana.com/gpg.key</span>
+    <span class="nm">dest</span>: <span class="st">/etc/yum.repos.d/grafana.repo</span>
+    <span class="nm">mode</span>: <span class="st">'0644'</span>
+
+- <span class="nm">name</span>: <span class="st">Install Grafana</span>
+  <span class="op">ansible.builtin.dnf</span>:
+    <span class="nm">name</span>: <span class="st">grafana</span>
+    <span class="nm">state</span>: <span class="st">latest</span>
+
+- <span class="nm">name</span>: <span class="st">Deploy Grafana configuration</span>
+  <span class="op">ansible.builtin.template</span>:
+    <span class="nm">src</span>: <span class="st">grafana.ini.j2</span>
+    <span class="nm">dest</span>: <span class="st">/etc/grafana/grafana.ini</span>
+    <span class="nm">mode</span>: <span class="st">'0640'</span>
+    <span class="nm">group</span>: <span class="st">grafana</span>
+  <span class="nm">notify</span>: <span class="st">Restart grafana</span>
+
+- <span class="nm">name</span>: <span class="st">Configure Prometheus as Grafana data source via API</span>
+  <span class="op">ansible.builtin.uri</span>:                <span class="cm"># Use HTTP to call Grafana API — no plugin needed</span>
+    <span class="nm">url</span>: <span class="st">http://localhost:3000/api/datasources</span>
+    <span class="nm">method</span>: <span class="st">POST</span>
+    <span class="nm">user</span>: <span class="st">admin</span>
+    <span class="nm">password</span>: <span class="st">"{{ grafana_admin_password }}"</span>
+    <span class="nm">force_basic_auth</span>: <span class="bl">true</span>
+    <span class="nm">body_format</span>: <span class="st">json</span>
+    <span class="nm">body</span>:
+      <span class="nm">name</span>: <span class="st">Prometheus</span>
+      <span class="nm">type</span>: <span class="st">prometheus</span>
+      <span class="nm">url</span>: <span class="st">http://localhost:9090</span>
+      <span class="nm">access</span>: <span class="st">proxy</span>
+      <span class="nm">isDefault</span>: <span class="bl">true</span>
+    <span class="nm">status_code</span>: [<span class="vl">200</span>, <span class="vl">409</span>]            <span class="cm"># 409 = already exists = OK (idempotent)</span>
+
+- <span class="nm">name</span>: <span class="st">Import infrastructure dashboard from JSON file</span>
+  <span class="op">ansible.builtin.uri</span>:
+    <span class="nm">url</span>: <span class="st">http://localhost:3000/api/dashboards/db</span>
+    <span class="nm">method</span>: <span class="st">POST</span>
+    <span class="nm">user</span>: <span class="st">admin</span>
+    <span class="nm">password</span>: <span class="st">"{{ grafana_admin_password }}"</span>
+    <span class="nm">force_basic_auth</span>: <span class="bl">true</span>
+    <span class="nm">body_format</span>: <span class="st">json</span>
+    <span class="nm">body</span>:
+      <span class="nm">dashboard</span>: <span class="st">"{{ lookup('file', 'files/dashboards/linux_infrastructure.json') | from_json }}"</span>
+      <span class="nm">overwrite</span>: <span class="bl">true</span>
+      <span class="nm">folderId</span>: <span class="vl">0</span>
+    <span class="nm">status_code</span>: [<span class="vl">200</span>]</code></pre>
+      </div>
+    </section>
+
+    <!-- ═══ SECTION 10: SPLUNK ═══ -->
+    <section id="splunk-uf">
+      <h2><span class="num">10</span> Splunk Universal Forwarder — Mass Deployment</h2>
+      <div class="callout info">
+        <div class="ct">🟢 Splunk in GlobalTrust Bank</div>
+        Splunk is the bank's SIEM (Security Information and Event Management) platform — mandated by RBI's cybersecurity framework. Every security event, authentication log, network log, and application log must flow into Splunk for real-time analysis and 12-month retention. Deploying Splunk Universal Forwarder (UF) to 450 servers manually is impossible. Ansible deploys it in one shot — and more importantly, keeps the configuration consistent: same inputs.conf, same outputs.conf, same version across every server.
+      </div>
+
+      <div class="code-block">
+        <div class="ch"><span>roles/splunk_uf/tasks/main.yml — Deploy Splunk Universal Forwarder</span><span class="lang lang-yaml">YAML</span></div>
+        <pre><code><span class="cm">---</span>
+- <span class="nm">name</span>: <span class="st">Check if Splunk UF is already installed</span>
+  <span class="op">ansible.builtin.stat</span>:
+    <span class="nm">path</span>: <span class="st">/opt/splunkforwarder/bin/splunk</span>
+  <span class="nm">register</span>: <span class="st">splunk_binary</span>
+
+- <span class="nm">name</span>: <span class="st">Download Splunk UF RPM from internal repository</span>
+  <span class="op">ansible.builtin.get_url</span>:
+    <span class="nm">url</span>: <span class="st">"http://artifacts.globaltrust.in/splunk/splunkforwarder-{{ splunk_version }}-linux-x86_64.rpm"</span>
+    <span class="nm">dest</span>: <span class="st">/tmp/splunkforwarder.rpm</span>
+    <span class="nm">checksum</span>: <span class="st">"sha256:{{ splunk_rpm_checksum }}"</span>  <span class="cm"># Verify download integrity</span>
+  <span class="nm">when</span>: <span class="st">not splunk_binary.stat.exists</span>
+
+- <span class="nm">name</span>: <span class="st">Install Splunk UF RPM</span>
+  <span class="op">ansible.builtin.dnf</span>:
+    <span class="nm">name</span>: <span class="st">/tmp/splunkforwarder.rpm</span>
+    <span class="nm">state</span>: <span class="st">present</span>
+    <span class="nm">disable_gpg_check</span>: <span class="bl">false</span>
+  <span class="nm">when</span>: <span class="st">not splunk_binary.stat.exists</span>
+
+- <span class="nm">name</span>: <span class="st">Deploy outputs.conf — where to send logs (Heavy Forwarder)</span>
+  <span class="op">ansible.builtin.template</span>:
+    <span class="nm">src</span>: <span class="st">outputs.conf.j2</span>
+    <span class="nm">dest</span>: <span class="st">/opt/splunkforwarder/etc/system/local/outputs.conf</span>
+    <span class="nm">owner</span>: <span class="st">splunk</span>
+    <span class="nm">group</span>: <span class="st">splunk</span>
+    <span class="nm">mode</span>: <span class="st">'0600'</span>
+  <span class="nm">notify</span>: <span class="st">Restart splunk forwarder</span>
+
+- <span class="nm">name</span>: <span class="st">Deploy inputs.conf — which log files to collect</span>
+  <span class="op">ansible.builtin.template</span>:
+    <span class="nm">src</span>: <span class="st">"inputs.conf.{{ server_role | default('generic') }}.j2"</span>  <span class="cm"># Role-specific log collection</span>
+    <span class="nm">dest</span>: <span class="st">/opt/splunkforwarder/etc/system/local/inputs.conf</span>
+    <span class="nm">owner</span>: <span class="st">splunk</span>
+    <span class="nm">group</span>: <span class="st">splunk</span>
+    <span class="nm">mode</span>: <span class="st">'0600'</span>
+  <span class="nm">notify</span>: <span class="st">Restart splunk forwarder</span>
+
+- <span class="nm">name</span>: <span class="st">Accept Splunk license and enable boot-start (first time only)</span>
+  <span class="op">ansible.builtin.command</span>:
+    <span class="nm">cmd</span>: <span class="st">/opt/splunkforwarder/bin/splunk enable boot-start --accept-license --no-prompt --answer-yes -user splunk</span>
+    <span class="nm">creates</span>: <span class="st">/etc/systemd/system/SplunkForwarder.service</span>   <span class="cm"># Only run if service file doesn't exist</span>
+
+- <span class="nm">name</span>: <span class="st">Ensure Splunk UF is running and enabled</span>
+  <span class="op">ansible.builtin.systemd</span>:
+    <span class="nm">name</span>: <span class="st">SplunkForwarder</span>
+    <span class="nm">state</span>: <span class="st">started</span>
+    <span class="nm">enabled</span>: <span class="bl">true</span></code></pre>
+      </div>
+    </section>
+
+    <!-- ═══ SECTION 11: SPLUNK INPUTS ═══ -->
+    <section id="splunk-inputs">
+      <h2><span class="num">11</span> Splunk Inputs Configuration — Role-Based Log Collection</h2>
+      <div class="code-block">
+        <div class="ch"><span>templates/inputs.conf.webserver.j2 — Web server log inputs</span><span class="lang lang-ini">INI</span></div>
+        <pre><code><span class="cm"># Splunk UF inputs.conf — Web Server Role</span>
+<span class="cm"># Deployed by Ansible — DO NOT EDIT DIRECTLY</span>
+
+<span class="cm"># ===== System Logs =====</span>
+[monitor:///var/log/messages]
+index = linux_syslog
+sourcetype = syslog
+_TCP_ROUTING = globaltrust_hf
+
+[monitor:///var/log/secure]
+index = security_audit                 <span class="cm"># Authentication logs → Security index</span>
+sourcetype = linux_secure
+_TCP_ROUTING = globaltrust_hf
+
+[monitor:///var/log/audit/audit.log]
+index = security_audit
+sourcetype = auditd
+
+<span class="cm"># ===== Nginx Access + Error Logs =====</span>
+[monitor:///var/log/nginx/access.log]
+index = web_access
+sourcetype = nginx:access
+_meta = server="{{ inventory_hostname }}" env="{{ server_environment }}"
+
+[monitor:///var/log/nginx/error.log]
+index = web_error
+sourcetype = nginx:error
+
+<span class="cm"># ===== Application Logs =====</span>
+[monitor:///var/log/internet-banking/*.log]
+index = app_logs
+sourcetype = internet_banking
+crcSalt = <SOURCE>                     <span class="cm"># Prevents Splunk from ignoring rotated logs</span>
+
+<span class="cm"># ===== Ansible AAP Job Logs (for compliance) =====</span>
+[monitor:///var/log/ansible/]
+index = devops_audit
+sourcetype = ansible_log</code></pre>
+      </div>
+
+      <div class="code-block">
+        <div class="ch"><span>templates/outputs.conf.j2 — Send logs to Heavy Forwarder</span><span class="lang lang-ini">INI</span></div>
+        <pre><code><span class="cm"># Splunk UF outputs.conf</span>
+<span class="cm"># Sends logs to Splunk Heavy Forwarder (which indexes to Splunk Indexer Cluster)</span>
+
+[tcpout]
+defaultGroup = globaltrust_hf
+maxQueueSize = 10MB
+useSSL = true
+
+[tcpout:globaltrust_hf]
+server = splunk-hf-01.globaltrust.in:9997, splunk-hf-02.globaltrust.in:9997
+<span class="cm"># Two Heavy Forwarders — automatic failover if one goes down</span>
+
+sslCertPath = /opt/splunkforwarder/etc/certs/client.pem
+sslRootCAPath = /opt/splunkforwarder/etc/certs/ca.pem
+sslVerifyServerCert = true            <span class="cm"># Verify Heavy Forwarder's certificate</span></code></pre>
+      </div>
+    </section>
+
+    <!-- ═══ SECTION 12: SPLUNK → AAP ═══ -->
+    <section id="splunk-ansible-alert">
+      <h2><span class="num">12</span> Splunk Alert → AAP Remediation</h2>
+      <div class="callout tip">
+        <div class="ct">💡 Splunk Can Trigger AAP Too</div>
+        Just like Alertmanager sends webhooks to AAP, Splunk can too. When a Splunk search finds something alarming (e.g. 100+ authentication failures in 5 minutes on a production server = possible brute force attack), Splunk fires an Alert Action — a webhook to AAP that triggers an automatic response playbook (isolate the account, block the IP in firewall, create a ServiceNow security incident).
+      </div>
+      <div class="code-block">
+        <div class="ch"><span>Splunk Alert Action → AAP Webhook (configured in Splunk UI)</span><span class="lang lang-json">JSON</span></div>
+        <pre><code><span class="cm">// Splunk Alert: "Auth Failures Spike — Possible Brute Force"</span>
+<span class="cm">// SPL: index=security_audit sourcetype=linux_secure "Failed password" | stats count by src_ip host | where count > 100</span>
+<span class="cm">// Alert Action: Webhook to AAP</span>
+
+<span class="cm">// POST payload sent by Splunk to AAP Webhook:</span>
+{
+  <span class="nm">"extra_vars"</span>: {
+    <span class="nm">"alert_type"</span>: <span class="st">"brute_force_detected"</span>,
+    <span class="nm">"affected_host"</span>: <span class="st">"{{ result.host }}"</span>,
+    <span class="nm">"attacking_ip"</span>: <span class="st">"{{ result.src_ip }}"</span>,
+    <span class="nm">"failure_count"</span>: <span class="st">"{{ result.count }}"</span>,
+    <span class="nm">"splunk_search_id"</span>: <span class="st">"{{ search_id }}"</span>
+  }
+}
+
+<span class="cm">// AAP receives this via Webhook → Launches "Security Incident Response" Job Template</span>
+<span class="cm">// Playbook actions:</span>
+<span class="cm">// 1. Lock the user account attempting failed logins</span>
+<span class="cm">// 2. Add attacking IP to firewalld block list</span>
+<span class="cm">// 3. Create ServiceNow Security Incident with SIEM evidence</span>
+<span class="cm">// 4. Notify SOC team via Slack #security-incidents</span>
+<span class="cm">// 5. Forward evidence to Splunk for correlation</span></code></pre>
+      </div>
+    </section>
+
+    <!-- ═══ SECTION 13: ELK ═══ -->
+    <section id="elk-deploy">
+      <h2><span class="num">13</span> ELK Stack — Deploy with Ansible</h2>
+      <div class="callout elk">
+        <div class="ct">🔵 ELK in GlobalTrust Bank</div>
+        The ELK stack (Elasticsearch + Logstash + Kibana) handles application log aggregation specifically for the Java Spring Boot microservices and Python APIs. Developers use Kibana to search and analyse application logs during debugging. Ansible manages the entire ELK cluster — 3 Elasticsearch nodes, 2 Logstash instances, and 1 Kibana instance. When node configuration needs updating, one Ansible run updates all nodes consistently.
+      </div>
+      <div class="code-block">
+        <div class="ch"><span>roles/elasticsearch/tasks/main.yml — Key tasks</span><span class="lang lang-yaml">YAML</span></div>
+        <pre><code><span class="cm">---</span>
+- <span class="nm">name</span>: <span class="st">Add Elastic APT/YUM repository</span>
+  <span class="op">ansible.builtin.rpm_key</span>:
+    <span class="nm">key</span>: <span class="st">https://artifacts.elastic.co/GPG-KEY-elasticsearch</span>
+    <span class="nm">state</span>: <span class="st">present</span>
+
+- <span class="nm">name</span>: <span class="st">Install Elasticsearch</span>
+  <span class="op">ansible.builtin.dnf</span>:
+    <span class="nm">name</span>: <span class="st">"elasticsearch-{{ elk_version }}"</span>
+    <span class="nm">state</span>: <span class="st">present</span>
+
+- <span class="nm">name</span>: <span class="st">Deploy elasticsearch.yml — cluster config</span>
+  <span class="op">ansible.builtin.template</span>:
+    <span class="nm">src</span>: <span class="st">elasticsearch.yml.j2</span>
+    <span class="nm">dest</span>: <span class="st">/etc/elasticsearch/elasticsearch.yml</span>
+    <span class="nm">owner</span>: <span class="st">root</span>
+    <span class="nm">group</span>: <span class="st">elasticsearch</span>
+    <span class="nm">mode</span>: <span class="st">'0660'</span>
+  <span class="nm">notify</span>: <span class="st">Restart elasticsearch</span>
+
+- <span class="nm">name</span>: <span class="st">Set JVM heap size (50% of RAM — Elasticsearch recommendation)</span>
+  <span class="op">ansible.builtin.lineinfile</span>:
+    <span class="nm">path</span>: <span class="st">/etc/elasticsearch/jvm.options.d/heap.options</span>
+    <span class="nm">create</span>: <span class="bl">true</span>
+    <span class="nm">line</span>: <span class="st">"{{ item }}"</span>
+  <span class="nm">loop</span>:
+    - <span class="st">"-Xms{{ (ansible_memtotal_mb * 0.5) | int }}m"</span>   <span class="cm"># 50% of total RAM as initial heap</span>
+    - <span class="st">"-Xmx{{ (ansible_memtotal_mb * 0.5) | int }}m"</span>   <span class="cm"># Same value for max heap (no resizing)</span>
+  <span class="nm">notify</span>: <span class="st">Restart elasticsearch</span>
+
+- <span class="nm">name</span>: <span class="st">Create index templates via Elasticsearch API</span>
+  <span class="op">ansible.builtin.uri</span>:
+    <span class="nm">url</span>: <span class="st">"http://localhost:9200/_index_template/{{ item.name }}"</span>
+    <span class="nm">method</span>: <span class="st">PUT</span>
+    <span class="nm">body_format</span>: <span class="st">json</span>
+    <span class="nm">body</span>: <span class="st">"{{ lookup('file', 'files/index_templates/' + item.file) | from_json }}"</span>
+    <span class="nm">status_code</span>: [<span class="vl">200</span>]
+  <span class="nm">loop</span>:
+    - { <span class="nm">name</span>: <span class="st">app_logs</span>, <span class="nm">file</span>: <span class="st">app_logs_template.json</span> }
+    - { <span class="nm">name</span>: <span class="st">security_events</span>, <span class="nm">file</span>: <span class="st">security_template.json</span> }
+  <span class="nm">retries</span>: <span class="vl">10</span>
+  <span class="nm">delay</span>: <span class="vl">10</span>                              <span class="cm"># Retry — ES takes time to start</span></code></pre>
+      </div>
+    </section>
+
+    <!-- ═══ SECTION 14: FILEBEAT ═══ -->
+    <section id="filebeat">
+      <h2><span class="num">14</span> Filebeat — Deploy to Application Servers</h2>
+      <div class="code-block">
+        <div class="ch"><span>roles/filebeat/tasks/main.yml + template</span><span class="lang lang-yaml">YAML</span></div>
+        <pre><code><span class="cm">---</span>
+<span class="cm"># Filebeat role — ships application logs to Elasticsearch</span>
+- <span class="nm">name</span>: <span class="st">Install Filebeat</span>
+  <span class="op">ansible.builtin.dnf</span>:
+    <span class="nm">name</span>: <span class="st">"filebeat-{{ elk_version }}"</span>
+    <span class="nm">state</span>: <span class="st">present</span>
+
+- <span class="nm">name</span>: <span class="st">Deploy filebeat.yml config from template</span>
+  <span class="op">ansible.builtin.template</span>:
+    <span class="nm">src</span>: <span class="st">filebeat.yml.j2</span>
+    <span class="nm">dest</span>: <span class="st">/etc/filebeat/filebeat.yml</span>
+    <span class="nm">mode</span>: <span class="st">'0600'</span>                          <span class="cm"># Filebeat requires strict file permissions</span>
+  <span class="nm">notify</span>: <span class="st">Restart filebeat</span>
+
+<span class="cm"># === filebeat.yml.j2 content ===</span>
+<span class="cm"># filebeat.inputs:</span>
+<span class="cm">#   - type: log</span>
+<span class="cm">#     enabled: true</span>
+<span class="cm">#     paths:</span>
+<span class="cm">#       - /var/log/app/*.log</span>
+<span class="cm">#       - /var/log/{{ app_name }}/*.log</span>
+<span class="cm">#     json.keys_under_root: true          # Parse JSON log lines natively</span>
+<span class="cm">#     fields:</span>
+<span class="cm">#       server: "{{ inventory_hostname }}"</span>
+<span class="cm">#       environment: "{{ server_environment }}"</span>
+<span class="cm">#       app_name: "{{ app_name }}"</span>
+<span class="cm">#</span>
+<span class="cm"># output.elasticsearch:</span>
+<span class="cm">#   hosts: ["es-01.globaltrust.in:9200","es-02:9200","es-03:9200"]</span>
+<span class="cm">#   index: "app-logs-%{+yyyy.MM.dd}"</span>
+<span class="cm">#   username: "{{ vault_elasticsearch_user }}"</span>
+<span class="cm">#   password: "{{ vault_elasticsearch_password }}"</span>
+<span class="cm">#   ssl.certificate_authorities: ["/etc/filebeat/certs/ca.crt"]</span></code></pre>
+      </div>
+    </section>
+
+    <!-- ═══ SECTION 15: AAP NOTIFICATIONS ═══ -->
+    <section id="aap-notif">
+      <h2><span class="num">15</span> AAP Notification System — Built-in Engine</h2>
+      <div class="callout info">
+        <div class="ct">📌 AAP Has a Native Notification System</div>
+        AAP Controller has a built-in notification engine that triggers automatically on job events — job started, job successful, job failed, job approved, approval denied. You configure Notification Templates in AAP pointing to Slack, Teams, Email, or any webhook endpoint. These are attached to Job Templates or Workflow Templates. When the job status changes, AAP fires the notification. No custom playbook code needed for standard notifications — just configure the Notification Template and attach it to the job template.
+      </div>
+
+      <table class="dt">
+        <thead><tr><th>Notification Type</th><th>Use in GlobalTrust Bank</th><th>When Triggered</th></tr></thead>
+        <tbody>
+          <tr><td>Slack</td><td>#deployments, #infrastructure-alerts, #security-incidents</td><td>Job start, success, failure</td></tr>
+          <tr><td>Email</td><td>NOC team, Release Manager, CISO</td><td>Critical job failure, approval needed</td></tr>
+          <tr><td>MS Teams</td><td>Development team deployment notifications</td><td>Deploy success/failure</td></tr>
+          <tr><td>Webhook (ServiceNow)</td><td>Auto-create Incident on job failure</td><td>Job failure only</td></tr>
+          <tr><td>Webhook (PagerDuty)</td><td>P1 critical infrastructure alerts</td><td>Critical job failure</td></tr>
+          <tr><td>Webhook (Custom)</td><td>Update internal deployment dashboard</td><td>Job success</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- ═══ SECTION 16: SLACK ═══ -->
+    <section id="slack-notif">
+      <h2><span class="num">16</span> Slack Notifications — Directly from Ansible Playbooks</h2>
+      <div class="callout info">
+        <div class="ct">💬 Two Ways to Send Slack Messages</div>
+        Method 1: AAP built-in Notification Template (no code, just config) — good for standard job success/failure messages. Method 2: <code>community.general.slack</code> module inside a playbook — good for custom messages within the playbook flow, e.g. "Starting patch on server 47 of 300" or "Step 3 of 7 complete — servers rebooting". Both are used in GlobalTrust Bank for different situations.
+      </div>
+      <div class="code-block">
+        <div class="ch"><span>Sending Slack notifications from inside a playbook</span><span class="lang lang-yaml">YAML</span></div>
+        <pre><code><span class="cm">---</span>
+<span class="cm"># In your playbook's vars:</span>
+<span class="nm">vars</span>:
+  <span class="nm">slack_webhook_url</span>: <span class="st">"{{ vault_slack_webhook_url }}"</span>
+  <span class="nm">slack_channel</span>: <span class="st">"#deployments"</span>
+
+<span class="nm">tasks</span>:
+  <span class="cm"># --- Send notification at deployment start ---</span>
+  - <span class="nm">name</span>: <span class="st">Notify Slack — Deployment starting</span>
+    <span class="op">community.general.slack</span>:
+      <span class="nm">token</span>: <span class="st">"{{ vault_slack_bot_token }}"</span>   <span class="cm"># Bot OAuth token (not webhook URL)</span>
+      <span class="nm">channel</span>: <span class="st">"{{ slack_channel }}"</span>
+      <span class="nm">color</span>: <span class="st">warning</span>                          <span class="cm"># yellow = in-progress</span>
+      <span class="nm">msg</span>: <span class="st">"🔄 *Deployment Started*\n*App:* {{ app_name }}\n*Version:* {{ app_version }}\n*Environment:* {{ target_env }}\n*Triggered by:* {{ ansible_user_id }}\n*AAP Job:* https://aap-ctrl.globaltrust.in/#/jobs/{{ tower_job_id }}/output"</span>
+    <span class="nm">delegate_to</span>: <span class="st">localhost</span>                   <span class="cm"># Send from exec node, not managed server</span>
+    <span class="nm">run_once</span>: <span class="bl">true</span>
+
+  <span class="cm"># --- After deployment ---</span>
+  - <span class="nm">name</span>: <span class="st">Notify Slack — Deployment complete</span>
+    <span class="op">community.general.slack</span>:
+      <span class="nm">token</span>: <span class="st">"{{ vault_slack_bot_token }}"</span>
+      <span class="nm">channel</span>: <span class="st">"{{ slack_channel }}"</span>
+      <span class="nm">color</span>: <span class="st">good</span>                            <span class="cm"># green = success</span>
+      <span class="nm">msg</span>: <span class="st">"✅ *Deployment Complete*\n*App:* {{ app_name }} {{ app_version }}\n*Environment:* {{ target_env }}\n*Duration:* {{ deploy_duration }}\n*Servers Updated:* {{ ansible_play_hosts | length }}\n*By:* {{ ansible_user_id }}"</span>
+      <span class="nm">attachments</span>:
+        - <span class="nm">title</span>: <span class="st">Deployment Details</span>
+          <span class="nm">fields</span>:
+            - <span class="nm">title</span>: <span class="st">Git Commit</span>
+              <span class="nm">value</span>: <span class="st">"{{ git_commit[:8] }}"</span>
+              <span class="nm">short</span>: <span class="bl">true</span>
+            - <span class="nm">title</span>: <span class="st">Environment</span>
+              <span class="nm">value</span>: <span class="st">"{{ target_env }}"</span>
+              <span class="nm">short</span>: <span class="bl">true</span>
+    <span class="nm">delegate_to</span>: <span class="st">localhost</span>
+    <span class="nm">run_once</span>: <span class="bl">true</span>
+
+  <span class="cm"># --- Using uri module instead (when slack module not available) ---</span>
+  - <span class="nm">name</span>: <span class="st">Notify Slack via webhook URL (uri module)</span>
+    <span class="op">ansible.builtin.uri</span>:
+      <span class="nm">url</span>: <span class="st">"{{ vault_slack_webhook_url }}"</span>
+      <span class="nm">method</span>: <span class="st">POST</span>
+      <span class="nm">body_format</span>: <span class="st">json</span>
+      <span class="nm">body</span>:
+        <span class="nm">text</span>: <span class="st">"✅ Patching complete on {{ inventory_hostname }} — Kernel: {{ kernel_before.stdout }} → {{ kernel_after.stdout }}"</span>
+        <span class="nm">channel</span>: <span class="st">"#infrastructure-alerts"</span>
+        <span class="nm">username</span>: <span class="st">Ansible Bot</span>
+      <span class="nm">status_code</span>: <span class="vl">200</span>
+    <span class="nm">delegate_to</span>: <span class="st">localhost</span></code></pre>
+      </div>
+    </section>
+
+    <!-- ═══ SECTION 17: TEAMS ═══ -->
+    <section id="teams-notif">
+      <h2><span class="num">17</span> Microsoft Teams Notifications</h2>
+      <div class="code-block">
+        <div class="ch"><span>Sending rich Teams notification via Incoming Webhook</span><span class="lang lang-yaml">YAML</span></div>
+        <pre><code><span class="cm">---</span>
+<span class="cm"># Teams uses "Adaptive Card" format for rich messages</span>
+<span class="cm"># Get webhook URL: Teams Channel → ... → Connectors → Incoming Webhook → Add</span>
+
+- <span class="nm">name</span>: <span class="st">Send Microsoft Teams notification — Deployment Result</span>
+  <span class="op">ansible.builtin.uri</span>:
+    <span class="nm">url</span>: <span class="st">"{{ vault_teams_webhook_url }}"</span>
+    <span class="nm">method</span>: <span class="st">POST</span>
+    <span class="nm">body_format</span>: <span class="st">json</span>
+    <span class="nm">body</span>:
+      <span class="nm">"@type"</span>: <span class="st">MessageCard</span>
+      <span class="nm">"@context"</span>: <span class="st">http://schema.org/extensions</span>
+      <span class="nm">themeColor</span>: <span class="st">"{{ '0078D7' if deployment_status == 'success' else 'FF0000' }}"</span>
+      <span class="nm">summary</span>: <span class="st">"Ansible Deployment — {{ app_name }}"</span>
+      <span class="nm">sections</span>:
+        - <span class="nm">activityTitle</span>: <span class="st">"{{ '✅' if deployment_status == 'success' else '❌' }} {{ app_name }} Deployment {{ deployment_status | upper }}"</span>
+          <span class="nm">activitySubtitle</span>: <span class="st">"Environment: {{ target_env }} | {{ ansible_date_time.iso8601 }}"</span>
+          <span class="nm">facts</span>:
+            - <span class="nm">name</span>: <span class="st">Version</span>
+              <span class="nm">value</span>: <span class="st">"{{ app_version }}"</span>
+            - <span class="nm">name</span>: <span class="st">Git Commit</span>
+              <span class="nm">value</span>: <span class="st">"{{ git_commit[:8] }}"</span>
+            - <span class="nm">name</span>: <span class="st">Servers Updated</span>
+              <span class="nm">value</span>: <span class="st">"{{ ansible_play_hosts | length }}"</span>
+            - <span class="nm">name</span>: <span class="st">Triggered By</span>
+              <span class="nm">value</span>: <span class="st">"{{ ansible_user_id }}"</span>
+      <span class="nm">potentialAction</span>:
+        - <span class="nm">"@type"</span>: <span class="st">OpenUri</span>
+          <span class="nm">name</span>: <span class="st">View AAP Job</span>
+          <span class="nm">targets</span>:
+            - <span class="nm">os</span>: <span class="st">default</span>
+              <span class="nm">uri</span>: <span class="st">"https://aap-ctrl.globaltrust.in/#/jobs/{{ tower_job_id }}/output"</span>
+    <span class="nm">status_code</span>: <span class="vl">200</span>
+  <span class="nm">delegate_to</span>: <span class="st">localhost</span>
+  <span class="nm">run_once</span>: <span class="bl">true</span></code></pre>
+      </div>
+    </section>
+
+    <!-- ═══ SECTION 18: EMAIL ═══ -->
+    <section id="email-notif">
+      <h2><span class="num">18</span> Email Notifications</h2>
+      <div class="code-block">
+        <div class="ch"><span>Send email from Ansible using community.general.mail module</span><span class="lang lang-yaml">YAML</span></div>
+        <pre><code><span class="cm">---</span>
+<span class="nm">- <span class="nm">name</span>: <span class="st">Send deployment completion email to Release Manager</span></span>
+  <span class="op">community.general.mail</span>:
+    <span class="nm">host</span>: <span class="st">smtp.globaltrust.in</span>
+    <span class="nm">port</span>: <span class="vl">587</span>
+    <span class="nm">username</span>: <span class="st">noreply-ansible@globaltrust.in</span>
+    <span class="nm">password</span>: <span class="st">"{{ vault_smtp_password }}"</span>
+    <span class="nm">secure</span>: <span class="st">starttls</span>                  <span class="cm"># STARTTLS — required by bank's SMTP policy</span>
+    <span class="nm">to</span>:
+      - <span class="st">release-manager@globaltrust.in</span>
+      - <span class="st">noc-team@globaltrust.in</span>
+    <span class="nm">cc</span>:
+      - <span class="st">devops-team@globaltrust.in</span>
+    <span class="nm">from</span>: <span class="st">Ansible AAP &lt;noreply-ansible@globaltrust.in&gt;</span>
+    <span class="nm">subject</span>: <span class="st">"[{{ 'SUCCESS' if deployment_status == 'success' else 'FAILED' }}] {{ app_name }} Deployment to {{ target_env | upper }}"</span>
+    <span class="nm">subtype</span>: <span class="st">html</span>                      <span class="cm"># Send HTML email</span>
+    <span class="nm">body</span>: <span class="st">"{{ lookup('template', 'email_deployment_report.html.j2') }}"</span>
+    <span class="nm">attach</span>:
+      - <span class="st">/tmp/deployment_report_{{ ansible_date_time.date }}.txt</span>  <span class="cm"># Attach report file</span>
+  <span class="nm">delegate_to</span>: <span class="st">localhost</span>
+  <span class="nm">run_once</span>: <span class="bl">true</span></code></pre>
+      </div>
+    </section>
+
+    <!-- ═══ SECTION 19: PAGERDUTY ═══ -->
+    <section id="pagerduty">
+      <h2><span class="num">19</span> PagerDuty Integration</h2>
+      <div class="code-block">
+        <div class="ch"><span>Trigger PagerDuty incident from Ansible on critical failure</span><span class="lang lang-yaml">YAML</span></div>
+        <pre><code><span class="cm">---</span>
+<span class="cm"># Send PagerDuty event via Events v2 API</span>
+<span class="cm"># PagerDuty routing_key = Integration Key from PagerDuty service</span>
+
+- <span class="nm">name</span>: <span class="st">Create PagerDuty incident — CRITICAL failure</span>
+  <span class="op">ansible.builtin.uri</span>:
+    <span class="nm">url</span>: <span class="st">https://events.pagerduty.com/v2/enqueue</span>
+    <span class="nm">method</span>: <span class="st">POST</span>
+    <span class="nm">body_format</span>: <span class="st">json</span>
+    <span class="nm">body</span>:
+      <span class="nm">routing_key</span>: <span class="st">"{{ vault_pagerduty_routing_key }}"</span>
+      <span class="nm">event_action</span>: <span class="st">trigger</span>              <span class="cm"># trigger = create new incident</span>
+      <span class="nm">dedup_key</span>: <span class="st">"ansible-{{ inventory_hostname }}-{{ tower_job_id }}"</span>  <span class="cm"># Prevents duplicate incidents</span>
+      <span class="nm">payload</span>:
+        <span class="nm">summary</span>: <span class="st">"CRITICAL: Ansible playbook failure on {{ inventory_hostname }} — {{ playbook_failure_reason }}"</span>
+        <span class="nm">severity</span>: <span class="st">critical</span>              <span class="cm"># info / warning / error / critical</span>
+        <span class="nm">source</span>: <span class="st">"{{ inventory_hostname }}"</span>
+        <span class="nm">component</span>: <span class="st">"{{ app_name }}"</span>
+        <span class="nm">group</span>: <span class="st">linux-infrastructure</span>
+        <span class="nm">class</span>: <span class="st">ansible-failure</span>
+        <span class="nm">custom_details</span>:
+          <span class="nm">aap_job_url</span>: <span class="st">"https://aap-ctrl.globaltrust.in/#/jobs/{{ tower_job_id }}/output"</span>
+          <span class="nm">server</span>: <span class="st">"{{ inventory_hostname }}"</span>
+          <span class="nm">playbook</span>: <span class="st">"{{ ansible_play_name }}"</span>
+          <span class="nm">error_message</span>: <span class="st">"{{ ansible_failed_result.msg | default('Unknown error') }}"</span>
+    <span class="nm">status_code</span>: <span class="vl">202</span>                    <span class="cm"># PagerDuty returns 202 Accepted</span>
+  <span class="nm">delegate_to</span>: <span class="st">localhost</span>
+
+<span class="cm"># To resolve the PagerDuty incident after auto-remediation:</span>
+- <span class="nm">name</span>: <span class="st">Resolve PagerDuty incident after successful remediation</span>
+  <span class="op">ansible.builtin.uri</span>:
+    <span class="nm">url</span>: <span class="st">https://events.pagerduty.com/v2/enqueue</span>
+    <span class="nm">method</span>: <span class="st">POST</span>
+    <span class="nm">body_format</span>: <span class="st">json</span>
+    <span class="nm">body</span>:
+      <span class="nm">routing_key</span>: <span class="st">"{{ vault_pagerduty_routing_key }}"</span>
+      <span class="nm">event_action</span>: <span class="st">resolve</span>              <span class="cm"># resolve = close the incident</span>
+      <span class="nm">dedup_key</span>: <span class="st">"ansible-{{ inventory_hostname }}-{{ tower_job_id }}"</span>  <span class="cm"># Same key as trigger</span>
+    <span class="nm">status_code</span>: <span class="vl">202</span>
+  <span class="nm">delegate_to</span>: <span class="st">localhost</span></code></pre>
+      </div>
+    </section>
+
+    <!-- ═══ SECTION 20: CALLBACK PLUGIN ═══ -->
+    <section id="callback-plugin">
+      <h2><span class="num">20</span> Custom Ansible Callback Plugin</h2>
+      <div class="callout tip">
+        <div class="ct">💡 What is a Callback Plugin?</div>
+        Ansible callback plugins are Python files that hook into Ansible's event system. Every time an Ansible event occurs — task started, task succeeded, task failed, playbook finished — the callback plugin's corresponding method is called automatically. You can write custom callback plugins to send events to any external system without adding notification tasks to every playbook. In GlobalTrust Bank, we have a custom callback plugin that sends every task result to a deployment audit system and updates a real-time Grafana dashboard via the Grafana API.
+      </div>
+
+      <div class="code-block">
+        <div class="ch"><span>callback_plugins/globaltrust_audit.py — Custom callback plugin</span><span class="lang lang-python">PYTHON</span></div>
+        <pre><code><span class="cm"># callback_plugins/globaltrust_audit.py</span>
+<span class="cm"># GlobalTrust Bank — Custom Ansible Callback Plugin</span>
+<span class="cm"># Sends deployment events to internal audit system + Slack on failures</span>
+
+<span class="kw">from</span> ansible.plugins.callback <span class="kw">import</span> CallbackBase
+<span class="kw">import</span> requests
+<span class="kw">import</span> json
+<span class="kw">from</span> datetime <span class="kw">import</span> datetime
+
+<span class="nm">DOCUMENTATION</span> = <span class="st">'''
+callback: globaltrust_audit
+short_description: Send Ansible events to GlobalTrust audit system
+type: notification
+description:
+  - Logs all task results to the bank's compliance audit system
+  - Sends Slack notifications on task failures
+'''</span>
+
+<span class="kw">class</span> <span class="nm">CallbackModule</span>(CallbackBase):
+
+    <span class="nm">CALLBACK_VERSION</span> = <span class="vl">2.0</span>
+    <span class="nm">CALLBACK_TYPE</span> = <span class="st">'notification'</span>      <span class="cm"># Type: notification (doesn't replace stdout)</span>
+    <span class="nm">CALLBACK_NAME</span> = <span class="st">'globaltrust_audit'</span>
+    <span class="nm">CALLBACK_NEEDS_ENABLED</span> = <span class="bl">True</span>       <span class="cm"># Must be enabled in ansible.cfg to activate</span>
+
+    <span class="kw">def</span> __init__(self):
+        <span class="kw">super</span>().__init__()
+        self.audit_api_url = <span class="st">"https://audit.globaltrust.in/api/ansible-events"</span>
+        self.slack_webhook = None
+
+    <span class="kw">def</span> set_options(self, task_keys=None, var_options=None, direct=None):
+        <span class="kw">super</span>().set_options(task_keys=task_keys, var_options=var_options, direct=direct)
+        self.slack_webhook = self.get_option(<span class="st">'slack_webhook_url'</span>)
+
+    <span class="kw">def</span> v2_runner_on_ok(self, result):
+        <span class="cm"># Called when a task succeeds</span>
+        self._send_audit_event(<span class="st">'task_success'</span>, result)
+
+    <span class="kw">def</span> v2_runner_on_failed(self, result, ignore_errors=False):
+        <span class="cm"># Called when a task fails</span>
+        self._send_audit_event(<span class="st">'task_failed'</span>, result)
+
+        <span class="kw">if not</span> ignore_errors:             <span class="cm"># Only alert if error is not deliberately ignored</span>
+            self._send_slack_alert(
+                host=result._host.get_name(),
+                task=result.task_name,
+                error=result._result.get(<span class="st">'msg'</span>, <span class="st">'Unknown error'</span>)
+            )
+
+    <span class="kw">def</span> v2_playbook_on_stats(self, stats):
+        <span class="cm"># Called at the very end of a playbook run — provides overall stats</span>
+        summary = {}
+        <span class="kw">for</span> host <span class="kw">in</span> stats.processed.keys():
+            s = stats.summarize(host)
+            summary[host] = s
+
+        self._send_audit_event(<span class="st">'playbook_complete'</span>, {
+            <span class="st">'summary'</span>: summary,
+            <span class="st">'timestamp'</span>: datetime.utcnow().isoformat()
+        })
+
+    <span class="kw">def</span> _send_audit_event(self, event_type, data):
+        <span class="kw">try</span>:
+            requests.post(
+                self.audit_api_url,
+                json={<span class="st">'event_type'</span>: event_type, <span class="st">'data'</span>: str(data)},
+                timeout=5                 <span class="cm"># Never block Ansible for more than 5 seconds</span>
+            )
+        <span class="kw">except</span> Exception:
+            pass                          <span class="cm"># Never crash Ansible due to audit API failure</span>
+
+    <span class="kw">def</span> _send_slack_alert(self, host, task, error):
+        <span class="kw">if not</span> self.slack_webhook:
+            <span class="kw">return</span>
+        <span class="kw">try</span>:
+            requests.post(
+                self.slack_webhook,
+                json={<span class="st">'text'</span>: <span class="st">f"❌ Ansible TASK FAILED\n*Host:* {host}\n*Task:* {task}\n*Error:* {error}"</span>},
+                timeout=5
+            )
+        <span class="kw">except</span> Exception:
+            pass</code></pre>
+      </div>
+
+      <div class="code-block">
+        <div class="ch"><span>ansible.cfg — Enable the custom callback plugin</span><span class="lang lang-ini">INI</span></div>
+        <pre><code>[defaults]
+callback_plugins = ./callback_plugins          <span class="cm"># Directory with custom plugins</span>
+callbacks_enabled = globaltrust_audit          <span class="cm"># Enable our custom plugin by name</span>
+stdout_callback = yaml                         <span class="cm"># Keep YAML output for readability</span></code></pre>
+      </div>
+    </section>
+
+    <!-- ═══ SECTION 21: ALERTMANAGER → AAP ═══ -->
+    <section id="aap-as-alertmanager">
+      <h2><span class="num">21</span> Alertmanager → AAP Auto-Remediation Playbook</h2>
+      <div class="code-block">
+        <div class="ch"><span>playbooks/monitoring/auto_remediate.yml — Receives Alertmanager webhook payload</span><span class="lang lang-yaml">YAML</span></div>
+        <pre><code><span class="cm">---</span>
+<span class="cm"># This playbook is attached to a Job Template that receives Alertmanager webhooks</span>
+<span class="cm"># AAP webhook URL: https://aap-ctrl.globaltrust.in/api/v2/job_templates/60/launch/</span>
+<span class="cm"># Alertmanager POSTs here when DiskSpaceCritical fires</span>
+<span class="cm"># The payload contains: awx_webhook_payload with alert details</span>
+
+- <span class="nm">name</span>: <span class="st">Auto-Remediation — Process Alertmanager Webhook</span>
+  <span class="nm">hosts</span>: <span class="st">localhost</span>
+  <span class="nm">connection</span>: <span class="st">local</span>
+  <span class="nm">gather_facts</span>: <span class="bl">false</span>
+
+  <span class="nm">tasks</span>:
+    - <span class="nm">name</span>: <span class="st">Extract alert details from Alertmanager webhook payload</span>
+      <span class="op">ansible.builtin.set_fact</span>:
+        <span class="cm"># awx_webhook_payload is automatically provided by AAP from the webhook body</span>
+        <span class="nm">alert_status</span>: <span class="st">"{{ awx_webhook_payload.status }}"</span>         <span class="cm"># firing or resolved</span>
+        <span class="nm">alert_name</span>: <span class="st">"{{ awx_webhook_payload.alerts[0].labels.alertname }}"</span>
+        <span class="nm">affected_host</span>: <span class="st">"{{ awx_webhook_payload.alerts[0].labels.instance | regex_replace(':.*', '') }}"</span>
+        <span class="nm">alert_severity</span>: <span class="st">"{{ awx_webhook_payload.alerts[0].labels.severity }}"</span>
+        <span class="nm">mountpoint</span>: <span class="st">"{{ awx_webhook_payload.alerts[0].labels.mountpoint | default('/') }}"</span>
+
+    - <span class="nm">name</span>: <span class="st">Log received alert details</span>
+      <span class="op">ansible.builtin.debug</span>:
+        <span class="nm">msg</span>: <span class="st">"🔔 Alert received: {{ alert_name }} | Status: {{ alert_status }} | Host: {{ affected_host }}"</span>
+
+    <span class="cm"># ===== Skip if RESOLVED (just log it) =====</span>
+    - <span class="nm">name</span>: <span class="st">If RESOLVED — send Slack notification and exit</span>
+      <span class="op">ansible.builtin.uri</span>:
+        <span class="nm">url</span>: <span class="st">"{{ vault_slack_webhook_url }}"</span>
+        <span class="nm">method</span>: <span class="st">POST</span>
+        <span class="nm">body_format</span>: <span class="st">json</span>
+        <span class="nm">body</span>:
+          <span class="nm">text</span>: <span class="st">"✅ *RESOLVED* — {{ alert_name }} on {{ affected_host }} auto-remediated by Ansible AAP. No human action required."</span>
+          <span class="nm">channel</span>: <span class="st">"#infrastructure-alerts"</span>
+      <span class="nm">when</span>: <span class="st">alert_status == 'resolved'</span>
+
+    - <span class="nm">name</span>: <span class="st">End play if alert is resolved (no remediation needed)</span>
+      <span class="op">ansible.builtin.meta</span>: <span class="st">end_play</span>
+      <span class="nm">when</span>: <span class="st">alert_status == 'resolved'</span>
+
+    <span class="cm"># ===== FIRING: Add affected host to dynamic in-memory group =====</span>
+    - <span class="nm">name</span>: <span class="st">Add affected server to remediation group</span>
+      <span class="op">ansible.builtin.add_host</span>:
+        <span class="nm">name</span>: <span class="st">"{{ affected_host }}"</span>
+        <span class="nm">groups</span>: <span class="st">remediation_targets</span>
+        <span class="nm">ansible_user</span>: <span class="st">ansible-svc</span>
+        <span class="nm">ansible_ssh_private_key_file</span>: <span class="st">/etc/ansible/ssh_keys/prod_key</span>
+      <span class="nm">when</span>: <span class="st">alert_status == 'firing'</span>
+
+<span class="cm"># ===== SECOND PLAY: Run actual remediation on affected host =====</span>
+- <span class="nm">name</span>: <span class="st">Disk Cleanup Remediation on Affected Server</span>
+  <span class="nm">hosts</span>: <span class="st">remediation_targets</span>
+  <span class="nm">become</span>: <span class="bl">true</span>
+  <span class="nm">gather_facts</span>: <span class="bl">true</span>
+
+  <span class="nm">tasks</span>:
+    - <span class="nm">name</span>: <span class="st">Record disk usage before cleanup</span>
+      <span class="op">ansible.builtin.command</span>: <span class="st">df -h {{ mountpoint }}</span>
+      <span class="nm">register</span>: <span class="st">disk_before</span>
+      <span class="nm">changed_when</span>: <span class="bl">false</span>
+
+    - <span class="nm">name</span>: <span class="st">Clean log files older than 7 days</span>
+      <span class="op">ansible.builtin.find</span>:
+        <span class="nm">paths</span>: <span class="st">/var/log</span>
+        <span class="nm">age</span>: <span class="st">7d</span>
+        <span class="nm">recurse</span>: <span class="bl">true</span>
+        <span class="nm">patterns</span>: [<span class="st">'*.log.*'</span>, <span class="st">'*.log.gz'</span>, <span class="st">'core.*'</span>]
+      <span class="nm">register</span>: <span class="st">old_files</span>
+
+    - <span class="nm">name</span>: <span class="st">Delete found files</span>
+      <span class="op">ansible.builtin.file</span>:
+        <span class="nm">path</span>: <span class="st">"{{ item.path }}"</span>
+        <span class="nm">state</span>: <span class="st">absent</span>
+      <span class="nm">loop</span>: <span class="st">"{{ old_files.files }}"</span>
+
+    - <span class="nm">name</span>: <span class="st">Record disk usage after cleanup</span>
+      <span class="op">ansible.builtin.command</span>: <span class="st">df -h {{ mountpoint }}</span>
+      <span class="nm">register</span>: <span class="st">disk_after</span>
+      <span class="nm">changed_when</span>: <span class="bl">false</span>
+
+    - <span class="nm">name</span>: <span class="st">Report result to Slack</span>
+      <span class="op">ansible.builtin.uri</span>:
+        <span class="nm">url</span>: <span class="st">"{{ vault_slack_webhook_url }}"</span>
+        <span class="nm">method</span>: <span class="st">POST</span>
+        <span class="nm">body_format</span>: <span class="st">json</span>
+        <span class="nm">body</span>:
+          <span class="nm">text</span>: <span class="st">"🔧 *Auto-Remediation Complete*\n*Host:* {{ inventory_hostname }}\n*Alert:* {{ hostvars['localhost'].alert_name }}\n*Files Removed:* {{ old_files.files | length }}\n*Before:* {{ disk_before.stdout_lines[1] }}\n*After:* {{ disk_after.stdout_lines[1] }}\n*AAP Job:* https://aap-ctrl.globaltrust.in/#/jobs/{{ tower_job_id }}/output"</span>
+          <span class="nm">channel</span>: <span class="st">"#infrastructure-alerts"</span>
+      <span class="nm">delegate_to</span>: <span class="st">localhost</span></code></pre>
+      </div>
+    </section>
+
+    <!-- ═══ SECTION 22: FULL WORKFLOW ═══ -->
+    <section id="workflow">
+      <h2><span class="num">22</span> Complete Self-Healing Workflow</h2>
+      <div class="mw">
+        <div class="mermaid">
+sequenceDiagram
+    participant DISK as Disk on prod-db-012
+    participant NE as Node Exporter :9100
+    participant PROM as Prometheus
+    participant AM as Alertmanager
+    participant AAP as Ansible AAP
+    participant ANSIBLE as Ansible Playbook
+    participant SLACK as Slack #infra-alerts
+    participant SNOW as ServiceNow
+
+    DISK->>NE: Disk fills to 96%
+    NE->>PROM: Exposes metric: node_filesystem_avail = low
+    PROM->>PROM: Evaluates rule: DiskSpaceCritical > 90% for 2m
+    PROM->>AM: Fires DiskSpaceCritical alert
+    AM->>AAP: POST webhook to /api/v2/job_templates/60/launch/
+    Note over AM,AAP: Payload includes: instance, alertname, severity, mountpoint
+    AAP->>ANSIBLE: Launches auto_remediate.yml for prod-db-012
+    ANSIBLE->>DISK: Find and delete logs older than 7 days
+    ANSIBLE->>DISK: Delete 47GB of old binary logs
+    DISK-->>ANSIBLE: Disk: 96% → 62% ✅
+    ANSIBLE->>SLACK: "🔧 Auto-Remediated: prod-db-012 96%→62%. 47GB cleared."
+    ANSIBLE->>SNOW: Create Incident INC# (closed immediately with resolution)
+    PROM->>AM: Condition cleared → RESOLVED
+    AM->>AAP: POST resolved webhook
+    AAP->>SLACK: "✅ RESOLVED — DiskSpaceCritical on prod-db-012. No human action needed."
+    Note over SLACK: Engineer sees this at 8 AM. Never woken up.
+        </div>
+        <p class="cap">Figure 2: Complete Self-Healing Loop — From disk alert to auto-remediation to Slack notification</p>
+      </div>
+    </section>
+
+    <!-- ═══ SECTION 23: TROUBLESHOOTING ═══ -->
+    <section id="troubleshoot">
+      <h2><span class="num">23</span> Troubleshooting</h2>
+
+      <div class="trouble">
+        <div class="trouble-header">🚨 Issue 1: Node Exporter Metrics Not Appearing in Prometheus</div>
+        <div class="trouble-body">
+          <div class="tl">Symptom</div>
+          <p>Prometheus targets page shows target as DOWN (red). <code>Error scraping: context deadline exceeded</code></p>
+          <div class="tl">Causes and Fixes</div>
+          <div class="code-block"><div class="ch"><span>Debug steps</span><span class="lang lang-bash">BASH</span></div>
+          <pre><code><span class="cm"># Step 1: Verify node_exporter is running on the target server</span>
+systemctl status node_exporter
+<span class="cm"># If not running: systemctl start node_exporter</span>
+
+<span class="cm"># Step 2: Test from target server itself</span>
+curl http://localhost:9100/metrics | head -20
+<span class="cm"># Should return metrics lines starting with # HELP</span>
+
+<span class="cm"># Step 3: Test from Prometheus server (network path)</span>
+curl http://prod-app-047:9100/metrics
+<span class="cm"># If timeout → firewall is blocking port 9100</span>
+
+<span class="cm"># Step 4: Check firewall on target server</span>
+firewall-cmd --list-rich-rules | grep 9100
+<span class="cm"># If no rule → Ansible firewall task didn't run or used wrong prometheus_server_ip</span>
+
+<span class="cm"># Fix: Re-run Ansible node_exporter role with correct prometheus_server_ip</span>
+<span class="cm"># ansible -m ansible.posix.firewalld -a "rich_rule='rule family=ipv4 source address=10.0.1.50 port port=9100 protocol=tcp accept' permanent=true state=enabled immediate=true" prod-app-047</span></code></pre></div>
+        </div>
+      </div>
+
+      <div class="trouble">
+        <div class="trouble-header">🚨 Issue 2: Alertmanager Webhook to AAP Returns 403</div>
+        <div class="trouble-body">
+          <div class="tl">Symptom</div>
+          <p>Alertmanager logs show: <code>level=error msg="Error sending webhook" err="unexpected status code 403"</code></p>
+          <div class="tl">Root Causes</div>
+          <table class="dt">
+            <thead><tr><th>Cause</th><th>Check</th><th>Fix</th></tr></thead>
+            <tbody>
+              <tr><td>AAP Bearer token expired</td><td>curl -H "Authorization: Bearer TOKEN" https://aap/api/v2/me/</td><td>Create new token, update alertmanager.yml bearer_token, re-run Ansible</td></tr>
+              <tr><td>Job Template doesn't have "Prompt on launch" for extra_vars</td><td>AAP UI: Job Template → Settings</td><td>Enable "Prompt on launch" for extra variables</td></tr>
+              <tr><td>HTTPS certificate mismatch</td><td>curl -v to AAP — check SSL handshake</td><td>Add insecure_skip_verify: true to alertmanager webhook_config (not recommended for prod)</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="trouble">
+        <div class="trouble-header">🚨 Issue 3: Prometheus Config Reload Fails After Ansible Run</div>
+        <div class="trouble-body">
+          <div class="tl">Symptom</div>
+          <p>Ansible run completes but Prometheus keeps using old config. <code>FAILED: promtool check config /etc/prometheus/prometheus.yml</code></p>
+          <div class="tl">Root Cause</div>
+          <p>The prometheus.yml template has a Jinja2 syntax error or references an undefined variable, causing <code>promtool check config</code> (the validate step) to fail. Because validate fails, the file is NOT written to disk — Prometheus continues with old config.</p>
+          <div class="code-block"><div class="ch"><span>Fix</span><span class="lang lang-bash">BASH</span></div>
+          <pre><code><span class="cm"># Render the template locally first to check for errors</span>
+ansible -m ansible.builtin.template \
+  -a "src=prometheus.yml.j2 dest=/tmp/prom_test.yml" localhost
+
+<span class="cm"># Then validate manually</span>
+promtool check config /tmp/prom_test.yml
+<span class="cm"># This shows exact error: undefined variable, wrong YAML indent, etc.</span>
+
+<span class="cm"># Common mistakes:</span>
+<span class="cm"># - vault_prometheus_aws_key not defined in group_vars</span>
+<span class="cm"># - YAML indentation error in scrape_configs</span>
+<span class="cm"># - Missing prometheus_version variable</span></code></pre></div>
+        </div>
+      </div>
+
+      <div class="trouble">
+        <div class="trouble-header">🚨 Issue 4: Splunk UF Not Forwarding Logs</div>
+        <div class="trouble-body">
+          <div class="tl">Symptom</div>
+          <p>Splunk shows no events from a server even though UF is installed and running.</p>
+          <div class="code-block"><div class="ch"><span>Debug steps</span><span class="lang lang-bash">BASH</span></div>
+          <pre><code><span class="cm"># Step 1: Check UF status</span>
+/opt/splunkforwarder/bin/splunk status
+<span class="cm"># Expected: splunkd is running</span>
+
+<span class="cm"># Step 2: Check connectivity to Heavy Forwarder</span>
+/opt/splunkforwarder/bin/splunk list forward-server
+<span class="cm"># Should list splunk-hf-01:9997 as active</span>
+
+<span class="cm"># Step 3: Test TCP connection to HF</span>
+nc -zv splunk-hf-01.globaltrust.in 9997
+<span class="cm"># If failed → firewall blocking outbound 9997</span>
+
+<span class="cm"># Step 4: Check inputs.conf is correct</span>
+cat /opt/splunkforwarder/etc/system/local/inputs.conf
+<span class="cm"># Verify the monitor paths exist and are readable by splunk user</span>
+
+<span class="cm"># Step 5: Check UF internal logs</span>
+tail -f /opt/splunkforwarder/var/log/splunk/splunkd.log
+<span class="cm"># Look for ERROR or WARN lines about connections or file permissions</span></code></pre></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══ SECTION 24: INTERVIEW ═══ -->
+    <section id="interview">
+      <h2><span class="num">24</span> Interview Preparation</h2>
+
+      <div class="iq">
+        <div class="iq-q" onclick="tgl(this)">Q1. How do you deploy Prometheus and Node Exporter using Ansible? What is the validate parameter used for?</div>
+        <div class="iq-a">
+          We have Ansible roles for both Prometheus server and Node Exporter. The Node Exporter role deploys to all 450 Linux servers simultaneously using a playbook with no serial limit — they all install in parallel, taking about 8 minutes total. The Prometheus server role installs the binary from GitHub releases, creates a dedicated system user, sets up the systemd service, and deploys the configuration from a Jinja2 template. The key feature is the <code>validate</code> parameter on the template module: <code>validate: '/usr/local/bin/promtool check config %s'</code>. Before Ansible writes the rendered prometheus.yml to disk, it runs this validation command on a temporary copy. If promtool detects any configuration errors — wrong YAML syntax, undefined scrape targets, invalid relabel rules — the validation fails and the file is NOT deployed. Prometheus keeps running with the old valid configuration. This prevents configuration mistakes from taking down the monitoring system. Same approach for alert rules: <code>validate: '/usr/local/bin/promtool check rules %s'</code>. The %s is replaced by the temp file path automatically by Ansible.
+        </div>
+      </div>
+
+      <div class="iq">
+        <div class="iq-q" onclick="tgl(this)">Q2. How does Prometheus Alertmanager connect to Ansible AAP for auto-remediation?</div>
+        <div class="iq-a">
+          When a Prometheus alert fires — for example DiskSpaceCritical when a partition exceeds 90% for 2 minutes — Prometheus sends this to Alertmanager. Alertmanager has a routing configuration that checks the alert's labels. If the alert has the label <code>auto_remediate: "true"</code> (which we set in the alert rule), Alertmanager routes it to a webhook receiver. That webhook receiver is configured with the AAP job template launch URL: POST to <code>https://aap-ctrl.../api/v2/job_templates/60/launch/</code> with a Bearer token for authentication. The Alertmanager webhook payload contains all the alert details — instance name, alert name, severity, mountpoint. AAP receives this POST, launches the job template with the webhook payload available as the Ansible variable <code>awx_webhook_payload</code>. The playbook reads the affected server hostname from <code>awx_webhook_payload.alerts[0].labels.instance</code>, adds it to a dynamic inventory group using <code>add_host</code>, then runs the remediation tasks on that specific server. After cleanup, the playbook sends a Slack notification with before/after disk usage. The entire process from alert firing to disk cleaned and Slack notification: under 3 minutes. We also set <code>send_resolved: true</code> in Alertmanager so when the alert clears, another webhook fires to AAP which sends a RESOLVED message to Slack — the on-call engineer sees a complete story in Slack without being woken up.
+        </div>
+      </div>
+
+      <div class="iq">
+        <div class="iq-q" onclick="tgl(this)">Q3. How do you deploy Splunk Universal Forwarder to hundreds of servers using Ansible?</div>
+        <div class="iq-a">
+          We have a Splunk UF role that runs against all managed servers simultaneously. The role does five things. First, it checks if Splunk is already installed using the stat module to check for the binary — this makes it idempotent and prevents reinstalling. Second, it downloads the Splunk RPM from our internal artifact server (not the internet) and verifies the SHA256 checksum — important for supply chain security in banking. Third, it deploys the outputs.conf from a template specifying the Heavy Forwarder addresses and SSL settings — all servers send logs to the same two HF nodes for failover. Fourth, it deploys a role-specific inputs.conf — web servers get nginx log collection, database servers get MySQL log collection, all servers get system and audit logs. The template filename uses the server_role variable: inputs.conf.{{ server_role }}.j2. Fifth, it accepts the Splunk license and enables the forwarder as a systemd service. The whole deployment to 450 servers runs in about 20 minutes. The power is in the role-specific inputs.conf — one role, multiple server types, all configured correctly automatically. When we add a new log file to monitor, we update the Jinja2 template and re-run the role — all 450 servers pick up the change in one Ansible run.
+        </div>
+      </div>
+
+      <div class="iq">
+        <div class="iq-q" onclick="tgl(this)">Q4. What is an Ansible Callback Plugin and why did you write a custom one?</div>
+        <div class="iq-a">
+          An Ansible Callback Plugin is a Python class that inherits from CallbackBase and hooks into Ansible's internal event system. Every time something happens during an Ansible run — a task starts, a task succeeds, a task fails, the playbook ends — Ansible calls the corresponding method in all active callback plugins. This happens automatically without any changes to playbooks. We wrote the globaltrust_audit callback plugin for two reasons. First, we needed to send every task result to the bank's compliance audit system — this is required by RBI's IT audit framework. Adding a notification task to every playbook would be unmaintainable with 200+ playbooks. With a callback plugin, the audit event happens automatically for every task in every playbook. Second, we wanted immediate Slack alerts on any task failure in any playbook — the v2_runner_on_failed method sends a Slack message with the host, task name, and error message whenever any task fails with ignore_errors: false. The plugin is enabled in ansible.cfg with callbacks_enabled = globaltrust_audit. Key design principle: we always use try/except around the external API calls and never let the callback plugin crash Ansible. If the audit API is down, Ansible must still run — the plugin silently swallows the exception. Automation availability is more important than audit logging.
+        </div>
+      </div>
+
+      <div class="iq">
+        <div class="iq-q" onclick="tgl(this)">Q5. How do you send notifications to Slack and Teams from Ansible? What is the difference between the two approaches?</div>
+        <div class="iq-a">
+          There are two approaches: using the dedicated Ansible module and using the uri module with an HTTP webhook. For Slack, the <code>community.general.slack</code> module provides a clean interface — you specify token, channel, message, color, and attachments with named parameters. It handles the Slack API authentication and message formatting automatically. For Teams, there is no Ansible module so we use the <code>ansible.builtin.uri</code> module to POST a JSON payload to the Teams Incoming Webhook URL — the body follows Microsoft's MessageCard format with themeColor, summary, sections, and facts fields. The advantages of using dedicated modules (like community.general.slack) over uri are: cleaner YAML syntax, better error messages, automatic retry, and module-level idempotency checking. The advantage of uri is universality — it works with any HTTP endpoint without needing additional collections installed in the Execution Environment. In practice, we use the slack module for internal team notifications where we want rich formatting, and uri for Teams and any custom webhook endpoint (PagerDuty, Grafana, ServiceNow). Both approaches use <code>delegate_to: localhost</code> because the HTTP call goes from the Ansible execution node to the notification endpoint — not from the managed server.
+        </div>
+      </div>
+
+      <div class="callout success">
+        <div class="ct">✅ Key Points for Monitoring Integration Interviews</div>
+        <div class="grid-2">
+          <ul style="padding-left:15px;line-height:2.1;font-size:.86rem">
+            <li>Node Exporter → deployed by Ansible to every server</li>
+            <li>validate: promtool check = safe config deployment</li>
+            <li>Alertmanager webhook receiver = sends POST to AAP</li>
+            <li>continue: true in Alertmanager = match multiple routes</li>
+            <li>awx_webhook_payload = alert data in Ansible playbook</li>
+          </ul>
+          <ul style="padding-left:15px;line-height:2.1;font-size:.86rem">
+            <li>add_host = add affected server to dynamic group</li>
+            <li>send_resolved: true = receive RESOLVED notification</li>
+            <li>Splunk inputs.conf per server_role = role-specific logs</li>
+            <li>Callback plugin = automatic hooks into every task</li>
+            <li>Never let callback plugin crash Ansible (try/except)</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <div style="background:#022c22;color:#34d399;border-radius:10px;padding:20px 24px;margin-top:40px;font-size:.81rem;line-height:1.85;">
+      <strong style="color:#a7f3d0">✅ Project 07 Complete — Monitoring Integration</strong><br>
+      You have learned: Prometheus server installation with Ansible (binary, systemd, firewall), Node Exporter mass deployment with firewall restriction to Prometheus IP, Prometheus config via Jinja2 template with validate (promtool), Banking-specific alert rules with auto_remediate labels, Alertmanager configuration (routing, receivers, continue: true, send_resolved), Alertmanager → AAP webhook receiver for auto-remediation, complete self-healing playbook using awx_webhook_payload + add_host, Grafana deployment and data source configuration via API, Splunk UF mass deployment with role-specific inputs.conf, Filebeat ELK integration, community.general.slack + uri module for Slack/Teams notifications, PagerDuty Events v2 API integration, custom Ansible callback plugin (Python), and 4 production troubleshooting scenarios.
+      <br><br>
+      <strong style="color:#a7f3d0">📚 Completed:</strong> 01-Linux | 02-Windows | 03-Dynamic Inv | 04-Cloud | 05-CI/CD | 06-ServiceNow | 07-Monitoring
+    </div>
+
+  </div>
+</main>
+<button class="scroll-top" id="scrollTopBtn" onclick="window.scrollTo({top:0,behavior:'smooth'})">↑</button>
+<script>
+  mermaid.initialize({startOnLoad:true,theme:'default',securityLevel:'loose'});
+  window.addEventListener('scroll',()=>{const b=document.getElementById('scrollTopBtn');b.style.display=window.scrollY>400?'flex':'none';});
+  const links=document.querySelectorAll('#sidebar nav a');
+  const obs=new IntersectionObserver((e)=>{e.forEach(en=>{if(en.isIntersecting){links.forEach(l=>l.classList.remove('active'));const a=document.querySelector(`#sidebar nav a[href="#${en.target.id}"]`);if(a)a.classList.add('active');}});},{rootMargin:'-20% 0px -70% 0px'});
+  document.querySelectorAll('section[id]').forEach(s=>obs.observe(s));
+  function tgl(el){el.classList.toggle('open');el.nextElementSibling.classList.toggle('show');}
+</script>
+</body>
+</html>

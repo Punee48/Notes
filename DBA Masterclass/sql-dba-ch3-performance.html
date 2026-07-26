@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>SQL DBA Masterclass — Chapter 3: Performance Tuning</title>
+<style>
+  :root {
+    --bg:#ffffff;--surface:#f8f9fb;--surface2:#f0f2f7;
+    --border:#e2e6ef;--border-soft:#edf0f7;
+    --ink:#0f1117;--ink-2:#3a3f52;--ink-3:#6b7280;--ink-muted:#9ba3b0;
+    --blue:#1a6ef7;--blue-light:#dbeafe;--blue-dark:#1248c7;
+    --green:#0d9f6e;--green-light:#d1fae5;
+    --orange:#f07b25;--orange-light:#fff0e0;
+    --red:#e53935;--red-light:#fde8e8;
+    --purple:#7c3aed;--purple-light:#ede9fe;
+    --yellow:#d97706;--yellow-light:#fef3c7;
+    --teal:#0891b2;--teal-light:#cffafe;
+    --code-bg:#0f1117;--code-border:#1e2535;
+    --font-sans:'Inter','Segoe UI',system-ui,sans-serif;
+    --font-mono:'JetBrains Mono','Fira Code','Consolas',monospace;
+    --radius-sm:6px;--radius:10px;--radius-lg:16px;
+    --shadow:0 4px 16px rgba(0,0,0,.08);
+  }
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+  html{scroll-behavior:smooth;}
+  body{font-family:var(--font-sans);background:var(--bg);color:var(--ink);line-height:1.7;font-size:15px;}
+  .page-wrap{max-width:980px;margin:0 auto;padding:0 24px 80px;}
+  .top-banner{background:linear-gradient(135deg,#0f1117 0%,#1a2340 55%,#f07b25 100%);color:#fff;padding:52px 40px 44px;border-radius:0 0 var(--radius-lg) var(--radius-lg);margin-bottom:44px;position:relative;overflow:hidden;}
+  .top-banner::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse 50% 80% at 80% 20%,rgba(240,123,37,.2),transparent);pointer-events:none;}
+  .banner-eyebrow{font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:rgba(255,255,255,.5);margin-bottom:10px;}
+  .banner-title{font-size:clamp(26px,4.5vw,42px);font-weight:800;line-height:1.15;letter-spacing:-.02em;margin-bottom:12px;}
+  .banner-title span{color:#fed7aa;}
+  .banner-sub{font-size:15px;color:rgba(255,255,255,.72);max-width:580px;line-height:1.6;margin-bottom:24px;}
+  .badge-row{display:flex;gap:8px;flex-wrap:wrap;}
+  .badge{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);color:#fff;font-size:12px;font-weight:600;padding:4px 12px;border-radius:20px;}
+  .progress-strip{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:44px;}
+  .prog-step{padding:6px 14px;border-radius:20px;font-size:12px;font-weight:700;letter-spacing:.04em;border:1.5px solid var(--border);color:var(--ink-3);background:var(--surface);}
+  .prog-step.active{background:var(--orange);border-color:var(--orange);color:#fff;}
+  .prog-step.done{background:var(--green-light);border-color:var(--green);color:var(--green);}
+  .section-label{font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--orange);margin-bottom:8px;}
+  h2.section-title{font-size:26px;font-weight:800;letter-spacing:-.02em;color:var(--ink);margin-bottom:6px;}
+  h3.sub-title{font-size:19px;font-weight:700;color:var(--ink);margin-bottom:10px;margin-top:36px;}
+  .section-desc{color:var(--ink-2);font-size:15px;margin-bottom:24px;max-width:700px;}
+  hr.divider{border:none;border-top:1px solid var(--border);margin:48px 0;}
+  .story-card{background:linear-gradient(135deg,#fffbf5,#fff7ed);border:1.5px solid #fed7aa;border-radius:var(--radius-lg);padding:26px 30px;margin-bottom:28px;position:relative;}
+  .story-card::before{content:'📖';font-size:22px;position:absolute;top:-14px;left:24px;background:#fff;padding:0 6px;}
+  .story-card p{color:var(--ink-2);line-height:1.75;margin-bottom:10px;}
+  .story-card p:last-child{margin-bottom:0;}
+  .story-highlight{background:var(--orange-light);border-left:3px solid var(--orange);padding:10px 16px;border-radius:0 var(--radius-sm) var(--radius-sm) 0;margin-top:14px;font-weight:600;color:#7c2d12;font-size:14px;}
+  .concept-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:14px;margin:20px 0;}
+  .concept-card{background:var(--surface);border:1.5px solid var(--border);border-radius:var(--radius);padding:18px;transition:box-shadow .15s;}
+  .concept-card:hover{box-shadow:var(--shadow);}
+  .concept-icon{font-size:24px;margin-bottom:8px;}
+  .concept-card h4{font-size:13px;font-weight:700;color:var(--ink);margin-bottom:5px;}
+  .concept-card p{font-size:12.5px;color:var(--ink-3);line-height:1.6;}
+  .code-section{margin:24px 0;}
+  .code-header{display:flex;align-items:center;justify-content:space-between;background:#1a2340;padding:10px 20px;border-radius:var(--radius) var(--radius) 0 0;border:1px solid var(--code-border);}
+  .code-filename{font-family:var(--font-mono);font-size:12px;color:rgba(255,255,255,.75);display:flex;align-items:center;gap:8px;}
+  .code-lang-badge{background:var(--orange);color:#fff;font-size:10px;font-weight:700;letter-spacing:.06em;padding:2px 8px;border-radius:4px;text-transform:uppercase;}
+  .code-dots{display:flex;gap:6px;}
+  .code-dots span{width:11px;height:11px;border-radius:50%;display:block;}
+  .dot-r{background:#ff5f57;}.dot-y{background:#febc2e;}.dot-g{background:#28c840;}
+  pre.code-body{background:var(--code-bg);border:1px solid var(--code-border);border-top:none;border-radius:0 0 var(--radius) var(--radius);padding:24px;overflow-x:auto;font-family:var(--font-mono);font-size:13px;line-height:1.85;color:#e2e8f0;margin:0;}
+  .kw{color:#c084fc;font-weight:600;}.fn{color:#60a5fa;}.str{color:#86efac;}.num{color:#fbbf24;}.cmt{color:#4b5563;font-style:italic;}.tbl{color:#f97316;font-weight:600;}.col{color:#e2e8f0;}.op{color:#94a3b8;}.typ{color:#34d399;}.hl{background:rgba(250,204,21,.12);border-left:3px solid #fbbf24;display:block;margin-left:-24px;padding-left:21px;}
+  .annotation-block{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin:24px 0;}
+  .annotation-block table{width:100%;border-collapse:collapse;}
+  .annotation-block table thead tr{background:var(--surface2);}
+  .annotation-block table th{font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-3);padding:10px 16px;text-align:left;border-bottom:1px solid var(--border);}
+  .annotation-block table td{padding:10px 16px;font-size:13.5px;color:var(--ink-2);border-bottom:1px solid var(--border-soft);vertical-align:top;}
+  .annotation-block table tr:last-child td{border-bottom:none;}
+  .annotation-block table td:first-child{font-family:var(--font-mono);font-size:12.5px;color:#7c3aed;font-weight:600;width:210px;}
+  .info-box{display:flex;gap:14px;align-items:flex-start;padding:16px 20px;border-radius:var(--radius);margin:20px 0;font-size:14px;line-height:1.65;}
+  .info-box .icon{font-size:20px;flex-shrink:0;margin-top:1px;}
+  .info-box.tip{background:var(--green-light);border:1px solid #a7f3d0;color:#065f46;}
+  .info-box.warn{background:var(--yellow-light);border:1px solid #fde68a;color:#92400e;}
+  .info-box.note{background:var(--blue-light);border:1px solid #bfdbfe;color:#1e40af;}
+  .info-box.danger{background:var(--red-light);border:1px solid #fecaca;color:#991b1b;}
+  .section-divider{display:flex;align-items:center;gap:16px;margin:48px 0 32px;}
+  .section-divider .sd-num{width:36px;height:36px;border-radius:50%;background:var(--orange);color:#fff;font-size:14px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+  .section-divider .sd-line{flex:1;height:1px;background:var(--border);}
+  .section-divider .sd-label{font-size:16px;font-weight:800;color:var(--ink);white-space:nowrap;}
+  .index-comparison{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:20px 0;}
+  .index-card{border:2px solid var(--border);border-radius:var(--radius);padding:18px;background:var(--surface);}
+  .index-card.clustered{border-color:var(--blue);background:var(--blue-light);}
+  .index-card.nonclustered{border-color:var(--purple);background:var(--purple-light);}
+  .index-card h4{font-size:14px;font-weight:800;margin-bottom:8px;}
+  .index-card.clustered h4{color:var(--blue-dark);}
+  .index-card.nonclustered h4{color:var(--purple);}
+  .index-card ul{list-style:none;padding:0;}
+  .index-card ul li{font-size:13px;color:var(--ink-2);padding:4px 0;border-bottom:1px solid rgba(0,0,0,.07);}
+  .index-card ul li:last-child{border-bottom:none;}
+  .index-card ul li::before{content:'→ ';opacity:.5;}
+  .perf-table{width:100%;border-collapse:collapse;margin:16px 0;font-size:13px;}
+  .perf-table th{background:var(--surface2);padding:9px 14px;text-align:left;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3);border-bottom:2px solid var(--border);}
+  .perf-table td{padding:9px 14px;border-bottom:1px solid var(--border-soft);color:var(--ink-2);}
+  .perf-table tr:hover td{background:var(--surface);}
+  .bad{color:var(--red);font-weight:600;}.good{color:var(--green);font-weight:600;}
+  .interview-card{background:var(--surface);border:1.5px solid var(--border);border-left:4px solid var(--orange);border-radius:var(--radius);padding:18px 22px;margin:12px 0;}
+  .interview-card .q-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--orange);margin-bottom:6px;}
+  .interview-card p{font-size:14px;color:var(--ink-2);line-height:1.7;}
+  .lab-box{background:linear-gradient(135deg,#0f1117,#1a2340);border:1.5px solid #2a3755;border-radius:var(--radius-lg);padding:26px 30px;margin:28px 0;color:#e2e8f0;}
+  .lab-box h3{color:#fed7aa;font-size:15px;font-weight:700;margin-bottom:14px;}
+  .lab-box ol{padding-left:20px;}
+  .lab-box ol li{margin-bottom:10px;font-size:14px;color:rgba(255,255,255,.80);line-height:1.65;}
+  .lab-box ol li strong{color:#86efac;}
+  .lab-cmd{font-family:var(--font-mono);background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12);padding:2px 8px;border-radius:4px;font-size:12.5px;color:#fbbf24;}
+  .project-banner{background:linear-gradient(135deg,#7c2d12,#f07b25);color:#fff;border-radius:var(--radius-lg);padding:26px 30px;margin:28px 0;}
+  .project-banner .pb-eyebrow{font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;opacity:.65;margin-bottom:6px;}
+  .project-banner h3{font-size:19px;font-weight:800;margin-bottom:6px;}
+  .project-banner p{font-size:14px;opacity:.85;line-height:1.65;}
+  .footer-nav{display:flex;justify-content:space-between;align-items:center;padding:24px 0;border-top:1px solid var(--border);margin-top:60px;}
+  .footer-nav span{font-size:13px;color:var(--ink-muted);}
+  .next-btn{display:inline-flex;align-items:center;gap:8px;background:var(--blue);color:#fff;font-size:14px;font-weight:700;padding:10px 20px;border-radius:var(--radius);text-decoration:none;}
+  .prev-btn{display:inline-flex;align-items:center;gap:8px;background:var(--surface);color:var(--ink-2);font-size:14px;font-weight:700;padding:10px 20px;border-radius:var(--radius);text-decoration:none;border:1.5px solid var(--border);}
+  @media(max-width:640px){.top-banner{padding:34px 20px 28px;}.page-wrap{padding:0 14px 60px;}pre.code-body{font-size:11.5px;}.index-comparison{grid-template-columns:1fr;}}
+</style>
+</head>
+<body>
+
+<div class="top-banner">
+  <div class="page-wrap" style="margin:0 auto;padding-bottom:0;">
+    <div class="banner-eyebrow">MS SQL Server DBA + DevOps Masterclass · Chapter 3 of 10</div>
+    <h1 class="banner-title">Performance <span>Tuning</span></h1>
+    <p class="banner-sub">Diagnose slow queries, master indexes and execution plans, eliminate the top anti-patterns, and use DMVs to find problems before users report them.</p>
+    <div class="badge-row">
+      <span class="badge">Execution Plans</span>
+      <span class="badge">Clustered Indexes</span>
+      <span class="badge">Non-Clustered Indexes</span>
+      <span class="badge">Covering Indexes</span>
+      <span class="badge">Statistics</span>
+      <span class="badge">DMVs</span>
+      <span class="badge">Query Anti-Patterns</span>
+    </div>
+  </div>
+</div>
+
+<div class="page-wrap">
+<div class="progress-strip">
+  <div class="prog-step done">Ch 1 ✓</div><div class="prog-step done">Ch 2 ✓</div>
+  <div class="prog-step active">Ch 3 · Performance</div>
+  <div class="prog-step">Ch 4 · Backup</div><div class="prog-step">Ch 5 · HA/DR</div>
+  <div class="prog-step">Ch 6 · Security</div><div class="prog-step">Ch 7 · Automation</div>
+  <div class="prog-step">Ch 8 · AWS RDS</div><div class="prog-step">Ch 9 · DevOps</div><div class="prog-step">Ch 10 · Capstone</div>
+</div>
+
+<div class="story-card">
+  <p><strong>Monday morning, 9:15 AM. Your phone rings.</strong> Priya, the product manager: <em>"Arjun, our order listing page is taking 8 seconds. Customers are abandoning carts. The dev team says it's the database. Fix it."</em></p>
+  <p>You open SSMS and run the health check from Chapter 1. You see a query consuming 3.2 billion logical reads. <em>Billion.</em> The Orders table has 2 million rows and there's not a single index beyond the primary key.</p>
+  <p>This is your first real DBA war. Performance tuning is the most high-value, most visible skill in the JD. Let's build the toolkit that turns 8-second queries into 80-millisecond queries.</p>
+  <div class="story-highlight">🎯 Goal: Understand HOW SQL Server finds data, build the right indexes, read execution plans, and use DMVs to proactively catch slow queries — before users complain.</div>
+</div>
+
+<!-- ═══════════════════════════════════════════════ -->
+<div class="section-divider"><div class="sd-num">1</div><div class="sd-label">How SQL Server Finds Data — The Mental Model</div><div class="sd-line"></div></div>
+
+<p class="section-desc">Before we optimize anything, we need to understand the two ways SQL Server retrieves rows. This is the foundation of all index work.</p>
+
+<div class="concept-grid">
+  <div class="concept-card">
+    <div class="concept-icon">📚</div>
+    <h4>Table Scan (Full Scan)</h4>
+    <p>SQL Server reads <strong>every single page</strong> of the table, top to bottom. On a 2-million-row Orders table, this means reading ~16,000 data pages. Acceptable for tiny tables or when you need >30% of rows. Otherwise: catastrophic.</p>
+  </div>
+  <div class="concept-card">
+    <div class="concept-icon">🎯</div>
+    <h4>Index Seek</h4>
+    <p>SQL Server navigates a B-tree index like a book index — jumps directly to the relevant rows. For a 2-million-row table, finds a specific CustomerID in 3–4 page reads instead of 16,000. This is the target.</p>
+  </div>
+  <div class="concept-card">
+    <div class="concept-icon">🔄</div>
+    <h4>Index Scan</h4>
+    <p>Reads all rows IN the index (not the whole table). Better than a table scan if the index is narrow, but still sequential. Appears when the index doesn't cover all needed columns or predicate isn't selective.</p>
+  </div>
+  <div class="concept-card">
+    <div class="concept-icon">🔑</div>
+    <h4>Key Lookup (RID Lookup)</h4>
+    <p>Found the row in the non-clustered index, but the query needs columns not in the index. SQL Server jumps back to the clustered index to fetch missing columns. Expensive at scale — often eliminated with covering indexes.</p>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════ -->
+<div class="section-divider"><div class="sd-num">2</div><div class="sd-label">Index Types — Clustered vs Non-Clustered</div><div class="sd-line"></div></div>
+
+<div class="index-comparison">
+  <div class="index-card clustered">
+    <h4>🗂️ Clustered Index</h4>
+    <ul>
+      <li>The table IS the index (B-tree leaf pages = data pages)</li>
+      <li>Only ONE per table (physically sorts the rows)</li>
+      <li>Default: primary key gets clustered index</li>
+      <li>Lookups by clustered key = fastest possible</li>
+      <li>Range queries on the key are very efficient</li>
+      <li>Inserts into the middle can cause page splits</li>
+    </ul>
+  </div>
+  <div class="index-card nonclustered">
+    <h4>📑 Non-Clustered Index</h4>
+    <ul>
+      <li>Separate structure pointing TO the table rows</li>
+      <li>Up to 999 per table (but don't create 999)</li>
+      <li>Leaf pages contain index key + row locator</li>
+      <li>Key lookup needed if columns not in index</li>
+      <li>Covering index = include all needed columns</li>
+      <li>Write overhead: every DML updates the index</li>
+    </ul>
+  </div>
+</div>
+
+<div class="info-box warn">
+  <span class="icon">⚠️</span>
+  <div><strong>Index Over-Creation is Real:</strong> Every index you create speeds up SELECTs but slows down INSERTs, UPDATEs, and DELETEs — because SQL Server must update every index on every write. ShopCart's order inserts (high-frequency) can be hurt by excessive indexes on the Orders table. Balance is everything.</div>
+</div>
+
+<div class="code-section">
+  <div class="code-header">
+    <div class="code-dots"><span class="dot-r"></span><span class="dot-y"></span><span class="dot-g"></span></div>
+    <div class="code-filename">📄 10_index_creation.sql <span class="code-lang-badge">T-SQL</span></div>
+  </div>
+<pre class="code-body">
+<span class="cmt">-- ════════════════════════════════════════════════════════════════
+-- FILE: 10_index_creation.sql
+-- STORY: Priya says "Order listing is slow." Let's diagnose and fix.
+-- ════════════════════════════════════════════════════════════════</span>
+
+<span class="kw">USE</span> <span class="tbl">ShopCartDB</span><span class="op">;</span>
+<span class="kw">GO</span>
+
+<span class="cmt">-- ══ STEP 1: Recreate with bigger dataset for tuning demo ══════════
+-- First, let's see what SQL Server does WITHOUT indexes.
+-- Enable statistics to see I/O and time cost:</span>
+
+<span class="kw">SET STATISTICS IO ON</span><span class="op">;</span>
+<span class="cmt">-- SET STATISTICS IO ON = after each query, prints how many 8KB pages were read.
+-- "logical reads" = pages read from the buffer pool (RAM).
+-- "physical reads" = pages read from disk (cache miss).
+-- HIGH logical reads = table/index scans. LOW logical reads = index seeks.</span>
+
+<span class="kw">SET STATISTICS TIME ON</span><span class="op">;</span>
+<span class="cmt">-- SET STATISTICS TIME ON = prints parse, compile, and execution time in milliseconds.
+-- "CPU time" = actual CPU work. "elapsed time" = wall-clock time.
+-- After tuning, compare BEFORE and AFTER logical reads + elapsed time.</span>
+
+<span class="cmt">-- ══ THE SLOW QUERY (simulating the 8-second problem): ════════════</span>
+<span class="kw">SELECT</span>
+    <span class="col">o</span><span class="op">.</span><span class="col">OrderID</span><span class="op">,</span>
+    <span class="col">c</span><span class="op">.</span><span class="col">FirstName</span><span class="op">,</span> <span class="col">c</span><span class="op">.</span><span class="col">LastName</span><span class="op">,</span>
+    <span class="col">o</span><span class="op">.</span><span class="col">OrderDate</span><span class="op">,</span>
+    <span class="col">o</span><span class="op">.</span><span class="col">TotalAmount</span>
+<span class="kw">FROM</span>       <span class="tbl">Orders</span>    <span class="col">o</span>
+<span class="kw">INNER JOIN</span> <span class="tbl">Customers</span> <span class="col">c</span>  <span class="kw">ON</span> <span class="col">o</span><span class="op">.</span><span class="col">CustomerID</span> <span class="op">=</span> <span class="col">c</span><span class="op">.</span><span class="col">CustomerID</span>
+<span class="kw">WHERE</span>      <span class="col">o</span><span class="op">.</span><span class="col">Status</span> <span class="op">=</span> <span class="str">'Processing'</span>
+    <span class="kw">AND</span>    <span class="col">o</span><span class="op">.</span><span class="col">OrderDate</span> <span class="op">&gt;=</span> <span class="str">'2024-01-01'</span>
+<span class="kw">ORDER BY</span>   <span class="col">o</span><span class="op">.</span><span class="col">OrderDate</span> <span class="kw">DESC</span><span class="op">;</span>
+<span class="cmt">-- Without indexes on Status or OrderDate:
+-- Table Scan on Orders = reads ALL 2M rows.
+-- Logical reads: ~16,000 pages. Elapsed: 8+ seconds.
+-- Now press Ctrl+M in SSMS to enable "Include Actual Execution Plan" and run again.
+-- You'll see a Table Scan icon with a warning triangle = missing index suggestion.</span>
+
+<span class="kw">SET STATISTICS IO OFF</span><span class="op">;</span>
+<span class="kw">SET STATISTICS TIME OFF</span><span class="op">;</span>
+<span class="kw">GO</span>
+
+<span class="cmt">-- ══ CREATE INDEX 1: Non-Clustered on Orders(Status, OrderDate) ════</span>
+<span class="kw">CREATE NONCLUSTERED INDEX</span> <span class="tbl">IX_Orders_Status_OrderDate</span>
+<span class="kw">ON</span> <span class="tbl">Orders</span> <span class="op">(</span><span class="col">Status</span><span class="op">,</span> <span class="col">OrderDate</span> <span class="kw">DESC</span><span class="op">)</span>
+<span class="kw">INCLUDE</span> <span class="op">(</span><span class="col">CustomerID</span><span class="op">,</span> <span class="col">TotalAmount</span><span class="op">)</span><span class="op">;</span>
+<span class="cmt">-- CREATE NONCLUSTERED INDEX = creates a separate B-tree structure for fast lookups.
+-- IX_Orders_Status_OrderDate = naming convention: IX_ prefix, TableName, columns.
+--   Consistent naming is a DBA standard. You'll thank yourself at 2 AM.
+-- ON Orders (Status, OrderDate DESC) = the INDEX KEY COLUMNS.
+--   Columns here are the ones in the WHERE clause and ORDER BY.
+--   COLUMN ORDER MATTERS: Status first because WHERE filters on Status (equality).
+--   Then OrderDate because we filter by range AND sort by it DESC.
+--   Rule: Equality predicates first, then range predicates — this is "SARG" design.
+--   (SARG = Search ARGument: predicates that can use an index efficiently)
+-- INCLUDE (CustomerID, TotalAmount) = INCLUDED COLUMNS (not part of B-tree key).
+--   These are stored at the LEAF level only — needed to answer the SELECT.
+--   By including them, SQL Server doesn't need to do a Key Lookup to fetch them.
+--   This makes the index a COVERING INDEX for this query.
+--   WHY NOT put them in the key? Included cols don't affect the B-tree structure
+--   and don't increase index depth — lower maintenance cost.
+-- RESULT: SQL Server can now:
+--   1. SEEK on Status = 'Processing' (jump directly to those rows)
+--   2. Range filter on OrderDate >= 2024-01-01 (sequential read within the seek)
+--   3. Return CustomerID, TotalAmount from the leaf (no key lookup)
+-- Expected improvement: 16,000 logical reads → ~150 reads. Sub-100ms.</span>
+
+<span class="cmt">-- ══ CREATE INDEX 2: Covering index for customer lookup ════════════</span>
+<span class="kw">CREATE NONCLUSTERED INDEX</span> <span class="tbl">IX_Customers_Email</span>
+<span class="kw">ON</span> <span class="tbl">Customers</span> <span class="op">(</span><span class="col">Email</span><span class="op">)</span>
+<span class="kw">INCLUDE</span> <span class="op">(</span><span class="col">FirstName</span><span class="op">,</span> <span class="col">LastName</span><span class="op">,</span> <span class="col">City</span><span class="op">,</span> <span class="col">IsActive</span><span class="op">)</span><span class="op">;</span>
+<span class="cmt">-- LOGIN QUERY: "Find customer by email at login time" — highest frequency query.
+-- Index on Email (the search key) + Include login-relevant columns.
+-- This is a covering index for the login flow: zero key lookups.</span>
+
+<span class="cmt">-- ══ CREATE INDEX 3: OrderItems for product-based lookups ══════════</span>
+<span class="kw">CREATE NONCLUSTERED INDEX</span> <span class="tbl">IX_OrderItems_ProductID</span>
+<span class="kw">ON</span> <span class="tbl">OrderItems</span> <span class="op">(</span><span class="col">ProductID</span><span class="op">)</span>
+<span class="kw">INCLUDE</span> <span class="op">(</span><span class="col">OrderID</span><span class="op">,</span> <span class="col">Quantity</span><span class="op">,</span> <span class="col">UnitPrice</span><span class="op">)</span><span class="op">;</span>
+<span class="cmt">-- "How many units of ProductID=1 have we sold total?"
+-- Without index: scan all OrderItems rows.
+-- With index: seek on ProductID = fast aggregation.</span>
+
+<span class="cmt">-- ══ FILTERED INDEX: Only index active products ════════════════════</span>
+<span class="kw">CREATE NONCLUSTERED INDEX</span> <span class="tbl">IX_Products_Active_Category</span>
+<span class="kw">ON</span> <span class="tbl">Products</span> <span class="op">(</span><span class="col">CategoryID</span><span class="op">,</span> <span class="col">Price</span><span class="op">)</span>
+<span class="kw">INCLUDE</span> <span class="op">(</span><span class="col">ProductName</span><span class="op">,</span> <span class="col">StockQty</span><span class="op">)</span>
+<span class="kw">WHERE</span> <span class="col">IsActive</span> <span class="op">=</span> <span class="num">1</span><span class="op">;</span>
+<span class="cmt">-- FILTERED INDEX = index only covers a SUBSET of rows (WHERE clause on the index).
+-- WHY: 95% of product queries filter on IsActive = 1 (active products).
+-- The 5% inactive products are never shown to customers.
+-- By filtering, the index is SMALLER and FASTER than indexing all products.
+-- Size: if 10% of products are inactive, the index is 10% smaller.
+-- The query optimizer will use this index only when the query also has WHERE IsActive = 1.
+-- This is a powerful technique for "soft-delete" tables.</span>
+<span class="kw">GO</span>
+
+<span class="cmt">-- ══ VIEW INDEX FRAGMENTATION ══════════════════════════════════════
+-- WHY: As data is inserted/deleted, index pages become fragmented.
+-- Fragmentation = wasted space and sequential scans jumping around disk.
+-- Check fragmentation weekly and rebuild/reorganize as needed.</span>
+
+<span class="kw">SELECT</span>
+    <span class="col">obj</span><span class="op">.</span><span class="col">name</span>                          <span class="kw">AS</span> <span class="col">TableName</span><span class="op">,</span>
+    <span class="col">idx</span><span class="op">.</span><span class="col">name</span>                          <span class="kw">AS</span> <span class="col">IndexName</span><span class="op">,</span>
+    <span class="fn">ROUND</span><span class="op">(</span><span class="col">ips</span><span class="op">.</span><span class="col">avg_fragmentation_in_percent</span><span class="op">,</span><span class="num">1</span><span class="op">)</span>  <span class="kw">AS</span> <span class="col">FragPct</span><span class="op">,</span>
+    <span class="col">ips</span><span class="op">.</span><span class="col">page_count</span>                     <span class="kw">AS</span> <span class="col">Pages</span><span class="op">,</span>
+    <span class="kw">CASE</span>
+        <span class="kw">WHEN</span> <span class="col">ips</span><span class="op">.</span><span class="col">avg_fragmentation_in_percent</span> <span class="op">&lt;</span> <span class="num">5</span>   <span class="kw">THEN</span> <span class="str">'OK — No action'</span>
+        <span class="kw">WHEN</span> <span class="col">ips</span><span class="op">.</span><span class="col">avg_fragmentation_in_percent</span> <span class="kw">BETWEEN</span> <span class="num">5</span> <span class="kw">AND</span> <span class="num">30</span> <span class="kw">THEN</span> <span class="str">'REORGANIZE'</span>
+        <span class="kw">ELSE</span>                                                          <span class="str">'REBUILD'</span>
+    <span class="kw">END</span>                               <span class="kw">AS</span> <span class="col">Recommendation</span>
+<span class="kw">FROM</span> <span class="tbl">sys.dm_db_index_physical_stats</span>
+    <span class="op">(</span><span class="fn">DB_ID</span><span class="op">(),</span> <span class="kw">NULL</span><span class="op">,</span> <span class="kw">NULL</span><span class="op">,</span> <span class="kw">NULL</span><span class="op">,</span> <span class="str">'LIMITED'</span><span class="op">)</span>  <span class="col">ips</span>
+<span class="kw">JOIN</span> <span class="tbl">sys.objects</span>  <span class="col">obj</span>  <span class="kw">ON</span> <span class="col">ips</span><span class="op">.</span><span class="col">object_id</span> <span class="op">=</span> <span class="col">obj</span><span class="op">.</span><span class="col">object_id</span>
+<span class="kw">JOIN</span> <span class="tbl">sys.indexes</span>  <span class="col">idx</span>  <span class="kw">ON</span> <span class="col">ips</span><span class="op">.</span><span class="col">object_id</span> <span class="op">=</span> <span class="col">idx</span><span class="op">.</span><span class="col">object_id</span>
+                       <span class="kw">AND</span> <span class="col">ips</span><span class="op">.</span><span class="col">index_id</span>  <span class="op">=</span> <span class="col">idx</span><span class="op">.</span><span class="col">index_id</span>
+<span class="kw">WHERE</span> <span class="col">obj</span><span class="op">.</span><span class="col">type</span> <span class="op">=</span> <span class="str">'U'</span>
+    <span class="kw">AND</span> <span class="col">ips</span><span class="op">.</span><span class="col">page_count</span> <span class="op">&gt;</span> <span class="num">100</span>
+<span class="kw">ORDER BY</span> <span class="col">ips</span><span class="op">.</span><span class="col">avg_fragmentation_in_percent</span> <span class="kw">DESC</span><span class="op">;</span>
+<span class="cmt">-- sys.dm_db_index_physical_stats = DMV returning fragmentation info per index.
+-- Parameters: (DB_ID() = current DB, NULL = all objects, NULL = all indexes,
+--              NULL = all partitions, 'LIMITED' = fast mode, no deep row-level scan)
+-- avg_fragmentation_in_percent: Rule of thumb:
+--   < 5%  = No action needed
+--   5-30% = ALTER INDEX ... REORGANIZE (online, incremental compaction)
+--   > 30% = ALTER INDEX ... REBUILD (full rebuild, MUCH faster after but LOCKS table)
+--           Use WITH (ONLINE = ON) on Enterprise Edition for zero-downtime rebuilds.</span>
+
+<span class="cmt">-- ══ REBUILD a fragmented index ════════════════════════════════════</span>
+<span class="kw">ALTER INDEX</span> <span class="tbl">IX_Orders_Status_OrderDate</span>
+<span class="kw">ON</span> <span class="tbl">Orders</span>
+<span class="kw">REBUILD WITH</span> <span class="op">(</span><span class="fn">FILLFACTOR</span> <span class="op">=</span> <span class="num">80</span><span class="op">,</span> <span class="fn">ONLINE</span> <span class="op">=</span> <span class="kw">OFF</span><span class="op">);</span>
+<span class="cmt">-- FILLFACTOR = 80 means leave 20% of each index page empty.
+-- WHY: New inserts fill the empty space instead of splitting the page.
+-- Page splits cause fragmentation AND brief I/O pauses.
+-- Rule: high-insert tables → lower FILLFACTOR (80-85). Read-heavy → 100.
+-- ONLINE = OFF = table is locked during rebuild (faster).
+-- ONLINE = ON = no locks but requires Enterprise Edition.</span>
+</pre>
+</div>
+
+<!-- ═══════════════════════════════════════════════ -->
+<div class="section-divider"><div class="sd-num">3</div><div class="sd-label">DMVs — Your Real-Time Diagnostic Toolkit</div><div class="sd-line"></div></div>
+
+<div class="code-section">
+  <div class="code-header">
+    <div class="code-dots"><span class="dot-r"></span><span class="dot-y"></span><span class="dot-g"></span></div>
+    <div class="code-filename">📄 11_performance_dmvs.sql <span class="code-lang-badge">T-SQL</span></div>
+  </div>
+<pre class="code-body">
+<span class="cmt">-- ════════════════════════════════════════════════════════════════
+-- FILE: 11_performance_dmvs.sql
+-- PURPOSE: The DBA's diagnostic toolkit — run these when things go wrong
+-- These are your "CAT scan" of the database
+-- ════════════════════════════════════════════════════════════════</span>
+
+<span class="cmt">-- ══ DMV 1: Top 10 most expensive queries (all-time cached) ════════
+-- The SINGLE most important query for a production DBA.
+-- Every query SQL Server executes is cached in the Plan Cache.
+-- This DMV reads that cache and ranks by total resource cost.</span>
+
+<span class="kw">SELECT TOP</span> <span class="num">10</span>
+    <span class="fn">SUBSTRING</span><span class="op">(</span><span class="col">qt</span><span class="op">.</span><span class="col">text</span><span class="op">,</span>
+               <span class="col">qs</span><span class="op">.</span><span class="col">statement_start_offset</span> <span class="op">/</span> <span class="num">2</span> <span class="op">+</span> <span class="num">1</span><span class="op">,</span>
+               <span class="op">(</span><span class="kw">CASE</span> <span class="kw">WHEN</span> <span class="col">qs</span><span class="op">.</span><span class="col">statement_end_offset</span> <span class="op">=</span> <span class="op">-</span><span class="num">1</span>
+                     <span class="kw">THEN</span> <span class="fn">LEN</span><span class="op">(</span><span class="fn">CONVERT</span><span class="op">(</span><span class="typ">NVARCHAR</span><span class="op">(</span><span class="kw">MAX</span><span class="op">),</span> <span class="col">qt</span><span class="op">.</span><span class="col">text</span><span class="op">))</span> <span class="op">*</span> <span class="num">2</span>
+                     <span class="kw">ELSE</span> <span class="col">qs</span><span class="op">.</span><span class="col">statement_end_offset</span>
+               <span class="kw">END</span> <span class="op">-</span> <span class="col">qs</span><span class="op">.</span><span class="col">statement_start_offset</span><span class="op">)</span> <span class="op">/</span> <span class="num">2</span> <span class="op">+</span> <span class="num">1</span>
+    <span class="op">)</span>                                            <span class="kw">AS</span> <span class="col">QueryText</span><span class="op">,</span>
+    <span class="cmt">-- SUBSTRING extracts just the problematic statement from the batch.
+    -- statement_start_offset / 2 = byte offset ÷ 2 = character position
+    -- (NVARCHAR uses 2 bytes per char; offset is in bytes)</span>
+    <span class="col">qs</span><span class="op">.</span><span class="col">execution_count</span>                           <span class="kw">AS</span> <span class="col">Executions</span><span class="op">,</span>
+    <span class="col">qs</span><span class="op">.</span><span class="col">total_logical_reads</span> <span class="op">/</span> <span class="col">qs</span><span class="op">.</span><span class="col">execution_count</span>   <span class="kw">AS</span> <span class="col">AvgLogicalReads</span><span class="op">,</span>
+    <span class="col">qs</span><span class="op">.</span><span class="col">total_worker_time</span>   <span class="op">/</span> <span class="col">qs</span><span class="op">.</span><span class="col">execution_count</span>   <span class="kw">AS</span> <span class="col">AvgCPUus</span><span class="op">,</span>
+    <span class="col">qs</span><span class="op">.</span><span class="col">total_elapsed_time</span>  <span class="op">/</span> <span class="col">qs</span><span class="op">.</span><span class="col">execution_count</span>   <span class="kw">AS</span> <span class="col">AvgElapsedUs</span><span class="op">,</span>
+    <span class="col">qs</span><span class="op">.</span><span class="col">total_logical_reads</span>                        <span class="kw">AS</span> <span class="col">TotalLogicalReads</span><span class="op">,</span>
+    <span class="fn">qp</span><span class="op">.</span><span class="col">query_plan</span>                                 <span class="kw">AS</span> <span class="col">ExecutionPlan</span>
+    <span class="cmt">-- query_plan column = the XML execution plan. Click the value in SSMS
+    -- to open the graphical execution plan. Direct path to the problem.</span>
+<span class="kw">FROM</span>        <span class="tbl">sys.dm_exec_query_stats</span>    <span class="col">qs</span>
+<span class="kw">CROSS APPLY</span> <span class="fn">sys.dm_exec_sql_text</span><span class="op">(</span><span class="col">qs</span><span class="op">.</span><span class="col">sql_handle</span><span class="op">)</span>    <span class="col">qt</span>
+<span class="kw">CROSS APPLY</span> <span class="fn">sys.dm_exec_query_plan</span><span class="op">(</span><span class="col">qs</span><span class="op">.</span><span class="col">plan_handle</span><span class="op">)</span>  <span class="col">qp</span>
+<span class="kw">ORDER BY</span>    <span class="col">qs</span><span class="op">.</span><span class="col">total_logical_reads</span> <span class="kw">DESC</span><span class="op">;</span>
+<span class="cmt">-- sys.dm_exec_query_stats = cached stats for every query in the plan cache.
+--   Persists since last SQL Server restart or until plan is evicted.
+-- sys.dm_exec_sql_text = table-valued function returning query text from handle.
+-- sys.dm_exec_query_plan = table-valued function returning XML execution plan.
+-- ORDER BY total_logical_reads DESC = worst I/O offenders first.
+-- You can change to ORDER BY total_worker_time for worst CPU offenders.</span>
+
+<span class="cmt">-- ══ DMV 2: Missing Indexes (what SQL Server WISHES existed) ════════
+-- The Query Optimizer logs every index it "wished" existed while processing queries.
+-- These are stored in DMVs and are GOLD for tuning sessions.</span>
+
+<span class="kw">SELECT TOP</span> <span class="num">20</span>
+    <span class="fn">ROUND</span><span class="op">(</span><span class="col">migs</span><span class="op">.</span><span class="col">avg_total_user_cost</span>
+          <span class="op">*</span> <span class="op">(</span><span class="col">migs</span><span class="op">.</span><span class="col">avg_user_impact</span> <span class="op">/</span> <span class="num">100.0</span><span class="op">)</span>
+          <span class="op">*</span> <span class="col">migs</span><span class="op">.</span><span class="col">user_seeks</span><span class="op">,</span> <span class="num">0</span><span class="op">)</span>         <span class="kw">AS</span> <span class="col">ImprovementScore</span><span class="op">,</span>
+    <span class="cmt">-- ImprovementScore = estimated benefit of creating this index.
+    -- Formula: cost × impact% × usage count. Higher = more urgent.
+    -- This is NOT absolute cost — it's a relative priority score.</span>
+    <span class="col">migs</span><span class="op">.</span><span class="col">user_seeks</span>                    <span class="kw">AS</span> <span class="col">TimesNeeded</span><span class="op">,</span>
+    <span class="fn">ROUND</span><span class="op">(</span><span class="col">migs</span><span class="op">.</span><span class="col">avg_user_impact</span><span class="op">,</span><span class="num">1</span><span class="op">)</span>      <span class="kw">AS</span> <span class="col">EstImprovementPct</span><span class="op">,</span>
+    <span class="col">mid</span><span class="op">.</span><span class="col">statement</span>                      <span class="kw">AS</span> <span class="col">TableName</span><span class="op">,</span>
+    <span class="col">mid</span><span class="op">.</span><span class="col">equality_columns</span>               <span class="kw">AS</span> <span class="col">EqualityColumns</span><span class="op">,</span>
+    <span class="cmt">-- Columns used in = predicates (put FIRST in the index key)</span>
+    <span class="col">mid</span><span class="op">.</span><span class="col">inequality_columns</span>             <span class="kw">AS</span> <span class="col">InequalityColumns</span><span class="op">,</span>
+    <span class="cmt">-- Columns used in >, <, BETWEEN, LIKE (put AFTER equality columns)</span>
+    <span class="col">mid</span><span class="op">.</span><span class="col">included_columns</span>               <span class="kw">AS</span> <span class="col">SuggestedIncludes</span><span class="op">,</span>
+    <span class="cmt">-- Suggested INCLUDE columns to make it a covering index.</span>
+    <span class="str">'CREATE INDEX IX_'</span>
+        <span class="op">+</span> <span class="fn">REPLACE</span><span class="op">(</span><span class="fn">REPLACE</span><span class="op">(</span><span class="col">mid</span><span class="op">.</span><span class="col">statement</span><span class="op">,</span><span class="str">'['</span><span class="op">,</span><span class="str">''</span><span class="op">)</span><span class="op">,</span><span class="str">']'</span><span class="op">,</span><span class="str">''</span><span class="op">)</span>
+        <span class="op">+</span> <span class="str">' ON '</span> <span class="op">+</span> <span class="col">mid</span><span class="op">.</span><span class="col">statement</span>
+        <span class="op">+</span> <span class="str">' ('</span> <span class="op">+</span> <span class="fn">ISNULL</span><span class="op">(</span><span class="col">mid</span><span class="op">.</span><span class="col">equality_columns</span><span class="op">,</span><span class="str">''</span><span class="op">)</span>
+        <span class="op">+</span> <span class="kw">CASE</span> <span class="kw">WHEN</span> <span class="col">mid</span><span class="op">.</span><span class="col">inequality_columns</span> <span class="kw">IS NOT NULL</span>
+               <span class="kw">THEN</span> <span class="str">', '</span> <span class="op">+</span> <span class="col">mid</span><span class="op">.</span><span class="col">inequality_columns</span> <span class="kw">ELSE</span> <span class="str">''</span> <span class="kw">END</span>
+        <span class="op">+</span> <span class="str">')'</span>
+        <span class="op">+</span> <span class="kw">CASE</span> <span class="kw">WHEN</span> <span class="col">mid</span><span class="op">.</span><span class="col">included_columns</span> <span class="kw">IS NOT NULL</span>
+               <span class="kw">THEN</span> <span class="str">' INCLUDE ('</span> <span class="op">+</span> <span class="col">mid</span><span class="op">.</span><span class="col">included_columns</span> <span class="op">+</span> <span class="str">')'</span> <span class="kw">ELSE</span> <span class="str">''</span> <span class="kw">END</span>
+    <span class="kw">AS</span> <span class="col">SuggestedCreateStatement</span>
+    <span class="cmt">-- Auto-generates a CREATE INDEX statement from the DMV data.
+    -- CAUTION: Don't blindly run these. The optimizer can suggest redundant indexes.
+    -- Always evaluate: Does this overlap an existing index? Is the query frequent enough?
+    -- RULE: Missing index DMVs reset on service restart. High score after only 1 day
+    -- of uptime = check if it was during a data load vs normal operation.</span>
+<span class="kw">FROM</span>      <span class="tbl">sys.dm_db_missing_index_details</span>        <span class="col">mid</span>
+<span class="kw">JOIN</span>      <span class="tbl">sys.dm_db_missing_index_groups</span>         <span class="col">mig</span>
+    <span class="kw">ON</span> <span class="col">mid</span><span class="op">.</span><span class="col">index_handle</span>  <span class="op">=</span> <span class="col">mig</span><span class="op">.</span><span class="col">index_handle</span>
+<span class="kw">JOIN</span>      <span class="tbl">sys.dm_db_missing_index_group_stats</span>    <span class="col">migs</span>
+    <span class="kw">ON</span> <span class="col">mig</span><span class="op">.</span><span class="col">index_group_handle</span> <span class="op">=</span> <span class="col">migs</span><span class="op">.</span><span class="col">group_handle</span>
+<span class="kw">WHERE</span>     <span class="col">mid</span><span class="op">.</span><span class="col">database_id</span> <span class="op">=</span> <span class="fn">DB_ID</span><span class="op">()</span>
+<span class="kw">ORDER BY</span>  <span class="col">ImprovementScore</span> <span class="kw">DESC</span><span class="op">;</span>
+
+<span class="cmt">-- ══ DMV 3: Blocking chains (who's blocking whom) ════════════════</span>
+<span class="kw">SELECT</span>
+    <span class="col">blocking</span><span class="op">.</span><span class="col">session_id</span>       <span class="kw">AS</span> <span class="col">BlockingSessionID</span><span class="op">,</span>
+    <span class="fn">bt</span><span class="op">.</span><span class="col">text</span>                   <span class="kw">AS</span> <span class="col">BlockingQuery</span><span class="op">,</span>
+    <span class="col">blocked</span><span class="op">.</span><span class="col">session_id</span>        <span class="kw">AS</span> <span class="col">BlockedSessionID</span><span class="op">,</span>
+    <span class="fn">wt</span><span class="op">.</span><span class="col">text</span>                   <span class="kw">AS</span> <span class="col">BlockedQuery</span><span class="op">,</span>
+    <span class="col">blocked</span><span class="op">.</span><span class="col">wait_type</span>         <span class="kw">AS</span> <span class="col">WaitType</span><span class="op">,</span>
+    <span class="col">blocked</span><span class="op">.</span><span class="col">wait_time</span> <span class="op">/</span> <span class="num">1000</span>  <span class="kw">AS</span> <span class="col">WaitSec</span>
+<span class="kw">FROM</span>        <span class="tbl">sys.dm_exec_requests</span>  <span class="col">blocked</span>
+<span class="kw">JOIN</span>        <span class="tbl">sys.dm_exec_requests</span>  <span class="col">blocking</span>
+    <span class="kw">ON</span> <span class="col">blocked</span><span class="op">.</span><span class="col">blocking_session_id</span> <span class="op">=</span> <span class="col">blocking</span><span class="op">.</span><span class="col">session_id</span>
+<span class="kw">CROSS APPLY</span> <span class="fn">sys.dm_exec_sql_text</span><span class="op">(</span><span class="col">blocked</span><span class="op">.</span><span class="col">sql_handle</span><span class="op">)</span>   <span class="col">wt</span>
+<span class="kw">CROSS APPLY</span> <span class="fn">sys.dm_exec_sql_text</span><span class="op">(</span><span class="col">blocking</span><span class="op">.</span><span class="col">sql_handle</span><span class="op">)</span>  <span class="col">bt</span>
+<span class="kw">WHERE</span> <span class="col">blocked</span><span class="op">.</span><span class="col">blocking_session_id</span> <span class="op">&gt;</span> <span class="num">0</span><span class="op">;</span>
+<span class="cmt">-- blocking_session_id > 0 = this session IS being blocked by someone.
+-- Self-join on dm_exec_requests: "blocked" sessions joined to their "blocker".
+-- WHY IT MATTERS: In a 24×7 production system, long-running transactions
+-- hold locks and block other queries. One rogue report query can cascade-block
+-- thousands of application requests. This query shows the chain immediately.</span>
+
+<span class="cmt">-- ══ DMV 4: Unused indexes (find what to DROP) ═════════════════════</span>
+<span class="kw">SELECT</span>
+    <span class="fn">OBJECT_NAME</span><span class="op">(</span><span class="col">i</span><span class="op">.</span><span class="col">object_id</span><span class="op">)</span>  <span class="kw">AS</span> <span class="col">TableName</span><span class="op">,</span>
+    <span class="col">i</span><span class="op">.</span><span class="col">name</span>                     <span class="kw">AS</span> <span class="col">IndexName</span><span class="op">,</span>
+    <span class="col">ius</span><span class="op">.</span><span class="col">user_seeks</span>             <span class="kw">AS</span> <span class="col">Seeks</span><span class="op">,</span>
+    <span class="col">ius</span><span class="op">.</span><span class="col">user_scans</span>             <span class="kw">AS</span> <span class="col">Scans</span><span class="op">,</span>
+    <span class="col">ius</span><span class="op">.</span><span class="col">user_updates</span>           <span class="kw">AS</span> <span class="col">Updates</span>
+    <span class="cmt">-- user_updates = how many times this index was MODIFIED (insert/update/delete).
+    -- If updates >> (seeks + scans): this index costs more to maintain than it helps.
+    -- CANDIDATE FOR DROPPING.</span>
+<span class="kw">FROM</span> <span class="tbl">sys.indexes</span>              <span class="col">i</span>
+<span class="kw">LEFT JOIN</span> <span class="tbl">sys.dm_db_index_usage_stats</span> <span class="col">ius</span>
+    <span class="kw">ON</span> <span class="col">i</span><span class="op">.</span><span class="col">object_id</span> <span class="op">=</span> <span class="col">ius</span><span class="op">.</span><span class="col">object_id</span>
+    <span class="kw">AND</span> <span class="col">i</span><span class="op">.</span><span class="col">index_id</span> <span class="op">=</span> <span class="col">ius</span><span class="op">.</span><span class="col">index_id</span>
+    <span class="kw">AND</span> <span class="col">ius</span><span class="op">.</span><span class="col">database_id</span> <span class="op">=</span> <span class="fn">DB_ID</span><span class="op">()</span>
+<span class="kw">WHERE</span> <span class="fn">OBJECTPROPERTY</span><span class="op">(</span><span class="col">i</span><span class="op">.</span><span class="col">object_id</span><span class="op">,</span> <span class="str">'IsUserTable'</span><span class="op">)</span> <span class="op">=</span> <span class="num">1</span>
+    <span class="kw">AND</span> <span class="col">i</span><span class="op">.</span><span class="col">index_id</span> <span class="op">&gt;</span> <span class="num">0</span>
+    <span class="kw">AND</span> <span class="fn">ISNULL</span><span class="op">(</span><span class="col">ius</span><span class="op">.</span><span class="col">user_seeks</span><span class="op">,</span><span class="num">0</span><span class="op">)</span> <span class="op">=</span> <span class="num">0</span>
+    <span class="kw">AND</span> <span class="fn">ISNULL</span><span class="op">(</span><span class="col">ius</span><span class="op">.</span><span class="col">user_scans</span><span class="op">,</span><span class="num">0</span><span class="op">)</span> <span class="op">=</span> <span class="num">0</span>
+<span class="kw">ORDER BY</span> <span class="fn">ISNULL</span><span class="op">(</span><span class="col">ius</span><span class="op">.</span><span class="col">user_updates</span><span class="op">,</span><span class="num">0</span><span class="op">)</span> <span class="kw">DESC</span><span class="op">;</span>
+<span class="cmt">-- CAUTION: Index usage stats reset on restart. Run this only after weeks of
+-- normal production load — not immediately after deployment.
+-- Always script DROP before executing — you may need to re-create it.</span>
+</pre>
+</div>
+
+<!-- ═══════════════════════════════════════════════ -->
+<div class="section-divider"><div class="sd-num">4</div><div class="sd-label">Query Anti-Patterns — What NOT To Write</div><div class="sd-line"></div></div>
+
+<p class="section-desc">These are the patterns that destroy performance in production. As a DBA, you'll find these in code reviews and query tuning sessions constantly.</p>
+
+<table class="perf-table">
+  <thead><tr><th>#</th><th>Anti-Pattern</th><th>Why It's Bad</th><th>Fix</th></tr></thead>
+  <tbody>
+    <tr><td>1</td><td><span class="bad">SELECT *</span></td><td>Fetches all columns — many unneeded. Prevents covering indexes. Breaks code when schema changes.</td><td>Always name columns explicitly.</td></tr>
+    <tr><td>2</td><td><span class="bad">Function on column in WHERE</span><br><code>WHERE YEAR(OrderDate) = 2024</code></td><td>Makes the column non-SARGable. SQL Server cannot use an index on OrderDate — full scan.</td><td><code>WHERE OrderDate >= '2024-01-01' AND OrderDate < '2025-01-01'</code></td></tr>
+    <tr><td>3</td><td><span class="bad">NOLOCK hint everywhere</span><br><code>WITH (NOLOCK)</code></td><td>Reads uncommitted data (dirty reads). Can return rows being rolled back = incorrect results. Data integrity risk.</td><td>Use READ COMMITTED SNAPSHOT Isolation (RCSI) at DB level instead.</td></tr>
+    <tr><td>4</td><td><span class="bad">Implicit conversions</span><br><code>WHERE CustomerID = '1'</code></td><td>CustomerID is INT but you pass a VARCHAR string. SQL Server converts every row — index unusable.</td><td>Match data types: <code>WHERE CustomerID = 1</code></td></tr>
+    <tr><td>5</td><td><span class="bad">Cursor for row-by-row</span></td><td>SQL Server processes one row at a time = RBAR (Row By Agonizing Row). 100× slower than set-based operations.</td><td>Rewrite as set-based UPDATE/INSERT...SELECT. Use CTEs or window functions.</td></tr>
+    <tr><td>6</td><td><span class="bad">LIKE '%keyword%'</span></td><td>Leading wildcard forces a full table scan. No index can help with a leading %.</td><td>Use Full-Text Search (FTS) for text search. Or LIKE 'keyword%' (no leading %).</td></tr>
+    <tr><td>7</td><td><span class="bad">UPDATE without WHERE</span></td><td>Updates EVERY row. Classic disaster. No transaction = no rollback.</td><td>Always test with SELECT first. Wrap in BEGIN TRAN. Verify row count before COMMIT.</td></tr>
+  </tbody>
+</table>
+
+<div class="code-section">
+  <div class="code-header">
+    <div class="code-dots"><span class="dot-r"></span><span class="dot-y"></span><span class="dot-g"></span></div>
+    <div class="code-filename">📄 12_anti_patterns_fixed.sql <span class="code-lang-badge">T-SQL</span></div>
+  </div>
+<pre class="code-body">
+<span class="cmt">-- ══ Anti-Pattern 2 FIX: Non-SARGable → SARGable ══════════════════</span>
+
+<span class="cmt">-- BAD: Function wraps column — index on OrderDate cannot be used</span>
+<span class="kw">SELECT</span> <span class="op">*</span> <span class="kw">FROM</span> <span class="tbl">Orders</span>
+<span class="kw">WHERE</span> <span class="fn">YEAR</span><span class="op">(</span><span class="col">OrderDate</span><span class="op">)</span> <span class="op">=</span> <span class="num">2024</span>  <span class="kw">AND</span>  <span class="fn">MONTH</span><span class="op">(</span><span class="col">OrderDate</span><span class="op">)</span> <span class="op">=</span> <span class="num">3</span><span class="op">;</span>
+<span class="cmt">-- SQL Server must call YEAR() and MONTH() for EVERY row = table scan</span>
+
+<span class="cmt">-- GOOD: Range predicate — index on OrderDate can seek directly</span>
+<span class="kw">SELECT</span> <span class="col">OrderID</span><span class="op">,</span> <span class="col">CustomerID</span><span class="op">,</span> <span class="col">TotalAmount</span>
+<span class="kw">FROM</span>   <span class="tbl">Orders</span>
+<span class="kw">WHERE</span>  <span class="col">OrderDate</span> <span class="op">&gt;=</span> <span class="str">'2024-03-01'</span>
+    <span class="kw">AND</span>  <span class="col">OrderDate</span>  <span class="op">&lt;</span>  <span class="str">'2024-04-01'</span><span class="op">;</span>
+<span class="cmt">-- SQL Server seeks to '2024-03-01' in the index and reads sequentially until
+-- '2024-04-01'. Only reads the relevant pages = dramatically fewer logical reads.</span>
+
+<span class="cmt">-- ══ Anti-Pattern 3 FIX: NOLOCK → RCSI ════════════════════════════</span>
+<span class="kw">ALTER DATABASE</span> <span class="tbl">ShopCartDB</span>
+<span class="kw">SET</span> <span class="fn">READ_COMMITTED_SNAPSHOT</span> <span class="kw">ON</span><span class="op">;</span>
+<span class="cmt">-- RCSI = Read Committed Snapshot Isolation.
+-- WHAT IT DOES: Readers (SELECT) don't take shared locks.
+--   Instead they read a row-version snapshot from tempdb (version store).
+-- RESULT: Readers never block writers, writers never block readers.
+--   This eliminates the #1 reason developers add WITH(NOLOCK) hints.
+-- WHY BETTER THAN NOLOCK: RCSI always reads committed data (no dirty reads).
+--   NOLOCK reads uncommitted data — you can read a row being rolled back.
+-- COST: Uses tempdb for row versions. Monitor tempdb space after enabling.
+-- ENABLE ONCE, forget about NOLOCK forever. This is enterprise best practice.</span>
+</pre>
+</div>
+
+<hr class="divider"/>
+
+<!-- INTERVIEW -->
+<div class="section-label">Interview Preparation</div>
+<h2 class="section-title">Performance Tuning — CGI Interview Questions</h2>
+
+<div class="interview-card">
+  <div class="q-label">Q1 · Index Fundamentals</div>
+  <p><strong>Q:</strong> "What is the difference between a clustered and non-clustered index? Can a table have multiple clustered indexes?"<br><br>
+  <strong>A:</strong> A clustered index physically sorts the table data on disk — the B-tree leaf pages ARE the data pages. A table can have exactly ONE clustered index because you can only physically sort data one way. A non-clustered index is a separate B-tree structure that contains the indexed column values plus a pointer (row locator) to the actual data row. You can have up to 999 non-clustered indexes per table. When a non-clustered index doesn't contain all columns needed by a query, SQL Server does a Key Lookup (back to the clustered index) to fetch missing columns — this is where INCLUDE columns help by making covering indexes.</p>
+</div>
+
+<div class="interview-card">
+  <div class="q-label">Q2 · Execution Plans</div>
+  <p><strong>Q:</strong> "A query was fast yesterday but slow today. How do you investigate?"<br><br>
+  <strong>A:</strong> First, I check if the query plan changed using sys.dm_exec_query_stats — compare cached plan stats to historical baselines. Common causes: 1) Stale statistics — run UPDATE STATISTICS. 2) Parameter sniffing — the plan was compiled for one parameter value but runs with another; fix with OPTION(RECOMPILE) or OPTIMIZE FOR. 3) Index fragmentation — check sys.dm_db_index_physical_stats and rebuild if >30%. 4) Data volume change — if rows increased dramatically, the optimizer might choose a different (worse) plan. 5) Lock blocking — check sys.dm_exec_requests for blocking_session_id. I'd also check if any schema changes or index drops happened using the default trace.</p>
+</div>
+
+<div class="interview-card">
+  <div class="q-label">Q3 · NOLOCK</div>
+  <p><strong>Q:</strong> "A developer added WITH(NOLOCK) to all queries to fix blocking. Is this correct?"<br><br>
+  <strong>A:</strong> It's the wrong solution to a real problem. NOLOCK (READ UNCOMMITTED isolation) tells SQL Server to read data without taking shared locks, which eliminates read-write blocking. But the cost is dirty reads — you can read rows that are currently being modified and might be rolled back, meaning you're reading data that technically never existed in a committed state. For a financial system like ShopCart, a dirty read could show a payment as completed when it's actually being rolled back. The correct solution is enabling Read Committed Snapshot Isolation (RCSI) at the database level — this uses row versioning in tempdb so readers never block writers and always read committed data. No code changes needed, no dirty reads.</p>
+</div>
+
+<div class="interview-card">
+  <div class="q-label">Q4 · Statistics</div>
+  <p><strong>Q:</strong> "What are statistics in SQL Server and why do they matter for performance?"<br><br>
+  <strong>A:</strong> Statistics are histograms that describe the distribution of data in a column or index. The query optimizer uses statistics to estimate how many rows a predicate will return — the cardinality estimate. For example, if it estimates a WHERE clause returns 100 rows, it might choose an index seek. If it estimates 100,000 rows, it might choose a table scan. Stale statistics cause bad estimates, leading to bad execution plans. By default SQL Server auto-updates statistics when about 20% of rows change (SQL 2016+ uses a dynamic threshold). As a DBA, I schedule weekly UPDATE STATISTICS with FULLSCAN on large tables during maintenance windows because the auto-update sample rate can be too low for very large tables.</p>
+</div>
+
+<div class="lab-box">
+  <h3>🧪 Chapter 3 Practice Tasks</h3>
+  <ol>
+    <li><strong>Enable STATISTICS IO and TIME.</strong> Run the slow query (without indexes). Record logical reads. Then create IX_Orders_Status_OrderDate. Run the same query. Compare the logical reads — document the % improvement.</li>
+    <li><strong>Open Execution Plan (Ctrl+M).</strong> Look for Table Scan icons (warning triangles). Hover over an operator — read the "Estimated Rows" vs "Actual Rows". A large gap = bad statistics or parameter sniffing.</li>
+    <li><strong>Run the Missing Indexes DMV</strong> (file 11). Does SQL Server suggest any indexes you haven't created yet? Review the SuggestedCreateStatement and decide if it's worth creating.</li>
+    <li><strong>Test the anti-pattern:</strong> Write <span class="lab-cmd">WHERE YEAR(OrderDate) = 2024</span> and check execution plan. Then rewrite as range predicate. Compare plans — do you see the change from Scan to Seek?</li>
+    <li><strong>Enable RCSI:</strong> Run <span class="lab-cmd">ALTER DATABASE ShopCartDB SET READ_COMMITTED_SNAPSHOT ON</span>. Verify with <span class="lab-cmd">SELECT name, is_read_committed_snapshot_on FROM sys.databases WHERE name = 'ShopCartDB'</span>.</li>
+    <li><strong>DBA Challenge:</strong> Write a single query that shows each index, its fragmentation %, and a recommended action (No action / Reorganize / Rebuild) — then generate the ALTER INDEX statement dynamically using string concatenation.</li>
+  </ol>
+</div>
+
+<div class="info-box tip">
+  <span class="icon">🎯</span>
+  <div><strong>Chapter 4 Preview:</strong> ShopCart's server room just had a power cut. When the server comes back, the database won't start — the data file is corrupted. Chapter 4: Backup and Restore — building the strategy that means this never matters, and recovering when it does.</div>
+</div>
+
+<div class="footer-nav">
+  <a class="prev-btn" href="#">← Ch 2: T-SQL Deep Dive</a>
+  <span>Chapter 3 of 10 · Performance Tuning</span>
+  <a class="next-btn" href="#">Chapter 4: Backup & Restore →</a>
+</div>
+</div>
+</body>
+</html>

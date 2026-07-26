@@ -1,0 +1,1756 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Kubernetes on AWS — Parts 4 & 5: Storage, Config, Security & RBAC</title>
+<style>
+:root {
+  --bg:#F7F8FA; --surface:#FFFFFF; --border:#E2E6ED;
+  --accent:#2563EB; --accent2:#16A34A; --accent3:#DC2626;
+  --text:#111827; --muted:#6B7280;
+  --code-bg:#1E293B; --code-text:#E2E8F0;
+  --yellow:#FEF9C3; --yellow-b:#CA8A04;
+  --green-lt:#DCFCE7; --green-b:#15803D;
+  --purple-lt:#F5F3FF; --purple-b:#7C3AED;
+  --orange-lt:#FFF7ED; --orange-b:#C2410C;
+  --teal-lt:#F0FDFA; --teal-b:#0F766E;
+  --red-lt:#FFF1F2; --red-b:#BE123C;
+  --radius:10px; --shadow:0 2px 12px rgba(0,0,0,.07);
+  font-family:'Segoe UI',system-ui,-apple-system,sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);line-height:1.7;font-size:16px;}
+.page{max-width:980px;margin:0 auto;padding:40px 24px 80px;}
+
+/* ── Header ── */
+.header-p4{background:linear-gradient(135deg,#1E3A5F 0%,#065F46 100%);color:white;border-radius:16px;padding:48px 40px;margin-bottom:12px;}
+.header-p5{background:linear-gradient(135deg,#3B0764 0%,#BE123C 100%);color:white;border-radius:16px;padding:48px 40px;margin-bottom:12px;}
+.header-p4 .badge,.header-p5 .badge{font-size:11px;font-weight:800;letter-spacing:2px;background:rgba(255,255,255,.18);padding:4px 14px;border-radius:20px;display:inline-block;margin-bottom:14px;text-transform:uppercase;}
+.header-p4 h1,.header-p5 h1{font-size:2.2rem;font-weight:800;line-height:1.2;margin-bottom:10px;}
+.header-p4 p,.header-p5 p{font-size:1rem;opacity:.85;max-width:640px;}
+.header-p4 .meta,.header-p5 .meta{margin-top:20px;display:flex;gap:22px;flex-wrap:wrap;}
+.header-p4 .meta span,.header-p5 .meta span{font-size:.82rem;opacity:.8;}
+
+/* ── Nav ── */
+.parts-nav{display:flex;gap:9px;flex-wrap:wrap;margin-bottom:36px;}
+.parts-nav a{padding:7px 16px;border-radius:24px;font-size:.82rem;font-weight:600;text-decoration:none;border:2px solid var(--border);color:var(--muted);background:var(--surface);transition:all .18s;}
+.parts-nav a.active{background:var(--accent);color:white;border-color:var(--accent);}
+.parts-nav a:hover:not(.active){border-color:var(--accent);color:var(--accent);}
+
+/* ── Part divider ── */
+.part-divider{text-align:center;margin:48px 0 36px;position:relative;}
+.part-divider::before{content:'';position:absolute;top:50%;left:0;right:0;height:2px;background:var(--border);}
+.part-divider span{position:relative;background:var(--bg);padding:0 20px;font-size:.8rem;font-weight:800;text-transform:uppercase;letter-spacing:2px;color:var(--muted);}
+
+/* ── TOC ── */
+.toc{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:24px 30px;margin-bottom:32px;box-shadow:var(--shadow);}
+.toc h2{font-size:.9rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:14px;}
+.toc-cols{display:grid;grid-template-columns:1fr 1fr;gap:8px 32px;}
+.toc ol{padding-left:18px;}
+.toc li{margin-bottom:6px;}
+.toc a{color:var(--accent);text-decoration:none;font-size:.9rem;}
+.toc a:hover{text-decoration:underline;}
+
+/* ── Section ── */
+.section{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:34px 38px;margin-bottom:28px;box-shadow:var(--shadow);}
+.section-num{display:inline-block;color:white;font-size:.72rem;font-weight:800;padding:2px 10px;border-radius:20px;margin-bottom:10px;}
+.num-green{background:#065F46;}
+.num-purple{background:#7C3AED;}
+.num-red{background:#BE123C;}
+.section h2{font-size:1.55rem;font-weight:800;color:var(--text);margin-bottom:14px;}
+.section h3{font-size:1.1rem;font-weight:700;color:var(--accent);margin:26px 0 9px;}
+.section h4{font-size:.97rem;font-weight:700;margin:18px 0 7px;color:#1F2937;}
+.section p{margin-bottom:13px;color:#374151;}
+.section ul,.section ol{padding-left:20px;margin-bottom:13px;}
+.section li{margin-bottom:5px;color:#374151;}
+
+/* ── Story ── */
+.story{background:linear-gradient(135deg,#EFF6FF,#DBEAFE);border-left:4px solid var(--accent);border-radius:0 var(--radius) var(--radius) 0;padding:18px 22px;margin:20px 0;}
+.story .story-label{font-size:.72rem;font-weight:800;color:var(--accent);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:7px;}
+.story p{color:#1E40AF;margin:0;font-size:.95rem;}
+
+/* ── Code ── */
+.code-block{background:var(--code-bg);border-radius:var(--radius);overflow:hidden;margin:18px 0;box-shadow:0 4px 14px rgba(0,0,0,.14);}
+.code-header{background:#0F172A;padding:9px 16px;display:flex;justify-content:space-between;align-items:center;}
+.code-header .lang{font-size:.72rem;color:#94A3B8;font-weight:700;text-transform:uppercase;letter-spacing:1px;}
+.code-header .filename{font-size:.72rem;color:#64748B;font-family:monospace;}
+pre{padding:18px 20px;overflow-x:auto;}
+code{font-family:'Cascadia Code','Fira Code','Consolas',monospace;font-size:.86rem;line-height:1.75;color:var(--code-text);}
+.ic{background:#E8EDF5;color:#2563EB;padding:2px 6px;border-radius:4px;font-family:monospace;font-size:.85em;}
+
+/* ── Annotation ── */
+.ann{border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:9px;display:grid;grid-template-columns:1fr 2fr;}
+.ann-code{background:var(--code-bg);padding:11px 14px;font-family:monospace;font-size:.83rem;color:var(--code-text);word-break:break-all;}
+.ann-desc{background:var(--surface);padding:11px 14px;font-size:.88rem;color:var(--text);border-left:1px solid var(--border);}
+.ann-desc strong{color:var(--accent);display:block;margin-bottom:3px;font-size:.82rem;}
+
+/* ── Callouts ── */
+.tip{background:var(--yellow);border-left:4px solid var(--yellow-b);border-radius:0 var(--radius) var(--radius) 0;padding:14px 18px;margin:18px 0;font-size:.93rem;}
+.tip strong{color:var(--yellow-b);}
+.success{background:var(--green-lt);border-left:4px solid var(--green-b);border-radius:0 var(--radius) var(--radius) 0;padding:14px 18px;margin:18px 0;font-size:.93rem;}
+.success strong{color:var(--green-b);}
+.danger{background:var(--red-lt);border-left:4px solid var(--red-b);border-radius:0 var(--radius) var(--radius) 0;padding:14px 18px;margin:18px 0;font-size:.93rem;}
+.danger strong{color:var(--red-b);}
+.info{background:var(--teal-lt);border-left:4px solid var(--teal-b);border-radius:0 var(--radius) var(--radius) 0;padding:14px 18px;margin:18px 0;font-size:.93rem;}
+.info strong{color:var(--teal-b);}
+.warn{background:var(--orange-lt);border-left:4px solid var(--orange-b);border-radius:0 var(--radius) var(--radius) 0;padding:14px 18px;margin:18px 0;font-size:.93rem;}
+.warn strong{color:var(--orange-b);}
+
+/* ── Interview ── */
+.interview{background:var(--purple-lt);border:1px solid #E9D5FF;border-radius:var(--radius);padding:18px 22px;margin:22px 0;}
+.interview-label{font-size:.72rem;font-weight:800;color:var(--purple-b);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:10px;}
+.interview .q{font-weight:700;color:#6D28D9;margin-bottom:5px;font-size:.95rem;}
+.interview .a{color:#374151;margin-bottom:12px;padding-left:13px;border-left:3px solid #C4B5FD;font-size:.92rem;}
+
+/* ── Diagram ── */
+.arch{background:var(--bg);border:2px dashed var(--border);border-radius:var(--radius);padding:20px;margin:18px 0;font-family:monospace;font-size:.8rem;line-height:1.85;color:var(--text);white-space:pre;overflow-x:auto;}
+
+/* ── Lab ── */
+.lab{background:#F0FDF4;border:2px solid #86EFAC;border-radius:var(--radius);padding:26px 30px;margin:24px 0;}
+.lab-header{display:flex;align-items:center;gap:11px;margin-bottom:18px;}
+.lab-header .lab-icon{font-size:1.5rem;}
+.lab-header h3{font-size:1.05rem;font-weight:700;color:#15803D;margin:0;}
+.step{display:flex;gap:13px;margin-bottom:16px;}
+.step-num{background:#15803D;color:white;width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.77rem;font-weight:700;flex-shrink:0;margin-top:4px;}
+.step-body p{margin-bottom:7px;font-size:.93rem;}
+
+/* ── Cards ── */
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(195px,1fr));gap:14px;margin:18px 0;}
+.card{background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);padding:18px;}
+.card .icon{font-size:1.6rem;margin-bottom:8px;}
+.card h4{font-size:.92rem;font-weight:700;margin-bottom:5px;}
+.card p{font-size:.82rem;color:var(--muted);margin:0;}
+
+/* ── Compare ── */
+.compare{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:18px 0;}
+.compare-box{background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);padding:18px;}
+.compare-box h4{font-size:.92rem;font-weight:700;margin-bottom:9px;color:var(--accent);}
+.compare-box p,.compare-box li{font-size:.88rem;color:#374151;}
+
+/* ── Table ── */
+table{width:100%;border-collapse:collapse;margin:18px 0;font-size:.88rem;}
+th{background:var(--accent);color:white;padding:11px 14px;text-align:left;font-weight:600;}
+td{padding:10px 14px;border-bottom:1px solid var(--border);}
+tr:nth-child(even) td{background:var(--bg);}
+
+/* ── RBAC visual ── */
+.rbac-flow{display:flex;align-items:center;gap:0;margin:18px 0;flex-wrap:wrap;}
+.rbac-box{background:var(--surface);border:2px solid var(--border);border-radius:var(--radius);padding:14px 18px;text-align:center;min-width:120px;}
+.rbac-box .icon{font-size:1.6rem;margin-bottom:4px;}
+.rbac-box .label{font-size:.75rem;font-weight:700;color:var(--muted);text-transform:uppercase;}
+.rbac-box .value{font-size:.88rem;font-weight:600;color:var(--text);}
+.rbac-arrow{font-size:1.4rem;color:var(--accent);padding:0 8px;font-weight:700;}
+
+/* ── Footer ── */
+.footer{text-align:center;padding:40px 0 0;color:var(--muted);font-size:.85rem;}
+.footer .next-btn{display:inline-block;margin-bottom:16px;background:var(--accent);color:white;padding:13px 30px;border-radius:30px;text-decoration:none;font-weight:700;font-size:.98rem;}
+.footer .prev-btn{display:inline-block;margin:0 9px 16px;background:var(--surface);color:var(--accent);padding:13px 30px;border-radius:30px;text-decoration:none;font-weight:700;font-size:.98rem;border:2px solid var(--accent);}
+
+@media(max-width:640px){
+  .header-p4,.header-p5{padding:28px 18px;}
+  .header-p4 h1,.header-p5 h1{font-size:1.65rem;}
+  .section{padding:22px 16px;}
+  .ann{grid-template-columns:1fr;}
+  .ann-desc{border-left:none;border-top:1px solid var(--border);}
+  .compare{grid-template-columns:1fr;}
+  .toc-cols{grid-template-columns:1fr;}
+  .rbac-flow{flex-direction:column;}
+}
+</style>
+</head>
+<body>
+<div class="page">
+
+<!-- ══════════════════ PART 4 HEADER ══════════════════ -->
+<div class="header-p4">
+  <div class="badge">Complete Course · Part 4 of 6</div>
+  <h1>Storage, ConfigMaps<br>& Secrets</h1>
+  <p>Master persistent storage on AWS (EBS, EFS), the CSI driver, StorageClasses, and the right way to manage app configuration and sensitive credentials.</p>
+  <div class="meta">
+    <span>🎯 <strong>Level:</strong> Intermediate → Advanced</span>
+    <span>📦 <strong>Part 4 of 6</strong> — Storage & Config</span>
+    <span>⏱ <strong>~2.5 hrs</strong> reading + labs</span>
+  </div>
+</div>
+
+<div class="parts-nav">
+  <a href="k8s-aws-part1.html">Part 1 · Foundations</a>
+  <a href="k8s-aws-part2.html">Part 2 · Workloads</a>
+  <a href="k8s-aws-part3.html">Part 3 · Networking</a>
+  <a href="k8s-aws-part4-5.html" class="active">Parts 4&5 · Storage · Security</a>
+  <a href="k8s-aws-part6.html">Part 6 · Real Project + Interview</a>
+</div>
+
+<!-- ── TOC ── -->
+<div class="toc">
+  <h2>📋 Combined Table of Contents</h2>
+  <div class="toc-cols">
+    <div>
+      <strong style="font-size:.82rem;color:#065F46;display:block;margin-bottom:8px;">PART 4 — STORAGE & CONFIG</strong>
+      <ol>
+        <li><a href="#volumes">Volumes — Ephemeral vs Persistent</a></li>
+        <li><a href="#pv-pvc">PV, PVC & StorageClass</a></li>
+        <li><a href="#ebs-csi">AWS EBS CSI Driver</a></li>
+        <li><a href="#efs">AWS EFS — Shared Storage</a></li>
+        <li><a href="#configmap">ConfigMap — App Configuration</a></li>
+        <li><a href="#secrets">Secrets — Sensitive Data</a></li>
+        <li><a href="#aws-secrets">AWS Secrets Manager Integration</a></li>
+        <li><a href="#lab-p4">Hands-On Labs — Part 4</a></li>
+        <li><a href="#interview-p4">Interview Q&A — Part 4</a></li>
+      </ol>
+    </div>
+    <div>
+      <strong style="font-size:.82rem;color:#7C3AED;display:block;margin-bottom:8px;">PART 5 — SECURITY & RBAC</strong>
+      <ol start="10">
+        <li><a href="#rbac-intro">RBAC — Role-Based Access Control</a></li>
+        <li><a href="#service-account">ServiceAccounts & IRSA</a></li>
+        <li><a href="#pod-security">Pod Security — Standards & Contexts</a></li>
+        <li><a href="#secrets-security">Secrets Security Best Practices</a></li>
+        <li><a href="#admission">Admission Controllers & OPA</a></li>
+        <li><a href="#lab-p5">Hands-On Labs — Part 5</a></li>
+        <li><a href="#interview-p5">Interview Q&A — Part 5</a></li>
+      </ol>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════
+     PART 4
+══════════════════════════════════════════════════ -->
+
+<!-- SECTION 1 — VOLUMES -->
+<div class="section" id="volumes">
+  <span class="section-num num-green">PART 4 · SECTION 1</span>
+  <h2>💾 Volumes — Ephemeral vs Persistent</h2>
+
+  <div class="story">
+    <div class="story-label">📖 Story</div>
+    <p>ShopNow's order processor writes invoice PDFs to the container's local filesystem. A pod restarts — all PDFs gone. A container crash wipes the data. You need storage that <em>outlives the container lifecycle</em>. That's what Kubernetes Volumes solve.</p>
+  </div>
+
+  <p>In Docker, container storage is ephemeral — it dies with the container. Kubernetes <strong>Volumes</strong> are attached to the <em>Pod</em> lifecycle (not the container), so data survives container restarts. <strong>PersistentVolumes</strong> survive even pod restarts and rescheduling.</p>
+
+  <h3>Volume Type Hierarchy</h3>
+  <div class="arch">
+EPHEMERAL (dies when Pod dies)
+  ├── emptyDir       — scratch space shared between containers in a pod
+  │                    (e.g., init container writes config, app reads it)
+  └── hostPath       — mounts a directory from the NODE filesystem
+                       (used only by system pods like DaemonSets)
+
+NODE-LOCAL (dies when Node dies)
+  └── hostPath       — same as above; dangerous for stateful workloads
+
+PERSISTENT (survives pod and node failures)
+  ├── PersistentVolume (PV) backed by:
+  │   ├── AWS EBS    — block storage, ReadWriteOnce (1 pod at a time)
+  │   ├── AWS EFS    — NFS, ReadWriteMany (many pods simultaneously)
+  │   └── AWS FSx    — high-performance Lustre / Windows file system
+  └── Provisioned via PVC + StorageClass (dynamic provisioning)
+
+CONFIG/SECRET VOLUMES (special purpose)
+  ├── configMap      — mount ConfigMap keys as files in container
+  └── secret         — mount Secret keys as files in container
+  </div>
+
+  <h3>emptyDir — Shared Scratch Space</h3>
+  <div class="code-block">
+    <div class="code-header"><span class="lang">YAML</span><span class="filename">emptydir-example.yaml</span></div>
+    <pre><code>apiVersion: v1
+kind: Pod
+metadata:
+  name: pdf-processor
+  namespace: shopnow
+spec:
+  volumes:
+  - name: shared-data          # ← Declare the volume at Pod level
+    emptyDir: {}               # ← Empty directory created when pod starts
+                               #   Stored in node's /var/lib/kubelet/pods/.../volumes/
+                               #   DELETED when pod is removed from node
+
+  containers:
+  - name: generator            # ← Container 1: generates the file
+    image: shopnow/pdf-gen:v1
+    volumeMounts:
+    - name: shared-data        # ← Mount the volume declared above
+      mountPath: /output       # ← Inside this container, it's at /output
+
+  - name: uploader             # ← Container 2: reads the file and uploads to S3
+    image: shopnow/s3-uploader:v1
+    volumeMounts:
+    - name: shared-data        # ← SAME volume — both containers share this directory
+      mountPath: /input        # ← Inside this container, it's at /input
+    # generator writes to /output/invoice.pdf
+    # uploader reads from /input/invoice.pdf (same file, different mount path)</code></pre>
+  </div>
+
+  <div class="ann" style="margin-top:14px;">
+    <div class="ann-code">emptyDir: {}</div>
+    <div class="ann-desc"><strong>What {} means:</strong> The curly braces mean "use defaults". You can also write <code>emptyDir: {medium: Memory}</code> to create a RAM-backed tmpfs volume — much faster I/O, but uses pod memory. Useful for caches, temporary computation buffers, or high-speed inter-container data transfer.</div>
+  </div>
+</div>
+
+<!-- SECTION 2 — PV/PVC/STORAGECLASS -->
+<div class="section" id="pv-pvc">
+  <span class="section-num num-green">PART 4 · SECTION 2</span>
+  <h2>🗃️ PersistentVolume, PVC & StorageClass</h2>
+
+  <div class="story">
+    <div class="story-label">📖 Story — The Hotel Analogy</div>
+    <p>Think of <strong>PersistentVolumes (PV)</strong> as hotel rooms (pre-provisioned or dynamically created). <strong>PersistentVolumeClaims (PVC)</strong> are your booking requests — "I need a room with a double bed and WiFi". <strong>StorageClass</strong> is the hotel chain — it defines what type of room (gp2 SSD, io1 high-IOPS) you get and provisions it on demand. You never manually create EBS volumes — StorageClass does it automatically when you create a PVC.</p>
+  </div>
+
+  <h3>The Full Binding Flow</h3>
+  <div class="arch">
+Developer writes PVC          StorageClass watches         AWS creates EBS volume
+(claim: 10Gi, gp3)    ──►    PVC and provisions    ──►    (10Gi gp3 SSD in same AZ)
+                                    │
+                                    ▼
+                             PersistentVolume (PV)
+                             created automatically
+                                    │
+                                    ▼
+                             PVC bound to PV
+                                    │
+                                    ▼
+                             Pod references PVC
+                             EBS volume mounted
+                             at /var/lib/mysql
+  </div>
+
+  <h3>StorageClass — Define Your Storage Tier</h3>
+  <div class="code-block">
+    <div class="code-header"><span class="lang">YAML</span><span class="filename">storageclass.yaml</span></div>
+    <pre><code>apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: fast-ssd                        # ← Name referenced by PVCs
+  annotations:
+    storageclass.kubernetes.io/is-default-class: "false"  # ← Don't make this default
+provisioner: ebs.csi.aws.com           # ← Which driver provisions storage
+                                        #   (AWS EBS CSI driver)
+volumeBindingMode: WaitForFirstConsumer # ← DON'T create EBS until a Pod claims this PVC
+                                        #   Ensures EBS is created in the SAME AZ as the pod
+                                        #   (critical! EBS is AZ-specific)
+reclaimPolicy: Retain                  # ← When PVC deleted: Retain EBS (don't delete data)
+                                        #   Options: Retain | Delete | Recycle
+allowVolumeExpansion: true             # ← Allow resizing PVC after creation
+parameters:
+  type: gp3                            # ← EBS volume type
+                                        #   gp3 = general purpose (best default)
+                                        #   io1/io2 = provisioned IOPS (databases)
+                                        #   st1 = throughput-optimized HDD (Kafka)
+  iops: "3000"                         # ← For gp3: 3000 baseline IOPS (free)
+  throughput: "125"                    # ← MB/s throughput (gp3 baseline)
+  encrypted: "true"                    # ← Encrypt EBS volume at rest (always!)
+  kmsKeyId: "arn:aws:kms:..."         # ← Use your own KMS key (optional)
+---
+# Default StorageClass for general use (gp3)
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: gp3
+  annotations:
+    storageclass.kubernetes.io/is-default-class: "true"  # ← PVCs that don't specify
+                                                           #   a class get this one
+provisioner: ebs.csi.aws.com
+volumeBindingMode: WaitForFirstConsumer
+reclaimPolicy: Delete
+allowVolumeExpansion: true
+parameters:
+  type: gp3
+  encrypted: "true"</code></pre>
+  </div>
+
+  <h3>PersistentVolumeClaim — Request Storage</h3>
+  <div class="code-block">
+    <div class="code-header"><span class="lang">YAML</span><span class="filename">mysql-pvc.yaml</span></div>
+    <pre><code>apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: mysql-data-pvc
+  namespace: shopnow
+spec:
+  accessModes:
+  - ReadWriteOnce              # ← RWO: only ONE node can mount at a time (block storage)
+                               #   ReadWriteMany (RWX): multiple nodes (EFS/NFS only)
+                               #   ReadOnlyMany (ROX): many nodes read-only
+  storageClassName: fast-ssd   # ← Which StorageClass to use
+  resources:
+    requests:
+      storage: 20Gi            # ← Request 20GB (EBS volume will be exactly this size)
+---
+# Use the PVC in a Pod/Deployment/StatefulSet
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mysql
+  namespace: shopnow
+spec:
+  replicas: 1                  # ← MUST be 1 with EBS (ReadWriteOnce = 1 node!)
+  selector:
+    matchLabels:
+      app: mysql
+  template:
+    metadata:
+      labels:
+        app: mysql
+    spec:
+      containers:
+      - name: mysql
+        image: mysql:8.0
+        volumeMounts:
+        - name: mysql-storage
+          mountPath: /var/lib/mysql  # ← MySQL data directory
+      volumes:
+      - name: mysql-storage
+        persistentVolumeClaim:
+          claimName: mysql-data-pvc  # ← Reference the PVC by name</code></pre>
+  </div>
+
+  <div class="ann"><div class="ann-code">volumeBindingMode: WaitForFirstConsumer</div><div class="ann-desc"><strong>Why this is critical:</strong> EBS volumes are AZ-specific. If the PVC is bound immediately (Immediate mode), the EBS might be created in AZ-1a, but the pod is later scheduled to a node in AZ-1c — and can't attach! WaitForFirstConsumer waits until the pod is assigned to a node, then creates the EBS in the same AZ. Always use this on EKS.</div></div>
+  <div class="ann"><div class="ann-code">reclaimPolicy: Retain vs Delete</div><div class="ann-desc"><strong>Retain:</strong> When you delete the PVC, the EBS volume is NOT deleted — data preserved (manual cleanup needed). Use for production databases. <strong>Delete:</strong> PVC deletion → EBS deletion. Use for dev/test. WARNING: the default for dynamic provisioning is often Delete — always check before using in production.</div></div>
+
+  <h3>Check PV/PVC Status</h3>
+  <div class="code-block">
+    <div class="code-header"><span class="lang">bash</span></div>
+    <pre><code>kubectl get pvc -n shopnow
+# NAME             STATUS   VOLUME                    CAPACITY   ACCESS MODES   STORAGECLASS
+# mysql-data-pvc   Bound    pvc-abc123-def456-...      20Gi       RWO            fast-ssd
+
+kubectl get pv
+# NAME                       CAPACITY   RECLAIM POLICY   STATUS   CLAIM
+# pvc-abc123-def456-...      20Gi       Retain           Bound    shopnow/mysql-data-pvc
+
+# STATUS meanings:
+# Pending  → PVC created, waiting for a pod to schedule (WaitForFirstConsumer)
+# Bound    → PVC matched to a PV, EBS volume created and attached
+# Lost     → PV no longer exists (EBS was manually deleted)
+
+# Resize a PVC (increase storage — decrease NOT supported by EBS)
+kubectl patch pvc mysql-data-pvc -n shopnow \
+  -p '{"spec":{"resources":{"requests":{"storage":"40Gi"}}}}'
+# EBS volume resizes online — no pod restart needed with CSI driver</code></pre>
+  </div>
+</div>
+
+<!-- SECTION 3 — EBS CSI -->
+<div class="section" id="ebs-csi">
+  <span class="section-num num-green">PART 4 · SECTION 3</span>
+  <h2>⚡ AWS EBS CSI Driver</h2>
+
+  <p>The <strong>CSI (Container Storage Interface)</strong> driver is the bridge between Kubernetes and AWS EBS. Without it, Kubernetes can't provision, attach, or mount EBS volumes. On EKS it runs as an add-on.</p>
+
+  <div class="code-block">
+    <div class="code-header"><span class="lang">bash</span></div>
+    <pre><code># Install EBS CSI driver as EKS managed add-on
+# Step 1: Create IAM role for EBS CSI driver (using IRSA)
+eksctl create iamserviceaccount \
+  --name ebs-csi-controller-sa \
+  --namespace kube-system \
+  --cluster shopnow-cluster \
+  --role-name AmazonEKS_EBS_CSI_DriverRole \
+  --role-only \
+  --attach-policy-arn arn:aws:iam::aws:policy/service-role/AmazonEBSCSIDriverPolicy \
+  --approve
+
+# Step 2: Install the add-on
+aws eks create-addon \
+  --cluster-name shopnow-cluster \
+  --addon-name aws-ebs-csi-driver \
+  --service-account-role-arn arn:aws:iam::ACCOUNT_ID:role/AmazonEKS_EBS_CSI_DriverRole \
+  --region ap-south-1
+
+# Verify it's running
+kubectl get pods -n kube-system | grep ebs
+# ebs-csi-controller-xxx   6/6   Running   0   2m
+# ebs-csi-node-xxx         3/3   Running   0   2m  (DaemonSet — on every node)
+
+# Check storage classes available
+kubectl get storageclass
+# NAME            PROVISIONER             RECLAIMPOLICY   VOLUMEBINDINGMODE
+# gp2 (default)   kubernetes.io/aws-ebs   Delete          Immediate
+# gp3             ebs.csi.aws.com         Retain          WaitForFirstConsumer</code></pre>
+  </div>
+
+  <div class="tip"><strong>💡 EBS CSI vs in-tree driver:</strong> The old in-tree AWS EBS driver (<span class="ic">kubernetes.io/aws-ebs</span>) is deprecated since K8s 1.23. Always use the CSI driver (<span class="ic">ebs.csi.aws.com</span>) — it supports gp3, volume snapshots, volume resizing, and encryption with custom KMS keys.</div>
+
+  <h3>EBS Volume Snapshots — Backup Strategy</h3>
+  <div class="code-block">
+    <div class="code-header"><span class="lang">YAML</span><span class="filename">volume-snapshot.yaml</span></div>
+    <pre><code># Install snapshot CRDs and controller first:
+# kubectl apply -f https://raw.githubusercontent.com/kubernetes-csi/external-snapshotter/master/client/config/crd/snapshot.storage.k8s.io_volumesnapshotclasses.yaml
+
+# Create a SnapshotClass
+apiVersion: snapshot.storage.k8s.io/v1
+kind: VolumeSnapshotClass
+metadata:
+  name: ebs-vsc
+driver: ebs.csi.aws.com
+deletionPolicy: Retain        # ← Keep EBS snapshot even if VolumeSnapshot object deleted
+---
+# Take a snapshot of the MySQL PVC
+apiVersion: snapshot.storage.k8s.io/v1
+kind: VolumeSnapshot
+metadata:
+  name: mysql-backup-2024-01-15
+  namespace: shopnow
+spec:
+  volumeSnapshotClassName: ebs-vsc
+  source:
+    persistentVolumeClaimName: mysql-data-pvc   # ← Snapshot this PVC
+---
+# Restore snapshot to a new PVC
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: mysql-data-restored
+  namespace: shopnow
+spec:
+  dataSource:
+    name: mysql-backup-2024-01-15
+    kind: VolumeSnapshot
+    apiGroup: snapshot.storage.k8s.io
+  accessModes: [ReadWriteOnce]
+  storageClassName: gp3
+  resources:
+    requests:
+      storage: 20Gi</code></pre>
+  </div>
+</div>
+
+<!-- SECTION 4 — EFS -->
+<div class="section" id="efs">
+  <span class="section-num num-green">PART 4 · SECTION 4</span>
+  <h2>📁 AWS EFS — Shared Storage (ReadWriteMany)</h2>
+
+  <div class="compare">
+    <div class="compare-box">
+      <h4>AWS EBS (Block Storage)</h4>
+      <ul>
+        <li>ReadWriteOnce — 1 node at a time</li>
+        <li>AZ-specific — must be in same AZ as pod</li>
+        <li>High performance (gp3: 3000 IOPS)</li>
+        <li>Best for: databases, stateful single-pod apps</li>
+        <li>Priced per GB provisioned</li>
+      </ul>
+    </div>
+    <div class="compare-box">
+      <h4>AWS EFS (Network File System)</h4>
+      <ul>
+        <li>ReadWriteMany — unlimited pods across all AZs</li>
+        <li>Multi-AZ — no AZ affinity needed</li>
+        <li>Lower IOPS than EBS</li>
+        <li>Best for: shared config, media files, ML datasets</li>
+        <li>Priced per GB used (not provisioned)</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="code-block">
+    <div class="code-header"><span class="lang">bash</span></div>
+    <pre><code># Install EFS CSI driver
+eksctl create iamserviceaccount \
+  --name efs-csi-controller-sa \
+  --namespace kube-system \
+  --cluster shopnow-cluster \
+  --attach-policy-arn arn:aws:iam::aws:policy/service-role/AmazonEFSCSIDriverPolicy \
+  --approve
+
+aws eks create-addon \
+  --cluster-name shopnow-cluster \
+  --addon-name aws-efs-csi-driver \
+  --region ap-south-1</code></pre>
+  </div>
+
+  <div class="code-block">
+    <div class="code-header"><span class="lang">YAML</span><span class="filename">efs-storageclass.yaml</span></div>
+    <pre><code>apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: efs-sc
+provisioner: efs.csi.aws.com
+parameters:
+  provisioningMode: efs-ap              # ← EFS Access Point (per-PVC subdirectory)
+  fileSystemId: fs-0abc123def456789     # ← Your EFS File System ID from AWS Console
+  directoryPerms: "700"                 # ← Permissions for the directory
+  gidRangeStart: "1000"
+  gidRangeEnd: "2000"
+  basePath: "/shopnow"                  # ← Root path in EFS for this StorageClass
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: shared-media-pvc
+  namespace: shopnow
+spec:
+  accessModes:
+  - ReadWriteMany                       # ← Multiple pods, multiple nodes, multiple AZs!
+  storageClassName: efs-sc
+  resources:
+    requests:
+      storage: 5Gi                      # ← EFS ignores this; you pay for actual usage</code></pre>
+  </div>
+
+  <div class="info"><strong>💡 When to use EFS:</strong> User-uploaded content (images, videos) accessed by multiple frontend pods across AZs. ML training data shared by multiple training pods. Application config files shared by a pod fleet. WordPress media directory. When you need ReadWriteMany — EFS is the go-to answer on AWS EKS.</div>
+</div>
+
+<!-- SECTION 5 — CONFIGMAP -->
+<div class="section" id="configmap">
+  <span class="section-num num-green">PART 4 · SECTION 5</span>
+  <h2>⚙️ ConfigMap — Externalise Application Configuration</h2>
+
+  <div class="story">
+    <div class="story-label">📖 Story</div>
+    <p>Your API server needs to know: which database host to connect to, the log level, the feature flags. Hardcoding these in the Docker image means rebuilding the image for every environment (dev, staging, prod). ConfigMaps decouple config from code — same image, different configs per environment.</p>
+  </div>
+
+  <div class="code-block">
+    <div class="code-header"><span class="lang">YAML</span><span class="filename">app-configmap.yaml</span></div>
+    <pre><code>apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: shopnow-config
+  namespace: shopnow
+data:
+  # Simple key-value pairs (used as environment variables)
+  APP_ENV: "production"
+  LOG_LEVEL: "info"
+  DB_HOST: "mysql-svc.shopnow.svc.cluster.local"
+  DB_PORT: "3306"
+  REDIS_HOST: "redis-svc.shopnow.svc.cluster.local"
+  MAX_CONNECTIONS: "100"
+
+  # Multi-line value (used as a mounted file)
+  app.properties: |               # ← The | means multi-line string (literal block)
+    server.port=8080
+    spring.datasource.url=jdbc:mysql://mysql-svc:3306/shopnow
+    spring.cache.type=redis
+    feature.new-checkout=true
+
+  nginx.conf: |                   # ← Full nginx config file stored in ConfigMap
+    server {
+      listen 80;
+      location /api {
+        proxy_pass http://api-svc:8080;
+      }
+    }</code></pre>
+  </div>
+
+  <h3>Two Ways to Use ConfigMaps in Pods</h3>
+  <div class="code-block">
+    <div class="code-header"><span class="lang">YAML</span><span class="filename">pod-using-configmap.yaml</span></div>
+    <pre><code>spec:
+  containers:
+  - name: api
+    image: shopnow/api:v2
+    
+    # ── METHOD 1: Inject ALL ConfigMap keys as environment variables ──
+    envFrom:
+    - configMapRef:
+        name: shopnow-config      # ← APP_ENV, LOG_LEVEL, DB_HOST all become env vars
+
+    # ── METHOD 2: Inject SPECIFIC key as a named env variable ──
+    env:
+    - name: DATABASE_HOST         # ← Your chosen env var name
+      valueFrom:
+        configMapKeyRef:
+          name: shopnow-config
+          key: DB_HOST            # ← Which ConfigMap key to read
+
+    # ── METHOD 3: Mount ConfigMap as FILES in a volume ──
+    volumeMounts:
+    - name: config-files
+      mountPath: /etc/shopnow     # ← Files appear here inside container
+      readOnly: true
+
+  volumes:
+  - name: config-files
+    configMap:
+      name: shopnow-config
+      items:
+      - key: app.properties       # ← Mount only this key
+        path: application.properties  # ← As this filename at /etc/shopnow/application.properties
+      - key: nginx.conf
+        path: nginx.conf          # ← /etc/shopnow/nginx.conf</code></pre>
+  </div>
+
+  <div class="ann"><div class="ann-code">envFrom vs env</div><div class="ann-desc"><strong>envFrom</strong> imports ALL keys from the ConfigMap as env vars — convenient but be careful of key name collisions. <strong>env</strong> with <code>configMapKeyRef</code> imports a specific key with your own chosen variable name — more explicit and safe. Prefer <code>env</code> for critical configs.</div></div>
+  <div class="ann"><div class="ann-code">Volume mount vs env var</div><div class="ann-desc"><strong>Key difference:</strong> When ConfigMap is updated, file mounts refresh automatically (within ~60 seconds) — no pod restart needed. Environment variables are set at pod startup and NEVER update — you must restart the pod to pick up env changes. Use file mounts for hot-reloadable configs (nginx.conf, etc.).</div></div>
+
+  <div class="warn"><strong>⚠️ ConfigMap size limit:</strong> ConfigMaps are stored in etcd, which has a 1MB limit per object. For large config files (ML model parameters, big JSON configs), use a PVC or SSM Parameter Store instead.</div>
+</div>
+
+<!-- SECTION 6 — SECRETS -->
+<div class="section" id="secrets">
+  <span class="section-num num-green">PART 4 · SECTION 6</span>
+  <h2>🔐 Secrets — Managing Sensitive Data</h2>
+
+  <div class="danger"><strong>⚠️ Critical misconception:</strong> Kubernetes Secrets are NOT encrypted by default. They are base64-encoded (which is just encoding, not encryption). Anyone with etcd access or <span class="ic">kubectl get secret</span> permissions can read them. We cover how to actually secure them in Part 5 and Section 7 below.</div>
+
+  <div class="code-block">
+    <div class="code-header"><span class="lang">bash</span></div>
+    <pre><code># Create a secret imperatively (values auto-base64 encoded)
+kubectl create secret generic db-credentials \
+  --from-literal=username=shopnow_user \
+  --from-literal=password=Sup3rS3cr3tP@ss! \
+  -n shopnow
+
+# Create from files (e.g., TLS certificate)
+kubectl create secret tls shopnow-tls \
+  --cert=cert.pem \
+  --key=privkey.pem \
+  -n shopnow
+
+# Create Docker registry pull secret
+kubectl create secret docker-registry ecr-pull-secret \
+  --docker-server=123456789.dkr.ecr.ap-south-1.amazonaws.com \
+  --docker-username=AWS \
+  --docker-password=$(aws ecr get-login-password) \
+  -n shopnow
+
+# View a secret (base64 encoded)
+kubectl get secret db-credentials -n shopnow -o yaml
+
+# Decode a secret value
+kubectl get secret db-credentials -n shopnow \
+  -o jsonpath='{.data.password}' | base64 --decode</code></pre>
+  </div>
+
+  <div class="code-block">
+    <div class="code-header"><span class="lang">YAML</span><span class="filename">db-secret.yaml</span></div>
+    <pre><code>apiVersion: v1
+kind: Secret
+metadata:
+  name: db-credentials
+  namespace: shopnow
+type: Opaque                    # ← Generic secret. Other types:
+                                #   kubernetes.io/tls (TLS certs)
+                                #   kubernetes.io/dockerconfigjson (registry auth)
+                                #   kubernetes.io/service-account-token
+data:
+  username: c2hvcG5vd191c2Vy  # ← base64("shopnow_user")
+  password: U3VwM3JTM2NyM3RA UGFzcyE=  # ← base64("Sup3rS3cr3tP@ss!")
+
+# OR use stringData (plain text — K8s encodes automatically on apply)
+stringData:
+  username: shopnow_user        # ← Plain text — never commit this to Git!</code></pre>
+  </div>
+
+  <h3>Using Secrets in Pods</h3>
+  <div class="code-block">
+    <div class="code-header"><span class="lang">YAML</span><span class="filename">pod-with-secrets.yaml</span></div>
+    <pre><code>spec:
+  containers:
+  - name: api
+    image: shopnow/api:v2
+    
+    # Method 1: Inject as environment variables
+    env:
+    - name: DB_USERNAME
+      valueFrom:
+        secretKeyRef:
+          name: db-credentials
+          key: username
+    - name: DB_PASSWORD
+      valueFrom:
+        secretKeyRef:
+          name: db-credentials
+          key: password
+          optional: false         # ← Pod FAILS to start if secret missing (safe default)
+
+    # Method 2: Mount as files (more secure — not exposed in process env)
+    volumeMounts:
+    - name: db-secret-vol
+      mountPath: /etc/secrets
+      readOnly: true              # ← Container cannot modify secret files
+
+  volumes:
+  - name: db-secret-vol
+    secret:
+      secretName: db-credentials
+      defaultMode: 0400           # ← File permission: owner read-only (most restrictive)
+      # Files created: /etc/secrets/username, /etc/secrets/password
+      # App reads: password = open('/etc/secrets/password').read()</code></pre>
+  </div>
+
+  <div class="tip"><strong>💡 Env vars vs file mounts for Secrets:</strong> File mounts are more secure — env vars can be accidentally logged, leaked in crash dumps, or exposed via <span class="ic">/proc/&lt;pid&gt;/environ</span>. Critical secrets (DB passwords, API keys) should always be mounted as files at <span class="ic">defaultMode: 0400</span>.</div>
+</div>
+
+<!-- SECTION 7 — AWS SECRETS MANAGER -->
+<div class="section" id="aws-secrets">
+  <span class="section-num num-green">PART 4 · SECTION 7</span>
+  <h2>🔑 AWS Secrets Manager Integration (Secrets Store CSI Driver)</h2>
+
+  <div class="story">
+    <div class="story-label">📖 Story — The Right Way</div>
+    <p>Storing secrets in etcd is risky. The production-grade approach: store secrets in <strong>AWS Secrets Manager</strong> (audited, rotatable, encrypted with KMS). Use the <strong>Secrets Store CSI Driver</strong> to mount them as files in pods automatically — zero secrets in Kubernetes, zero secrets in Git.</p>
+  </div>
+
+  <div class="arch">
+Production Secret Flow:
+  AWS Secrets Manager                   Kubernetes Pod
+  ┌──────────────────────┐              ┌─────────────────────────────┐
+  │ secret: db/password  │              │ /mnt/secrets/db-password    │
+  │ value: "abc123!"     │──────────►   │ (file contents: "abc123!")  │
+  └──────────────────────┘              │                             │
+           ▲                            │ reads via open()            │
+           │ IRSA (pod's IAM role)      └─────────────────────────────┘
+           │
+  Secrets Store CSI Driver (DaemonSet on each node)
+  fetches secret from AWS and mounts as file
+  </div>
+
+  <div class="code-block">
+    <div class="code-header"><span class="lang">bash</span></div>
+    <pre><code># Install Secrets Store CSI Driver
+helm repo add secrets-store-csi-driver https://kubernetes-sigs.github.io/secrets-store-csi-driver/charts
+helm install csi-secrets-store secrets-store-csi-driver/secrets-store-csi-driver \
+  --namespace kube-system \
+  --set syncSecret.enabled=true    # ← Also sync to K8s Secret objects
+
+# Install AWS provider
+kubectl apply -f https://raw.githubusercontent.com/aws/secrets-store-csi-driver-provider-aws/main/deployment/aws-provider-installer.yaml</code></pre>
+  </div>
+
+  <div class="code-block">
+    <div class="code-header"><span class="lang">YAML</span><span class="filename">secretproviderclass.yaml</span></div>
+    <pre><code>apiVersion: secrets-store.csi.x-k8s.io/v1
+kind: SecretProviderClass
+metadata:
+  name: shopnow-aws-secrets
+  namespace: shopnow
+spec:
+  provider: aws                    # ← Use AWS Secrets Manager
+  parameters:
+    objects: |
+      - objectName: "shopnow/prod/db-password"   # ← Secret name in AWS Secrets Manager
+        objectType: "secretsmanager"
+        objectAlias: "db-password"                # ← Filename in the pod
+      - objectName: "shopnow/prod/api-key"
+        objectType: "secretsmanager"
+        objectAlias: "api-key"
+  secretObjects:                   # ← Also create a K8s Secret for apps that need env vars
+  - secretName: db-secret-synced
+    type: Opaque
+    data:
+    - objectName: "db-password"
+      key: password
+---
+# Pod using AWS Secrets Manager via CSI
+apiVersion: v1
+kind: Pod
+metadata:
+  name: api-pod
+  namespace: shopnow
+spec:
+  serviceAccountName: shopnow-api-sa   # ← Must have IRSA role with secretsmanager:GetSecretValue
+  containers:
+  - name: api
+    image: shopnow/api:v2
+    volumeMounts:
+    - name: secrets-store
+      mountPath: /mnt/secrets
+      readOnly: true
+    env:
+    - name: DB_PASSWORD              # ← Optionally also inject as env var from synced K8s secret
+      valueFrom:
+        secretKeyRef:
+          name: db-secret-synced
+          key: password
+  volumes:
+  - name: secrets-store
+    csi:
+      driver: secrets-store.csi.k8s.io
+      readOnly: true
+      volumeAttributes:
+        secretProviderClass: shopnow-aws-secrets</code></pre>
+  </div>
+</div>
+
+<!-- SECTION 8 — LAB P4 -->
+<div class="section" id="lab-p4">
+  <span class="section-num num-green">PART 4 · SECTION 8</span>
+  <h2>🧪 Hands-On Lab — Storage & Config</h2>
+
+  <div class="lab">
+    <div class="lab-header"><span class="lab-icon">💾</span><h3>Lab 7: ConfigMap + Secret + Persistent Volume</h3></div>
+
+    <div class="step"><div class="step-num">1</div><div class="step-body">
+      <p>Create a ConfigMap and Secret, then use both in a pod:</p>
+      <div class="code-block"><div class="code-header"><span class="lang">bash</span></div>
+      <pre><code># Create ConfigMap
+kubectl create configmap app-config \
+  --from-literal=APP_ENV=development \
+  --from-literal=LOG_LEVEL=debug \
+  --from-literal=DB_HOST=localhost \
+  -n shopnow
+
+# Create Secret
+kubectl create secret generic app-secret \
+  --from-literal=DB_PASSWORD=MySecretPass123 \
+  --from-literal=API_KEY=sk-abc123xyz \
+  -n shopnow
+
+# Verify
+kubectl describe configmap app-config -n shopnow
+kubectl describe secret app-secret -n shopnow  # values shown as &lt;hidden&gt;</code></pre></div>
+    </div></div>
+
+    <div class="step"><div class="step-num">2</div><div class="step-body">
+      <p>Deploy a pod using both ConfigMap and Secret:</p>
+      <div class="code-block"><div class="code-header"><span class="lang">bash</span></div>
+      <pre><code>cat > config-demo-pod.yaml &lt;&lt;'EOF'
+apiVersion: v1
+kind: Pod
+metadata:
+  name: config-demo
+  namespace: shopnow
+spec:
+  containers:
+  - name: demo
+    image: busybox:1.28
+    command: ["sh", "-c", "env | grep -E 'APP_|LOG_|DB_|API_'; sleep 3600"]
+    envFrom:
+    - configMapRef:
+        name: app-config
+    env:
+    - name: DB_PASSWORD
+      valueFrom:
+        secretKeyRef:
+          name: app-secret
+          key: DB_PASSWORD
+    - name: API_KEY
+      valueFrom:
+        secretKeyRef:
+          name: app-secret
+          key: API_KEY
+EOF
+
+kubectl apply -f config-demo-pod.yaml
+
+# Wait for pod to run
+kubectl wait --for=condition=Ready pod/config-demo -n shopnow --timeout=60s
+
+# Check all env vars injected correctly
+kubectl logs config-demo -n shopnow
+# APP_ENV=development
+# LOG_LEVEL=debug
+# DB_HOST=localhost
+# DB_PASSWORD=MySecretPass123
+# API_KEY=sk-abc123xyz</code></pre></div>
+      <div class="success"><strong>✅ Config and secrets injected without hardcoding anything in the image!</strong></div>
+    </div></div>
+
+    <div class="step"><div class="step-num">3</div><div class="step-body">
+      <p>Test PersistentVolume on Minikube (uses hostPath provisioner locally):</p>
+      <div class="code-block"><div class="code-header"><span class="lang">bash</span></div>
+      <pre><code">cat > pvc-demo.yaml &lt;&lt;'EOF'
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: demo-pvc
+  namespace: shopnow
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: pvc-writer
+  namespace: shopnow
+spec:
+  containers:
+  - name: writer
+    image: busybox:1.28
+    command: ["sh", "-c", "echo 'Data written at: '$(date) > /data/test.txt; cat /data/test.txt; sleep 3600"]
+    volumeMounts:
+    - name: storage
+      mountPath: /data
+  volumes:
+  - name: storage
+    persistentVolumeClaim:
+      claimName: demo-pvc
+EOF
+
+kubectl apply -f pvc-demo.yaml
+kubectl logs pvc-writer -n shopnow
+# Data written at: Mon Jan 15 12:30:45 UTC 2024
+
+# Delete pod and recreate — data should persist!
+kubectl delete pod pvc-writer -n shopnow
+kubectl apply -f pvc-demo.yaml
+kubectl logs pvc-writer -n shopnow
+# (Still shows the original data — persistence works!)</code></pre></div>
+    </div></div>
+  </div>
+</div>
+
+<!-- INTERVIEW P4 -->
+<div class="section" id="interview-p4">
+  <span class="section-num num-green">PART 4 · SECTION 9</span>
+  <h2>🎯 Interview Q&A — Part 4</h2>
+  <div class="interview">
+    <div class="interview-label">🎯 Interview Prep — 4 YOE Level</div>
+
+    <p class="q">Q1: What is the difference between a ConfigMap and a Secret in Kubernetes?</p>
+    <div class="a">A: ConfigMap stores non-sensitive configuration (app settings, env names, port numbers) as plain text key-value pairs or files. Secret stores sensitive data (passwords, tokens, certificates) with base64 encoding. Both can be injected as env vars or file mounts. The key differences: Secrets have type annotations (Opaque, TLS, docker-registry), are base64-encoded (not encrypted by default), can be encrypted at rest via etcd encryption or an external KMS, and kubectl describes them with values hidden. In production, Secrets should be backed by AWS Secrets Manager via the Secrets Store CSI Driver — never stored in Git.</div>
+
+    <p class="q">Q2: Explain PV, PVC, and StorageClass. What is dynamic provisioning?</p>
+    <div class="a">A: A PersistentVolume (PV) is a piece of storage provisioned by an admin or dynamically. A PersistentVolumeClaim (PVC) is a request for storage by a user — specifying size and access mode. A StorageClass defines the "type" of storage and its provisioner. Dynamic provisioning means: you create a PVC, the StorageClass's provisioner (e.g., EBS CSI) automatically creates the PV (and the AWS EBS volume) — no manual admin step needed. The PVC binds to the auto-created PV, and the pod mounts the PVC.</div>
+
+    <p class="q">Q3: When would you use EBS vs EFS on EKS?</p>
+    <div class="a">A: EBS (block storage): use for single-pod stateful workloads like databases (MySQL, PostgreSQL), since EBS is ReadWriteOnce — only one pod/node can mount at a time. It's AZ-specific, high performance. EFS (network file system): use when multiple pods across multiple AZs need to share the same filesystem — media uploads, ML training datasets, shared configuration files. EFS is ReadWriteMany. For anything database-like → EBS. For shared content needing multi-pod access → EFS.</div>
+
+    <p class="q">Q4: If you update a ConfigMap, do running pods see the change automatically?</p>
+    <div class="a">A: It depends on how the ConfigMap is used. If mounted as a volume file, pods receive the updated file within about 60 seconds (controlled by kubelet's sync period) — no restart needed, though the app must re-read the file to pick up changes. If injected as environment variables via envFrom or env.valueFrom, the pod NEVER sees the update — env vars are set at pod startup and are immutable for the lifetime of that pod. You must delete/restart the pod. Best practice: use file mounts for hot-reloadable configs.</div>
+
+    <p class="q">Q5: How do you ensure Kubernetes Secrets are actually secure in production?</p>
+    <div class="a">A: Base64 alone is not security. Production approach: (1) Enable etcd encryption at rest (EncryptionConfiguration with AES-CBC or KMS provider). (2) Use AWS Secrets Manager + Secrets Store CSI Driver — secrets never enter etcd at all. (3) Apply RBAC to limit who can <span style="font-family:monospace">kubectl get secret</span>. (4) Enable audit logging to detect secret access. (5) Use IRSA so pods authenticate to AWS with IAM roles, not hardcoded credentials. (6) Rotate secrets regularly via AWS Secrets Manager automatic rotation. (7) Never put Secrets YAML (with stringData) in Git — use Sealed Secrets or External Secrets Operator.</div>
+  </div>
+</div>
+
+<!-- ══════════════════ PART 5 DIVIDER ══════════════════ -->
+<div class="part-divider"><span>⬇ Part 5 — Security & RBAC ⬇</span></div>
+
+<div class="header-p5">
+  <div class="badge">Complete Course · Part 5 of 6</div>
+  <h1>Kubernetes Security<br>& RBAC</h1>
+  <p>Lock down your cluster with RBAC, Pod Security Standards, ServiceAccounts, IRSA, Admission Controllers, and production security hardening patterns.</p>
+  <div class="meta">
+    <span>🎯 <strong>Level:</strong> Advanced</span>
+    <span>📦 <strong>Part 5 of 6</strong> — Security & RBAC</span>
+    <span>⏱ <strong>~2.5 hrs</strong> reading + labs</span>
+  </div>
+</div>
+
+<!-- SECTION 10 — RBAC -->
+<div class="section" id="rbac-intro">
+  <span class="section-num num-purple">PART 5 · SECTION 10</span>
+  <h2>🛡️ RBAC — Role-Based Access Control</h2>
+
+  <div class="story">
+    <div class="story-label">📖 Story</div>
+    <p>ShopNow's team is growing. Junior devs shouldn't be able to delete production pods. The CI/CD bot only needs to update Deployments, not read Secrets. The on-call engineer needs read-only access to all namespaces. RBAC is how you enforce this — who can do what, where.</p>
+  </div>
+
+  <h3>RBAC Building Blocks</h3>
+  <div class="rbac-flow">
+    <div class="rbac-box"><div class="icon">👤</div><div class="label">Subject</div><div class="value">Who acts</div></div>
+    <div class="rbac-arrow">+</div>
+    <div class="rbac-box"><div class="icon">📋</div><div class="label">Role</div><div class="value">What they can do</div></div>
+    <div class="rbac-arrow">→</div>
+    <div class="rbac-box"><div class="icon">🔗</div><div class="label">RoleBinding</div><div class="value">Connects them</div></div>
+    <div class="rbac-arrow">→</div>
+    <div class="rbac-box"><div class="icon">🎯</div><div class="label">Permission</div><div class="value">Granted!</div></div>
+  </div>
+
+  <table>
+    <tr><th>Object</th><th>Scope</th><th>Purpose</th></tr>
+    <tr><td><strong>Role</strong></td><td>Namespace</td><td>Defines permissions within ONE namespace</td></tr>
+    <tr><td><strong>ClusterRole</strong></td><td>Cluster-wide</td><td>Defines permissions across all namespaces, or for cluster-level resources (nodes, PVs)</td></tr>
+    <tr><td><strong>RoleBinding</strong></td><td>Namespace</td><td>Grants a Role to a Subject within a namespace</td></tr>
+    <tr><td><strong>ClusterRoleBinding</strong></td><td>Cluster-wide</td><td>Grants a ClusterRole to a Subject across all namespaces</td></tr>
+    <tr><td><strong>Subject</strong></td><td>Either</td><td>User, Group, or ServiceAccount</td></tr>
+  </table>
+
+  <h3>Role — Define What Actions Are Allowed</h3>
+  <div class="code-block">
+    <div class="code-header"><span class="lang">YAML</span><span class="filename">roles.yaml</span></div>
+    <pre><code># ── Role 1: Developer — read pods/logs, exec into pods, but NO delete/scale ──
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: developer-role
+  namespace: shopnow            # ← Only applies in this namespace
+rules:
+- apiGroups: [""]               # ← "" = core API group (pods, services, configmaps, secrets)
+  resources: ["pods", "pods/log", "pods/exec"]  # ← Which resource types
+  verbs: ["get", "list", "watch", "create"]     # ← Which actions are allowed
+                                                 # ALL verbs: get|list|watch|create|update|patch|delete|exec
+- apiGroups: ["apps"]           # ← apps API group (deployments, statefulsets)
+  resources: ["deployments", "replicasets"]
+  verbs: ["get", "list", "watch"]   # ← Read-only for deployments
+
+- apiGroups: [""]
+  resources: ["secrets"]
+  verbs: []                     # ← No access to secrets at all
+---
+# ── Role 2: CI/CD Bot — only update deployments ──
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: cicd-role
+  namespace: shopnow
+rules:
+- apiGroups: ["apps"]
+  resources: ["deployments"]
+  verbs: ["get", "list", "update", "patch"]  # ← Can update image, but not delete
+- apiGroups: [""]
+  resources: ["configmaps"]
+  verbs: ["get", "list", "create", "update", "patch"]
+---
+# ── ClusterRole: Read-only across all namespaces (on-call engineer) ──
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: readonly-all-namespaces  # ← No namespace field = cluster-scoped
+rules:
+- apiGroups: ["", "apps", "batch", "networking.k8s.io"]
+  resources: ["*"]               # ← All resource types
+  verbs: ["get", "list", "watch"]  # ← Read-only verbs only
+- apiGroups: [""]
+  resources: ["secrets"]
+  verbs: []                      # ← Explicitly no secret access</code></pre>
+  </div>
+
+  <h3>RoleBinding — Grant the Role to a Subject</h3>
+  <div class="code-block">
+    <div class="code-header"><span class="lang">YAML</span><span class="filename">rolebindings.yaml</span></div>
+    <pre><code># ── Bind developer-role to a specific user ──
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: bind-developer-priya
+  namespace: shopnow
+subjects:
+- kind: User                    # ← Subject types: User | Group | ServiceAccount
+  name: priya@shopnow.com       # ← IAM user or OIDC identity (on EKS)
+  apiGroup: rbac.authorization.k8s.io
+roleRef:                        # ← roleRef is IMMUTABLE after creation
+  kind: Role                    # ← Role (namespace) or ClusterRole (cluster-wide)
+  name: developer-role
+  apiGroup: rbac.authorization.k8s.io
+---
+# ── Bind cicd-role to a ServiceAccount (for CI/CD pipeline) ──
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: bind-cicd-sa
+  namespace: shopnow
+subjects:
+- kind: ServiceAccount
+  name: github-actions-sa       # ← The ServiceAccount name
+  namespace: shopnow            # ← ServiceAccounts must specify their namespace
+roleRef:
+  kind: Role
+  name: cicd-role
+  apiGroup: rbac.authorization.k8s.io
+---
+# ── ClusterRoleBinding: Grant readonly to on-call group ──
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: bind-readonly-oncall
+subjects:
+- kind: Group
+  name: oncall-engineers        # ← IAM group / OIDC group claim
+  apiGroup: rbac.authorization.k8s.io
+roleRef:
+  kind: ClusterRole
+  name: readonly-all-namespaces
+  apiGroup: rbac.authorization.k8s.io</code></pre>
+  </div>
+
+  <div class="ann"><div class="ann-code">apiGroups: [""]</div><div class="ann-desc"><strong>What "" means:</strong> The empty string represents the core API group — Pod, Service, ConfigMap, Secret, PersistentVolumeClaim, Namespace, Node. Other groups: <code>apps</code> (Deployment, StatefulSet, DaemonSet, ReplicaSet), <code>batch</code> (Job, CronJob), <code>networking.k8s.io</code> (Ingress, NetworkPolicy), <code>rbac.authorization.k8s.io</code> (Role, RoleBinding).</div></div>
+  <div class="ann"><div class="ann-code">verbs: ["get","list","watch"]</div><div class="ann-desc"><strong>Read vs Write verbs:</strong> Read: get (single resource), list (all), watch (stream changes). Write: create (new), update (full replace), patch (partial update), delete, deletecollection. Exec: exec (kubectl exec into pod). Use minimal verbs — if only reading, never grant create/delete.</div></div>
+
+  <h3>RBAC on EKS — IAM to K8s User Mapping</h3>
+  <div class="code-block">
+    <div class="code-header"><span class="lang">bash</span></div>
+    <pre><code"># EKS uses aws-auth ConfigMap to map IAM entities to K8s RBAC subjects
+kubectl edit configmap aws-auth -n kube-system
+
+# The ConfigMap looks like:
+# mapUsers: |
+#   - userarn: arn:aws:iam::123456789:user/priya
+#     username: priya@shopnow.com       ← K8s username (used in RoleBinding)
+#     groups:
+#     - shopnow-developers              ← K8s group (used in RoleBinding subjects)
+#
+# mapRoles: |
+#   - rolearn: arn:aws:iam::123456789:role/GitHubActionsRole
+#     username: github-actions
+#     groups:
+#     - cicd-team
+
+# Modern approach: EKS Access Entries (IAM Identity Center / SSO)
+aws eks create-access-entry \
+  --cluster-name shopnow-cluster \
+  --principal-arn arn:aws:iam::123456789:user/priya \
+  --kubernetes-groups shopnow-developers
+
+# Test RBAC permissions
+kubectl auth can-i list pods --namespace shopnow --as priya@shopnow.com
+# yes
+
+kubectl auth can-i delete secrets --namespace shopnow --as priya@shopnow.com
+# no</code></pre>
+  </div>
+</div>
+
+<!-- SECTION 11 — SERVICE ACCOUNTS / IRSA -->
+<div class="section" id="service-account">
+  <span class="section-num num-purple">PART 5 · SECTION 11</span>
+  <h2>🤖 ServiceAccounts & IRSA</h2>
+
+  <p>A <strong>ServiceAccount</strong> is a Kubernetes identity for <em>processes</em> (pods), as opposed to a User identity for humans. Every pod runs under a ServiceAccount and gets its JWT token automatically mounted — used to authenticate to the K8s API Server and (via IRSA) to AWS.</p>
+
+  <div class="code-block">
+    <div class="code-header"><span class="lang">YAML</span><span class="filename">serviceaccount-irsa.yaml</span></div>
+    <pre><code>apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: shopnow-api-sa
+  namespace: shopnow
+  annotations:
+    # IRSA: Link this ServiceAccount to an AWS IAM Role
+    eks.amazonaws.com/role-arn: arn:aws:iam::123456789:role/ShopNowAPIRole
+    # When a pod uses this SA, AWS SDK automatically assumes ShopNowAPIRole
+    # No AWS access keys needed in the container!
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: shopnow-api
+  namespace: shopnow
+spec:
+  template:
+    spec:
+      serviceAccountName: shopnow-api-sa   # ← Assign the ServiceAccount to the pod
+      automountServiceAccountToken: true    # ← Mount JWT token at /var/run/secrets/...
+      containers:
+      - name: api
+        image: shopnow/api:v2
+        # AWS SDK inside this container can now call S3, DynamoDB, SES etc.
+        # using the IAM role ShopNowAPIRole — no credentials needed!</code></pre>
+  </div>
+
+  <h3>Create the IAM Role for IRSA</h3>
+  <div class="code-block">
+    <div class="code-header"><span class="lang">bash</span></div>
+    <pre><code"># Using eksctl (easiest)
+eksctl create iamserviceaccount \
+  --cluster=shopnow-cluster \
+  --namespace=shopnow \
+  --name=shopnow-api-sa \
+  --attach-policy-arn=arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess \
+  --attach-policy-arn=arn:aws:iam::aws:policy/AmazonSESFullAccess \
+  --approve \
+  --override-existing-serviceaccounts
+
+# This creates the IAM role with a trust policy that only allows:
+# 1. The OIDC provider of your EKS cluster
+# 2. The specific ServiceAccount: shopnow/shopnow-api-sa
+# Nobody else can assume this role!</code></pre>
+  </div>
+
+  <div class="info"><strong>💡 Why IRSA is better than node instance profiles:</strong> With instance profiles, ALL pods on a node share the same AWS permissions — a compromised pod gets all permissions. IRSA is per-ServiceAccount — each pod gets only the AWS permissions it specifically needs. Plus AWS CloudTrail shows which pod made which API call, not just "the node".</div>
+
+  <div class="tip"><strong>🔐 Default ServiceAccount:</strong> Every namespace has a <span class="ic">default</span> ServiceAccount. Pods that don't specify a ServiceAccount use it. Best practice: always create a dedicated ServiceAccount per application and set <span class="ic">automountServiceAccountToken: false</span> on the default SA to prevent accidental API access.</div>
+</div>
+
+<!-- SECTION 12 — POD SECURITY -->
+<div class="section" id="pod-security">
+  <span class="section-num num-purple">PART 5 · SECTION 12</span>
+  <h2>🔒 Pod Security — Standards & Security Contexts</h2>
+
+  <div class="story">
+    <div class="story-label">📖 Story</div>
+    <p>A compromised pod running as <strong>root</strong> with hostNetwork and hostPath access can escape the container and own your EC2 node — and then every other pod on that node. Pod Security hardens the container runtime boundary so even a compromised pod is contained.</p>
+  </div>
+
+  <h3>Pod Security Standards (PSS) — 3 Profiles</h3>
+  <table>
+    <tr><th>Profile</th><th>Restrictions</th><th>Use Case</th></tr>
+    <tr><td><strong>privileged</strong></td><td>None — everything allowed</td><td>System/infra namespaces only (kube-system, CNI)</td></tr>
+    <tr><td><strong>baseline</strong></td><td>Blocks most known escapes (no hostNetwork, no privileged containers)</td><td>Default for most workloads</td></tr>
+    <tr><td><strong>restricted</strong></td><td>Strict — must run as non-root, drop all capabilities, no privilege escalation</td><td>High security: payments, PII data</td></tr>
+  </table>
+
+  <div class="code-block">
+    <div class="code-header"><span class="lang">bash</span></div>
+    <pre><code"># Apply Pod Security Standards to a namespace via labels
+kubectl label namespace shopnow \
+  pod-security.kubernetes.io/enforce=baseline \     # ← Reject pods that violate
+  pod-security.kubernetes.io/warn=restricted \      # ← Warn if violates restricted
+  pod-security.kubernetes.io/audit=restricted        # ← Audit log violations
+
+# Test: try to create a privileged pod in shopnow namespace
+kubectl run bad-pod \
+  --image=nginx \
+  --overrides='{"spec":{"containers":[{"name":"nginx","image":"nginx","securityContext":{"privileged":true}}]}}' \
+  -n shopnow
+# Error: pod violates baseline policy: privileged containers not allowed</code></pre>
+  </div>
+
+  <h3>SecurityContext — Harden Individual Pods & Containers</h3>
+  <div class="code-block">
+    <div class="code-header"><span class="lang">YAML</span><span class="filename">secure-pod.yaml</span></div>
+    <pre><code>apiVersion: v1
+kind: Pod
+metadata:
+  name: secure-api
+  namespace: shopnow
+spec:
+  securityContext:               # ← Pod-level: applies to ALL containers
+    runAsNonRoot: true           # ← Reject pod if image tries to run as UID 0 (root)
+    runAsUser: 1000              # ← Force container to run as UID 1000 (non-root)
+    runAsGroup: 3000             # ← Force GID 3000
+    fsGroup: 2000                # ← Mounted volumes owned by GID 2000
+    seccompProfile:
+      type: RuntimeDefault       # ← Apply default seccomp profile (syscall filtering)
+  
+  containers:
+  - name: api
+    image: shopnow/api:v2
+    securityContext:             # ← Container-level (more specific than pod-level)
+      allowPrivilegeEscalation: false  # ← Can't sudo or setuid inside container
+      readOnlyRootFilesystem: true     # ← Container filesystem is read-only
+                                       #   Prevents malware writing to disk
+      capabilities:
+        drop: ["ALL"]            # ← Drop ALL Linux capabilities (NET_ADMIN, SYS_PTRACE etc.)
+        add: ["NET_BIND_SERVICE"] # ← Re-add only what's needed (bind to port < 1024)
+    
+    volumeMounts:
+    - name: tmp-dir
+      mountPath: /tmp            # ← App needs to write tmp files — give it an emptyDir
+    - name: cache-dir
+      mountPath: /app/cache
+  
+  volumes:
+  - name: tmp-dir
+    emptyDir: {}                 # ← Writable scratch space (readOnlyRootFilesystem needs this)
+  - name: cache-dir
+    emptyDir: {}</code></pre>
+  </div>
+
+  <h3>Security Context Fields — Word by Word</h3>
+  <div class="ann"><div class="ann-code">runAsNonRoot: true</div><div class="ann-desc"><strong>What it enforces:</strong> The container image's USER directive must be a non-zero UID. If the image runs as root (UID 0), Kubernetes rejects it with "container has runAsNonRoot and image will run as root". Your Dockerfile must have <code>USER 1000</code> — enforce this in your base images.</div></div>
+  <div class="ann"><div class="ann-code">readOnlyRootFilesystem: true</div><div class="ann-desc"><strong>Why it matters:</strong> Prevents an attacker from writing malicious scripts to the container filesystem. If your app needs to write files, you must explicitly mount writable volumes (emptyDir for temp, PVC for persistence). This is a defense-in-depth measure — a compromised container can't easily persist malware.</div></div>
+  <div class="ann"><div class="ann-code">capabilities: drop: ["ALL"]</div><div class="ann-desc"><strong>Linux capabilities:</strong> Root in a container has many capabilities (CAP_NET_ADMIN, CAP_SYS_PTRACE, CAP_CHOWN etc.) that can be used for privilege escalation or container escape. Dropping ALL capabilities removes these even if the process runs as root — then add back only what's actually needed. Most web apps only need NET_BIND_SERVICE (port binding) or nothing extra.</div></div>
+  <div class="ann"><div class="ann-code">allowPrivilegeEscalation: false</div><div class="ann-desc"><strong>What it blocks:</strong> Prevents a process inside the container from gaining more privileges than its parent (no <code>sudo</code>, no setUID binaries, no <code>su</code>). Critical for preventing post-compromise escalation — even if an attacker runs code, they can't become root.</div></div>
+</div>
+
+<!-- SECTION 13 — SECRETS SECURITY -->
+<div class="section" id="secrets-security">
+  <span class="section-num num-purple">PART 5 · SECTION 13</span>
+  <h2>🔏 Secrets Security Best Practices</h2>
+
+  <h3>Enable Encryption at Rest for etcd</h3>
+  <div class="code-block">
+    <div class="code-header"><span class="lang">YAML</span><span class="filename">encryption-config.yaml</span></div>
+    <pre><code"># On EKS, enable via AWS (recommended — uses AWS KMS automatically)
+aws eks update-cluster-config \
+  --name shopnow-cluster \
+  --encryption-config '[{"provider":{"keyArn":"arn:aws:kms:ap-south-1:123456789:key/abc-123"},"resources":["secrets"]}]'
+
+# On self-managed K8s, create EncryptionConfiguration:
+apiVersion: apiserver.config.k8s.io/v1
+kind: EncryptionConfiguration
+resources:
+- resources:
+  - secrets                              # ← Encrypt Secret objects in etcd
+  providers:
+  - aescbc:                              # ← Encrypt with AES-256-CBC
+      keys:
+      - name: key1
+        secret: &lt;base64-encoded-32-byte-key&gt;
+  - identity: {}                         # ← Fallback: read existing unencrypted secrets</code></pre>
+  </div>
+
+  <h3>External Secrets Operator — Git-Friendly Approach</h3>
+  <div class="code-block">
+    <div class="code-header"><span class="lang">YAML</span><span class="filename">external-secret.yaml</span></div>
+    <pre><code># Install External Secrets Operator
+helm repo add external-secrets https://charts.external-secrets.io
+helm install external-secrets external-secrets/external-secrets -n kube-system
+
+---
+# Define HOW to connect to AWS Secrets Manager
+apiVersion: external-secrets.io/v1beta1
+kind: SecretStore
+metadata:
+  name: aws-secrets-store
+  namespace: shopnow
+spec:
+  provider:
+    aws:
+      service: SecretsManager
+      region: ap-south-1
+      auth:
+        jwt:
+          serviceAccountRef:
+            name: shopnow-api-sa    # ← Uses IRSA to authenticate
+---
+# Define WHICH secret to sync and HOW to expose it in K8s
+apiVersion: external-secrets.io/v1beta1
+kind: ExternalSecret
+metadata:
+  name: db-password-sync
+  namespace: shopnow
+spec:
+  refreshInterval: 1h               # ← Re-fetch from AWS every hour (picks up rotations)
+  secretStoreRef:
+    name: aws-secrets-store
+    kind: SecretStore
+  target:
+    name: db-credentials            # ← Name of the K8s Secret to create/update
+    creationPolicy: Owner           # ← ESO owns this secret (delete ESO = delete secret)
+  data:
+  - secretKey: password             # ← Key in K8s Secret
+    remoteRef:
+      key: shopnow/prod/db-password # ← Path in AWS Secrets Manager
+      version: AWSCURRENT           # ← Always use the latest version</code></pre>
+  </div>
+
+  <div class="success"><strong>✅ With External Secrets Operator:</strong> Your Git repo has ExternalSecret YAML (safe to commit). The actual secret value lives only in AWS Secrets Manager. K8s Secret is auto-created and auto-rotated. Zero secrets in Git, zero secrets in etcd in plaintext.</div>
+</div>
+
+<!-- SECTION 14 — ADMISSION CONTROLLERS -->
+<div class="section" id="admission">
+  <span class="section-num num-purple">PART 5 · SECTION 14</span>
+  <h2>🚦 Admission Controllers & OPA/Gatekeeper</h2>
+
+  <p><strong>Admission Controllers</strong> intercept every request to the Kubernetes API Server <em>before</em> objects are persisted to etcd. They can mutate (modify) or validate (accept/reject) API requests. They are the enforcement layer for cluster policies.</p>
+
+  <div class="arch">
+kubectl apply  ──►  API Server  ──►  Authentication  ──►  Authorization (RBAC)
+                                                                │
+                                                                ▼
+                                                    Admission Controllers
+                                                    ┌─────────────────────┐
+                                                    │ Mutating Webhooks   │ ← modify objects
+                                                    │ (auto-inject sidecars,│
+                                                    │  add labels, set defaults)
+                                                    │                     │
+                                                    │ Validating Webhooks │ ← accept/reject
+                                                    │ (OPA/Gatekeeper,    │
+                                                    │  Kyverno, PSA)      │
+                                                    └─────────────────────┘
+                                                                │
+                                                          Persist to etcd
+  </div>
+
+  <h3>OPA Gatekeeper — Policy as Code</h3>
+  <div class="code-block">
+    <div class="code-header"><span class="lang">bash</span></div>
+    <pre><code"># Install OPA Gatekeeper
+kubectl apply -f https://raw.githubusercontent.com/open-policy-agent/gatekeeper/master/deploy/gatekeeper.yaml</code></pre>
+  </div>
+
+  <div class="code-block">
+    <div class="code-header"><span class="lang">YAML</span><span class="filename">gatekeeper-policy.yaml</span></div>
+    <pre><code># ── Step 1: Define a ConstraintTemplate (the policy logic in Rego) ──
+apiVersion: templates.gatekeeper.sh/v1
+kind: ConstraintTemplate
+metadata:
+  name: requiredlabels
+spec:
+  crd:
+    spec:
+      names:
+        kind: RequiredLabels
+      validation:
+        openAPIV3Schema:
+          type: object
+          properties:
+            labels:
+              type: array
+              items:
+                type: string
+  targets:
+  - target: admission.k8s.gatekeeper.sh
+    rego: |
+      package requiredlabels
+      violation[{"msg": msg}] {
+        provided := {label | input.review.object.metadata.labels[label]}
+        required := {label | label := input.parameters.labels[_]}
+        missing := required - provided
+        count(missing) > 0
+        msg := sprintf("Missing required labels: %v", [missing])
+      }
+---
+# ── Step 2: Apply the Constraint to enforce the policy ──
+apiVersion: constraints.gatekeeper.sh/v1beta1
+kind: RequiredLabels
+metadata:
+  name: must-have-team-label
+spec:
+  match:
+    kinds:
+    - apiGroups: ["apps"]
+      kinds: ["Deployment"]      # ← Apply to all Deployments
+    namespaces: ["shopnow"]      # ← Only in shopnow namespace
+  parameters:
+    labels: ["team", "env", "version"]  # ← These labels are REQUIRED
+
+# Now any Deployment without team, env, version labels is REJECTED at apply time</code></pre>
+  </div>
+
+  <h3>Kyverno — Simpler Policy Alternative</h3>
+  <div class="code-block">
+    <div class="code-header"><span class="lang">YAML</span><span class="filename">kyverno-policy.yaml</span></div>
+    <pre><code"># Install Kyverno
+helm repo add kyverno https://kyverno.github.io/kyverno/
+helm install kyverno kyverno/kyverno -n kyverno --create-namespace
+
+---
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: require-resource-limits
+spec:
+  validationFailureAction: Enforce   # ← Enforce (reject) or Audit (warn only)
+  background: false
+  rules:
+  - name: check-resource-limits
+    match:
+      any:
+      - resources:
+          kinds: ["Pod"]
+    validate:
+      message: "CPU and memory limits are required for all containers."
+      pattern:
+        spec:
+          containers:
+          - resources:
+              limits:
+                cpu: "?*"         # ← Must be set to any non-empty value
+                memory: "?*"
+---
+# Auto-mutate: add a label to every pod automatically
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: add-managed-by-label
+spec:
+  rules:
+  - name: add-label
+    match:
+      any:
+      - resources:
+          kinds: ["Pod"]
+    mutate:
+      patchStrategicMerge:
+        metadata:
+          labels:
+            managed-by: kubernetes   # ← Auto-added to every pod</code></pre>
+  </div>
+
+  <div class="tip"><strong>💡 OPA Gatekeeper vs Kyverno:</strong> Gatekeeper uses Rego (a policy language — powerful but with a learning curve). Kyverno uses YAML-native patterns (simpler, K8s-native feel). For teams new to policy-as-code, Kyverno is easier to adopt. Both are CNCF projects and production-ready.</div>
+</div>
+
+<!-- SECTION 15 — LAB P5 -->
+<div class="section" id="lab-p5">
+  <span class="section-num num-purple">PART 5 · SECTION 15</span>
+  <h2>🧪 Hands-On Labs — Security & RBAC</h2>
+
+  <div class="lab">
+    <div class="lab-header"><span class="lab-icon">🛡️</span><h3>Lab 8: RBAC — Create Roles and Test Access</h3></div>
+
+    <div class="step"><div class="step-num">1</div><div class="step-body">
+      <p>Create a read-only role and test it with impersonation:</p>
+      <div class="code-block"><div class="code-header"><span class="lang">bash</span></div>
+      <pre><code># Create a read-only role for the shopnow namespace
+cat > readonly-role.yaml &lt;&lt;'EOF'
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: pod-reader
+  namespace: shopnow
+rules:
+- apiGroups: [""]
+  resources: ["pods", "pods/log"]
+  verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: read-pods-viewer
+  namespace: shopnow
+subjects:
+- kind: User
+  name: jane-developer
+  apiGroup: rbac.authorization.k8s.io
+roleRef:
+  kind: Role
+  name: pod-reader
+  apiGroup: rbac.authorization.k8s.io
+EOF
+
+kubectl apply -f readonly-role.yaml
+
+# Test what jane-developer can and cannot do
+kubectl auth can-i list pods -n shopnow --as jane-developer
+# ✅ yes
+
+kubectl auth can-i delete pods -n shopnow --as jane-developer
+# ❌ no
+
+kubectl auth can-i get secrets -n shopnow --as jane-developer
+# ❌ no
+
+kubectl auth can-i list pods -n kube-system --as jane-developer
+# ❌ no  (Role is namespace-scoped — only works in shopnow)</code></pre></div>
+    </div></div>
+
+    <div class="step"><div class="step-num">2</div><div class="step-body">
+      <p>Create a ServiceAccount for a CI/CD pipeline:</p>
+      <div class="code-block"><div class="code-header"><span class="lang">bash</span></div>
+      <pre><code">cat > cicd-sa.yaml &lt;&lt;'EOF'
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: cicd-sa
+  namespace: shopnow
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: deployer
+  namespace: shopnow
+rules:
+- apiGroups: ["apps"]
+  resources: ["deployments"]
+  verbs: ["get", "list", "update", "patch"]
+- apiGroups: [""]
+  resources: ["pods"]
+  verbs: ["get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: cicd-deployer
+  namespace: shopnow
+subjects:
+- kind: ServiceAccount
+  name: cicd-sa
+  namespace: shopnow
+roleRef:
+  kind: Role
+  name: deployer
+  apiGroup: rbac.authorization.k8s.io
+EOF
+
+kubectl apply -f cicd-sa.yaml
+
+# Test as the ServiceAccount
+kubectl auth can-i update deployments -n shopnow \
+  --as=system:serviceaccount:shopnow:cicd-sa
+# ✅ yes
+
+kubectl auth can-i delete deployments -n shopnow \
+  --as=system:serviceaccount:shopnow:cicd-sa
+# ❌ no  — CI/CD can deploy but not delete!</code></pre></div>
+      <div class="success"><strong>✅ RBAC is working — least-privilege access enforced!</strong></div>
+    </div></div>
+  </div>
+
+  <div class="lab">
+    <div class="lab-header"><span class="lab-icon">🔒</span><h3>Lab 9: Apply Pod Security Context</h3></div>
+    <div class="step"><div class="step-num">1</div><div class="step-body">
+      <div class="code-block"><div class="code-header"><span class="lang">bash</span></div>
+      <pre><code">cat > secure-pod-test.yaml &lt;&lt;'EOF'
+apiVersion: v1
+kind: Pod
+metadata:
+  name: secure-nginx
+  namespace: shopnow
+spec:
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 101            # nginx official image supports UID 101
+    runAsGroup: 101
+    fsGroup: 101
+  containers:
+  - name: nginx
+    image: nginxinc/nginx-unprivileged:1.25   # ← Rootless nginx image
+    ports:
+    - containerPort: 8080     # ← Unprivileged image listens on 8080 (not 80)
+    securityContext:
+      allowPrivilegeEscalation: false
+      readOnlyRootFilesystem: true
+      capabilities:
+        drop: ["ALL"]
+    resources:
+      requests: {cpu: "100m", memory: "128Mi"}
+      limits: {cpu: "200m", memory: "256Mi"}
+    volumeMounts:
+    - mountPath: /tmp
+      name: tmp-vol
+    - mountPath: /var/cache/nginx
+      name: cache-vol
+    - mountPath: /var/run
+      name: run-vol
+  volumes:
+  - name: tmp-vol
+    emptyDir: {}
+  - name: cache-vol
+    emptyDir: {}
+  - name: run-vol
+    emptyDir: {}
+EOF
+
+kubectl apply -f secure-pod-test.yaml
+kubectl get pod secure-nginx -n shopnow
+
+# Verify it's running as non-root
+kubectl exec secure-nginx -n shopnow -- id
+# uid=101(nginx) gid=101(nginx) groups=101(nginx)
+
+# Verify root filesystem is read-only
+kubectl exec secure-nginx -n shopnow -- touch /test-file
+# touch: /test-file: Read-only file system  ✅
+
+kubectl exec secure-nginx -n shopnow -- touch /tmp/test-file
+# (succeeds — /tmp is an emptyDir, writable)  ✅</code></pre></div>
+      <div class="success"><strong>✅ Pod runs as non-root with read-only filesystem and no Linux capabilities — production-hardened!</strong></div>
+    </div></div>
+  </div>
+</div>
+
+<!-- INTERVIEW P5 -->
+<div class="section" id="interview-p5">
+  <span class="section-num num-purple">PART 5 · SECTION 16</span>
+  <h2>🎯 Interview Q&A — Part 5 (Security & RBAC)</h2>
+
+  <div class="interview">
+    <div class="interview-label">🎯 Interview Prep — 4 YOE Level</div>
+
+    <p class="q">Q1: Explain Kubernetes RBAC. What are the four main objects involved?</p>
+    <div class="a">A: RBAC (Role-Based Access Control) controls who can do what on which resources. The four objects: (1) <strong>Role</strong> — defines permissions (verbs on resources) within one namespace. (2) <strong>ClusterRole</strong> — same but cluster-wide, or for non-namespaced resources like Nodes and PVs. (3) <strong>RoleBinding</strong> — grants a Role or ClusterRole to a Subject within one namespace. (4) <strong>ClusterRoleBinding</strong> — grants a ClusterRole to a Subject across the entire cluster. Subjects can be Users (humans), Groups, or ServiceAccounts (pods).</div>
+
+    <p class="q">Q2: What is IRSA and why is it the recommended way for pods to access AWS services?</p>
+    <div class="a">A: IRSA (IAM Roles for Service Accounts) links a K8s ServiceAccount to an AWS IAM Role via the EKS OIDC provider. When a pod uses that ServiceAccount, the AWS SDK auto-fetches a short-lived token and assumes the IAM role. It's preferred over: node instance profiles (which give all pods on a node the same permissions) and hardcoded access keys (which never expire and risk leakage). IRSA enables least-privilege per pod, auto-rotates credentials (hourly), and provides CloudTrail attribution per pod identity.</div>
+
+    <p class="q">Q3: What is a SecurityContext in Kubernetes? Give examples of important fields.</p>
+    <div class="a">A: SecurityContext defines privilege and access control settings for pods and containers. Key fields: <strong>runAsNonRoot: true</strong> — rejects pods running as UID 0; <strong>readOnlyRootFilesystem: true</strong> — prevents writing to container filesystem; <strong>allowPrivilegeEscalation: false</strong> — blocks sudo and setuid inside container; <strong>capabilities.drop: [ALL]</strong> — removes all Linux capabilities; <strong>seccompProfile: RuntimeDefault</strong> — syscall filtering. Pod-level securityContext applies to all containers; container-level overrides it. Best practice: set runAsNonRoot and drop all capabilities on every production pod.</div>
+
+    <p class="q">Q4: What are Admission Controllers? Name two you've used.</p>
+    <div class="a">A: Admission Controllers intercept API Server requests before objects are persisted to etcd. They come in two types — Mutating (can modify the object, e.g., inject a sidecar, add default labels) and Validating (can accept or reject, e.g., enforce required labels, block privileged pods). Built-in examples: PodSecurity (enforces PSS profiles), ResourceQuota (blocks pods exceeding namespace quotas), LimitRanger (sets default resource limits). External webhook-based: OPA Gatekeeper (policy as Rego code), Kyverno (policy as YAML patterns), Istio (auto-inject Envoy sidecar). I've used Kyverno to enforce resource limits on all pods and OPA Gatekeeper to require team labels on all Deployments.</div>
+
+    <p class="q">Q5: How would you prevent pods from accessing the AWS EC2 metadata endpoint (IMDS)?</p>
+    <div class="a">A: EC2 IMDS (169.254.169.254) exposes the node's IAM role credentials — a malicious pod could steal node-level AWS permissions. Prevention options: (1) Use IMDSv2 with hop limit = 1 on EKS nodes (eksctl sets this by default) — pods can't reach IMDS because they're 2 hops away. (2) Block via NetworkPolicy: deny egress to 169.254.169.254/32. (3) Use IRSA — pods use their own pod-level role, not the node's. (4) AWS recommends IMDSv2 + hop limit 1 as the standard defense on EKS. With IRSA + hop limit 1, even a compromised pod can't steal node credentials.</div>
+
+    <p class="q">Q6: What is the difference between a Role and a ClusterRole? When would you use ClusterRoleBinding with a Role?</p>
+    <div class="a">A: A Role exists in a specific namespace and can only grant permissions on resources in that namespace. A ClusterRole has no namespace and can grant permissions on cluster-scoped resources (Nodes, PVs, Namespaces) or all namespaces. Trick answer: you CAN use a ClusterRole with a RoleBinding — the ClusterRole defines the permissions but the binding restricts them to one namespace. This is useful for reusing a common permission template (like "pod-reader") across multiple namespaces without duplicating Role objects. ClusterRoleBinding + ClusterRole = applies to ALL namespaces.</div>
+  </div>
+
+  <div class="success"><strong>✅ Parts 4 & 5 Complete!</strong> You now understand the full storage stack (PV/PVC/CSI/EBS/EFS), configuration management (ConfigMap/Secrets/AWS Secrets Manager), and Kubernetes security (RBAC, ServiceAccounts, IRSA, Pod Security, Admission Controllers). Continue to Part 6 for the complete real-world project and final interview prep.</div>
+</div>
+
+<!-- FOOTER -->
+<div class="footer">
+  <a href="k8s-aws-part3.html" class="prev-btn">← Part 3: Networking</a>
+  <a href="k8s-aws-part6.html" class="next-btn">Part 6: Real Project + Full Interview →</a>
+  <p>Parts 4 & 5 of 6 · Kubernetes Administration on AWS · Built for 4 YOE Engineers</p>
+</div>
+
+</div><!-- .page -->
+</body>
+</html>

@@ -1,0 +1,1547 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Advanced Project 01: Oracle Tablespace Monitoring & Auto-Extension — Ansible AAP</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --purple:#6d28d9;--purple-dark:#4c1d95;--purple-light:#8b5cf6;--purple-pale:#ede9fe;
+  --accent:#7c3aed;--bg:#fafafa;--card:#fff;--border:#e5e7eb;--text:#1f2937;
+  --text-dim:#6b7280;--code-bg:#1e1b2e;--code-text:#e2d9f3;--green:#059669;
+  --amber:#d97706;--red:#dc2626;--shadow:0 1px 3px rgba(109,40,217,.1);
+}
+*{box-sizing:border-box;}
+body{margin:0;font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);line-height:1.7;}
+.topbar{background:linear-gradient(135deg,var(--purple-dark),var(--purple));color:#fff;padding:22px 5%;
+  position:sticky;top:0;z-index:100;box-shadow:0 2px 12px rgba(109,40,217,.3);
+  display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;}
+.topbar h1{margin:0;font-size:1.1rem;font-weight:800;letter-spacing:-.3px;}
+.badge{background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.3);padding:4px 14px;border-radius:20px;font-size:.73rem;font-weight:700;}
+.layout{display:flex;max-width:1500px;margin:0 auto;}
+nav.toc{width:275px;flex-shrink:0;padding:22px 14px;position:sticky;top:76px;
+  align-self:flex-start;max-height:calc(100vh - 96px);overflow-y:auto;}
+nav.toc h3{font-size:.72rem;text-transform:uppercase;letter-spacing:1.2px;color:var(--text-dim);margin:0 0 10px 6px;}
+nav.toc a{display:block;padding:7px 12px;border-radius:8px;color:var(--text);text-decoration:none;
+  font-size:.83rem;margin-bottom:2px;border-left:3px solid transparent;transition:all .15s;}
+nav.toc a:hover{background:var(--purple-pale);border-left-color:var(--purple-light);color:var(--purple);}
+main{flex:1;padding:26px 5% 80px;min-width:0;}
+.hero{background:linear-gradient(135deg,var(--purple-pale),#fff);border:1px solid #ddd6fe;
+  border-radius:16px;padding:28px;margin-bottom:28px;box-shadow:var(--shadow);}
+.hero h2{margin-top:0;color:var(--purple-dark);font-size:1.55rem;line-height:1.3;}
+.series-info{display:inline-flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;}
+.si{background:var(--purple);color:#fff;padding:3px 12px;border-radius:20px;font-size:.72rem;font-weight:700;}
+.si.new{background:var(--green);}
+.tag-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;}
+.tag{background:var(--purple-pale);color:var(--purple);padding:4px 12px;border-radius:20px;font-size:.73rem;font-weight:600;}
+section{margin-bottom:34px;}
+.card{background:var(--card);border:1px solid var(--border);border-radius:12px;
+  padding:20px 24px;box-shadow:var(--shadow);margin-bottom:16px;}
+h2.st{font-size:1.25rem;color:var(--purple-dark);border-bottom:3px solid var(--purple-light);
+  padding-bottom:7px;margin-bottom:16px;}
+h3{color:var(--purple-dark);font-size:1.05rem;margin-top:20px;}
+.story-box{background:#fffbeb;border-left:4px solid var(--amber);border-radius:8px;padding:16px 20px;margin:14px 0;color:#78350f;}
+.story-box b{color:#92400e;}
+.warn-box{background:#fef2f2;border-left:4px solid var(--red);border-radius:8px;padding:14px 18px;margin:12px 0;}
+.tip-box{background:#ecfdf5;border-left:4px solid var(--green);border-radius:8px;padding:14px 18px;margin:12px 0;}
+.info-box{background:var(--purple-pale);border-left:4px solid var(--purple-light);border-radius:8px;padding:14px 18px;margin:12px 0;}
+details{border:1px solid #ddd6fe;border-radius:10px;margin-bottom:10px;background:#faf9ff;overflow:hidden;}
+summary{padding:12px 16px;cursor:pointer;font-weight:600;color:var(--purple-dark);list-style:none;
+  display:flex;justify-content:space-between;align-items:center;background:#f5f3ff;}
+summary::-webkit-details-marker{display:none;}
+summary::after{content:"+";font-size:1.1rem;font-weight:700;color:var(--purple-light);}
+details[open] summary::after{content:"−";}
+details>div.inner{padding:14px 16px;}
+table{border-collapse:collapse;width:100%;margin:12px 0;font-size:.86rem;}
+th,td{border:1px solid var(--border);padding:9px 12px;text-align:left;vertical-align:top;}
+th{background:var(--purple);color:#fff;font-weight:600;}
+tr:nth-child(even){background:#faf9ff;}
+.cw{position:relative;margin:14px 0;}
+.cl{background:#14102a;color:#a78bfa;padding:7px 14px;font-size:.72rem;
+  font-family:'JetBrains Mono',monospace;border-radius:8px 8px 0 0;
+  display:flex;justify-content:space-between;align-items:center;}
+pre{background:var(--code-bg);color:var(--code-text);padding:16px;border-radius:0 0 8px 8px;
+  overflow-x:auto;margin:0;font-family:'JetBrains Mono',monospace;font-size:.82rem;line-height:1.6;}
+code{font-family:'JetBrains Mono',monospace;}
+.cb{background:var(--purple-light);color:#fff;border:none;padding:3px 10px;
+  border-radius:4px;font-size:.7rem;cursor:pointer;font-weight:600;}
+.cb:hover{background:var(--purple);}
+.le{border:1px solid #ddd6fe;border-radius:7px;margin:5px 0;padding:9px 14px;
+  background:#fff;font-size:.85rem;}
+.le .cf{font-family:'JetBrains Mono',monospace;background:#14102a;color:#c4b5fd;
+  padding:2px 7px;border-radius:4px;font-size:.8rem;}
+.fs{display:flex;gap:12px;padding:12px 0;border-bottom:1px dashed #e9d5ff;}
+.fn{background:var(--purple);color:#fff;width:30px;height:30px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;font-weight:700;flex-shrink:0;font-size:.82rem;}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;}
+@media(max-width:900px){.g2,.g3{grid-template-columns:1fr;}nav.toc{display:none;}}
+ul,ol{padding-left:22px;}li{margin-bottom:6px;}
+.ascii{background:#14102a;color:#a78bfa;font-family:'JetBrains Mono',monospace;
+  padding:20px;border-radius:10px;font-size:.77rem;overflow-x:auto;line-height:1.45;}
+.fn-row{display:flex;justify-content:space-between;padding:20px 0;
+  border-top:2px solid var(--border);margin-top:40px;}
+.btn{background:var(--purple);color:#fff;padding:10px 20px;border-radius:8px;
+  text-decoration:none;font-weight:600;font-size:.86rem;}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <h1>🏦 Advanced Enterprise Ansible — BFSI Series</h1>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;">
+    <span class="badge">PROJECT 01 / 30</span>
+    <span class="badge" style="background:rgba(255,255,255,.15);">INTERMEDIATE → ADVANCED</span>
+  </div>
+</div>
+<div class="layout">
+<nav class="toc">
+  <h3>Table of Contents</h3>
+  <a href="#story">1. The Banking Story</a>
+  <a href="#business">2. Business Requirements</a>
+  <a href="#problem">3. Problem Statement</a>
+  <a href="#why">4. Why Automation</a>
+  <a href="#design">5. Solution Design</a>
+  <a href="#arch">6. Architecture</a>
+  <a href="#concepts">7. Oracle Concepts</a>
+  <a href="#prereqs">8. Prerequisites</a>
+  <a href="#structure">9. Project Structure</a>
+  <a href="#inventory">10. Inventory</a>
+  <a href="#vars">11. Variables</a>
+  <a href="#roles">12. Roles &amp; Tasks</a>
+  <a href="#templates">13. Jinja2 Templates</a>
+  <a href="#playbooks">14. Master Playbooks</a>
+  <a href="#aap">15. AAP Configuration</a>
+  <a href="#flow">16. Execution Flow</a>
+  <a href="#lab">17. Lab Setup</a>
+  <a href="#interview">18. Interview Prep</a>
+  <a href="#summary">19. Summary</a>
+</nav>
+<main>
+
+<div class="hero" id="overview">
+  <div class="series-info">
+    <span class="si new">🆕 NEW SERIES</span>
+    <span class="si">30 Advanced Projects</span>
+    <span class="si">Oracle DBA Automation</span>
+    <span class="si">BFSI Production</span>
+  </div>
+  <h2>Project 01: Oracle Database Tablespace Monitoring &amp; Automated Space Management</h2>
+  <p>This is the first project of your <strong>30-project Intermediate to Advanced Enterprise Ansible Automation series</strong> for Banking environments. We begin with one of the most critical daily DBA tasks in any bank running Oracle databases: <strong>tablespace monitoring and automated space management</strong>. Every Oracle DBA in a bank spends significant time monitoring tablespace usage, responding to "tablespace full" emergencies, and managing space. This project automates it completely — from monitoring to alerting to auto-extension to compliance reporting.</p>
+  <div class="tag-row">
+    <span class="tag">Oracle 19c/21c</span><span class="tag">RHEL 8/9</span><span class="tag">Red Hat AAP 2.5</span>
+    <span class="tag">DBA Automation</span><span class="tag">Space Management</span><span class="tag">Auto-Extension</span>
+    <span class="tag">Compliance Reporting</span><span class="tag">PagerDuty</span><span class="tag">cx_Oracle</span>
+  </div>
+</div>
+
+<!-- STORY -->
+<section id="story">
+<h2 class="st">🏦 1. The Banking Story — How This Project Was Born</h2>
+<div class="card">
+<div class="story-box">
+<b>Setting:</b> We joined ABC Global Bank as Senior DevOps Engineers. The bank operates 47 Oracle 19c databases across 3 data centers in Mumbai, Chennai, and Pune. These databases power the Core Banking System (CBS), Loan Management System (LMS), Treasury Management System (TMS), and the SWIFT messaging platform.<br><br>
+<b>The Incident:</b> On a Tuesday morning at 09:47 AM, the bank's Core Banking System threw a critical error across all 2,400 branch terminals simultaneously. NEFT, RTGS, and IMPS transactions were failing. The CBS application team escalated to P1 (the highest severity). After 38 minutes of investigation, the DBA team found the root cause: the <code>CBS_DATA</code> tablespace on the production Oracle RAC database had reached 100% capacity. The tablespace had 98.7% utilization at 8:00 AM — but nobody noticed because the monitoring alert was set at 95% and had been firing for 3 days. Nobody acted on the alert because "the DBA on duty didn't check emails over the weekend."<br><br>
+<b>The Business Impact:</b> 38-minute outage × 2,400 branches × estimated ₹50,000 per minute in lost transactions = ₹19 crore in direct impact. Plus RBI sent a formal letter asking for the root cause analysis and corrective actions within 7 days.<br><br>
+<b>The Ask:</b> Our manager called an emergency meeting. "We need automated tablespace monitoring that doesn't rely on someone checking emails. We need proactive space management. And we need a compliance report for RBI showing we have controls in place."<br><br>
+<b>Our Solution:</b> We designed and implemented a complete Oracle Tablespace Monitoring and Automated Space Management system using Ansible and Red Hat AAP — monitoring every 30 minutes, three-tier alerting, automatic datafile addition for approved tablespaces, and a daily compliance report. This is what we built.
+</div>
+</div>
+</section>
+
+<!-- BUSINESS -->
+<section id="business">
+<h2 class="st">📋 2. Business Requirements</h2>
+<div class="card">
+<table>
+<tr><th>Requirement</th><th>Detail</th><th>Source</th></tr>
+<tr><td>Real-time space monitoring</td><td>Check all tablespaces every 30 minutes — not daily</td><td>Post-incident RCA</td></tr>
+<tr><td>Three-tier alerting</td><td>Warning at 75%, Critical at 85%, Emergency at 95%</td><td>IT Operations Policy</td></tr>
+<tr><td>Auto-extension for approved TSP</td><td>Automatically add datafile when approved tablespaces hit 85%</td><td>DBA Team Policy</td></tr>
+<tr><td>Manual approval for restricted TSP</td><td>UNDO, TEMP, SYSTEM tablespaces need DBA approval before expansion</td><td>Change Management Policy</td></tr>
+<tr><td>Daily compliance report</td><td>PDF/CSV report showing all tablespace status for RBI evidence</td><td>RBI IT Framework §8</td></tr>
+<tr><td>Historical trending</td><td>Track space growth rate to predict when tablespace will be full</td><td>Capacity Planning Team</td></tr>
+<tr><td>Multi-database coverage</td><td>All 47 Oracle databases in scope — not just CBS</td><td>CISO Mandate</td></tr>
+</table>
+</div>
+</section>
+
+<!-- PROBLEM -->
+<section id="problem">
+<h2 class="st">❗ 3. Problem Statement</h2>
+<div class="card">
+<div class="g2">
+<div>
+<h3>Current Problems</h3>
+<ul>
+  <li>Monitoring alerts sent via email — nobody reads at 2 AM or weekends</li>
+  <li>Manual intervention required — DBA must SSH to server and run SQL manually</li>
+  <li>No auto-extension — every space issue requires human action</li>
+  <li>47 databases to monitor — too many for manual daily checks</li>
+  <li>No growth trend analysis — surprises happen constantly</li>
+  <li>No audit trail — no record of who extended which tablespace when</li>
+  <li>RBI compliance reporting: manual Word document, takes 4 hours/week</li>
+</ul>
+</div>
+<div>
+<h3>Business Risks</h3>
+<ul>
+  <li>Production outage if tablespace hits 100% (what happened)</li>
+  <li>Data loss risk when UNDO tablespace is full</li>
+  <li>Regulatory fine from RBI for repeat incidents</li>
+  <li>Reputational damage: news of banking system failure</li>
+  <li>SLA breach: 99.99% availability requirement not met</li>
+  <li>Audit finding: "No automated monitoring in place"</li>
+</ul>
+</div>
+</div>
+</section>
+
+<!-- WHY -->
+<section id="why">
+<h2 class="st">🤖 4. Why Ansible Automation</h2>
+<div class="card">
+<table>
+<tr><th>Manual DBA Process</th><th>Ansible Automation</th></tr>
+<tr><td>Check dashboards manually every morning</td><td>Automated check every 30 minutes, 24x7, no human needed</td></tr>
+<tr><td>Email alerts go unread on weekends</td><td>PagerDuty/Slack immediate alerts with on-call escalation</td></tr>
+<tr><td>Manual SQL to add datafile (15-30 min response time)</td><td>Auto-extension completes in under 60 seconds for approved tablespaces</td></tr>
+<tr><td>Coverage: 2-3 databases checked daily</td><td>All 47 databases checked every 30 minutes — equal coverage</td></tr>
+<tr><td>RBI report: 4 hours manual work weekly</td><td>Auto-generated daily — zero DBA time</td></tr>
+<tr><td>No audit trail</td><td>Every action logged with timestamp, user (ansible), job ID</td></tr>
+</table>
+<div class="tip-box">
+<b>Senior Engineer Tip:</b> In banking, the most powerful argument for automation is incident cost. The CBS incident cost ₹19 crore. This automation project costs 3 weeks of engineering time. The ROI case writes itself.
+</div>
+</div>
+</section>
+
+<!-- DESIGN -->
+<section id="design">
+<h2 class="st">🛠️ 5. Solution Design</h2>
+<div class="card">
+<p>The solution has <strong>four distinct automation workflows</strong>:</p>
+<table>
+<tr><th>Workflow</th><th>Trigger</th><th>What It Does</th></tr>
+<tr><td>Tablespace Monitor</td><td>Every 30 minutes (scheduled)</td><td>Queries all DBs, classifies severity, sends alerts</td></tr>
+<tr><td>Auto-Extension Engine</td><td>Triggered by Monitor at 85%</td><td>Adds datafile to approved tablespaces automatically</td></tr>
+<tr><td>Approval-Based Extension</td><td>AAP Approval Node</td><td>DBA reviews and approves restricted tablespace expansion</td></tr>
+<tr><td>Compliance Reporter</td><td>Daily at 06:00 AM</td><td>Generates CSV + HTML report for RBI evidence</td></tr>
+</table>
+
+<h3>Tablespace Classification</h3>
+<table>
+<tr><th>Type</th><th>Examples</th><th>Auto-Extend?</th><th>Reason</th></tr>
+<tr><td>Application Data</td><td>CBS_DATA, LMS_DATA, TMS_DATA</td><td>Yes</td><td>Business data — extend safely</td></tr>
+<tr><td>Application Index</td><td>CBS_IDX, LMS_IDX</td><td>Yes</td><td>Indexes grow with data</td></tr>
+<tr><td>System Critical</td><td>SYSTEM, SYSAUX</td><td>No — Approval needed</td><td>Oracle internals — DBA must review</td></tr>
+<tr><td>Undo/Temp</td><td>UNDOTBS1, TEMP</td><td>No — Approval needed</td><td>Size indicates performance issue</td></tr>
+</table>
+</div>
+</section>
+
+<!-- ARCH -->
+<section id="arch">
+<h2 class="st">🗺️ 6. Architecture</h2>
+<div class="card">
+<div class="ascii">
+<pre style="background:none;color:inherit;">
+┌─────────────────────────────────────────────────────────────────────────┐
+│                     ABC GLOBAL BANK — ORACLE AUTOMATION                  │
+│                     Red Hat Ansible Automation Platform                   │
+└─────────────────────────────────────────────────────────────────────────┘
+
+  ┌─────────────────────────────────────────────────────────────────────┐
+  │  AAP CONTROLLER (Execution Node: db-automation-node)                 │
+  │                                                                       │
+  │  Schedule: Every 30 min → JT: Oracle-Tablespace-Monitor              │
+  │  Schedule: Daily 06:00  → JT: Oracle-Compliance-Report               │
+  └───────────────────────────┬─────────────────────────────────────────┘
+                               │ SSH + cx_Oracle (JDBC-like Python driver)
+         ┌─────────────────────┼──────────────────────────────────┐
+         │                     │                                  │
+         ▼                     ▼                                  ▼
+  ┌─────────────┐     ┌─────────────────┐              ┌──────────────────┐
+  │  Mumbai DC   │     │  Chennai DC      │              │  Pune DC          │
+  │  ─────────── │     │  ──────────────  │              │  ────────────────  │
+  │  CBS_PROD    │     │  LMS_PROD        │              │  TMS_PROD          │
+  │  Oracle RAC  │     │  Oracle RAC      │              │  Oracle Single     │
+  │  2 nodes     │     │  2 nodes         │              │  1 node            │
+  │  19c         │     │  19c             │              │  21c               │
+  └─────────────┘     └─────────────────┘              └──────────────────┘
+
+         │ Query: DBA_TABLESPACE_USAGE_METRICS
+         │ Query: DBA_DATA_FILES
+         │ Query: V$TABLESPACE
+         ▼
+  ┌─────────────────────────────────────────────────────┐
+  │  MONITORING ENGINE                                   │
+  │                                                       │
+  │  < 75%   → GREEN  → Log only                         │
+  │  75-85%  → WARN   → Slack #dba-alerts               │
+  │  85-95%  → CRIT   → PagerDuty P2 + Auto-Extend      │
+  │  > 95%   → EMERG  → PagerDuty P1 + Emergency DBA    │
+  └───────────────────┬─────────────────────────────────┘
+                       │
+         ┌─────────────┴───────────────────────────┐
+         ▼                                          ▼
+  ┌────────────────────┐               ┌─────────────────────────────┐
+  │  AUTO-EXTENSION     │               │  APPROVAL WORKFLOW           │
+  │  (App tablespaces)  │               │  (SYSTEM/UNDO/TEMP)          │
+  │                     │               │                              │
+  │  ALTER TABLESPACE   │               │  ⏸ AAP Approval Node        │
+  │  ADD DATAFILE       │               │  DBA Lead reviews            │
+  │  SIZE 2G AUTOEXTEND │               │  Approves in AAP UI          │
+  └────────────────────┘               └─────────────────────────────┘
+         │                                          │
+         ▼                                          ▼
+  ┌──────────────────────────────────────────────────────────────────┐
+  │  COMPLIANCE REPORT (Daily 06:00)                                  │
+  │  HTML + CSV → Email to CISO, DBA Lead, RBI Compliance Team        │
+  └──────────────────────────────────────────────────────────────────┘
+</pre>
+</div>
+</div>
+</section>
+
+<!-- ORACLE CONCEPTS -->
+<section id="concepts">
+<h2 class="st">📚 7. Oracle Database Concepts You Must Know</h2>
+<div class="card">
+<div class="info-box">
+<b>Senior Engineer Note:</b> Before writing Ansible code for Oracle, you must understand these Oracle storage concepts. Many automation engineers fail Oracle DBA projects because they don't know the domain.
+</div>
+
+<details><summary>What is a Tablespace?</summary><div class="inner">
+A <strong>tablespace</strong> is Oracle's logical storage container. Think of it like a folder. All database objects (tables, indexes) live inside tablespaces. A tablespace consists of one or more <strong>datafiles</strong> (physical files on disk).<br><br>
+<b>Example:</b> CBS_DATA tablespace has 3 datafiles: cbs_data01.dbf (10GB), cbs_data02.dbf (10GB), cbs_data03.dbf (8GB) = 28GB total. If all 28GB is used, no new data can be inserted → application fails.
+</div></details>
+
+<details><summary>Key Oracle Views for Monitoring</summary><div class="inner">
+<div class="cw"><div class="cl"><span>Oracle SQL — Key Monitoring Queries</span><button class="cb" onclick="copyCode(this)">Copy</button></div>
+<pre><code>-- DBA_TABLESPACE_USAGE_METRICS: Best view for percentage used
+-- Available in Oracle 11g R2 and above
+SELECT
+    TABLESPACE_NAME,           -- Name of tablespace (e.g., CBS_DATA)
+    TABLESPACE_SIZE / 1024 / 1024 / 1024 AS total_gb,  -- Total size in GB
+    USED_SPACE / 1024 / 1024 / 1024 AS used_gb,        -- Used space in GB
+    (TABLESPACE_SIZE - USED_SPACE) / 1024 / 1024 / 1024 AS free_gb,
+    USED_PERCENT                -- Percentage used (critical metric)
+FROM DBA_TABLESPACE_USAGE_METRICS
+ORDER BY USED_PERCENT DESC;
+
+-- DBA_DATA_FILES: Shows individual datafiles for a tablespace
+SELECT
+    TABLESPACE_NAME,
+    FILE_NAME,                 -- Physical file path: /u02/oradata/CBS/cbs_data01.dbf
+    BYTES / 1024 / 1024 AS size_mb,    -- Current size in MB
+    MAXBYTES / 1024 / 1024 AS max_mb,  -- Max size if AUTOEXTEND ON
+    AUTOEXTENSIBLE             -- YES or NO
+FROM DBA_DATA_FILES
+WHERE TABLESPACE_NAME = 'CBS_DATA'
+ORDER BY FILE_NAME;</code></pre></div>
+</div></details>
+
+<details><summary>What is Auto-Extension?</summary><div class="inner">
+When you create a datafile, you can enable AUTOEXTEND which allows Oracle to automatically grow the file when space runs out. However, relying only on AUTOEXTEND is dangerous — if the filesystem runs out of space, AUTOEXTEND will also fail. Our automation takes a different approach: we proactively <strong>add a new datafile</strong> when the tablespace reaches 85%, giving us control over which filesystem the new file goes on.
+</div></details>
+
+<details><summary>cx_Oracle Python Driver</summary><div class="inner">
+Ansible connects to Oracle databases using a Python library called <strong>cx_Oracle</strong> (now renamed to <code>python-oracledb</code>). This must be installed in the Ansible Execution Environment. The library requires Oracle Instant Client to be available.<br><br>
+In Ansible, we use the <code>community.oracle.oracle_query</code> module or raw Python scripts via <code>ansible.builtin.script</code> with cx_Oracle.
+</div></details>
+</div>
+</section>
+
+<!-- PREREQS -->
+<section id="prereqs">
+<h2 class="st">⚙️ 8. Prerequisites</h2>
+<div class="card">
+<div class="g2">
+<div>
+<h3>On Oracle Database Servers</h3>
+<ul>
+  <li>Oracle 19c or 21c installed</li>
+  <li>DBA monitoring user created (read-only)</li>
+  <li>DBA admin user for extension operations</li>
+  <li>Oracle listener running on port 1521</li>
+  <li>TNS connectivity from AAP execution node</li>
+  <li>Python 3.8+ available</li>
+</ul>
+</div>
+<div>
+<h3>On AAP Execution Node</h3>
+<ul>
+  <li>Oracle Instant Client 21.x installed</li>
+  <li>cx_Oracle or python-oracledb Python library</li>
+  <li>Custom Execution Environment (EE) with cx_Oracle</li>
+  <li>Oracle JDBC connectivity allowed (firewall: port 1521)</li>
+  <li>Vault credential for Oracle passwords</li>
+</ul>
+</div>
+</div>
+
+<h3>Create Oracle Monitoring User (DBA runs this once)</h3>
+<div class="cw"><div class="cl"><span>Oracle SQL — Create Monitoring User</span><button class="cb" onclick="copyCode(this)">Copy</button></div>
+<pre><code>-- Connect as SYSDBA to create the monitoring user
+-- Run this on each Oracle database ONCE before automation starts
+
+-- Create read-only monitoring user
+CREATE USER ansible_monitor                          -- Username for Ansible read-only access
+  IDENTIFIED BY "SecurePass@2024"                   -- Strong password (stored in Ansible Vault)
+  DEFAULT TABLESPACE USERS                           -- Default tablespace for user
+  TEMPORARY TABLESPACE TEMP                          -- Temp tablespace
+  ACCOUNT UNLOCK;                                    -- Make sure account is unlocked
+
+-- Grant minimum permissions for tablespace monitoring
+GRANT CREATE SESSION TO ansible_monitor;             -- Allow login to database
+GRANT SELECT ON DBA_TABLESPACES TO ansible_monitor;  -- View tablespace definitions
+GRANT SELECT ON DBA_DATA_FILES TO ansible_monitor;   -- View datafiles
+GRANT SELECT ON DBA_FREE_SPACE TO ansible_monitor;   -- View free space
+GRANT SELECT ON DBA_TABLESPACE_USAGE_METRICS TO ansible_monitor;  -- Key monitoring view
+GRANT SELECT ON V_$TABLESPACE TO ansible_monitor;    -- V$ view (note: V_$ not V$)
+GRANT SELECT ON V_$DATABASE TO ansible_monitor;      -- Database info
+
+-- Create admin user for extension operations (used only for ALTER TABLESPACE)
+CREATE USER ansible_dba                              -- Admin user for extension
+  IDENTIFIED BY "AdminSecure@2024"                   -- Stored in Ansible Vault (separate secret)
+  ACCOUNT UNLOCK;
+
+GRANT CREATE SESSION TO ansible_dba;                 -- Allow login
+GRANT ALTER TABLESPACE TO ansible_dba;               -- Allow tablespace modification
+GRANT CREATE TABLESPACE TO ansible_dba;              -- Allow new tablespace (future use)
+
+-- Commit changes
+COMMIT;</code></pre></div>
+</div>
+</section>
+
+<!-- PROJECT STRUCTURE -->
+<section id="structure">
+<h2 class="st">📁 9. Project Folder Structure</h2>
+<div class="card">
+<div class="ascii">
+<pre style="background:none;color:inherit;">
+oracle-tablespace-automation/               # Root project directory in Git
+│
+├── ansible.cfg                             # Ansible configuration file
+├── README.md                               # Project documentation
+│
+├── inventory/                              # All inventory files
+│   ├── production/                         # Production environment
+│   │   ├── hosts.ini                       # Oracle server list
+│   │   └── group_vars/                     # Variables per group
+│   │       ├── all.yml                     # Variables for ALL groups
+│   │       ├── oracle_mumbai.yml           # Mumbai-specific variables
+│   │       ├── oracle_chennai.yml          # Chennai-specific variables
+│   │       └── oracle_pune.yml             # Pune-specific variables
+│   └── staging/                            # Staging environment
+│       └── hosts.ini
+│
+├── roles/                                  # Ansible roles
+│   ├── oracle_tablespace_monitor/          # Role 1: Monitoring
+│   │   ├── tasks/
+│   │   │   ├── main.yml                    # Entry point for role
+│   │   │   ├── query_tablespaces.yml       # SQL query tasks
+│   │   │   ├── classify_alerts.yml         # Alert severity logic
+│   │   │   └── send_alerts.yml             # PagerDuty + Slack alerts
+│   │   ├── vars/
+│   │   │   └── main.yml                    # Role-level variables
+│   │   └── templates/
+│   │       └── query_tablespaces.sql.j2    # SQL query template
+│   │
+│   ├── oracle_tablespace_extend/           # Role 2: Auto-Extension
+│   │   ├── tasks/
+│   │   │   ├── main.yml
+│   │   │   ├── auto_extend.yml             # Add datafile task
+│   │   │   └── verify_extension.yml        # Verify extension worked
+│   │   ├── vars/
+│   │   │   └── main.yml                    # Approved tablespace list
+│   │   └── templates/
+│   │       └── add_datafile.sql.j2         # SQL to add datafile
+│   │
+│   └── oracle_compliance_report/           # Role 3: Reporting
+│       ├── tasks/
+│       │   ├── main.yml
+│       │   └── generate_report.yml
+│       └── templates/
+│           ├── compliance_report.html.j2   # HTML report template
+│           └── compliance_report.csv.j2    # CSV for RBI
+│
+├── playbooks/                              # Master playbooks
+│   ├── oracle_tablespace_monitor.yml       # Runs every 30 min
+│   ├── oracle_tablespace_extend.yml        # Auto-extension playbook
+│   └── oracle_compliance_report.yml        # Daily report playbook
+│
+├── scripts/                                # Python helper scripts
+│   └── query_oracle.py                     # cx_Oracle query script
+│
+└── execution_environment/                  # Custom EE definition
+    ├── execution-environment.yml           # EE build file
+    └── requirements.txt                    # Python requirements (cx_Oracle)
+</pre>
+</div>
+</div>
+</section>
+
+<!-- INVENTORY -->
+<section id="inventory">
+<h2 class="st">📂 10. Inventory Configuration</h2>
+<div class="card">
+<div class="cw"><div class="cl"><span>inventory/production/hosts.ini</span><button class="cb" onclick="copyCode(this)">Copy</button></div>
+<pre><code># =====================================================================
+# ABC Global Bank — Oracle Database Inventory
+# Managed by: DevOps Team | Last Updated: 2024
+# =====================================================================
+
+[oracle_all:children]         # Parent group containing all Oracle groups
+oracle_mumbai                 # Mumbai DC Oracle databases
+oracle_chennai                # Chennai DC Oracle databases
+oracle_pune                   # Pune DC Oracle databases
+
+[oracle_mumbai]               # Mumbai Data Center Oracle databases
+cbs-db01.mumbai.abcbank.in ansible_host=10.10.4.10   # CBS RAC Node 1
+cbs-db02.mumbai.abcbank.in ansible_host=10.10.4.11   # CBS RAC Node 2
+
+[oracle_chennai]              # Chennai Data Center Oracle databases
+lms-db01.chennai.abcbank.in ansible_host=10.20.4.10  # LMS RAC Node 1
+lms-db02.chennai.abcbank.in ansible_host=10.20.4.11  # LMS RAC Node 2
+
+[oracle_pune]                 # Pune Data Center Oracle databases
+tms-db01.pune.abcbank.in ansible_host=10.30.4.10     # TMS Single Node
+
+# =====================================================================
+# Host Variables — per-database Oracle connection parameters
+# =====================================================================
+[oracle_mumbai:vars]          # Variables specific to Mumbai Oracle group
+oracle_sid=CBSPROD            # Oracle System Identifier for CBS Production
+oracle_port=1521              # Default Oracle listener port
+db_unique_name=CBSPROD        # Unique name (used in RAC environments)
+datacenter=mumbai             # For report labeling
+pci_scope=true                # Is this in PCI-DSS scope? (affects report)
+
+[oracle_chennai:vars]
+oracle_sid=LMSPROD            # LMS Production SID
+oracle_port=1521
+db_unique_name=LMSPROD
+datacenter=chennai
+pci_scope=true
+
+[oracle_pune:vars]
+oracle_sid=TMSPROD            # Treasury Management SID
+oracle_port=1521
+db_unique_name=TMSPROD
+datacenter=pune
+pci_scope=false               # TMS not in PCI scope</code></pre></div>
+
+<div class="cw"><div class="cl"><span>inventory/production/group_vars/all.yml</span><button class="cb" onclick="copyCode(this)">Copy</button></div>
+<pre><code>---
+# =====================================================================
+# Global Variables — Apply to ALL Oracle databases
+# =====================================================================
+
+# ── Oracle Connection Parameters ─────────────────────────────────────
+oracle_monitor_user: ansible_monitor      # Read-only monitoring user
+oracle_dba_user: ansible_dba             # Admin user for extension
+# Passwords are stored in Ansible Vault — NEVER hardcode passwords
+# vault_oracle_monitor_pass: referenced from AAP Vault credential
+# vault_oracle_dba_pass: referenced from AAP Vault credential
+
+# ── Alert Thresholds (%) ─────────────────────────────────────────────
+threshold_warning: 75      # 75%+ = Slack warning to #dba-alerts
+threshold_critical: 85     # 85%+ = PagerDuty P2 + auto-extend if approved
+threshold_emergency: 95    # 95%+ = PagerDuty P1 + wake up DBA lead NOW
+
+# ── Auto-Extension Settings ──────────────────────────────────────────
+# Which tablespaces can be auto-extended WITHOUT human approval?
+auto_extend_approved_tablespaces:        # LIST of tablespace names
+  - CBS_DATA                             # Core Banking data tablespace
+  - CBS_IDX                              # Core Banking index tablespace
+  - LMS_DATA                             # Loan Management data
+  - LMS_IDX                              # Loan Management index
+  - TMS_DATA                             # Treasury Management data
+  - AUDIT_DATA                           # Audit data tablespace
+
+# Which tablespaces REQUIRE human approval before extension?
+manual_approval_required_tablespaces:
+  - SYSTEM                               # Oracle system tablespace — dangerous
+  - SYSAUX                               # Oracle auxiliary system data
+  - UNDOTBS1                             # Undo tablespace — growth = performance issue
+  - UNDOTBS2                             # Undo tablespace (RAC Node 2)
+  - TEMP                                 # Temp tablespace — growth = bad queries
+
+# ── Datafile Extension Settings ──────────────────────────────────────
+new_datafile_size_gb: 5                  # Each new datafile added = 5GB
+new_datafile_autoextend: true            # Enable AUTOEXTEND on new datafiles
+new_datafile_maxsize_gb: 10             # Max size if AUTOEXTEND grows it
+oracle_datafile_base_path: /u02/oradata  # Base path for new datafiles on server
+
+# ── Alerting Configuration ───────────────────────────────────────────
+pagerduty_integration_url: "https://events.pagerduty.com/v2/enqueue"
+slack_webhook_url: "{{ vault_slack_webhook_url }}"  # From Ansible Vault
+
+# ── Reporting ────────────────────────────────────────────────────────
+report_output_dir: /opt/ansible/oracle-reports     # Where to save reports
+report_email_to:                                   # Report recipients
+  - dba-lead@abcbank.in
+  - ciso@abcbank.in
+  - rbi-compliance@abcbank.in
+compliance_report_retention_days: 365             # Keep reports for 1 year
+
+# ── Ansible Connection ───────────────────────────────────────────────
+ansible_user: ansible                             # OS user for SSH
+ansible_python_interpreter: /usr/bin/python3      # Python path on DB servers</code></pre></div>
+</div>
+</section>
+
+<!-- VARS -->
+<section id="vars">
+<h2 class="st">🔑 11. Vault-Encrypted Variables</h2>
+<div class="card">
+<div class="warn-box">
+<b>Critical Security Rule:</b> Oracle passwords must NEVER be stored in plain text files. Always use Ansible Vault or AAP Credential Management.
+</div>
+<div class="cw"><div class="cl"><span>group_vars/all/vault.yml (encrypted with ansible-vault)</span><button class="cb" onclick="copyCode(this)">Copy</button></div>
+<pre><code># =====================================================================
+# This file is ENCRYPTED using ansible-vault
+# To edit: ansible-vault edit group_vars/all/vault.yml
+# To view: ansible-vault view group_vars/all/vault.yml
+# =====================================================================
+
+# Oracle monitoring user password (read-only user)
+vault_oracle_monitor_pass: "SecureMonitorPass@2024"
+
+# Oracle DBA user password (used for ALTER TABLESPACE)
+vault_oracle_dba_pass: "SecureAdminPass@2024"
+
+# PagerDuty integration key for alerts
+vault_pagerduty_routing_key: "your-pagerduty-routing-key-here"
+
+# Slack webhook URL
+vault_slack_webhook_url: "https://hooks.slack.com/services/xxx/yyy/zzz"
+
+# SMTP credentials for compliance report email
+vault_smtp_user: "automation@abcbank.in"
+vault_smtp_pass: "SmtpSecurePass"</code></pre></div>
+
+<div class="tip-box">
+<b>In AAP Production:</b> You do NOT create this vault.yml file at all. Instead, you create a <strong>Custom Credential Type</strong> in AAP with fields for each Oracle password, then create a <strong>Credential</strong> of that type. AAP injects these as environment variables or extra vars when the job runs. This is more secure than vault files because passwords never touch the filesystem.
+</div>
+</div>
+</section>
+
+<!-- ROLES -->
+<section id="roles">
+<h2 class="st">💻 12. Roles &amp; Tasks — Complete Code</h2>
+
+<!-- MONITOR ROLE -->
+<div class="card">
+<h3>Role 1: oracle_tablespace_monitor</h3>
+
+<div class="cw"><div class="cl"><span>roles/oracle_tablespace_monitor/tasks/main.yml</span><button class="cb" onclick="copyCode(this)">Copy</button></div>
+<pre><code>---
+# =====================================================================
+# Oracle Tablespace Monitor — Main Task Entry Point
+# Calls sub-task files in the correct order
+# =====================================================================
+
+- name: Display which database we are monitoring           # Shows in AAP job output
+  ansible.builtin.debug:
+    msg: >                                                  # Multi-line message using >
+      Starting tablespace monitoring for
+      DB: {{ oracle_sid }}
+      Host: {{ inventory_hostname }}
+      DC: {{ datacenter }}
+
+- name: Ensure Python cx_Oracle library is available       # Pre-check before running
+  ansible.builtin.command:                                 # Run shell command
+    cmd: python3 -c "import cx_Oracle; print('OK')"       # Import test — exits 0 if OK
+  register: cxoracle_check                                 # Save result to variable
+  changed_when: false                                      # This task never "changes" anything
+  failed_when: cxoracle_check.rc != 0                     # Fail if cx_Oracle not installed
+
+- name: Copy tablespace query script to target server      # Upload our Python query script
+  ansible.builtin.copy:                                    # Copy module: local file to remote
+    src: "{{ role_path }}/files/query_tablespaces.py"     # Source: in role's files/ dir
+    dest: /tmp/query_tablespaces.py                        # Destination on DB server
+    mode: '0700'                                           # Executable, readable only by owner
+    owner: oracle                                          # Oracle OS user owns the file
+  # Why copy to /tmp? The ansible user may not have permission to write elsewhere.
+  # /tmp is always writable. We clean up after execution.
+
+- name: Execute tablespace query against Oracle database    # Run the Python script
+  ansible.builtin.shell:                                   # Shell module (not command — need env)
+    cmd: >
+      python3 /tmp/query_tablespaces.py
+      --host {{ ansible_host }}
+      --port {{ oracle_port }}
+      --sid {{ oracle_sid }}
+      --user {{ oracle_monitor_user }}
+      --password "{{ vault_oracle_monitor_pass }}"
+    executable: /bin/bash                                   # Use bash for execution
+  register: tablespace_query_result                         # Save the JSON output
+  changed_when: false                                       # Query never changes the DB
+  no_log: true                                              # CRITICAL: hides password from logs!
+  # no_log: true prevents the password from appearing in AAP job output
+  # Without this, anyone with AAP job view access can see the Oracle password
+
+- name: Parse tablespace JSON results into Ansible variable # Convert JSON string to dict
+  ansible.builtin.set_fact:                                 # Create an Ansible fact (variable)
+    tablespace_data: "{{ tablespace_query_result.stdout | from_json }}"
+    # from_json: Jinja2 filter that converts JSON string to Python dict/list
+    # tablespace_data will be a list of dicts, one per tablespace
+
+- name: Display tablespace summary                         # Human-readable output in AAP
+  ansible.builtin.debug:
+    msg: "Found {{ tablespace_data | length }} tablespaces on {{ oracle_sid }}"
+
+- name: Include alert classification tasks                  # Call sub-task file
+  ansible.builtin.include_tasks:                            # Include another task file
+    file: classify_alerts.yml                               # Determines severity of each TSP
+
+- name: Include alert sending tasks                         # Send notifications
+  ansible.builtin.include_tasks:
+    file: send_alerts.yml                                   # PagerDuty + Slack
+
+- name: Remove temporary query script from server          # Cleanup — security best practice
+  ansible.builtin.file:                                    # File module for file operations
+    path: /tmp/query_tablespaces.py                        # File to remove
+    state: absent                                          # absent = delete the file
+  # Always clean up scripts that contain connection logic</code></pre></div>
+
+<div class="cw"><div class="cl"><span>roles/oracle_tablespace_monitor/tasks/classify_alerts.yml</span><button class="cb" onclick="copyCode(this)">Copy</button></div>
+<pre><code>---
+# =====================================================================
+# Classify each tablespace into severity levels
+# This creates three lists: warning, critical, emergency
+# =====================================================================
+
+- name: Initialize alert lists as empty                    # Always initialize before using
+  ansible.builtin.set_fact:
+    warning_tablespaces: []                                # Will hold 75-85% tablespaces
+    critical_tablespaces: []                               # Will hold 85-95% tablespaces
+    emergency_tablespaces: []                              # Will hold >95% tablespaces
+
+- name: Classify tablespaces into severity buckets
+  ansible.builtin.set_fact:
+    # ── EMERGENCY: > 95% ─────────────────────────────────────────────
+    emergency_tablespaces: >-
+      {{ tablespace_data
+         | selectattr('used_percent', '>=', threshold_emergency)
+         | list }}
+    # selectattr: Jinja2 filter — select items where used_percent >= 95
+    # list: Convert the filter result to an actual list
+
+    # ── CRITICAL: between 85% and 95% ───────────────────────────────
+    critical_tablespaces: >-
+      {{ tablespace_data
+         | selectattr('used_percent', '>=', threshold_critical)
+         | selectattr('used_percent', '<', threshold_emergency)
+         | list }}
+    # Two selectattr filters chained: >= 85% AND < 95%
+
+    # ── WARNING: between 75% and 85% ────────────────────────────────
+    warning_tablespaces: >-
+      {{ tablespace_data
+         | selectattr('used_percent', '>=', threshold_warning)
+         | selectattr('used_percent', '<', threshold_critical)
+         | list }}
+
+- name: Log summary of alert classification
+  ansible.builtin.debug:
+    msg:
+      - "Database: {{ oracle_sid }} on {{ inventory_hostname }}"
+      - "EMERGENCY tablespaces (>95%): {{ emergency_tablespaces | map(attribute='tablespace_name') | list | join(', ') | default('None') }}"
+      - "CRITICAL tablespaces (85-95%): {{ critical_tablespaces | map(attribute='tablespace_name') | list | join(', ') | default('None') }}"
+      - "WARNING tablespaces (75-85%): {{ warning_tablespaces | map(attribute='tablespace_name') | list | join(', ') | default('None') }}"
+      # map(attribute='tablespace_name'): extract just the name from each dict
+      # join(', '): combine list into comma-separated string
+      # default('None'): show 'None' if list is empty</code></pre></div>
+
+<div class="cw"><div class="cl"><span>roles/oracle_tablespace_monitor/tasks/send_alerts.yml</span><button class="cb" onclick="copyCode(this)">Copy</button></div>
+<pre><code>---
+# =====================================================================
+# Send Alerts to PagerDuty and Slack based on severity
+# =====================================================================
+
+# ── EMERGENCY ALERTS: PagerDuty P1 ──────────────────────────────────
+- name: Fire PagerDuty P1 alert for EMERGENCY tablespaces
+  ansible.builtin.uri:                                      # uri module: makes HTTP requests
+    url: "{{ pagerduty_integration_url }}"                  # PagerDuty Events API endpoint
+    method: POST                                            # POST request to create event
+    body_format: json                                       # Send body as JSON
+    headers:
+      Content-Type: "application/json"                      # Required header
+    body:
+      routing_key: "{{ vault_pagerduty_routing_key }}"      # Your PagerDuty integration key
+      event_action: "trigger"                               # trigger = create new alert
+      dedup_key: "oracle-tsp-{{ oracle_sid }}-{{ item.tablespace_name }}"
+      # dedup_key: unique ID — prevents duplicate alerts for same tablespace
+      payload:
+        summary: >-
+          🚨 EMERGENCY: Oracle tablespace {{ item.tablespace_name }}
+          on {{ oracle_sid }} ({{ inventory_hostname }}) is at
+          {{ item.used_percent | round(1) }}% — IMMEDIATE ACTION REQUIRED
+        severity: "critical"                                # PagerDuty severity: critical/error/warning
+        source: "ansible-oracle-monitoring"                  # Identifies the alerting system
+        custom_details:                                     # Extra context in alert
+          database: "{{ oracle_sid }}"
+          host: "{{ inventory_hostname }}"
+          datacenter: "{{ datacenter }}"
+          tablespace: "{{ item.tablespace_name }}"
+          used_percent: "{{ item.used_percent | round(2) }}"
+          total_gb: "{{ item.total_gb | round(2) }}"
+          used_gb: "{{ item.used_gb | round(2) }}"
+          free_gb: "{{ item.free_gb | round(2) }}"
+          auto_extend_eligible: "{{ item.tablespace_name in auto_extend_approved_tablespaces }}"
+    status_code: [202]                                      # PagerDuty returns 202 on success
+  loop: "{{ emergency_tablespaces }}"                       # Loop over each emergency tablespace
+  loop_control:
+    label: "{{ item.tablespace_name }} ({{ item.used_percent | round(1) }}%)"
+    # label: Controls what appears in AAP output for each loop iteration
+  when: emergency_tablespaces | length > 0                  # Only run if list is not empty
+  delegate_to: localhost                                    # API call from AAP controller, not DB server
+
+# ── CRITICAL ALERTS: PagerDuty P2 ──────────────────────────────────
+- name: Fire PagerDuty P2 alert for CRITICAL tablespaces
+  ansible.builtin.uri:
+    url: "{{ pagerduty_integration_url }}"
+    method: POST
+    body_format: json
+    body:
+      routing_key: "{{ vault_pagerduty_routing_key }}"
+      event_action: "trigger"
+      dedup_key: "oracle-tsp-{{ oracle_sid }}-{{ item.tablespace_name }}"
+      payload:
+        summary: >-
+          ⚠️ CRITICAL: Oracle tablespace {{ item.tablespace_name }}
+          on {{ oracle_sid }} is at {{ item.used_percent | round(1) }}%
+        severity: "error"                                   # error severity = P2 in PagerDuty
+        source: "ansible-oracle-monitoring"
+        custom_details:
+          database: "{{ oracle_sid }}"
+          tablespace: "{{ item.tablespace_name }}"
+          used_percent: "{{ item.used_percent | round(2) }}"
+          action_taken: >-
+            {{ 'AUTO-EXTENDING' if item.tablespace_name in auto_extend_approved_tablespaces
+               else 'MANUAL APPROVAL REQUIRED' }}
+    status_code: [202]
+  loop: "{{ critical_tablespaces }}"
+  loop_control:
+    label: "{{ item.tablespace_name }}"
+  when: critical_tablespaces | length > 0
+  delegate_to: localhost
+
+# ── WARNING ALERTS: Slack Only ───────────────────────────────────────
+- name: Send Slack warning message for WARNING tablespaces
+  ansible.builtin.uri:
+    url: "{{ slack_webhook_url }}"
+    method: POST
+    body_format: json
+    body:
+      text: >-
+        :warning: *Oracle Tablespace Warning*
+        *DB:* {{ oracle_sid }} | *Host:* {{ inventory_hostname }} | *DC:* {{ datacenter }}
+        *Tablespaces approaching capacity:*
+        {% for ts in warning_tablespaces %}
+        • {{ ts.tablespace_name }}: {{ ts.used_percent | round(1) }}% used
+          ({{ ts.used_gb | round(1) }}GB / {{ ts.total_gb | round(1) }}GB)
+        {% endfor %}
+    status_code: [200]
+  when: warning_tablespaces | length > 0                    # Only send if there are warnings
+  delegate_to: localhost</code></pre></div>
+</div>
+
+<!-- PYTHON SCRIPT -->
+<div class="card">
+<h3>Python Query Script — cx_Oracle Integration</h3>
+<div class="cw"><div class="cl"><span>roles/oracle_tablespace_monitor/files/query_tablespaces.py</span><button class="cb" onclick="copyCode(this)">Copy</button></div>
+<pre><code>#!/usr/bin/env python3
+"""
+Oracle Tablespace Query Script
+Usage: python3 query_tablespaces.py --host HOST --port PORT --sid SID
+       --user USER --password PASS
+Output: JSON array of tablespace data
+"""
+
+import cx_Oracle          # Oracle connectivity library
+import json               # For JSON output (Ansible reads this)
+import argparse           # For command-line argument parsing
+import sys                # For exit codes
+
+def parse_args():
+    """Parse command line arguments"""
+    parser = argparse.ArgumentParser(description='Query Oracle tablespace usage')
+    parser.add_argument('--host', required=True, help='Oracle host')
+    parser.add_argument('--port', required=True, type=int, help='Oracle listener port')
+    parser.add_argument('--sid', required=True, help='Oracle SID')
+    parser.add_argument('--user', required=True, help='Oracle username')
+    parser.add_argument('--password', required=True, help='Oracle password')
+    return parser.parse_args()
+
+def query_tablespaces(host, port, sid, user, password):
+    """Connect to Oracle and query tablespace usage"""
+
+    # Build Oracle DSN (connection string)
+    # Format: host:port/sid
+    dsn = cx_Oracle.makedsn(host, port, sid=sid)
+
+    # Connect to Oracle
+    conn = cx_Oracle.connect(
+        user=user,
+        password=password,
+        dsn=dsn,
+        encoding="UTF-8"          # Always specify encoding
+    )
+
+    cursor = conn.cursor()        # Create cursor for SQL execution
+
+    # Query tablespace usage from DBA_TABLESPACE_USAGE_METRICS
+    # This view gives the most accurate used_percent
+    sql = """
+        SELECT
+            t.TABLESPACE_NAME,
+            ROUND(m.TABLESPACE_SIZE / 1024 / 1024 / 1024, 2) AS TOTAL_GB,
+            ROUND(m.USED_SPACE / 1024 / 1024 / 1024, 2) AS USED_GB,
+            ROUND((m.TABLESPACE_SIZE - m.USED_SPACE) / 1024 / 1024 / 1024, 2) AS FREE_GB,
+            ROUND(m.USED_PERCENT, 2) AS USED_PERCENT,
+            t.CONTENTS,
+            t.STATUS
+        FROM DBA_TABLESPACE_USAGE_METRICS m
+        JOIN DBA_TABLESPACES t ON m.TABLESPACE_NAME = t.TABLESPACE_NAME
+        WHERE t.CONTENTS != 'TEMPORARY'
+        ORDER BY m.USED_PERCENT DESC
+    """
+    # We exclude TEMPORARY tablespaces because their usage fluctuates constantly
+    # and they self-clean — alerting on them creates noise
+
+    cursor.execute(sql)
+
+    # Get column names from cursor description
+    columns = [desc[0].lower() for desc in cursor.description]
+    # .lower() converts column names to lowercase for consistency
+
+    # Build list of dicts (one per tablespace)
+    results = []
+    for row in cursor.fetchall():
+        results.append(dict(zip(columns, row)))
+        # zip(columns, row): pairs column names with values
+        # dict(...): converts paired tuples to a dictionary
+
+    cursor.close()
+    conn.close()
+    return results
+
+def main():
+    args = parse_args()
+
+    try:
+        tablespaces = query_tablespaces(
+            args.host, args.port, args.sid,
+            args.user, args.password
+        )
+        # Output as JSON to stdout — Ansible captures this with register
+        print(json.dumps(tablespaces, default=str))
+        sys.exit(0)                               # Exit 0 = success
+
+    except cx_Oracle.DatabaseError as e:
+        # Output error as JSON so Ansible can parse it
+        error = {"error": str(e), "host": args.host, "sid": args.sid}
+        print(json.dumps(error), file=sys.stderr) # Write to stderr
+        sys.exit(1)                               # Exit 1 = failure
+
+if __name__ == "__main__":
+    main()</code></pre></div>
+</div>
+
+<!-- EXTEND ROLE -->
+<div class="card">
+<h3>Role 2: oracle_tablespace_extend — Auto-Extension</h3>
+<div class="cw"><div class="cl"><span>roles/oracle_tablespace_extend/tasks/auto_extend.yml</span><button class="cb" onclick="copyCode(this)">Copy</button></div>
+<pre><code>---
+# =====================================================================
+# Auto-Extension: Adds a new datafile to approved tablespaces
+# Only runs for tablespaces in the auto_extend_approved_tablespaces list
+# =====================================================================
+
+- name: Identify tablespaces eligible for auto-extension
+  ansible.builtin.set_fact:
+    # Filter: only tablespaces that are BOTH critical AND in approved list
+    eligible_for_extension: >-
+      {{ critical_tablespaces
+         | selectattr('tablespace_name', 'in', auto_extend_approved_tablespaces)
+         | list }}
+    # This filters out SYSTEM, UNDO, TEMP from auto-extension
+
+- name: Log eligible tablespaces for extension
+  ansible.builtin.debug:
+    msg: "Tablespaces eligible for auto-extension: {{ eligible_for_extension | map(attribute='tablespace_name') | list }}"
+
+- name: Determine next datafile number for each tablespace
+  # Oracle datafiles are usually named: tablespace_name_01.dbf, 02.dbf, etc.
+  # We need to find the next available number
+  ansible.builtin.shell:
+    cmd: >
+      python3 -c "
+      import cx_Oracle, json
+      dsn = cx_Oracle.makedsn('{{ ansible_host }}', {{ oracle_port }}, sid='{{ oracle_sid }}')
+      conn = cx_Oracle.connect('{{ oracle_dba_user }}', '{{ vault_oracle_dba_pass }}', dsn)
+      cur = conn.cursor()
+      cur.execute('''
+        SELECT TABLESPACE_NAME, COUNT(*) as FILE_COUNT,
+               MAX(FILE_NAME) as LAST_FILE
+        FROM DBA_DATA_FILES
+        WHERE TABLESPACE_NAME = :1
+        GROUP BY TABLESPACE_NAME
+      ''', ['{{ item.tablespace_name }}'])
+      row = cur.fetchone()
+      print(json.dumps({'count': row[1], 'last_file': row[2]}))
+      conn.close()
+      "
+  register: datafile_info
+  loop: "{{ eligible_for_extension }}"
+  loop_control:
+    label: "{{ item.tablespace_name }}"
+  changed_when: false
+  no_log: true                                              # Hide Oracle credentials from logs
+
+- name: Add new datafile to eligible tablespaces
+  ansible.builtin.shell:
+    cmd: >
+      python3 -c "
+      import cx_Oracle
+      dsn = cx_Oracle.makedsn('{{ ansible_host }}', {{ oracle_port }}, sid='{{ oracle_sid }}')
+      conn = cx_Oracle.connect('{{ oracle_dba_user }}', '{{ vault_oracle_dba_pass }}', dsn)
+      cur = conn.cursor()
+
+      # Build new datafile path based on tablespace name and sequence
+      new_file = '{{ oracle_datafile_base_path }}/{{ oracle_sid | lower }}/{{ item.tablespace_name | lower }}_{{ '%02d' % (loop.index + existing_count) }}.dbf'
+
+      # ALTER TABLESPACE command to add a new datafile
+      sql = '''ALTER TABLESPACE {{ item.tablespace_name }}
+               ADD DATAFILE \'''' + new_file + '''\'
+               SIZE {{ new_datafile_size_gb }}G
+               AUTOEXTEND {{ 'ON NEXT 512M MAXSIZE ' + new_datafile_maxsize_gb|string + 'G' if new_datafile_autoextend else 'OFF' }}'''
+
+      cur.execute(sql)
+      conn.commit()
+      conn.close()
+      print('SUCCESS: Added ' + new_file)
+      "
+  register: extension_result
+  loop: "{{ eligible_for_extension }}"
+  loop_control:
+    label: "{{ item.tablespace_name }}"
+  no_log: true                                              # Hide credentials
+  changed_when: "'SUCCESS' in extension_result.stdout"     # Marks task as changed
+
+- name: Log auto-extension results
+  ansible.builtin.debug:
+    msg:
+      - "✅ Auto-extended: {{ item.item.tablespace_name }}"
+      - "Result: {{ item.stdout }}"
+  loop: "{{ extension_result.results }}"
+  loop_control:
+    label: "{{ item.item.tablespace_name }}"
+  when: item.rc == 0                                        # Only log successful extensions
+
+- name: Send Slack confirmation of auto-extension
+  ansible.builtin.uri:
+    url: "{{ slack_webhook_url }}"
+    method: POST
+    body_format: json
+    body:
+      text: >-
+        ✅ *Oracle Tablespace Auto-Extended*
+        *DB:* {{ oracle_sid }} | *DC:* {{ datacenter }}
+        {% for result in extension_result.results %}
+        {% if result.rc == 0 %}
+        • {{ result.item.tablespace_name }}: New {{ new_datafile_size_gb }}GB datafile added
+        {% endif %}
+        {% endfor %}
+        _Automated by Ansible AAP — Job #{{ tower_job_id | default('local') }}_
+    status_code: [200]
+  delegate_to: localhost
+  when: extension_result.results | selectattr('rc', 'equalto', 0) | list | length > 0</code></pre></div>
+</div>
+
+<!-- REPORT ROLE -->
+<div class="card">
+<h3>Role 3: oracle_compliance_report</h3>
+<div class="cw"><div class="cl"><span>roles/oracle_compliance_report/templates/compliance_report.html.j2</span><button class="cb" onclick="copyCode(this)">Copy</button></div>
+<pre><code><!DOCTYPE html>
+<html>
+<head>
+<title>Oracle Tablespace Compliance Report — {{ ansible_date_time.date }}</title>
+<style>
+  body { font-family: Arial; margin: 20px; background: #f5f5f5; }
+  h1 { color: #4c1d95; }
+  .header { background: #6d28d9; color: white; padding: 20px; border-radius: 8px; }
+  table { border-collapse: collapse; width: 100%; background: white; }
+  th { background: #6d28d9; color: white; padding: 10px; }
+  td { border: 1px solid #ddd; padding: 8px; }
+  .critical { background: #fee2e2; }
+  .warning  { background: #fef3c7; }
+  .ok       { background: #d1fae5; }
+  .generated { color: #6b7280; font-size: 12px; margin-top: 20px; }
+</style>
+</head>
+<body>
+<div class="header">
+  <h1>🏦 ABC Global Bank — Oracle Tablespace Compliance Report</h1>
+  <p>Report Date: {{ ansible_date_time.date }} | Generated by: Ansible AAP</p>
+  <p>For: CISO | DBA Lead | RBI IT Compliance | PCI-DSS Evidence</p>
+</div>
+
+<h2>Summary</h2>
+<table>
+  <tr><th>Database</th><th>Datacenter</th><th>Total TSP</th><th>Critical (&gt;85%)</th><th>Warning (75-85%)</th><th>Healthy</th></tr>
+{% for db_report in all_db_reports %}
+  <tr>
+    <td>{{ db_report.sid }}</td>
+    <td>{{ db_report.datacenter }}</td>
+    <td>{{ db_report.tablespaces | length }}</td>
+    <td style="color:red;font-weight:bold">{{ db_report.tablespaces | selectattr('used_percent','>=',85) | list | length }}</td>
+    <td style="color:orange">{{ db_report.tablespaces | selectattr('used_percent','>=',75) | selectattr('used_percent','<',85) | list | length }}</td>
+    <td style="color:green">{{ db_report.tablespaces | selectattr('used_percent','<',75) | list | length }}</td>
+  </tr>
+{% endfor %}
+</table>
+
+<h2>Detailed Tablespace Status</h2>
+{% for db_report in all_db_reports %}
+<h3>{{ db_report.sid }} — {{ db_report.datacenter | upper }}</h3>
+<table>
+  <tr>
+    <th>Tablespace</th><th>Total (GB)</th><th>Used (GB)</th>
+    <th>Free (GB)</th><th>Used %</th><th>Status</th>
+  </tr>
+  {% for ts in db_report.tablespaces | sort(attribute='used_percent', reverse=true) %}
+  <tr class="{{ 'critical' if ts.used_percent >= 85 else ('warning' if ts.used_percent >= 75 else 'ok') }}">
+    <td><b>{{ ts.tablespace_name }}</b></td>
+    <td>{{ ts.total_gb }}</td>
+    <td>{{ ts.used_gb }}</td>
+    <td>{{ ts.free_gb }}</td>
+    <td><b>{{ ts.used_percent }}%</b></td>
+    <td>{{ '🔴 CRITICAL' if ts.used_percent >= 85 else ('🟡 WARNING' if ts.used_percent >= 75 else '🟢 OK') }}</td>
+  </tr>
+  {% endfor %}
+</table>
+{% endfor %}
+
+<p class="generated">
+  Generated by Ansible Automation Platform | {{ ansible_date_time.iso8601 }} |
+  Job ID: {{ tower_job_id | default('N/A') }}
+</p>
+</body>
+</html></code></pre></div>
+</div>
+
+<!-- MASTER PLAYBOOKS -->
+<section id="playbooks">
+<h2 class="st">📜 13. Master Playbooks</h2>
+
+<div class="card">
+<div class="cw"><div class="cl"><span>playbooks/oracle_tablespace_monitor.yml</span><button class="cb" onclick="copyCode(this)">Copy</button></div>
+<pre><code>---
+# =====================================================================
+# Oracle Tablespace Monitor — Master Playbook
+# Purpose: Monitor ALL Oracle databases every 30 minutes
+# Schedule: Every 30 minutes via AAP Schedule
+# =====================================================================
+- name: Oracle Tablespace Monitoring — ABC Global Bank
+  hosts: oracle_all                    # Runs on all Oracle databases
+  gather_facts: true                   # Collect server facts (date/time, hostname)
+  become: false                        # We use oracle user directly — no sudo needed
+  serial: 5                           # Process 5 databases at a time (not all 47 at once)
+  # serial: 5 prevents overwhelming the monitoring system with 47 simultaneous jobs
+
+  vars_files:
+    - "{{ inventory_dir }}/group_vars/all/vault.yml"  # Load encrypted passwords
+
+  roles:
+    - role: oracle_tablespace_monitor   # Role 1: Monitor and alert
+      tags:
+        - monitor
+        - always                        # 'always' tag runs even with --skip-tags
+
+  post_tasks:                          # Runs AFTER the role completes
+    - name: Trigger auto-extension for critical tablespaces
+      ansible.builtin.include_role:    # Include another role dynamically
+        name: oracle_tablespace_extend # Role 2: Extension
+      when: >                          # Only trigger if critical tablespaces exist
+        critical_tablespaces is defined
+        and critical_tablespaces | length > 0
+      tags: extend</code></pre></div>
+
+<div class="cw"><div class="cl"><span>playbooks/oracle_compliance_report.yml</span><button class="cb" onclick="copyCode(this)">Copy</button></div>
+<pre><code>---
+# =====================================================================
+# Oracle Compliance Report — Daily Report Playbook
+# Purpose: Generate daily tablespace compliance report for RBI evidence
+# Schedule: Daily at 06:00 AM via AAP Schedule
+# =====================================================================
+- name: Oracle Tablespace Compliance Report — Daily
+  hosts: oracle_all
+  gather_facts: true
+  serial: 10                            # Query all DBs, 10 at a time
+
+  vars_files:
+    - "{{ inventory_dir }}/group_vars/all/vault.yml"
+
+  vars:
+    all_db_reports: []                   # Will accumulate all DB results
+
+  tasks:
+    - name: Query tablespace data for reporting
+      ansible.builtin.include_role:
+        name: oracle_tablespace_monitor  # Reuse monitor role to get data
+        tasks_from: query_tablespaces    # Run only the query sub-task
+
+    - name: Append this database's report to global list
+      ansible.builtin.set_fact:
+        all_db_reports: >-
+          {{ all_db_reports + [{
+            'sid': oracle_sid,
+            'host': inventory_hostname,
+            'datacenter': datacenter,
+            'tablespaces': tablespace_data,
+            'checked_at': ansible_date_time.iso8601
+          }] }}
+      delegate_to: localhost             # Aggregate on control node
+      run_once: false                    # Run for each DB but aggregate centrally
+
+    - name: Generate HTML compliance report (run only once — after all DBs)
+      ansible.builtin.template:
+        src: "{{ playbook_dir }}/../roles/oracle_compliance_report/templates/compliance_report.html.j2"
+        dest: "{{ report_output_dir }}/oracle-tablespace-report-{{ ansible_date_time.date }}.html"
+      delegate_to: localhost
+      run_once: true                     # Only generate report ONCE (not once per DB)
+      # run_once: True — critical for report generation
+      # Without this, it would generate 47 separate reports overwriting each other</code></pre></div>
+</div>
+</section>
+
+<!-- AAP -->
+<section id="aap">
+<h2 class="st">🔴 14. AAP Configuration — Every Click Explained</h2>
+<div class="card">
+
+<details><summary>Step 1: Create Custom Execution Environment with cx_Oracle</summary><div class="inner">
+A standard AAP Execution Environment does not have cx_Oracle or Oracle Instant Client. You must build a custom EE.
+<div class="cw"><div class="cl"><span>execution_environment/execution-environment.yml</span><button class="cb" onclick="copyCode(this)">Copy</button></div>
+<pre><code>---
+version: 3
+build_arg_defaults:
+  EE_BASE_IMAGE: "registry.redhat.io/ansible-automation-platform/ee-minimal-rhel8:latest"
+
+dependencies:
+  python_interpreter:
+    python: python3.9
+    python_path: /usr/bin/python3.9
+
+  python:
+    - cx_Oracle >= 8.3.0       # Oracle connectivity library
+    - oracledb >= 1.4.2        # New Oracle driver (alternative to cx_Oracle)
+
+additional_build_steps:
+  prepend_galaxy: |
+    # Install Oracle Instant Client in the EE
+    RUN dnf install -y oracle-instantclient21-basiclite \
+        oracle-instantclient21-devel \
+        libaio && dnf clean all
+    # Set Oracle environment variables
+    ENV LD_LIBRARY_PATH=/usr/lib/oracle/21/client64/lib
+    ENV ORACLE_HOME=/usr/lib/oracle/21/client64</code></pre></div>
+<div class="cw"><div class="cl"><span>Build and push the EE</span><button class="cb" onclick="copyCode(this)">Copy</button></div>
+<pre><code># On your build machine:
+pip install ansible-builder           # Install EE builder
+
+# Navigate to EE directory
+cd execution_environment/
+
+# Build the custom EE
+ansible-builder build \
+  --tag registry.abcbank.in/ansible/oracle-ee:1.0 \
+  --file execution-environment.yml
+
+# Push to your private registry
+docker push registry.abcbank.in/ansible/oracle-ee:1.0</code></pre></div>
+<p>In AAP UI: Navigate to <b>Administration → Execution Environments → Add</b>. Set Name: "Oracle-EE", Image: "registry.abcbank.in/ansible/oracle-ee:1.0".</p>
+</div></details>
+
+<details><summary>Step 2: Create Oracle Credential Type</summary><div class="inner">
+<p>In AAP UI: <b>Administration → Credential Types → Add</b></p>
+<div class="cw"><div class="cl"><span>AAP Custom Credential Type — Input Configuration (YAML)</span><button class="cb" onclick="copyCode(this)">Copy</button></div>
+<pre><code>fields:
+  - id: oracle_monitor_password
+    type: string
+    label: Oracle Monitor User Password
+    secret: true                         # Marks as secret — shown as ****
+
+  - id: oracle_dba_password
+    type: string
+    label: Oracle DBA User Password
+    secret: true
+
+  - id: pagerduty_routing_key
+    type: string
+    label: PagerDuty Routing Key
+    secret: true
+
+  - id: slack_webhook_url
+    type: string
+    label: Slack Webhook URL
+    secret: true
+
+required:
+  - oracle_monitor_password
+  - oracle_dba_password</code></pre></div>
+<div class="cw"><div class="cl"><span>AAP Custom Credential Type — Injector Configuration (YAML)</span><button class="cb" onclick="copyCode(this)">Copy</button></div>
+<pre><code>extra_vars:
+  vault_oracle_monitor_pass: !unsafe '{{ oracle_monitor_password }}'
+  vault_oracle_dba_pass: !unsafe '{{ oracle_dba_password }}'
+  vault_pagerduty_routing_key: !unsafe '{{ pagerduty_routing_key }}'
+  vault_slack_webhook_url: !unsafe '{{ slack_webhook_url }}'
+  # !unsafe prefix prevents Jinja2 from evaluating the value during injection</code></pre></div>
+</div></details>
+
+<details><summary>Step 3: Create Job Templates</summary><div class="inner">
+<table>
+<tr><th>Setting</th><th>Oracle-Tablespace-Monitor</th><th>Oracle-Compliance-Report</th></tr>
+<tr><td>Name</td><td>Oracle-Tablespace-Monitor</td><td>Oracle-Tablespace-Compliance-Report</td></tr>
+<tr><td>Job Type</td><td>Run</td><td>Run</td></tr>
+<tr><td>Inventory</td><td>ABC-Bank-Oracle-Prod</td><td>ABC-Bank-Oracle-Prod</td></tr>
+<tr><td>Project</td><td>oracle-tablespace-automation</td><td>oracle-tablespace-automation</td></tr>
+<tr><td>Playbook</td><td>playbooks/oracle_tablespace_monitor.yml</td><td>playbooks/oracle_compliance_report.yml</td></tr>
+<tr><td>Credentials</td><td>Oracle-DB-Credentials (custom type)</td><td>Oracle-DB-Credentials (custom type)</td></tr>
+<tr><td>Execution Environment</td><td>Oracle-EE</td><td>Oracle-EE</td></tr>
+<tr><td>Forks</td><td>10</td><td>10</td></tr>
+<tr><td>Enable Webhook</td><td>No</td><td>No</td></tr>
+</table>
+</div></details>
+
+<details><summary>Step 4: Create Workflow with Approval Node</summary><div class="inner">
+<p>Navigate to: <b>Resources → Templates → Add → Workflow Template</b></p>
+<p>Name: <code>Oracle-Tablespace-Full-Workflow</code></p>
+<p>In the Workflow Visualizer:</p>
+<ol>
+  <li>Add node: <b>Oracle-Tablespace-Monitor</b> (Start node)</li>
+  <li>On SUCCESS path → Add <b>Approval Node</b> "DBA Lead Approval for Restricted Tablespace Extension"</li>
+  <li>On Approval APPROVED path → Add node: <b>Oracle-Tablespace-Extend-Restricted</b></li>
+  <li>On Approval DENIED path → Add Notification (Slack: "DBA denied extension, manual action needed")</li>
+</ol>
+<div class="info-box">
+<b>Approval Node:</b> When SYSTEM or UNDOTBS1 reaches 85%, the workflow automatically pauses and sends a notification to the DBA Lead asking them to review and approve or deny the extension. This prevents accidental growth of system-critical tablespaces.
+</div>
+</div></details>
+
+<details><summary>Step 5: Create Schedules</summary><div class="inner">
+<table>
+<tr><th>Job Template</th><th>Schedule Name</th><th>Frequency</th><th>Time</th></tr>
+<tr><td>Oracle-Tablespace-Monitor</td><td>Every-30-Minutes-Monitor</td><td>Every 30 minutes</td><td>00:00, 00:30, 01:00... (all day)</td></tr>
+<tr><td>Oracle-Tablespace-Compliance-Report</td><td>Daily-0600-Report</td><td>Daily</td><td>06:00 AM IST</td></tr>
+</table>
+<p>In AAP UI: Open the Job Template → <b>Schedules tab → Add</b>. Use the rrule format for complex schedules.</p>
+</div></details>
+</div>
+</section>
+
+<!-- FLOW -->
+<section id="flow">
+<h2 class="st">🔄 15. Execution Flow — What Happens Every 30 Minutes</h2>
+<div class="card">
+<div class="fs"><div class="fn">1</div><div>AAP Scheduler fires every 30 min. Launches <b>Oracle-Tablespace-Monitor</b> job template. Custom Oracle-EE spins up.</div></div>
+<div class="fs"><div class="fn">2</div><div>Playbook runs against all 47 Oracle servers (serial:5, so 5 at a time). For each server: Python script uploaded to /tmp, cx_Oracle connects via TNS to Oracle DB, queries DBA_TABLESPACE_USAGE_METRICS, returns JSON.</div></div>
+<div class="fs"><div class="fn">3</div><div>Ansible parses JSON, runs through classify_alerts tasks. Creates three lists: emergency (>95%), critical (85-95%), warning (75-85%).</div></div>
+<div class="fs"><div class="fn">4</div><div>For emergency tablespaces: PagerDuty P1 fires immediately — on-call DBA woken up. For critical tablespaces: PagerDuty P2 fires. For warning: Slack message to #dba-alerts channel.</div></div>
+<div class="fs"><div class="fn">5</div><div>For CRITICAL tablespaces in the approved list (CBS_DATA, LMS_DATA etc.): auto-extension role triggers. New datafile added. PagerDuty auto-resolved after extension confirmed.</div></div>
+<div class="fs"><div class="fn">6</div><div>For CRITICAL tablespaces NOT in approved list (SYSTEM, UNDOTBS1): Workflow pauses at Approval Node. Slack message to DBA Lead with approve/deny link. DBA reviews and acts.</div></div>
+<div class="fs"><div class="fn">7</div><div>Daily at 06:00 AM: Compliance Report job generates HTML report with all tablespace statuses. Auto-emailed to CISO, DBA Lead, and RBI Compliance Team. Stored on NFS for 1 year.</div></div>
+</div>
+</section>
+
+<!-- LAB -->
+<section id="lab">
+<h2 class="st">🧪 16. Lab Setup — Practice on Your Laptop</h2>
+<div class="card">
+<div class="g2">
+<div>
+<h3>Option 1: Oracle XE (Free) on Local VM</h3>
+<div class="cw"><div class="cl"><span>Install Oracle XE for Lab Testing</span><button class="cb" onclick="copyCode(this)">Copy</button></div>
+<pre><code># On a RHEL/Rocky 8 VM (at least 4GB RAM, 20GB disk)
+
+# Add Oracle XE repository
+sudo rpm -ivh oracle-database-preinstall-21c-1.0-1.el8.x86_64.rpm
+
+# Download Oracle XE 21c from Oracle website (free)
+# https://www.oracle.com/database/technologies/xe-downloads.html
+sudo rpm -ivh oracle-database-xe-21c-1.0-1.ol8.x86_64.rpm
+
+# Configure Oracle XE (sets up passwords)
+sudo /etc/init.d/oracle-xe-21c configure
+
+# Start Oracle
+sudo systemctl start oracle-xe-21c
+
+# Verify Oracle is running
+ps -ef | grep pmon
+
+# Create test tablespaces
+sqlplus sys/password@XE as sysdba << EOF
+CREATE TABLESPACE CBS_DATA DATAFILE '/opt/oracle/oradata/XE/cbs_data01.dbf' SIZE 100M;
+CREATE TABLESPACE CBS_IDX  DATAFILE '/opt/oracle/oradata/XE/cbs_idx01.dbf'  SIZE 50M;
+EOF</code></pre></div>
+</div>
+<div>
+<h3>Option 2: Docker Oracle XE</h3>
+<div class="cw"><div class="cl"><span>Oracle XE in Docker</span><button class="cb" onclick="copyCode(this)">Copy</button></div>
+<pre><code"># Pull Oracle XE Docker image
+docker pull gvenzl/oracle-xe:21-slim
+
+# Run Oracle XE container
+docker run -d \
+  --name oracle-xe-lab \
+  -p 1521:1521 \
+  -e ORACLE_PASSWORD=LabPass123 \
+  gvenzl/oracle-xe:21-slim
+
+# Wait ~2 minutes for startup
+docker logs -f oracle-xe-lab
+
+# Connect to verify
+sqlplus sys/LabPass123@localhost:1521/XE as sysdba
+
+# Install cx_Oracle in your Python environment
+pip install cx_Oracle
+
+# Test Python connection
+python3 -c "
+import cx_Oracle
+conn = cx_Oracle.connect('sys', 'LabPass123',
+  cx_Oracle.makedsn('localhost', 1521, sid='XE'),
+  mode=cx_Oracle.SYSDBA)
+print('Connected:', conn.version)
+conn.close()"</code></pre></div>
+</div>
+</div>
+
+<h3>Lab Validation Steps</h3>
+<div class="cw"><div class="cl"><span>Validate your setup end-to-end</span><button class="cb" onclick="copyCode(this)">Copy</button></div>
+<pre><code"># 1. Test inventory connection
+ansible -i inventory/production/hosts.ini oracle_all -m ping
+
+# 2. Run monitoring playbook in check mode first (no changes)
+ansible-playbook playbooks/oracle_tablespace_monitor.yml \
+  -i inventory/production/hosts.ini \
+  --check --diff \
+  -v
+
+# 3. Run the actual monitoring playbook
+ansible-playbook playbooks/oracle_tablespace_monitor.yml \
+  -i inventory/production/hosts.ini \
+  -v
+
+# 4. Simulate a full tablespace to test alerting
+# In sqlplus (fill up a tablespace):
+sqlplus sys/password@XE as sysdba << EOF
+-- Create a table that fills CBS_DATA
+CREATE TABLE fill_test (data VARCHAR2(4000))
+TABLESPACE CBS_DATA;
+-- Insert until full (loop in PL/SQL)
+BEGIN
+  FOR i IN 1..10000 LOOP
+    INSERT INTO fill_test VALUES (RPAD('X', 4000, 'X'));
+    IF MOD(i, 100) = 0 THEN COMMIT; END IF;
+  END LOOP;
+END;
+/
+EOF
+
+# 5. Re-run monitoring — should now detect > 75% and alert
+ansible-playbook playbooks/oracle_tablespace_monitor.yml \
+  -i inventory/production/hosts.ini \
+  -v</code></pre></div>
+</div>
+</section>
+
+<!-- INTERVIEW -->
+<section id="interview">
+<h2 class="st">🎯 17. Interview Preparation</h2>
+<div class="card">
+<div class="g2">
+<div>
+<details><summary>Q: What is the difference between DBA_TABLESPACE_USAGE_METRICS and DBA_FREE_SPACE?</summary><div class="inner">
+<b>DBA_FREE_SPACE</b> shows the raw free space in each tablespace but does NOT account for space that can be reclaimed (expired undo, unused extents). This can lead to over-reporting space as "full" when it's actually not.<br><br>
+<b>DBA_TABLESPACE_USAGE_METRICS</b> is newer (11g R2+) and gives a more accurate picture — it considers the actual used space vs total capacity including AUTOEXTEND potential. We always prefer this view for monitoring because it gives the USED_PERCENT directly without manual calculation.
+</div></details>
+<details><summary>Q: Why do you add a NEW datafile instead of just enabling AUTOEXTEND?</summary><div class="inner">
+Two reasons:<br>
+1. <b>Control over filesystem placement:</b> AUTOEXTEND grows the existing datafile on the same filesystem. If that filesystem is almost full, AUTOEXTEND will also fail. Adding a new datafile allows us to choose a different filesystem — potentially a different SAN volume.<br>
+2. <b>Size cap:</b> AUTOEXTEND can grow unboundedly (up to OS limits) if MAXSIZE is not set. Explicitly adding a fixed-size datafile gives deterministic, controlled growth.
+</div></details>
+</div>
+<div>
+<details><summary>Q: How did you avoid exposing Oracle passwords in Ansible logs?</summary><div class="inner">
+Three techniques:<br>
+1. <code>no_log: true</code> on any task that uses passwords in command arguments — prevents the entire task output from appearing in AAP job logs.<br>
+2. AAP Custom Credential Types — passwords are injected as environment variables, never passed as command-line arguments or stored in playbook files.<br>
+3. The Python script receives passwords as arguments, but since <code>no_log: true</code> is set on the calling Ansible task, the arguments never appear in logs.<br><br>
+Additionally, all Python temp scripts are removed immediately after execution to prevent credentials lingering on disk.
+</div></details>
+<details><summary>Q: Why use serial: 5 in the monitor playbook?</summary><div class="inner">
+<code>serial: 5</code> means Ansible processes 5 databases at a time, not all 47 simultaneously. Reasons:<br>
+1. <b>Resource control:</b> 47 simultaneous Oracle connections from the AAP node could exceed connection limits or overwhelm the monitoring infrastructure.<br>
+2. <b>Graceful failure handling:</b> If 5 databases are processed at a time and 2 fail, the remaining 42 databases still get monitored. Without serial, a single connection failure during parallel execution could cascade.<br>
+3. <b>Network consideration:</b> 47 simultaneous SCP transfers (uploading the Python script) could saturate bandwidth.
+</div></details>
+</div>
+</div>
+</section>
+
+<!-- SUMMARY -->
+<section id="summary">
+<h2 class="st">📝 18. Summary &amp; Key Learnings</h2>
+<div class="g2">
+<div class="card">
+<h3>What We Built</h3>
+<ul>
+  <li>Automated Oracle tablespace monitoring across 47 databases</li>
+  <li>Three-tier alerting: Warning → Critical → Emergency</li>
+  <li>Auto-extension for approved tablespaces (no human needed)</li>
+  <li>Approval workflow for restricted tablespaces (SYSTEM, UNDO)</li>
+  <li>Daily HTML+CSV compliance report for RBI</li>
+  <li>Custom AAP Execution Environment with cx_Oracle</li>
+</ul>
+</div>
+<div class="card">
+<h3>New Patterns Learned</h3>
+<ul>
+  <li><code>cx_Oracle</code> Python library for Oracle connectivity from Ansible</li>
+  <li>Custom AAP Credential Types to protect Oracle passwords</li>
+  <li>Custom AAP Execution Environment with Oracle Instant Client</li>
+  <li><code>no_log: true</code> — critical for hiding credentials</li>
+  <li><code>selectattr</code> Jinja2 filter for list filtering</li>
+  <li><code>run_once: true</code> for aggregated reporting</li>
+  <li><code>delegate_to: localhost</code> for API calls from DB servers</li>
+  <li>AAP Approval Nodes for human-gated workflows</li>
+</ul>
+</div>
+</div>
+</section>
+
+<div class="fn-row">
+  <span style="color:var(--text-dim);font-size:.85rem;">Advanced Series — Project 1 of 30 Complete</span>
+  <a class="btn" href="#">Request Project 02 →</a>
+</div>
+</main>
+</div>
+<script>
+function copyCode(btn){
+  const pre=btn.closest('.cw').querySelector('pre code')||btn.closest('.cw').querySelector('pre');
+  navigator.clipboard.writeText(pre.innerText).then(()=>{const o=btn.innerText;btn.innerText='Copied!';setTimeout(()=>btn.innerText=o,1500);});
+}
+</script>
+</body>
+</html>

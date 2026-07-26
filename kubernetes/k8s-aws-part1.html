@@ -1,0 +1,1114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Kubernetes on AWS — Part 1: Foundations & Architecture</title>
+<style>
+  /* ─── Design Tokens ─── */
+  :root {
+    --bg:        #F7F8FA;
+    --surface:   #FFFFFF;
+    --border:    #E2E6ED;
+    --accent:    #2563EB;   /* Kubernetes blue */
+    --accent2:   #16A34A;   /* AWS green */
+    --accent3:   #DC2626;   /* danger/important */
+    --accent-lt: #EFF6FF;
+    --text:      #111827;
+    --muted:     #6B7280;
+    --code-bg:   #1E293B;
+    --code-text: #E2E8F0;
+    --yellow:    #FEF9C3;
+    --yellow-b:  #CA8A04;
+    --green-lt:  #DCFCE7;
+    --green-b:   #15803D;
+    --radius:    10px;
+    --shadow:    0 2px 12px rgba(0,0,0,.07);
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body { background: var(--bg); color: var(--text); line-height: 1.7; font-size: 16px; }
+
+  /* ─── Layout ─── */
+  .page { max-width: 960px; margin: 0 auto; padding: 40px 24px 80px; }
+
+  /* ─── Header ─── */
+  .header {
+    background: linear-gradient(135deg, #1E3A5F 0%, #2563EB 60%, #1D4ED8 100%);
+    color: white; border-radius: 16px; padding: 48px 40px; margin-bottom: 40px;
+  }
+  .header .badge { font-size: 12px; font-weight: 700; letter-spacing: 2px;
+    background: rgba(255,255,255,.15); padding: 4px 14px; border-radius: 20px;
+    display: inline-block; margin-bottom: 16px; text-transform: uppercase; }
+  .header h1 { font-size: 2.4rem; font-weight: 800; line-height: 1.2; margin-bottom: 12px; }
+  .header p { font-size: 1.1rem; opacity: .85; max-width: 620px; }
+  .header .meta { margin-top: 24px; display: flex; gap: 24px; flex-wrap: wrap; }
+  .header .meta span { font-size: .85rem; opacity: .8; }
+  .header .meta strong { opacity: 1; }
+
+  /* ─── Nav pills ─── */
+  .parts-nav { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 36px; }
+  .parts-nav a {
+    padding: 8px 18px; border-radius: 24px; font-size: .85rem; font-weight: 600;
+    text-decoration: none; border: 2px solid var(--border);
+    color: var(--muted); background: var(--surface); transition: all .2s;
+  }
+  .parts-nav a.active { background: var(--accent); color: white; border-color: var(--accent); }
+  .parts-nav a:hover:not(.active) { border-color: var(--accent); color: var(--accent); }
+
+  /* ─── TOC ─── */
+  .toc { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 28px 32px; margin-bottom: 40px; box-shadow: var(--shadow); }
+  .toc h2 { font-size: 1rem; font-weight: 700; color: var(--muted); text-transform: uppercase;
+    letter-spacing: 1px; margin-bottom: 16px; }
+  .toc ol { padding-left: 20px; }
+  .toc li { margin-bottom: 8px; }
+  .toc a { color: var(--accent); text-decoration: none; font-size: .95rem; }
+  .toc a:hover { text-decoration: underline; }
+
+  /* ─── Section ─── */
+  .section { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 36px 40px; margin-bottom: 32px; box-shadow: var(--shadow); }
+  .section-num { display: inline-block; background: var(--accent); color: white;
+    font-size: .75rem; font-weight: 800; padding: 2px 10px; border-radius: 20px; margin-bottom: 12px; }
+  .section h2 { font-size: 1.6rem; font-weight: 700; color: var(--text); margin-bottom: 16px; }
+  .section h3 { font-size: 1.15rem; font-weight: 700; color: var(--accent); margin: 28px 0 10px; }
+  .section h4 { font-size: 1rem; font-weight: 700; margin: 20px 0 8px; }
+  .section p { margin-bottom: 14px; color: #374151; }
+  .section ul, .section ol { padding-left: 22px; margin-bottom: 14px; }
+  .section li { margin-bottom: 6px; color: #374151; }
+
+  /* ─── Story box ─── */
+  .story {
+    background: linear-gradient(135deg, #EFF6FF, #DBEAFE);
+    border-left: 4px solid var(--accent); border-radius: 0 var(--radius) var(--radius) 0;
+    padding: 20px 24px; margin: 24px 0;
+  }
+  .story .story-label { font-size: .75rem; font-weight: 800; color: var(--accent);
+    text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 8px; }
+  .story p { color: #1E40AF; margin: 0; }
+
+  /* ─── Code blocks ─── */
+  .code-block { background: var(--code-bg); border-radius: var(--radius); overflow: hidden;
+    margin: 20px 0; box-shadow: 0 4px 16px rgba(0,0,0,.15); }
+  .code-header { background: #0F172A; padding: 10px 18px; display: flex;
+    justify-content: space-between; align-items: center; }
+  .code-header .lang { font-size: .75rem; color: #94A3B8; font-weight: 600;
+    text-transform: uppercase; letter-spacing: 1px; }
+  .code-header .filename { font-size: .75rem; color: #64748B; font-family: monospace; }
+  pre { padding: 20px 22px; overflow-x: auto; }
+  code { font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+    font-size: .88rem; line-height: 1.7; color: var(--code-text); }
+  .inline-code { background: #E8EDF5; color: #2563EB; padding: 2px 7px;
+    border-radius: 5px; font-family: monospace; font-size: .87em; }
+
+  /* ─── Annotations (word-by-word) ─── */
+  .annotate { margin: 20px 0; }
+  .annotate-row { display: grid; grid-template-columns: 1fr 2fr; gap: 0;
+    border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; margin-bottom: 10px; }
+  .annotate-code { background: var(--code-bg); padding: 12px 16px;
+    font-family: monospace; font-size: .85rem; color: var(--code-text); word-break: break-all; }
+  .annotate-desc { background: var(--surface); padding: 12px 16px; font-size: .9rem;
+    color: var(--text); border-left: 1px solid var(--border); }
+  .annotate-desc strong { color: var(--accent); display: block; margin-bottom: 4px; }
+
+  /* ─── Info cards ─── */
+  .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px,1fr)); gap: 16px; margin: 20px 0; }
+  .card { background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 20px; }
+  .card .icon { font-size: 1.8rem; margin-bottom: 10px; }
+  .card h4 { font-size: .95rem; font-weight: 700; margin-bottom: 6px; }
+  .card p { font-size: .85rem; color: var(--muted); margin: 0; }
+
+  /* ─── Warning / tip ─── */
+  .tip { background: var(--yellow); border-left: 4px solid var(--yellow-b);
+    border-radius: 0 var(--radius) var(--radius) 0; padding: 16px 20px; margin: 20px 0; }
+  .tip strong { color: var(--yellow-b); }
+  .success { background: var(--green-lt); border-left: 4px solid var(--green-b);
+    border-radius: 0 var(--radius) var(--radius) 0; padding: 16px 20px; margin: 20px 0; }
+  .success strong { color: var(--green-b); }
+
+  /* ─── Interview box ─── */
+  .interview { background: #FDF4FF; border: 1px solid #E9D5FF;
+    border-radius: var(--radius); padding: 20px 24px; margin: 24px 0; }
+  .interview-label { font-size: .75rem; font-weight: 800; color: #7C3AED;
+    text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 12px; }
+  .interview .q { font-weight: 700; color: #6D28D9; margin-bottom: 6px; }
+  .interview .a { color: #374151; margin-bottom: 12px; padding-left: 14px;
+    border-left: 3px solid #C4B5FD; }
+
+  /* ─── Architecture diagram ─── */
+  .arch-diagram { background: var(--bg); border: 2px dashed var(--border);
+    border-radius: var(--radius); padding: 24px; margin: 20px 0;
+    font-family: monospace; font-size: .82rem; line-height: 1.9; color: var(--text);
+    white-space: pre; overflow-x: auto; }
+
+  /* ─── Hands-on lab ─── */
+  .lab { background: #F0FDF4; border: 2px solid #86EFAC;
+    border-radius: var(--radius); padding: 28px 32px; margin: 28px 0; }
+  .lab-header { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; }
+  .lab-header .lab-icon { font-size: 1.6rem; }
+  .lab-header h3 { font-size: 1.1rem; font-weight: 700; color: #15803D; margin: 0; }
+  .lab .step { display: flex; gap: 14px; margin-bottom: 18px; }
+  .lab .step-num { background: #15803D; color: white; width: 28px; height: 28px;
+    border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    font-size: .8rem; font-weight: 700; flex-shrink: 0; margin-top: 3px; }
+  .lab .step-body p { margin-bottom: 8px; font-size: .95rem; }
+
+  /* ─── Table ─── */
+  table { width: 100%; border-collapse: collapse; margin: 20px 0; font-size: .9rem; }
+  th { background: var(--accent); color: white; padding: 12px 16px; text-align: left; font-weight: 600; }
+  td { padding: 11px 16px; border-bottom: 1px solid var(--border); }
+  tr:nth-child(even) td { background: var(--bg); }
+
+  /* ─── Footer ─── */
+  .footer { text-align: center; padding: 40px 0 0; color: var(--muted); font-size: .85rem; }
+  .footer .next-btn {
+    display: inline-block; margin-bottom: 20px; background: var(--accent); color: white;
+    padding: 14px 32px; border-radius: 30px; text-decoration: none; font-weight: 700;
+    font-size: 1rem; transition: background .2s;
+  }
+  .footer .next-btn:hover { background: #1D4ED8; }
+
+  @media(max-width:600px){
+    .header { padding: 32px 20px; }
+    .header h1 { font-size: 1.7rem; }
+    .section { padding: 24px 20px; }
+    .annotate-row { grid-template-columns: 1fr; }
+    .annotate-desc { border-left: none; border-top: 1px solid var(--border); }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <!-- ─── HEADER ─── -->
+  <div class="header">
+    <div class="badge">Complete Course · Part 1 of 6</div>
+    <h1>Kubernetes Administration<br>on AWS (EKS)</h1>
+    <p>From Zero → Production Hero. A story-driven, hands-on curriculum covering every concept a 4-YOE engineer needs — including interview preparation.</p>
+    <div class="meta">
+      <span>🎯 <strong>Level:</strong> Beginner → Advanced</span>
+      <span>☁️ <strong>Platform:</strong> AWS EKS + Local (Minikube / Kind)</span>
+      <span>📦 <strong>Part 1 of 6</strong> — Foundations & Architecture</span>
+      <span>⏱ <strong>~3 hours</strong> reading + labs</span>
+    </div>
+  </div>
+
+  <!-- ─── PART NAV ─── -->
+  <div class="parts-nav">
+    <a href="k8s-aws-part1.html" class="active">Part 1 · Foundations</a>
+    <a href="k8s-aws-part2.html">Part 2 · Workloads</a>
+    <a href="k8s-aws-part3.html">Part 3 · Networking</a>
+    <a href="k8s-aws-part4.html">Part 4 · Storage & Config</a>
+    <a href="k8s-aws-part5.html">Part 5 · Security & RBAC</a>
+    <a href="k8s-aws-part6.html">Part 6 · Real Project + Interview</a>
+  </div>
+
+  <!-- ─── TOC ─── -->
+  <div class="toc">
+    <h2>📋 Part 1 — Table of Contents</h2>
+    <ol>
+      <li><a href="#story">The Story — Why Kubernetes Exists</a></li>
+      <li><a href="#architecture">Kubernetes Architecture Deep Dive</a></li>
+      <li><a href="#aws-eks">AWS EKS — Managed Kubernetes</a></li>
+      <li><a href="#objects">Core Kubernetes Objects</a></li>
+      <li><a href="#setup">Hands-On Lab: Install Tools & Launch Your First Cluster</a></li>
+      <li><a href="#first-pod">Hands-On Lab: Your First Pod & Deployment</a></li>
+      <li><a href="#interview">Interview Questions — Part 1</a></li>
+    </ol>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════
+       SECTION 1 — THE STORY
+  ══════════════════════════════════════════════════ -->
+  <div class="section" id="story">
+    <span class="section-num">SECTION 1</span>
+    <h2>🏢 The Story — Why Kubernetes Exists</h2>
+
+    <div class="story">
+      <div class="story-label">📖 Real-World Story</div>
+      <p>Imagine you're an engineer at a startup called <strong>ShopNow</strong>. Your app runs on a single EC2 server. Black Friday arrives — traffic spikes 100x. Your server crashes. Orders are lost. The CEO calls. <em>This is the problem Kubernetes was built to solve.</em></p>
+    </div>
+
+    <h3>The Evolution: From Bare Metal → Containers → Kubernetes</h3>
+    <p>Let's walk through every stage to understand <em>why</em> each layer was invented:</p>
+
+    <table>
+      <tr>
+        <th>Era</th><th>How apps ran</th><th>Problem it created</th>
+      </tr>
+      <tr>
+        <td><strong>1990s–2000s</strong></td>
+        <td>One app per physical server</td>
+        <td>Wasted 90% of server capacity, slow to provision</td>
+      </tr>
+      <tr>
+        <td><strong>2000s–2010s</strong></td>
+        <td>Virtual Machines (VMware, EC2)</td>
+        <td>Better utilization, but VMs are heavy (GBs), slow to start (mins)</td>
+      </tr>
+      <tr>
+        <td><strong>2013+</strong></td>
+        <td>Docker Containers</td>
+        <td>Lightweight (MBs), fast (seconds). But: who manages 1000 containers?</td>
+      </tr>
+      <tr>
+        <td><strong>2014+</strong></td>
+        <td>Kubernetes (K8s)</td>
+        <td>Orchestrates containers at scale — auto-heal, auto-scale, zero-downtime deploy</td>
+      </tr>
+    </table>
+
+    <h3>What Kubernetes Does (The 5 Superpowers)</h3>
+    <div class="cards">
+      <div class="card">
+        <div class="icon">⚙️</div>
+        <h4>Orchestration</h4>
+        <p>Decides which server (node) runs which container automatically.</p>
+      </div>
+      <div class="card">
+        <div class="icon">🔄</div>
+        <h4>Self-Healing</h4>
+        <p>Detects crashed containers and restarts them automatically within seconds.</p>
+      </div>
+      <div class="card">
+        <div class="icon">📈</div>
+        <h4>Auto-Scaling</h4>
+        <p>Adds/removes container replicas based on CPU, memory, or custom metrics.</p>
+      </div>
+      <div class="card">
+        <div class="icon">🚢</div>
+        <h4>Rolling Deploys</h4>
+        <p>Updates apps with zero downtime — new pods come up before old ones go down.</p>
+      </div>
+      <div class="card">
+        <div class="icon">🌐</div>
+        <h4>Service Discovery</h4>
+        <p>Every service gets a stable DNS name — no hardcoded IPs needed.</p>
+      </div>
+    </div>
+
+    <div class="tip">
+      <strong>💡 Mental Model:</strong> Think of Kubernetes as an <em>operating system for your data center</em>. Just like Linux manages CPU, RAM, and processes on one machine — Kubernetes manages CPU, RAM, and containers across a fleet of machines.
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════
+       SECTION 2 — ARCHITECTURE
+  ══════════════════════════════════════════════════ -->
+  <div class="section" id="architecture">
+    <span class="section-num">SECTION 2</span>
+    <h2>🏗️ Kubernetes Architecture — The Brain & The Workers</h2>
+
+    <div class="story">
+      <div class="story-label">📖 Story Analogy</div>
+      <p>Think of K8s as a <strong>restaurant</strong>. The <em>Control Plane</em> is the <strong>management office</strong> (takes orders, decides who cooks what). The <em>Worker Nodes</em> are the <strong>kitchen staff</strong> (actually cook and serve). You (the developer) are the <strong>customer</strong> — you describe what you want, the system makes it happen.</p>
+    </div>
+
+    <h3>High-Level Architecture</h3>
+    <div class="arch-diagram">
+┌─────────────────────────────────────────────────────────────────────┐
+│                         KUBERNETES CLUSTER                          │
+│                                                                     │
+│   ┌─────────────────────────────────────────────────────────────┐   │
+│   │                     CONTROL PLANE                           │   │
+│   │                   (The Brain / Master)                      │   │
+│   │                                                             │   │
+│   │  ┌──────────────┐  ┌──────────────┐  ┌──────────────────┐  │   │
+│   │  │   API Server │  │  etcd (DB)   │  │   Scheduler      │  │   │
+│   │  │  :6443       │  │  (key-value) │  │  (pod placement) │  │   │
+│   │  └──────────────┘  └──────────────┘  └──────────────────┘  │   │
+│   │  ┌──────────────────────────────────────────────────────┐   │   │
+│   │  │         Controller Manager (Watch & Act Loop)        │   │   │
+│   │  └──────────────────────────────────────────────────────┘   │   │
+│   └─────────────────────────────────────────────────────────────┘   │
+│                              │ API calls                            │
+│          ┌───────────────────┼───────────────────┐                 │
+│          ▼                   ▼                   ▼                 │
+│   ┌──────────────┐   ┌──────────────┐   ┌──────────────┐          │
+│   │  Worker Node │   │  Worker Node │   │  Worker Node │          │
+│   │   (EC2 #1)   │   │   (EC2 #2)   │   │   (EC2 #3)   │          │
+│   │              │   │              │   │              │          │
+│   │  ┌────────┐  │   │  ┌────────┐  │   │  ┌────────┐  │          │
+│   │  │kubelet │  │   │  │kubelet │  │   │  │kubelet │  │          │
+│   │  │kube-   │  │   │  │kube-   │  │   │  │kube-   │  │          │
+│   │  │proxy   │  │   │  │proxy   │  │   │  │proxy   │  │          │
+│   │  │[pods]  │  │   │  │[pods]  │  │   │  │[pods]  │  │          │
+│   │  └────────┘  │   │  └────────┘  │   │  └────────┘  │          │
+│   └──────────────┘   └──────────────┘   └──────────────┘          │
+│                                                                     │
+│   ┌──────────────────────────────────────────────────────────────┐  │
+│   │  kubectl (CLI)  ──► API Server  ──► etcd / Scheduler / CM   │  │
+│   └──────────────────────────────────────────────────────────────┘  │
+└─────────────────────────────────────────────────────────────────────┘
+    </div>
+
+    <h3>Control Plane Components — Explained Word by Word</h3>
+
+    <h4>1. kube-apiserver — The Front Door</h4>
+    <p>Every command you run (<span class="inline-code">kubectl apply</span>, <span class="inline-code">kubectl get pods</span>) hits the <strong>API Server</strong> first. It is the <em>single source of truth gateway</em>. It validates requests, authenticates users, and writes state to etcd.</p>
+    <div class="tip">
+      <strong>Why it matters:</strong> Nothing in Kubernetes happens without going through the API Server. Every component (scheduler, kubelet, controller) only talks to the API Server — never directly to each other. This is the <em>hub-and-spoke</em> design.
+    </div>
+
+    <h4>2. etcd — The Memory</h4>
+    <p><strong>etcd</strong> is a distributed, strongly-consistent key-value store. It stores <em>all cluster state</em> — every pod, service, secret, configmap. If etcd is lost, the cluster's brain is wiped.</p>
+    <div class="tip">
+      <strong>Interview fact:</strong> etcd uses the Raft consensus algorithm to guarantee that data is consistent across multiple etcd replicas. In production, you run 3 or 5 etcd nodes.
+    </div>
+
+    <h4>3. kube-scheduler — The Placement Engine</h4>
+    <p>When a new Pod is created, it starts as <em>Pending</em> (no node assigned). The Scheduler watches for Pending pods and picks the best node based on: available CPU/RAM, node affinity rules, taints/tolerations, and topology spread constraints.</p>
+
+    <h4>4. kube-controller-manager — The Robot Army</h4>
+    <p>This runs a collection of <em>controllers</em>, each watching for a specific type of desired state vs actual state mismatch:</p>
+    <ul>
+      <li><strong>ReplicaSet Controller:</strong> "I want 3 pods. I see 2. Create 1 more."</li>
+      <li><strong>Node Controller:</strong> "Node #3 hasn't reported in 40 seconds. Mark it NotReady."</li>
+      <li><strong>Endpoint Controller:</strong> "A new pod matched Service X's selector. Add its IP to the endpoints."</li>
+    </ul>
+
+    <h3>Worker Node Components</h3>
+
+    <h4>kubelet — The Node Agent</h4>
+    <p>Each worker node runs a <strong>kubelet</strong>. It constantly watches the API Server for pods assigned to its node, then tells the container runtime (containerd/Docker) to start/stop containers. It also reports node health back to the API Server.</p>
+
+    <h4>kube-proxy — The Network Plumber</h4>
+    <p>Maintains <strong>iptables / IPVS rules</strong> on every node so that traffic to a Service's ClusterIP gets load-balanced to the correct Pod IPs. Without kube-proxy, Services wouldn't route traffic.</p>
+
+    <h4>Container Runtime — The Engine</h4>
+    <p>The software that actually runs containers. Modern K8s uses <strong>containerd</strong> (Docker was deprecated as runtime in K8s 1.24+). EKS uses containerd by default.</p>
+
+    <div class="interview">
+      <div class="interview-label">🎯 Interview Q&A — Architecture</div>
+      <p class="q">Q: What happens when you run <code>kubectl apply -f deployment.yaml</code>?</p>
+      <div class="a">
+        A: 1) kubectl sends an HTTP POST to the API Server. 2) API Server authenticates & validates the request. 3) API Server writes the desired state to etcd. 4) The Deployment Controller detects the new Deployment and creates a ReplicaSet. 5) The ReplicaSet Controller creates Pod objects. 6) The Scheduler assigns each Pod to a Node. 7) kubelet on that Node sees the Pod assignment, pulls the image, and starts the container. 8) kubelet updates Pod status back to API Server.
+      </div>
+      <p class="q">Q: What is the difference between kubelet and kube-proxy?</p>
+      <div class="a">A: kubelet manages the pod lifecycle (start/stop containers). kube-proxy manages network rules so Services route traffic to the correct pods. They are separate agents on every worker node.</div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════
+       SECTION 3 — AWS EKS
+  ══════════════════════════════════════════════════ -->
+  <div class="section" id="aws-eks">
+    <span class="section-num">SECTION 3</span>
+    <h2>☁️ AWS EKS — Managed Kubernetes</h2>
+
+    <div class="story">
+      <div class="story-label">📖 Story</div>
+      <p>Running Kubernetes yourself means managing etcd backups, API Server HA, OS patching on masters — a full-time job. <strong>AWS EKS (Elastic Kubernetes Service)</strong> takes over the Control Plane completely. You only manage Worker Nodes (or let AWS manage those too with Fargate/Managed Node Groups).</p>
+    </div>
+
+    <h3>EKS Architecture on AWS</h3>
+    <div class="arch-diagram">
+┌──────────────────────────────────────────────────────────────────┐
+│                        AWS Account                               │
+│                                                                  │
+│  ┌──────────────────────────────────────────────────────────┐    │
+│  │           AWS-Managed Control Plane (EKS)                │    │
+│  │  ┌──────────────┐ ┌──────────┐ ┌────────────────────┐   │    │
+│  │  │  API Server  │ │  etcd    │ │ Controller Manager  │   │    │
+│  │  │ (multi-AZ HA)│ │(managed) │ │    (managed)        │   │    │
+│  │  └──────────────┘ └──────────┘ └────────────────────┘   │    │
+│  └──────────────────────────────────────────────────────────┘    │
+│                          │                                       │
+│  Your VPC ───────────────▼──────────────────────────────────     │
+│  ┌──────────────────────────────────────────────────────────┐    │
+│  │          Worker Nodes (EC2 / Fargate)                    │    │
+│  │                                                          │    │
+│  │  ┌────────────┐  ┌────────────┐  ┌────────────┐         │    │
+│  │  │ EC2 t3.med │  │ EC2 t3.med │  │ EC2 t3.med │         │    │
+│  │  │ (AZ-1a)    │  │ (AZ-1b)    │  │ (AZ-1c)    │         │    │
+│  │  │ [pods...]  │  │ [pods...]  │  │ [pods...]  │         │    │
+│  │  └────────────┘  └────────────┘  └────────────┘         │    │
+│  │         ▲                                                │    │
+│  │    Managed Node Group (auto-scales via ASG)              │    │
+│  └──────────────────────────────────────────────────────────┘    │
+│                                                                  │
+│  Supporting AWS Services:                                        │
+│  • IAM (auth)  • VPC/Subnets  • EBS/EFS (storage)               │
+│  • ALB (ingress)  • ECR (container registry)                     │
+│  • CloudWatch (logs/metrics)  • Secrets Manager                  │
+└──────────────────────────────────────────────────────────────────┘
+    </div>
+
+    <h3>EKS vs Self-Managed Kubernetes</h3>
+    <table>
+      <tr><th>Aspect</th><th>Self-Managed (kubeadm)</th><th>AWS EKS</th></tr>
+      <tr><td>Control Plane Setup</td><td>You set up, configure, HA yourself</td><td>AWS provisions and manages it</td></tr>
+      <tr><td>etcd backups</td><td>Your responsibility</td><td>AWS backs it up</td></tr>
+      <tr><td>K8s version upgrades</td><td>Manual, risky</td><td>One-click (with some planning)</td></tr>
+      <tr><td>Master node OS patches</td><td>Your responsibility</td><td>AWS manages</td></tr>
+      <tr><td>Cost</td><td>EC2 cost only</td><td>$0.10/hr per cluster + EC2 cost</td></tr>
+      <tr><td>Worker nodes</td><td>You manage everything</td><td>Managed Node Groups / Fargate</td></tr>
+      <tr><td>AWS integration</td><td>Manual (IAM, ALB, EBS)</td><td>Native (via add-ons)</td></tr>
+    </table>
+
+    <h3>EKS Node Options</h3>
+    <div class="cards">
+      <div class="card">
+        <div class="icon">🖥️</div>
+        <h4>Managed Node Groups</h4>
+        <p>EC2 instances managed by AWS. AWS handles OS updates, AMI rotation. You choose instance type and size.</p>
+      </div>
+      <div class="card">
+        <div class="icon">⚡</div>
+        <h4>Self-Managed Nodes</h4>
+        <p>Full control over EC2 AMI, userdata, and lifecycle. More flexibility, more responsibility.</p>
+      </div>
+      <div class="card">
+        <div class="icon">☁️</div>
+        <h4>AWS Fargate</h4>
+        <p>Serverless nodes — no EC2 to manage. Pay per pod CPU/memory. Great for variable or bursty workloads.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════
+       SECTION 4 — CORE OBJECTS
+  ══════════════════════════════════════════════════ -->
+  <div class="section" id="objects">
+    <span class="section-num">SECTION 4</span>
+    <h2>📦 Core Kubernetes Objects — The Building Blocks</h2>
+
+    <p>Everything in Kubernetes is an <strong>object</strong> — a record of desired state stored in etcd. You declare what you want in YAML, and Kubernetes makes it real. Let's learn the hierarchy:</p>
+
+    <div class="arch-diagram">
+Namespace (logical boundary)
+  └── Deployment (manages ReplicaSets → rolling updates)
+        └── ReplicaSet (ensures N pods always run)
+              └── Pod (1 or more containers — the smallest unit)
+                    └── Container (your Docker image)
+
+Service (stable network endpoint → load balances to pods)
+ConfigMap (non-sensitive config → mounted as env/file in pods)
+Secret (sensitive config → base64 encoded, mounted as env/file)
+PersistentVolume / PersistentVolumeClaim (storage)
+Ingress (HTTP/S routing → external traffic to Services)
+    </div>
+
+    <h3>Pod — The Atomic Unit</h3>
+    <p>A Pod is the smallest deployable unit. It wraps one or more containers that share: network namespace (same IP), storage volumes, and lifecycle. In 99% of cases, one container per pod.</p>
+
+    <div class="code-block">
+      <div class="code-header">
+        <span class="lang">YAML</span>
+        <span class="filename">simple-pod.yaml</span>
+      </div>
+      <pre><code>apiVersion: v1          # ← Which API group/version this object belongs to
+kind: Pod               # ← What type of object this is
+metadata:               # ← Data ABOUT the object (not the app itself)
+  name: my-nginx        # ← Unique name within the namespace
+  namespace: default    # ← Logical group (like a folder)
+  labels:               # ← Key-value tags used for selection
+    app: nginx
+    env: dev
+spec:                   # ← The DESIRED STATE — what you want
+  containers:           # ← List of containers in this pod
+  - name: nginx         # ← Container name (for logs, exec)
+    image: nginx:1.25   # ← Docker image to run (repo:tag)
+    ports:
+    - containerPort: 80 # ← Document which port app listens on (informational)
+    resources:          # ← CPU/Memory limits (critical for scheduling!)
+      requests:         # ← Minimum guaranteed resources
+        cpu: "100m"     # ← 100 millicores = 0.1 CPU core
+        memory: "128Mi" # ← 128 Mebibytes of RAM
+      limits:           # ← Maximum allowed resources
+        cpu: "500m"     # ← 0.5 CPU core max
+        memory: "256Mi" # ← 256 MiB max (OOMKilled if exceeded)</code></pre>
+    </div>
+
+    <h3>Word-by-Word Code Annotation</h3>
+    <div class="annotate">
+      <div class="annotate-row">
+        <div class="annotate-code">apiVersion: v1</div>
+        <div class="annotate-desc"><strong>What it is:</strong> Declares the Kubernetes API version. <code>v1</code> is the core stable API containing Pods, Services, ConfigMaps. Other groups: <code>apps/v1</code> (Deployments), <code>networking.k8s.io/v1</code> (Ingress).</div>
+      </div>
+      <div class="annotate-row">
+        <div class="annotate-code">kind: Pod</div>
+        <div class="annotate-desc"><strong>What it is:</strong> The object type. K8s uses this to know which controller/schema to validate against. Valid kinds: Pod, Deployment, Service, ConfigMap, Secret, Ingress, PVC, etc.</div>
+      </div>
+      <div class="annotate-row">
+        <div class="annotate-code">metadata.labels</div>
+        <div class="annotate-desc"><strong>What it is:</strong> Arbitrary key-value pairs attached to objects. Used by <em>selectors</em> in Services and Deployments to find pods. Without labels, Services can't route traffic to your pods.</div>
+      </div>
+      <div class="annotate-row">
+        <div class="annotate-code">resources.requests.cpu: "100m"</div>
+        <div class="annotate-desc"><strong>What it is:</strong> The Scheduler uses <code>requests</code> to decide placement — it finds a node with at least 100m free CPU. If you skip requests, the scheduler has no info and may over-pack nodes.</div>
+      </div>
+      <div class="annotate-row">
+        <div class="annotate-code">resources.limits.memory: "256Mi"</div>
+        <div class="annotate-desc"><strong>What it is:</strong> If the container uses more than 256Mi RAM, the Linux kernel's OOM killer terminates it → pod restarts. This prevents one rogue pod from starving the whole node.</div>
+      </div>
+    </div>
+
+    <h3>Deployment — The Recommended Way to Run Apps</h3>
+    <p>You rarely create Pods directly. A <strong>Deployment</strong> manages them — ensuring N replicas always run, handling rolling updates, and enabling rollbacks.</p>
+
+    <div class="code-block">
+      <div class="code-header">
+        <span class="lang">YAML</span>
+        <span class="filename">nginx-deployment.yaml</span>
+      </div>
+      <pre><code>apiVersion: apps/v1          # ← Deployments live in the 'apps' API group
+kind: Deployment
+metadata:
+  name: nginx-deploy
+  namespace: default
+spec:
+  replicas: 3                # ← Always keep 3 pods running
+  selector:                  # ← How the Deployment FINDS its pods
+    matchLabels:
+      app: nginx             # ← Match pods that have label app=nginx
+  strategy:
+    type: RollingUpdate      # ← Update pods gradually, not all at once
+    rollingUpdate:
+      maxSurge: 1            # ← Temporarily allow 1 extra pod (4 total) during update
+      maxUnavailable: 0      # ← Never go below 3 running pods (zero downtime!)
+  template:                  # ← Blueprint for each Pod the Deployment creates
+    metadata:
+      labels:
+        app: nginx           # ← MUST match selector.matchLabels above
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:1.25
+        ports:
+        - containerPort: 80
+        resources:
+          requests:
+            cpu: "100m"
+            memory: "128Mi"
+          limits:
+            cpu: "500m"
+            memory: "256Mi"
+        livenessProbe:       # ← K8s restarts container if this fails
+          httpGet:
+            path: /          # ← HTTP GET to / should return 200
+            port: 80
+          initialDelaySeconds: 10  # ← Wait 10s before first check
+          periodSeconds: 5         # ← Check every 5s
+        readinessProbe:      # ← K8s removes pod from Service if this fails
+          httpGet:
+            path: /
+            port: 80
+          initialDelaySeconds: 5
+          periodSeconds: 3</code></pre>
+    </div>
+
+    <div class="tip">
+      <strong>🔑 Critical Concept — livenessProbe vs readinessProbe:</strong><br>
+      <strong>livenessProbe</strong> answers: "Is this container alive?" → If NO: restart it.<br>
+      <strong>readinessProbe</strong> answers: "Is this container ready to serve traffic?" → If NO: remove from Service endpoints (stop sending traffic, but don't restart).<br>
+      In production, ALWAYS define both probes.
+    </div>
+
+    <h3>Service — Stable Networking for Pods</h3>
+    <p>Pod IPs change every time they restart. A <strong>Service</strong> gives a stable virtual IP (ClusterIP) and DNS name that load-balances to matching pods.</p>
+
+    <div class="code-block">
+      <div class="code-header">
+        <span class="lang">YAML</span>
+        <span class="filename">nginx-service.yaml</span>
+      </div>
+      <pre><code>apiVersion: v1
+kind: Service
+metadata:
+  name: nginx-svc         # ← DNS name within cluster: nginx-svc.default.svc.cluster.local
+  namespace: default
+spec:
+  type: ClusterIP         # ← Internal only (default). Other types: NodePort, LoadBalancer
+  selector:
+    app: nginx            # ← Route traffic to pods with label app=nginx
+  ports:
+  - protocol: TCP
+    port: 80              # ← Port the Service listens on (what clients call)
+    targetPort: 80        # ← Port on the Pod to forward to</code></pre>
+    </div>
+
+    <table>
+      <tr><th>Service Type</th><th>Accessible From</th><th>Use Case</th></tr>
+      <tr><td><strong>ClusterIP</strong></td><td>Inside cluster only</td><td>Internal microservice communication</td></tr>
+      <tr><td><strong>NodePort</strong></td><td>Via any node's IP + port</td><td>Dev/test, not for production</td></tr>
+      <tr><td><strong>LoadBalancer</strong></td><td>Internet via AWS ALB/NLB</td><td>Exposing services publicly</td></tr>
+      <tr><td><strong>ExternalName</strong></td><td>DNS alias to external URL</td><td>Integrating external services</td></tr>
+    </table>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════
+       SECTION 5 — HANDS-ON SETUP
+  ══════════════════════════════════════════════════ -->
+  <div class="section" id="setup">
+    <span class="section-num">SECTION 5</span>
+    <h2>🖥️ Hands-On Lab: Install Tools & Launch Your First Cluster</h2>
+
+    <div class="lab">
+      <div class="lab-header">
+        <span class="lab-icon">🛠️</span>
+        <h3>Lab 1A: Install Required Tools on Your Machine</h3>
+      </div>
+
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-body">
+          <p><strong>Install kubectl</strong> — The CLI to talk to any Kubernetes cluster.</p>
+          <div class="code-block">
+            <div class="code-header"><span class="lang">bash</span><span class="filename">Linux/Mac</span></div>
+            <pre><code># On macOS (Homebrew)
+brew install kubectl
+
+# On Linux
+curl -LO "https://dl.k8s.io/release/$(curl -sL https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+chmod +x kubectl
+sudo mv kubectl /usr/local/bin/
+
+# On Windows (Chocolatey)
+choco install kubernetes-cli
+
+# Verify installation
+kubectl version --client
+# Expected output: Client Version: v1.29.x</code></pre>
+          </div>
+          <p>💡 <strong>What is kubectl?</strong> It's a Go binary that makes REST API calls to the Kubernetes API Server. Every kubectl command translates to an HTTP request.</p>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-body">
+          <p><strong>Install Minikube</strong> — A single-node K8s cluster on your laptop. Perfect for learning.</p>
+          <div class="code-block">
+            <div class="code-header"><span class="lang">bash</span></div>
+            <pre><code># macOS
+brew install minikube
+
+# Linux
+curl -LO https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64
+sudo install minikube-linux-amd64 /usr/local/bin/minikube
+
+# Windows
+choco install minikube
+
+# Verify
+minikube version</code></pre>
+          </div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-body">
+          <p><strong>Install AWS CLI + eksctl</strong> — For creating EKS clusters.</p>
+          <div class="code-block">
+            <div class="code-header"><span class="lang">bash</span></div>
+            <pre><code># AWS CLI v2
+curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+unzip awscliv2.zip && sudo ./aws/install
+aws --version
+
+# Configure with your IAM credentials
+aws configure
+# Enter: AWS Access Key ID, Secret Key, Region (e.g., ap-south-1), output format (json)
+
+# eksctl — the official EKS CLI
+curl --silent --location \
+  "https://github.com/eksctl-io/eksctl/releases/latest/download/eksctl_$(uname -s)_amd64.tar.gz" \
+  | tar xz -C /tmp
+sudo mv /tmp/eksctl /usr/local/bin
+eksctl version</code></pre>
+          </div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">4</div>
+        <div class="step-body">
+          <p><strong>Start Minikube</strong> for local practice (FREE — no AWS costs).</p>
+          <div class="code-block">
+            <div class="code-header"><span class="lang">bash</span></div>
+            <pre><code># Start with 2 CPUs and 4GB RAM
+minikube start --cpus=2 --memory=4096 --driver=docker
+
+# Check status
+minikube status
+# Expected:
+# minikube: Running
+# cluster: Running
+# kubectl: Correctly Configured
+
+# View the cluster info
+kubectl cluster-info
+# Output: Kubernetes control plane is running at https://127.0.0.1:XXXXX
+
+# See the single node
+kubectl get nodes
+# NAME       STATUS   ROLES           AGE   VERSION
+# minikube   Ready    control-plane   1m    v1.29.0</code></pre>
+          </div>
+          <div class="success">
+            <strong>✅ Success!</strong> You now have a running Kubernetes cluster on your laptop. kubectl is automatically configured to talk to Minikube.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="lab">
+      <div class="lab-header">
+        <span class="lab-icon">☁️</span>
+        <h3>Lab 1B: Create a Real EKS Cluster on AWS (Optional — has cost ~$0.10/hr)</h3>
+      </div>
+
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-body">
+          <p>Create EKS cluster with eksctl — one command does everything (VPC, subnets, node group, IAM roles):</p>
+          <div class="code-block">
+            <div class="code-header"><span class="lang">bash</span><span class="filename">cluster.yaml</span></div>
+            <pre><code># First, create a cluster config file
+cat > cluster.yaml &lt;&lt;'EOF'
+apiVersion: eksctl.io/v1alpha5
+kind: ClusterConfig
+
+metadata:
+  name: shopnow-cluster      # Your cluster name
+  region: ap-south-1         # Mumbai region (closest for India)
+  version: "1.29"            # K8s version
+
+managedNodeGroups:
+  - name: ng-workers
+    instanceType: t3.medium  # 2 vCPU, 4GB RAM (~$0.04/hr each)
+    minSize: 2               # Minimum 2 nodes (for HA)
+    maxSize: 5               # Scale up to 5 nodes
+    desiredCapacity: 2
+    volumeSize: 20           # 20GB EBS per node
+    ssh:
+      allow: false           # No SSH for security
+    labels:
+      role: worker
+    tags:
+      environment: learning
+EOF
+
+# Create the cluster (takes ~15 minutes)
+eksctl create cluster -f cluster.yaml
+
+# After creation, test kubectl connection
+kubectl get nodes
+# NAME                                          STATUS   ROLES    AGE   VERSION
+# ip-192-168-X-X.ap-south-1.compute.internal   Ready    &lt;none&gt;   2m    v1.29.0
+# ip-192-168-Y-Y.ap-south-1.compute.internal   Ready    &lt;none&gt;   2m    v1.29.0</code></pre>
+          </div>
+          <div class="tip">
+            <strong>💰 Cost Alert:</strong> Delete cluster when done: <span class="inline-code">eksctl delete cluster -f cluster.yaml</span>. 2x t3.medium + EKS control plane = ~$0.18/hr. 2 hours of practice = ~$0.36.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════
+       SECTION 6 — FIRST POD / DEPLOYMENT
+  ══════════════════════════════════════════════════ -->
+  <div class="section" id="first-pod">
+    <span class="section-num">SECTION 6</span>
+    <h2>🚀 Hands-On Lab: Your First Pod, Deployment & Service</h2>
+
+    <div class="lab">
+      <div class="lab-header">
+        <span class="lab-icon">🚀</span>
+        <h3>Lab 2: Deploy nginx on Kubernetes</h3>
+      </div>
+
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-body">
+          <p>Create a namespace to organize your work:</p>
+          <div class="code-block">
+            <div class="code-header"><span class="lang">bash</span></div>
+            <pre><code># A namespace is a logical "folder" to isolate resources
+kubectl create namespace shopnow
+
+# Verify it exists
+kubectl get namespaces
+# NAME              STATUS   AGE
+# default           Active   10m
+# kube-system       Active   10m  (← K8s system components live here)
+# kube-public       Active   10m
+# shopnow           Active   3s   (← our new namespace)</code></pre>
+          </div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-body">
+          <p>Create and apply the Deployment YAML:</p>
+          <div class="code-block">
+            <div class="code-header"><span class="lang">bash</span></div>
+            <pre><code"># Create the deployment file
+cat > nginx-deploy.yaml &lt;&lt;'EOF'
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-deploy
+  namespace: shopnow
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: nginx
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:1.25
+        ports:
+        - containerPort: 80
+        resources:
+          requests:
+            cpu: "100m"
+            memory: "128Mi"
+          limits:
+            cpu: "500m"
+            memory: "256Mi"
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 80
+          initialDelaySeconds: 5
+          periodSeconds: 3
+EOF
+
+# Apply it! K8s reads your desired state and makes it real.
+kubectl apply -f nginx-deploy.yaml
+# Output: deployment.apps/nginx-deploy created
+
+# Watch pods come up (Ctrl+C to stop)
+kubectl get pods -n shopnow -w
+# NAME                           READY   STATUS    RESTARTS   AGE
+# nginx-deploy-xxx-aaa           0/1     Pending   0          1s
+# nginx-deploy-xxx-aaa           0/1     ContainerCreating  0  2s
+# nginx-deploy-xxx-aaa           1/1     Running   0          5s
+# (repeats for all 3 pods)</code></pre>
+          </div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-body">
+          <p>Explore your deployment and pods:</p>
+          <div class="code-block">
+            <div class="code-header"><span class="lang">bash</span></div>
+            <pre><code># See deployment summary
+kubectl get deployment nginx-deploy -n shopnow
+# NAME           READY   UP-TO-DATE   AVAILABLE   AGE
+# nginx-deploy   3/3     3            3           1m
+
+# Get all pods with extra info (which node they're on, IP)
+kubectl get pods -n shopnow -o wide
+# NAME                  READY  STATUS   NODE       POD-IP
+# nginx-deploy-xxx-aaa  1/1    Running  minikube   10.244.0.5
+
+# Describe a pod — full detail (events, image, probes, mounts)
+kubectl describe pod nginx-deploy-xxx-aaa -n shopnow
+
+# See the logs of a pod
+kubectl logs nginx-deploy-xxx-aaa -n shopnow
+
+# Follow logs in real time (like tail -f)
+kubectl logs -f nginx-deploy-xxx-aaa -n shopnow
+
+# Get a shell inside the container
+kubectl exec -it nginx-deploy-xxx-aaa -n shopnow -- /bin/bash
+# Now you're inside the nginx container!
+# Try: curl localhost:80
+# Type: exit to leave</code></pre>
+          </div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">4</div>
+        <div class="step-body">
+          <p>Expose the Deployment with a Service and access nginx:</p>
+          <div class="code-block">
+            <div class="code-header"><span class="lang">bash</span></div>
+            <pre><code># Create service
+cat > nginx-svc.yaml &lt;&lt;'EOF'
+apiVersion: v1
+kind: Service
+metadata:
+  name: nginx-svc
+  namespace: shopnow
+spec:
+  type: NodePort          # For Minikube, NodePort lets us access from laptop
+  selector:
+    app: nginx
+  ports:
+  - port: 80
+    targetPort: 80
+    nodePort: 30080       # Access via minikube-ip:30080
+EOF
+
+kubectl apply -f nginx-svc.yaml
+
+# For Minikube — open in browser automatically!
+minikube service nginx-svc -n shopnow
+# This opens http://&lt;minikube-ip&gt;:30080 in your browser
+# You should see: "Welcome to nginx!"
+
+# Or manually get the URL
+minikube service nginx-svc -n shopnow --url</code></pre>
+          </div>
+          <div class="success">
+            <strong>🎉 Congratulations!</strong> You've deployed a 3-replica nginx on Kubernetes, exposed it via a Service, and accessed it from your browser!
+          </div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">5</div>
+        <div class="step-body">
+          <p>Test Kubernetes self-healing — delete a pod and watch it come back:</p>
+          <div class="code-block">
+            <div class="code-header"><span class="lang">bash</span></div>
+            <pre><code># Get pod names
+kubectl get pods -n shopnow
+
+# Delete one pod (simulate a crash)
+kubectl delete pod nginx-deploy-xxxx-yyyy -n shopnow
+
+# Immediately watch — K8s creates a replacement within seconds!
+kubectl get pods -n shopnow -w
+# The deleted pod shows Terminating
+# A NEW pod appears immediately (ReplicaSet controller saw 2 pods, wants 3)
+# Within ~5 seconds, 3 pods are Running again
+
+# ✅ This is Kubernetes self-healing in action!</code></pre>
+          </div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">6</div>
+        <div class="step-body">
+          <p>Test rolling update — update nginx version with zero downtime:</p>
+          <div class="code-block">
+            <div class="code-header"><span class="lang">bash</span></div>
+            <pre><code># Update image version (triggers rolling update)
+kubectl set image deployment/nginx-deploy nginx=nginx:1.26 -n shopnow
+
+# Watch the rollout (old pods go down, new come up gracefully)
+kubectl rollout status deployment/nginx-deploy -n shopnow
+# Waiting for deployment "nginx-deploy" rollout to finish...
+# 1 out of 3 new replicas have been updated...
+# 2 out of 3 new replicas have been updated...
+# deployment "nginx-deploy" successfully rolled out
+
+# View rollout history
+kubectl rollout history deployment/nginx-deploy -n shopnow
+
+# ROLLBACK if something went wrong
+kubectl rollout undo deployment/nginx-deploy -n shopnow
+# deployment.apps/nginx-deploy rolled back</code></pre>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <h3>Essential kubectl Commands Cheatsheet</h3>
+    <div class="code-block">
+      <div class="code-header"><span class="lang">bash</span><span class="filename">kubectl-cheatsheet.sh</span></div>
+      <pre><code># ── GET (list resources) ──────────────────────────────────
+kubectl get pods                           # List pods in default namespace
+kubectl get pods -n shopnow               # List pods in shopnow namespace
+kubectl get pods --all-namespaces         # List pods in ALL namespaces
+kubectl get pods -o wide                  # Extra columns (node, IP)
+kubectl get pods -o yaml                  # Full YAML output
+kubectl get all -n shopnow               # All resource types
+
+# ── DESCRIBE (detailed info + events) ────────────────────
+kubectl describe pod &lt;name&gt; -n shopnow
+kubectl describe deployment &lt;name&gt;
+kubectl describe node &lt;node-name&gt;
+
+# ── APPLY / DELETE ───────────────────────────────────────
+kubectl apply -f file.yaml               # Create or update resource
+kubectl delete -f file.yaml              # Delete resource from file
+kubectl delete pod &lt;name&gt; -n shopnow    # Delete specific pod
+
+# ── LOGS ─────────────────────────────────────────────────
+kubectl logs &lt;pod-name&gt;                  # Last logs
+kubectl logs -f &lt;pod-name&gt;              # Follow (stream) logs
+kubectl logs &lt;pod&gt; -c &lt;container&gt;      # Specific container in pod
+kubectl logs --previous &lt;pod&gt;           # Logs of crashed container
+
+# ── EXEC (shell into pod) ────────────────────────────────
+kubectl exec -it &lt;pod&gt; -- /bin/bash
+kubectl exec -it &lt;pod&gt; -- /bin/sh       # If bash not available
+
+# ── SCALE ────────────────────────────────────────────────
+kubectl scale deployment nginx-deploy --replicas=5 -n shopnow
+
+# ── PORT-FORWARD (access pod/svc locally) ────────────────
+kubectl port-forward pod/&lt;pod-name&gt; 8080:80        # laptop:8080 → pod:80
+kubectl port-forward svc/nginx-svc 8080:80 -n shopnow</code></pre>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════
+       SECTION 7 — INTERVIEW
+  ══════════════════════════════════════════════════ -->
+  <div class="section" id="interview">
+    <span class="section-num">SECTION 7</span>
+    <h2>🎯 Interview Questions & Answers — Part 1</h2>
+
+    <div class="interview">
+      <div class="interview-label">🎯 Interview Prep — 4 YOE Level</div>
+
+      <p class="q">Q1: Explain the Kubernetes control plane and its components.</p>
+      <div class="a">A: The control plane is the brain of Kubernetes. It has 4 key components: (1) <strong>kube-apiserver</strong> — the only gateway; all components communicate through it. (2) <strong>etcd</strong> — distributed key-value store holding all cluster state. (3) <strong>kube-scheduler</strong> — assigns Pending pods to nodes based on resources and constraints. (4) <strong>kube-controller-manager</strong> — runs controllers (ReplicaSet, Node, Endpoint) that continuously reconcile desired vs actual state.</div>
+
+      <p class="q">Q2: What is the difference between a Pod and a Deployment?</p>
+      <div class="a">A: A Pod is the smallest unit — it runs one or more containers. A Deployment is a higher-level controller that manages a ReplicaSet, which manages Pods. The Deployment ensures N replicas are always running, handles rolling updates with zero downtime, and enables rollbacks. You should always use Deployments (not bare Pods) for stateless apps in production.</div>
+
+      <p class="q">Q3: How does Kubernetes handle container failures?</p>
+      <div class="a">A: When a container crashes, kubelet detects it and restarts it based on the pod's <code>restartPolicy</code> (default: Always). If a pod itself is deleted/crashes and it belongs to a ReplicaSet, the ReplicaSet Controller creates a replacement Pod. The <code>livenessProbe</code> also periodically checks container health and triggers a restart if it fails — catching stuck/deadlocked containers that haven't crashed but aren't functional.</div>
+
+      <p class="q">Q4: What is the role of etcd? What happens if etcd goes down?</p>
+      <div class="a">A: etcd stores all cluster state — every API object (pods, services, secrets, configmaps). If etcd goes down: the API Server cannot read/write state, so <code>kubectl</code> commands fail. Existing pods CONTINUE RUNNING because they're managed by kubelet locally. But no new pods can be scheduled, services can't be updated, and no state changes happen. This is why production etcd runs as a 3 or 5-node cluster using Raft consensus.</div>
+
+      <p class="q">Q5: What is the difference between livenessProbe and readinessProbe?</p>
+      <div class="a">A: <strong>livenessProbe</strong> checks if the container is alive. If it fails, kubelet kills and restarts the container. Use it for deadlock detection. <strong>readinessProbe</strong> checks if the container is ready to serve traffic. If it fails, Kubernetes removes the pod from the Service's endpoints (no traffic sent), but doesn't restart it. Use it for startup warmup or temporary unavailability. A container can be alive but not ready.</div>
+
+      <p class="q">Q6: What is the difference between ClusterIP, NodePort, and LoadBalancer services?</p>
+      <div class="a">A: <strong>ClusterIP</strong> (default) — only accessible within the cluster, used for internal microservice communication. <strong>NodePort</strong> — exposes the service on a static port on every node's IP (30000–32767), useful for dev/test. <strong>LoadBalancer</strong> — provisions a cloud load balancer (AWS NLB/ALB on EKS), giving a public IP/DNS. In EKS production, we use LoadBalancer type with the AWS Load Balancer Controller or use an Ingress controller.</div>
+
+      <p class="q">Q7: In AWS EKS, what does AWS manage and what do you manage?</p>
+      <div class="a">A: AWS manages: the Control Plane (API Server, etcd, Controller Manager, Scheduler), HA across AZs, version patching for the control plane. You manage: Worker Nodes (EC2 instances, OS patches, AMI updates unless using Managed Node Groups), the container images, Kubernetes YAML manifests, networking add-ons (AWS VPC CNI, CoreDNS), storage drivers (EBS CSI), and the AWS Load Balancer Controller.</div>
+    </div>
+
+    <div class="success">
+      <strong>✅ Part 1 Complete!</strong> You now understand Kubernetes architecture, core objects, EKS fundamentals, and can deploy apps hands-on. Continue to Part 2 to learn about Workloads — StatefulSets, DaemonSets, Jobs, CronJobs, HPA, and VPA.
+    </div>
+  </div>
+
+  <!-- ─── FOOTER ─── -->
+  <div class="footer">
+    <a href="k8s-aws-part2.html" class="next-btn">Continue to Part 2: Workloads & Scaling →</a>
+    <p>Part 1 of 6 · Kubernetes Administration on AWS · Built for 4 YOE Engineers</p>
+  </div>
+
+</div>
+</body>
+</html>
