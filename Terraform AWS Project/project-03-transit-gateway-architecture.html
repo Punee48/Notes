@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Project 03 — Transit Gateway Architecture | ABC Bank Terraform Mastery</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/10.9.0/mermaid.min.js"></script>
+<style>
+  :root{
+    --bg:#ffffff; --surface:#f7f5fc; --surface-2:#efeaf9; --border:#e3ddf4;
+    --primary:#6d28d9; --primary-dark:#4c1d95; --primary-light:#8b5cf6;
+    --accent-soft:#ede9fe; --text:#211b32; --muted:#6b6480;
+    --code-bg:#2b2140; --code-text:#e9e3fb;
+    --good:#0f7b52; --warn:#a8630a; --danger:#b3261e;
+    --radius:14px; --shadow:0 4px 20px rgba(109,40,217,0.08);
+  }
+  *{box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;font-size:16px;line-height:1.65;}
+  h1,h2,h3,h4{font-family:'Space Grotesk',sans-serif;color:var(--primary-dark);letter-spacing:-0.01em;}
+  a{color:var(--primary);}
+  .layout{display:flex;min-height:100vh;}
+  #sidebar{width:290px;flex-shrink:0;background:linear-gradient(180deg,var(--primary-dark),var(--primary));color:#f2edff;position:sticky;top:0;height:100vh;overflow-y:auto;padding:22px 18px 40px;}
+  #sidebar .brand{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:1.05rem;color:#fff;margin-bottom:4px;}
+  #sidebar .brand-sub{font-size:0.78rem;color:#d9cbff;margin-bottom:22px;display:block;}
+  #sidebar .progress-pill{display:inline-block;background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.25);border-radius:999px;padding:4px 12px;font-size:0.72rem;margin-bottom:20px;color:#fff;}
+  #sidebar nav a{display:block;color:#e6dcff;text-decoration:none;font-size:0.85rem;padding:7px 10px;border-radius:8px;margin-bottom:2px;transition:background .15s ease, color .15s ease;}
+  #sidebar nav a:hover{background:rgba(255,255,255,0.14);color:#fff;}
+  #sidebar nav a.active{background:#fff;color:var(--primary-dark);font-weight:600;}
+  #sidebar .nav-group-label{text-transform:uppercase;font-size:0.68rem;letter-spacing:0.08em;color:#c8b6f7;margin:18px 0 6px 10px;}
+  #content{flex:1;min-width:0;padding:44px 56px 120px;max-width:980px;}
+  .kicker{display:inline-block;background:var(--accent-soft);color:var(--primary-dark);font-size:0.75rem;font-weight:600;padding:5px 12px;border-radius:999px;margin-bottom:14px;letter-spacing:0.03em;}
+  header.hero{padding-bottom:28px;border-bottom:1px solid var(--border);margin-bottom:34px;}
+  header.hero h1{font-size:2.1rem;margin:0 0 10px;}
+  header.hero p.lead{font-size:1.05rem;color:var(--muted);max-width:70ch;}
+  section{margin-bottom:52px;scroll-margin-top:20px;}
+  section h2{font-size:1.4rem;display:flex;align-items:center;gap:10px;border-bottom:2px solid var(--surface-2);padding-bottom:10px;margin-bottom:18px;}
+  section h2 .num{background:var(--primary);color:#fff;font-size:0.75rem;font-family:'JetBrains Mono',monospace;padding:3px 8px;border-radius:6px;}
+  section h3{font-size:1.08rem;margin-top:26px;color:var(--primary);}
+  .story-box{background:var(--surface);border-left:4px solid var(--primary);border-radius:10px;padding:20px 22px;font-size:0.98rem;}
+  .story-box em{color:var(--muted);}
+  .card-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:18px 0;}
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px;}
+  .card h4{margin:0 0 8px;font-size:0.92rem;color:var(--primary-dark);}
+  .card p, .card ul{margin:0;font-size:0.9rem;color:var(--text);}
+  .card ul{padding-left:18px;}
+  .note, .warn, .best{border-radius:10px;padding:14px 16px;margin:16px 0;font-size:0.92rem;border:1px solid transparent;}
+  .note{background:#eef2ff;border-color:#c7d2fe;}
+  .note::before{content:"📝 Note";display:block;font-weight:700;margin-bottom:4px;color:#3730a3;}
+  .warn{background:#fff7ed;border-color:#fed7aa;}
+  .warn::before{content:"⚠️ Watch out";display:block;font-weight:700;margin-bottom:4px;color:var(--warn);}
+  .best{background:#ecfdf5;border-color:#a7f3d0;}
+  .best::before{content:"✅ Best Practice";display:block;font-weight:700;margin-bottom:4px;color:var(--good);}
+  details.collapse{border:1px solid var(--border);border-radius:var(--radius);margin:14px 0;background:#fff;box-shadow:var(--shadow);overflow:hidden;}
+  details.collapse summary{cursor:pointer;padding:14px 18px;font-weight:600;font-family:'Space Grotesk',sans-serif;color:var(--primary-dark);background:var(--surface);list-style:none;}
+  details.collapse summary::-webkit-details-marker{display:none;}
+  details.collapse summary::before{content:"▸ ";color:var(--primary);}
+  details.collapse[open] summary::before{content:"▾ ";}
+  details.collapse .inner{padding:16px 20px;}
+  table{width:100%;border-collapse:collapse;margin:14px 0;font-size:0.9rem;}
+  th,td{border:1px solid var(--border);padding:8px 10px;text-align:left;}
+  th{background:var(--surface-2);color:var(--primary-dark);}
+  .code-block{position:relative;margin:14px 0;border-radius:12px;overflow:hidden;border:1px solid #3b2c5e;}
+  .code-block .code-head{background:#231a38;color:#cbb8f5;font-family:'JetBrains Mono',monospace;font-size:0.78rem;padding:8px 14px;display:flex;justify-content:space-between;align-items:center;}
+  .code-block pre{margin:0;background:var(--code-bg);color:var(--code-text);padding:16px;overflow-x:auto;font-family:'JetBrains Mono',monospace;font-size:0.83rem;line-height:1.55;}
+  .code-block .copy-btn{background:var(--primary);color:#fff;border:none;border-radius:6px;font-size:0.72rem;padding:4px 10px;cursor:pointer;font-family:'Inter',sans-serif;}
+  .code-block .copy-btn:hover{background:var(--primary-light);}
+  .cmt{color:#8ee6a3;}
+  .mermaid-wrap{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:18px;margin:16px 0;overflow-x:auto;}
+  .tree{font-family:'JetBrains Mono',monospace;font-size:0.83rem;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px;white-space:pre;overflow-x:auto;}
+  .qa{border-top:1px solid var(--border);padding:12px 0;}
+  .qa .q{font-weight:600;color:var(--primary-dark);margin-bottom:4px;}
+  .nextbar{background:linear-gradient(135deg,var(--primary),var(--primary-dark));color:#fff;border-radius:16px;padding:26px 30px;margin-top:40px;}
+  .nextbar h3{color:#fff;margin-top:0;}
+  .nextbar p{color:#e6dcff;margin-bottom:0;}
+  @media (max-width:900px){.layout{flex-direction:column;}#sidebar{position:relative;width:100%;height:auto;}#content{padding:30px 20px 80px;}.card-grid{grid-template-columns:1fr;}}
+</style>
+</head>
+<body>
+<div class="layout">
+
+  <aside id="sidebar">
+    <span class="brand">🏦 ABC Bank — DevOps Mastery</span>
+    <span class="brand-sub">Intermediate → Advanced Terraform Track</span>
+    <span class="progress-pill">Project 03 / 40</span>
+    <nav id="navlinks">
+      <div class="nav-group-label">Orientation</div>
+      <a href="#story">The Banking Story</a>
+      <a href="#requirements">Business &amp; Risk</a>
+      <a href="#why-iac">Why Transit Gateway</a>
+      <div class="nav-group-label">Concepts</div>
+      <a href="#tf-concepts">Terraform Concepts</a>
+      <a href="#aws-concepts">AWS Concepts (Transit Gateway + RAM)</a>
+      <div class="nav-group-label">Design</div>
+      <a href="#architecture">Architecture Diagrams</a>
+      <a href="#solution-design">Solution Design</a>
+      <div class="nav-group-label">Build</div>
+      <a href="#folder-structure">Folder &amp; Repo Structure</a>
+      <a href="#implementation">Implementation (Full Code)</a>
+      <a href="#code-explained">Line-by-Line Explanation</a>
+      <div class="nav-group-label">Operate</div>
+      <a href="#execution-flow">Execution Flow</a>
+      <a href="#cicd">CI/CD Integration</a>
+      <a href="#local-lab">Local Lab &amp; Assignments</a>
+      <a href="#interview">Interview Preparation</a>
+      <a href="#next">What's Next</a>
+    </nav>
+  </aside>
+
+  <main id="content">
+    <header class="hero">
+      <span class="kicker">PROJECT 03 OF 40 · INTERMEDIATE</span>
+      <h1>Transit Gateway Architecture — Connecting Every Account</h1>
+      <p class="lead">We now have a versioned VPC framework running in four separate AWS accounts. None of them can talk to each other, and none can reach the on-prem data center. Today we build the hub that connects them all — safely, and without a single VPC peering connection to maintain.</p>
+    </header>
+
+    <section id="story">
+      <h2><span class="num">01</span> The Banking Story</h2>
+      <div class="story-box">
+        The Digital Banking Platform now has four live VPCs, each built from our Project 02 framework: <strong>Dev, UAT, Production, and Shared Services</strong> — each in its own AWS account, for blast-radius isolation. That isolation is working exactly as intended: they are so isolated that the new payments microservice in Production cannot reach the shared Active Directory servers sitting in the Shared Services account, and none of them can reach the on-prem core banking system over the existing Direct Connect link.<br><br>
+        The naive fix — VPC peering between every pair of VPCs — was rejected in the design review. Peering connections don't transitively route (Dev-to-SharedServices and SharedServices-to-Prod peering doesn't let Dev reach Prod), and with 8 planned accounts by year end, that's up to 28 peering connections to create and maintain by hand.<br><br>
+        Our manager's brief: <em>"Build one central hub that every account connects to once. Use AWS's native cross-account sharing so we're not copying account IDs and resource ARNs into Slack messages every time we onboard a new account."</em>
+      </div>
+    </section>
+
+    <section id="requirements">
+      <h2><span class="num">02</span> Business Requirement, Risk &amp; Impact</h2>
+      <div class="card-grid">
+        <div class="card"><h4>Business Requirement</h4><p>Every current and future AWS account must be able to reach Shared Services and the on-prem data center through one consistent, centrally governed network path.</p></div>
+        <div class="card"><h4>Customer Requirement</h4><p>Application teams need this connectivity to "just exist" — they should never need to request or configure a peering connection themselves.</p></div>
+        <div class="card"><h4>Current Infrastructure</h4><p>Four isolated VPCs (Dev, UAT, Prod, Shared Services) from Project 02, plus an existing Direct Connect link from the on-prem data center into the Shared Services account only.</p></div>
+        <div class="card"><h4>Existing Manual Process</h4><p>None yet — this is a brand-new capability. The "manual" alternative under discussion was ad hoc VPC peering requested per team, per pair of accounts.</p></div>
+        <div class="card"><h4>Problems With a Peering-Based Approach</h4><ul><li>No transitive routing — connectivity has to be built pairwise, growing quadratically as accounts are added</li><li>Peering connections must each be individually accepted and have their own route table entries maintained</li><li>No single place to apply a network-wide firewall or inspection policy later</li></ul></div>
+        <div class="card"><h4>Business Challenges</h4><p>The bank's security team requires a single, auditable network chokepoint between environments — not a mesh of point-to-point links nobody can reason about as a whole.</p></div>
+        <div class="card"><h4>Risk Analysis</h4><p><strong>Medium:</strong> a hub misconfiguration could either cut off legitimate connectivity (availability risk) or, worse, accidentally allow Dev to route to Production (security risk) — route table design must be deliberate and reviewed.</p></div>
+        <div class="card"><h4>Business Impact</h4><p>Without this hub, the new payments microservice cannot reach Active Directory for authentication — a hard blocker for the platform's next release milestone.</p></div>
+      </div>
+    </section>
+
+    <section id="why-iac">
+      <h2><span class="num">03</span> Why Transit Gateway, and What We Rejected</h2>
+      <h3>Why AWS Transit Gateway</h3>
+      <p>Transit Gateway acts as a managed regional router: every VPC attaches to it once, and Transit Gateway route tables decide who can reach whom — centrally, in one place, instead of scattered across dozens of peering connection route table entries. It also natively extends to the Direct Connect link, giving on-prem the same one-hub-many-spokes model as the cloud accounts.</p>
+      <h3>Alternatives considered, and why they were rejected</h3>
+      <table>
+        <tr><th>Alternative</th><th>Why considered</th><th>Why rejected for ABC Bank</th></tr>
+        <tr><td>Full-mesh VPC Peering</td><td>No extra AWS service or cost</td><td>No transitive routing, and grows quadratically — unmanageable past a handful of accounts</td></tr>
+        <tr><td>AWS Cloud WAN</td><td>Newer, global-scale alternative to Transit Gateway</td><td>ABC Bank's entire footprint is one region today — Cloud WAN's multi-region orchestration is more than this stage needs; revisit when the DR region project goes live</td></tr>
+        <tr><td>Software VPN mesh (e.g. self-managed WireGuard)</td><td>Cloud-agnostic, works identically on-prem and in AWS</td><td>Adds operational burden (patching, HA, key rotation) that a managed AWS service removes entirely — not justified given Transit Gateway already meets the requirement</td></tr>
+      </table>
+    </section>
+
+    <section id="tf-concepts">
+      <h2><span class="num">04</span> Terraform Concepts You Must Understand Before We Build</h2>
+
+      <details class="collapse" open>
+        <summary>Data Sources</summary>
+        <div class="inner">
+          <p><strong>What it is:</strong> a <code>data</code> block reads information about a resource that already exists — created by Terraform elsewhere, by another team, or manually — without Terraform trying to manage or change it.</p>
+          <p><strong>Why it exists:</strong> the Transit Gateway is created once, in the Shared Services account; every other account's Terraform needs to <em>reference</em> its ID to create an attachment, without ever being allowed to create or destroy the Transit Gateway itself.</p>
+          <p><strong>Production example:</strong> the Dev account's Terraform uses <code>data "aws_ec2_transit_gateway"</code> to look up the Transit Gateway by tag, rather than hardcoding its ID as a string — so the same code works identically if the Transit Gateway is ever recreated.</p>
+          <p><strong>Common mistake:</strong> hardcoding a resource ID (like <code>tgw-0123456789abcdef0</code>) directly into a downstream account's code — it works until that resource is recreated, then every downstream account silently breaks.</p>
+        </div>
+      </details>
+
+      <details class="collapse">
+        <summary><code>terraform_remote_state</code> Data Source</summary>
+        <div class="inner">
+          <p><strong>What it is:</strong> a special data source that reads another root module's <em>outputs</em> directly from its remote state file (the S3 backend from Project 01), instead of that value being manually copied between teams.</p>
+          <p><strong>Why it exists:</strong> the Shared Services account's Terraform run produces the Transit Gateway ID as an output. Rather than Slack-pasting that ID into four other accounts' <code>tfvars</code> files, each account's Terraform reads it directly and automatically stays in sync if it ever changes.</p>
+          <p><strong>Internal working:</strong> at plan time, Terraform performs a read-only fetch of the specified state file from S3 and exposes its <code>output</code> values under <code>data.terraform_remote_state.&lt;name&gt;.outputs.&lt;output_name&gt;</code>.</p>
+          <p><strong>Best practice:</strong> only use this for read-only cross-account references to intentionally-exported outputs — never as a substitute for a properly versioned module input, and never across a trust boundary the reading account isn't authorized to see.</p>
+        </div>
+      </details>
+
+      <details class="collapse">
+        <summary>Provider Aliases &amp; Multi-Account Configuration</summary>
+        <div class="inner">
+          <p><strong>What it is:</strong> the <code>alias</code> argument on a <code>provider</code> block lets one Terraform configuration talk to more than one AWS account or region at once, by assuming a different IAM role per aliased provider.</p>
+          <p><strong>Why it exists:</strong> accepting a Resource Access Manager (RAM) share and creating a Transit Gateway attachment technically happens in the <em>spoke</em> account, while the Transit Gateway itself lives in the <em>hub</em> (Shared Services) account — one Terraform run may need to act in both.</p>
+          <p><strong>Production example:</strong> <code>provider "aws" { alias = "shared_services" }</code> assumes a cross-account IAM role into the Shared Services account purely to read the RAM share status, while the default (unaliased) provider manages resources in the spoke account itself.</p>
+        </div>
+      </details>
+
+      <details class="collapse">
+        <summary>Locals for Route Aggregation</summary>
+        <div class="inner">
+          <p><strong>What it is:</strong> a <code>locals</code> block used here to pre-compute the set of CIDR ranges each spoke account should route to the Transit Gateway, based on a shared map of environment-to-CIDR that lives in one place.</p>
+          <p><strong>Why it exists:</strong> without a computed local, every spoke account's route table code would need to list every other account's CIDR by hand — exactly the kind of copy-paste drift Project 02 already taught us to avoid.</p>
+        </div>
+      </details>
+    </section>
+
+    <section id="aws-concepts">
+      <h2><span class="num">05</span> AWS Concepts: Transit Gateway &amp; Resource Access Manager</h2>
+      <div class="card-grid">
+        <div class="card"><h4>What is Transit Gateway</h4><p>A regional, managed router that VPCs and VPN/Direct Connect connections attach to. Traffic between two attachments is controlled by Transit Gateway route tables, not by the VPCs themselves.</p></div>
+        <div class="card"><h4>Why it exists</h4><p>It replaces a full mesh of point-to-point connections with a hub-and-spoke model, and lets a single team centrally control which spokes can reach which — critical for a bank that must prove Dev cannot reach Production.</p></div>
+        <div class="card"><h4>What is AWS RAM</h4><p>Resource Access Manager lets the Shared Services account share the Transit Gateway with other AWS accounts in the same AWS Organization, without those accounts needing their own copy of it or any cross-account IAM role for the attachment itself.</p></div>
+        <div class="card"><h4>High Availability</h4><p>Transit Gateway is inherently multi-AZ within a region; each VPC attachment should still specify subnets in at least two AZs for resilience.</p></div>
+        <div class="card"><h4>Security</h4><p>Multiple Transit Gateway route tables (not just one) let us put Dev/UAT in one route table that cannot reach Production's route table, while all three can reach Shared Services — enforced by AWS, not by convention.</p></div>
+        <div class="card"><h4>Pricing</h4><p>Charged per attachment-hour plus per-GB data processed through the Transit Gateway — worth monitoring as more accounts and higher-throughput workloads attach.</p></div>
+        <div class="card"><h4>Limitations</h4><p>Transit Gateway is regional — connecting to a second AWS region requires a peering attachment between two Transit Gateways, a topic for the Multi-Region DR project later in this series.</p></div>
+        <div class="card"><h4>Best Practice</h4><p>Use separate Transit Gateway route tables per trust boundary (e.g. "non-prod" and "prod") rather than one flat route table for every attachment.</p></div>
+      </div>
+    </section>
+
+    <section id="architecture">
+      <h2><span class="num">06</span> Architecture Diagrams</h2>
+      <h3>Hub-and-Spoke Topology</h3>
+      <div class="mermaid-wrap"><div class="mermaid">
+flowchart TB
+  TGW((Transit Gateway<br/>Shared Services Account))
+  DEV[Dev VPC] --- TGW
+  UAT[UAT VPC] --- TGW
+  PROD[Prod VPC] --- TGW
+  SS[Shared Services VPC] --- TGW
+  TGW --- DX[Direct Connect Gateway]
+  DX --- ONPREM[On-Prem Data Center]
+      </div></div>
+
+      <h3>Cross-Account RAM Share Flow</h3>
+      <div class="mermaid-wrap"><div class="mermaid">
+sequenceDiagram
+  participant SS as Shared Services Account
+  participant RAM as AWS RAM
+  participant Dev as Dev Account
+  SS->>SS: terraform apply (creates Transit Gateway)
+  SS->>RAM: aws_ram_resource_share + principal associations
+  RAM-->>Dev: Share invitation visible in Dev account
+  Dev->>RAM: aws_ram_resource_share_accepter (auto-accept)
+  Dev->>Dev: terraform_remote_state reads TGW ID from SS state
+  Dev->>Dev: aws_ec2_transit_gateway_vpc_attachment created
+      </div></div>
+
+      <h3>Segmented Route Table Design</h3>
+      <div class="mermaid-wrap"><div class="mermaid">
+flowchart LR
+  subgraph NonProdRT[TGW Route Table: non-prod]
+    Dev2[Dev attachment]
+    Uat2[UAT attachment]
+  end
+  subgraph ProdRT[TGW Route Table: prod]
+    Prod2[Prod attachment]
+  end
+  SS2[Shared Services attachment] --> NonProdRT
+  SS2 --> ProdRT
+  NonProdRT -.no route.-> ProdRT
+      </div></div>
+    </section>
+
+    <section id="solution-design">
+      <h2><span class="num">07</span> Complete Solution Design</h2>
+      <p>The Transit Gateway itself, its two route tables (<code>non-prod</code> and <code>prod</code>), and the RAM share are created once, in the Shared Services account's root module. Every spoke account (Dev, UAT, Prod) runs its own small root module that reads the Transit Gateway's ID via <code>terraform_remote_state</code>, accepts the RAM share, creates its own VPC attachment, and associates that attachment with the correct Transit Gateway route table.</p>
+      <div class="note">Dev and UAT attachments associate with the <code>non-prod</code> Transit Gateway route table; Production associates with the <code>prod</code> route table. Shared Services associates with <em>both</em>, since it must be reachable from every environment.</div>
+      <ul>
+        <li><strong>Hub module</strong> (Shared Services account): Transit Gateway, two TGW route tables, RAM resource share, RAM principal associations for each spoke account ID.</li>
+        <li><strong>Spoke module</strong> (Dev/UAT/Prod accounts): RAM share accepter, VPC attachment using subnet IDs from the Project 02 framework's output, TGW route table association, and a VPC route table entry (using the <code>extra_routes</code> hook we built into Project 02's routing module) pointing other environments' CIDRs at the Transit Gateway.</li>
+      </ul>
+    </section>
+
+    <section id="folder-structure">
+      <h2><span class="num">08</span> Folder Structure &amp; Repo Layout</h2>
+      <div class="tree">terraform-abc-bank/
+├── environments/
+│   ├── shared-services/
+│   │   ├── backend.tf                 # key = "network/transit-gateway/terraform.tfstate"
+│   │   ├── providers.tf
+│   │   ├── variables.tf
+│   │   ├── terraform.tfvars
+│   │   ├── main.tf                    # Creates Transit Gateway + RAM share
+│   │   └── outputs.tf                 # Exposes transit_gateway_id, route table IDs
+│   ├── dev/
+│   │   ├── backend.tf                 # key = "network/tgw-attachment-dev/terraform.tfstate"
+│   │   ├── providers.tf
+│   │   ├── main.tf                    # Reads shared-services remote state, creates attachment
+│   │   └── outputs.tf
+│   ├── uat/        (same pattern as dev)
+│   └── prod/        (same pattern as dev)
+└── modules/
+    └── tgw-spoke-attachment/          # Reusable module called by dev/uat/prod
+        ├── variables.tf
+        ├── main.tf
+        └── outputs.tf</div>
+    </section>
+
+    <section id="implementation">
+      <h2><span class="num">09</span> Implementation — Full Production Code</h2>
+
+      <h3>environments/shared-services/main.tf (the hub)</h3>
+      <div class="code-block">
+        <div class="code-head"><span>environments/shared-services/main.tf</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre><code>resource "aws_ec2_transit_gateway" "hub" {                 <span class="cmt"># The central router every account will attach to</span>
+  description                    = "ABC Bank central Transit Gateway"
+  amazon_side_asn                = 64512                    <span class="cmt"># Private ASN required by BGP — must not clash with the on-prem router's ASN</span>
+  default_route_table_association = "disable"                <span class="cmt"># We manage associations explicitly per route table — safer than the implicit default</span>
+  default_route_table_propagation = "disable"                <span class="cmt"># Same reasoning — explicit propagation only, nothing implicit</span>
+  tags = { Name = "abc-bank-tgw" }
+}
+
+resource "aws_ec2_transit_gateway_route_table" "non_prod" {  <span class="cmt"># Dev + UAT live here — cannot reach the prod route table</span>
+  transit_gateway_id = aws_ec2_transit_gateway.hub.id
+  tags = { Name = "tgw-rt-non-prod" }
+}
+
+resource "aws_ec2_transit_gateway_route_table" "prod" {       <span class="cmt"># Production's isolated route table</span>
+  transit_gateway_id = aws_ec2_transit_gateway.hub.id
+  tags = { Name = "tgw-rt-prod" }
+}
+
+resource "aws_ram_resource_share" "tgw_share" {               <span class="cmt"># Makes the Transit Gateway shareable with other accounts in the Organization</span>
+  name                      = "abc-bank-tgw-share"
+  allow_external_principals = false                            <span class="cmt"># Restricts sharing to accounts INSIDE our AWS Organization only</span>
+}
+
+resource "aws_ram_resource_association" "tgw" {                <span class="cmt"># Attaches the actual Transit Gateway resource to the share</span>
+  resource_arn       = aws_ec2_transit_gateway.hub.arn
+  resource_share_arn = aws_ram_resource_share.tgw_share.arn
+}
+
+resource "aws_ram_principal_association" "spoke_accounts" {    <span class="cmt"># One association per spoke AWS account ID allowed to use the share</span>
+  for_each           = toset(var.spoke_account_ids)             <span class="cmt"># Keyed by account ID string — safe to add/remove accounts later</span>
+  principal          = each.value
+  resource_share_arn = aws_ram_resource_share.tgw_share.arn
+}</code></pre>
+      </div>
+
+      <h3>environments/shared-services/outputs.tf</h3>
+      <div class="code-block">
+        <div class="code-head"><span>environments/shared-services/outputs.tf</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre><code>output "transit_gateway_id" {                                <span class="cmt"># This is what every spoke account will read via terraform_remote_state</span>
+  value = aws_ec2_transit_gateway.hub.id
+}
+
+output "non_prod_route_table_id" {
+  value = aws_ec2_transit_gateway_route_table.non_prod.id
+}
+
+output "prod_route_table_id" {
+  value = aws_ec2_transit_gateway_route_table.prod.id
+}</code></pre>
+      </div>
+
+      <h3>modules/tgw-spoke-attachment/variables.tf</h3>
+      <div class="code-block">
+        <div class="code-head"><span>modules/tgw-spoke-attachment/variables.tf</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre><code>variable "transit_gateway_id" {
+  type = string
+}
+
+variable "tgw_route_table_id" {                              <span class="cmt"># Which TGW route table this spoke associates with — non-prod or prod</span>
+  type = string
+}
+
+variable "vpc_id" {
+  type = string
+}
+
+variable "attachment_subnet_ids" {                            <span class="cmt"># A small, dedicated subnet per AZ is recommended for TGW attachments</span>
+  type = list(string)
+}
+
+variable "vpc_route_table_ids" {                               <span class="cmt"># The spoke VPC's own private route tables from Project 02 that need a TGW route added</span>
+  type = list(string)
+}
+
+variable "remote_cidrs" {                                      <span class="cmt"># CIDR ranges of the OTHER environments this spoke should be able to reach</span>
+  type = list(string)
+}</code></pre>
+      </div>
+
+      <h3>modules/tgw-spoke-attachment/main.tf</h3>
+      <div class="code-block">
+        <div class="code-head"><span>modules/tgw-spoke-attachment/main.tf</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre><code>resource "aws_ec2_transit_gateway_vpc_attachment" "this" {   <span class="cmt"># Connects this spoke VPC to the shared Transit Gateway</span>
+  transit_gateway_id = var.transit_gateway_id
+  vpc_id              = var.vpc_id
+  subnet_ids          = var.attachment_subnet_ids
+
+  transit_gateway_default_route_table_association = false      <span class="cmt"># We associate explicitly below, matching the hub's disabled defaults</span>
+  transit_gateway_default_route_table_propagation = false
+}
+
+resource "aws_ec2_transit_gateway_route_table_association" "this" {  <span class="cmt"># Puts this attachment into the correct route table (non-prod or prod)</span>
+  transit_gateway_attachment_id = aws_ec2_transit_gateway_vpc_attachment.this.id
+  transit_gateway_route_table_id = var.tgw_route_table_id
+}
+
+resource "aws_ec2_transit_gateway_route_table_propagation" "this" {  <span class="cmt"># Lets this VPC's CIDR be learned by the route table it's associated with</span>
+  transit_gateway_attachment_id = aws_ec2_transit_gateway_vpc_attachment.this.id
+  transit_gateway_route_table_id = var.tgw_route_table_id
+}
+
+resource "aws_route" "to_tgw" {                                 <span class="cmt"># Adds routes IN the VPC's own route tables pointing remote CIDRs at the TGW</span>
+  for_each = { for pair in setproduct(var.vpc_route_table_ids, var.remote_cidrs) :
+               "${pair[0]}-${pair[1]}" => pair }                 <span class="cmt"># setproduct() creates every combination of route table x remote CIDR</span>
+
+  route_table_id         = each.value[0]
+  destination_cidr_block = each.value[1]
+  transit_gateway_id     = var.transit_gateway_id
+}</code></pre>
+      </div>
+
+      <h3>modules/tgw-spoke-attachment/outputs.tf</h3>
+      <div class="code-block">
+        <div class="code-head"><span>modules/tgw-spoke-attachment/outputs.tf</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre><code>output "attachment_id" {
+  value = aws_ec2_transit_gateway_vpc_attachment.this.id
+}</code></pre>
+      </div>
+
+      <h3>environments/dev/main.tf (a spoke)</h3>
+      <div class="code-block">
+        <div class="code-head"><span>environments/dev/main.tf</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre><code>data "terraform_remote_state" "shared_services" {              <span class="cmt"># Reads the hub account's outputs directly from its S3 state file</span>
+  backend = "s3"
+  config = {
+    bucket = "abc-bank-terraform-state-2026"                     <span class="cmt"># Same bucket every project uses, from Project 01</span>
+    key    = "network/transit-gateway/terraform.tfstate"          <span class="cmt"># The specific state file the Shared Services account wrote to</span>
+    region = "ap-south-1"
+  }
+}
+
+resource "aws_ram_resource_share_accepter" "tgw" {               <span class="cmt"># Dev account explicitly accepts the RAM invitation before it can attach</span>
+  share_arn = data.terraform_remote_state.shared_services.outputs.tgw_share_arn
+}
+
+module "tgw_attachment" {                                        <span class="cmt"># Our reusable spoke module from above</span>
+  source = "../../modules/tgw-spoke-attachment"
+
+  transit_gateway_id     = data.terraform_remote_state.shared_services.outputs.transit_gateway_id
+  tgw_route_table_id     = data.terraform_remote_state.shared_services.outputs.non_prod_route_table_id  <span class="cmt"># Dev goes into the NON-PROD table</span>
+  vpc_id                  = module.vpc.vpc_id                       <span class="cmt"># From Project 02's vpc-framework module, already in this same file</span>
+  attachment_subnet_ids   = module.vpc.subnet_ids_by_tier["private"]
+  vpc_route_table_ids     = module.vpc.private_route_table_ids
+  remote_cidrs            = ["10.30.0.0/16", "10.40.0.0/16"]       <span class="cmt"># Shared Services and on-prem CIDR ranges — Dev does NOT get Production's CIDR here</span>
+
+  depends_on = [aws_ram_resource_share_accepter.tgw]                <span class="cmt"># Explicit ordering: must accept the share before creating an attachment against it</span>
+}</code></pre>
+      </div>
+    </section>
+
+    <section id="code-explained">
+      <h2><span class="num">10</span> Code Explanation Summary</h2>
+      <table>
+        <tr><th>Block / Argument</th><th>What it does</th><th>Common mistake to avoid</th></tr>
+        <tr><td><code>default_route_table_association = "disable"</code></td><td>Turns off Transit Gateway's automatic default route table so every association is explicit and reviewable</td><td>Leaving the default enabled — every new attachment silently joins one flat route table with no segmentation</td></tr>
+        <tr><td><code>data "terraform_remote_state"</code></td><td>Reads another root module's outputs straight from its state file in S3</td><td>Forgetting the reading account's IAM role needs <code>s3:GetObject</code> permission on that specific state file — a cross-account permissions gap, not a Terraform bug</td></tr>
+        <tr><td><code>setproduct(a, b)</code></td><td>Terraform function producing every combination pair from two lists — used to add a route in every VPC route table for every remote CIDR</td><td>Using nested <code>for</code> loops by hand instead — <code>setproduct</code> is clearer and less error-prone for this exact "every combination" need</td></tr>
+        <tr><td><code>depends_on = [aws_ram_resource_share_accepter.tgw]</code></td><td>Forces explicit ordering where Terraform's automatic dependency graph can't infer it from a direct reference</td><td>Omitting it and hoping ordering works out — RAM acceptance and attachment creation aren't linked by any resource attribute reference, so Terraform needs the hint</td></tr>
+      </table>
+    </section>
+
+    <section id="execution-flow">
+      <h2><span class="num">11</span> Execution Flow, Explained Internally</h2>
+      <div class="card-grid">
+        <div class="card"><h4>Apply order across accounts</h4><p>Shared Services must be applied first — its outputs are what every spoke account's <code>terraform_remote_state</code> data source reads. There is no way to apply a spoke before the hub exists.</p></div>
+        <div class="card"><h4>terraform plan (spoke account)</h4><p>Terraform performs a read-only fetch of the hub's state file during planning — if the hub's state changed since your last plan, your plan reflects the newest values automatically.</p></div>
+        <div class="card"><h4>terraform apply (spoke account)</h4><p>Accepts the RAM share, then (respecting <code>depends_on</code>) creates the VPC attachment, associates and propagates it into the correct TGW route table, then adds routes into the VPC's own route tables.</p></div>
+        <div class="card"><h4>terraform destroy (spoke account)</h4><p>Removes the VPC's routes to the TGW first, then the route table association/propagation, then the attachment itself — the reverse of creation order, computed automatically from the dependency graph.</p></div>
+      </div>
+      <div class="warn">Never destroy the hub's Transit Gateway while spoke attachments still reference it — always tear down every spoke first, or Terraform (correctly) will refuse the deletion.</div>
+    </section>
+
+    <section id="cicd">
+      <h2><span class="num">12</span> CI/CD Integration — Ordered Pipeline</h2>
+      <div class="code-block">
+        <div class="code-head"><span>.github/workflows/terraform-network.yml</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre><code>name: terraform-network
+on:
+  push:
+    branches: [main]
+    paths: ["environments/shared-services/**", "environments/dev/**", "environments/uat/**", "environments/prod/**"]
+
+jobs:
+  shared-services:                                              <span class="cmt"># Hub MUST run first — nothing else can succeed without its outputs</span>
+    runs-on: ubuntu-latest
+    defaults: { run: { working-directory: environments/shared-services } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+      - run: terraform init
+      - run: terraform apply -auto-approve
+
+  dev-attachment:                                                <span class="cmt"># Waits for shared-services to finish before running</span>
+    needs: shared-services
+    runs-on: ubuntu-latest
+    defaults: { run: { working-directory: environments/dev } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+      - run: terraform init
+      - run: terraform apply -auto-approve
+
+  prod-attachment:                                                <span class="cmt"># Also waits on shared-services, but NOT on dev — they can run in parallel after the hub</span>
+    needs: shared-services
+    runs-on: ubuntu-latest
+    defaults: { run: { working-directory: environments/prod } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+      - run: terraform init
+      - run: terraform apply -auto-approve</code></pre>
+      </div>
+      <div class="best">Use the pipeline's own job-dependency graph (<code>needs:</code>) to mirror Terraform's cross-account dependency — the hub job gates every spoke job, exactly like <code>terraform_remote_state</code> gates it inside the code.</div>
+    </section>
+
+    <section id="local-lab">
+      <h2><span class="num">13</span> Local Lab — Practice This Yourself</h2>
+      <h3>Prerequisites</h3>
+      <ul>
+        <li>Two AWS accounts (or two IAM roles simulating separate accounts) in the same AWS Organization, with RAM sharing enabled at the Organization level</li>
+        <li>Completed Projects 01 and 02 in at least two environments (e.g. shared-services and dev)</li>
+      </ul>
+      <h3>Commands</h3>
+      <div class="code-block">
+        <div class="code-head"><span>terminal</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre><code>cd environments/shared-services
+terraform init && terraform apply
+
+cd ../dev
+terraform init && terraform apply</code></pre>
+      </div>
+      <h3>Expected output</h3>
+      <p>After both applies, a private EC2 instance in the Dev VPC should be able to <code>ping</code> or reach a private IP in the Shared Services VPC, while remaining unable to reach anything in the Production VPC's CIDR range.</p>
+      <h3>Troubleshooting</h3>
+      <table>
+        <tr><th>Symptom</th><th>Likely cause</th></tr>
+        <tr><td><code>UnauthorizedOperation</code> reading remote state</td><td>The spoke account's IAM role lacks <code>s3:GetObject</code> on the hub's specific state object — grant least-privilege read access to that one key, not the whole bucket</td></tr>
+        <tr><td>Attachment creation fails with a RAM-related error</td><td>The RAM share wasn't accepted first — check the <code>depends_on</code> and confirm the principal association for that account ID exists on the hub side</td></tr>
+        <tr><td>Dev can reach Production unexpectedly</td><td>Dev's attachment was associated with the <code>prod</code> route table instead of <code>non-prod</code> — double check <code>tgw_route_table_id</code> in that environment's <code>main.tf</code></td></tr>
+      </table>
+      <h3>Assignments</h3>
+      <ol>
+        <li>Add a third TGW route table, <code>shared-only</code>, and re-model Shared Services' own association so it only propagates its routes outward without receiving unrelated non-prod-to-prod traffic.</li>
+        <li>Add CloudWatch Logs for Transit Gateway flow logs, so cross-account traffic is auditable at the hub, not just at each VPC.</li>
+      </ol>
+      <h3>Challenge Task</h3>
+      <p>Extend the on-prem side: create a Direct Connect Gateway association with the Transit Gateway, and add the on-prem CIDR to the <code>remote_cidrs</code> list for every spoke — preview of a topic we'll go much deeper on in a dedicated Hybrid Cloud project later in this series.</p>
+    </section>
+
+    <section id="interview">
+      <h2><span class="num">14</span> Interview Preparation</h2>
+      <div class="qa"><div class="q">Q: Why Transit Gateway instead of VPC peering for a multi-account setup?</div><div>Peering doesn't route transitively and grows quadratically with account count; Transit Gateway is a single hub every account attaches to once, with centrally managed route tables controlling who reaches whom.</div></div>
+      <div class="qa"><div class="q">Q: How do you stop Dev from reaching Production through a shared hub?</div><div>Use separate Transit Gateway route tables per trust boundary — associate Dev/UAT attachments with a non-prod table and Production with a separate prod table that has no route back to non-prod.</div></div>
+      <div class="qa"><div class="q">Q: What does terraform_remote_state actually do, and what are its limits?</div><div>It performs a read-only fetch of another state file's outputs at plan time — it requires read access to that exact state object, and only exposes values the source module explicitly declared as outputs, nothing else in that state.</div></div>
+      <div class="qa"><div class="q">Q: Why disable Transit Gateway's default route table association and propagation?</div><div>The defaults implicitly put every new attachment into one shared route table — disabling them forces every association to be an explicit, reviewable Terraform resource, which matters for a bank's change-audit requirements.</div></div>
+      <div class="qa"><div class="q">Manager round: Production incident — Dev suddenly can reach Prod resources. How would you investigate?</div><div>Check the Transit Gateway route table associations first (has an attachment been placed in the wrong route table), then check VPC route tables for an unexpected route to the TGW with too broad a destination CIDR — the two most common causes of this exact class of incident.</div></div>
+    </section>
+
+    <div class="nextbar" id="next">
+      <h3>What's next</h3>
+      <p>Project 04 builds <strong>Centralized Logging Infrastructure</strong> on top of this network — a dedicated logging account that every spoke (via the Transit Gateway we just built) ships CloudTrail, VPC Flow Logs, and application logs into, using cross-account IAM roles and S3 bucket policies instead of RAM. Tell me when you're ready for Project 04.</p>
+    </div>
+
+  </main>
+</div>
+
+<script>
+  mermaid.initialize({ startOnLoad: true, theme: 'base', themeVariables: {
+    primaryColor: '#ede9fe', primaryTextColor: '#4c1d95', primaryBorderColor: '#8b5cf6',
+    lineColor: '#8b5cf6', secondaryColor: '#f7f5fc', tertiaryColor: '#ffffff', fontFamily: 'Inter, sans-serif'
+  }});
+  function copyCode(btn){
+    const pre = btn.closest('.code-block').querySelector('pre');
+    const text = pre.innerText;
+    navigator.clipboard.writeText(text).then(()=>{
+      const original = btn.textContent;
+      btn.textContent = 'Copied!';
+      setTimeout(()=>{ btn.textContent = original; }, 1500);
+    });
+  }
+  const sections = document.querySelectorAll('section, .nextbar');
+  const links = document.querySelectorAll('#navlinks a');
+  const observer = new IntersectionObserver((entries)=>{
+    entries.forEach(entry=>{
+      if(entry.isIntersecting){
+        links.forEach(l=>l.classList.remove('active'));
+        const id = entry.target.getAttribute('id');
+        const match = document.querySelector(`#navlinks a[href="#${id}"]`);
+        if(match) match.classList.add('active');
+      }
+    });
+  }, { rootMargin: '-20% 0px -70% 0px' });
+  sections.forEach(s=>observer.observe(s));
+</script>
+</body>
+</html>

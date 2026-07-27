@@ -1,0 +1,1148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Advanced Project 03: SQL Server Always-On AG Validation — Ansible AAP</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--purple:#6d28d9;--purple-dark:#4c1d95;--purple-light:#8b5cf6;--purple-pale:#ede9fe;
+--bg:#fafafa;--card:#fff;--border:#e5e7eb;--text:#1f2937;--text-dim:#6b7280;
+--code-bg:#1e1b2e;--code-text:#e2d9f3;--green:#059669;--amber:#d97706;--red:#dc2626;
+--shadow:0 1px 3px rgba(109,40,217,.1);}
+*{box-sizing:border-box;}
+body{margin:0;font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);line-height:1.7;}
+.topbar{background:linear-gradient(135deg,var(--purple-dark),var(--purple));color:#fff;padding:22px 5%;
+position:sticky;top:0;z-index:100;box-shadow:0 2px 12px rgba(109,40,217,.3);display:flex;
+justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;}
+.topbar h1{margin:0;font-size:1.1rem;font-weight:800;}
+.badge{background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.3);padding:4px 14px;border-radius:20px;font-size:.73rem;font-weight:700;}
+.layout{display:flex;max-width:1500px;margin:0 auto;}
+nav.toc{width:270px;flex-shrink:0;padding:20px 14px;position:sticky;top:76px;align-self:flex-start;max-height:calc(100vh - 96px);overflow-y:auto;}
+nav.toc h3{font-size:.72rem;text-transform:uppercase;letter-spacing:1.2px;color:var(--text-dim);margin:0 0 10px 6px;}
+nav.toc a{display:block;padding:6px 12px;border-radius:8px;color:var(--text);text-decoration:none;font-size:.83rem;margin-bottom:2px;border-left:3px solid transparent;}
+nav.toc a:hover{background:var(--purple-pale);border-left-color:var(--purple-light);color:var(--purple);}
+main{flex:1;padding:26px 5% 80px;min-width:0;}
+.hero{background:linear-gradient(135deg,var(--purple-pale),#fff);border:1px solid #ddd6fe;border-radius:16px;padding:28px;margin-bottom:28px;box-shadow:var(--shadow);}
+.hero h2{margin-top:0;color:var(--purple-dark);font-size:1.5rem;line-height:1.3;}
+.tag-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;}
+.tag{background:var(--purple-pale);color:var(--purple);padding:4px 12px;border-radius:20px;font-size:.73rem;font-weight:600;}
+section{margin-bottom:32px;}
+.card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px 24px;box-shadow:var(--shadow);margin-bottom:16px;}
+h2.st{font-size:1.25rem;color:var(--purple-dark);border-bottom:3px solid var(--purple-light);padding-bottom:7px;margin-bottom:16px;}
+h3{color:var(--purple-dark);font-size:1.05rem;margin-top:18px;}
+.story-box{background:#fffbeb;border-left:4px solid var(--amber);border-radius:8px;padding:16px 20px;margin:14px 0;color:#78350f;}
+.story-box b{color:#92400e;}
+.warn-box{background:#fef2f2;border-left:4px solid var(--red);border-radius:8px;padding:14px 18px;margin:12px 0;color:#7f1d1d;}
+.tip-box{background:#ecfdf5;border-left:4px solid var(--green);border-radius:8px;padding:14px 18px;margin:12px 0;color:#064e3b;}
+.info-box{background:var(--purple-pale);border-left:4px solid var(--purple-light);border-radius:8px;padding:14px 18px;margin:12px 0;color:var(--purple-dark);}
+details{border:1px solid #ddd6fe;border-radius:10px;margin-bottom:10px;background:#faf9ff;overflow:hidden;}
+summary{padding:12px 16px;cursor:pointer;font-weight:600;color:var(--purple-dark);list-style:none;display:flex;justify-content:space-between;align-items:center;background:#f5f3ff;}
+summary::-webkit-details-marker{display:none;}
+summary::after{content:"+";font-size:1.1rem;font-weight:700;color:var(--purple-light);}
+details[open] summary::after{content:"−";}
+details>div.inner{padding:14px 16px;}
+table{border-collapse:collapse;width:100%;margin:12px 0;font-size:.86rem;}
+th,td{border:1px solid var(--border);padding:9px 12px;text-align:left;vertical-align:top;}
+th{background:var(--purple);color:#fff;font-weight:600;}
+tr:nth-child(even){background:#faf9ff;}
+.cw{position:relative;margin:14px 0;}
+.cl{background:#14102a;color:#a78bfa;padding:7px 14px;font-size:.72rem;font-family:'JetBrains Mono',monospace;border-radius:8px 8px 0 0;display:flex;justify-content:space-between;align-items:center;}
+pre{background:var(--code-bg);color:var(--code-text);padding:16px;border-radius:0 0 8px 8px;overflow-x:auto;margin:0;font-family:'JetBrains Mono',monospace;font-size:.82rem;line-height:1.6;}
+.cb{background:var(--purple-light);color:#fff;border:none;padding:3px 10px;border-radius:4px;font-size:.7rem;cursor:pointer;font-weight:600;}
+.cb:hover{background:var(--purple);}
+.le{border:1px solid #ddd6fe;border-radius:7px;margin:5px 0;padding:9px 14px;background:#fff;font-size:.85rem;}
+.le .cf{font-family:'JetBrains Mono',monospace;background:#14102a;color:#c4b5fd;padding:2px 7px;border-radius:4px;font-size:.8rem;}
+.fs{display:flex;gap:12px;padding:11px 0;border-bottom:1px dashed #e9d5ff;}
+.fn{background:var(--purple);color:#fff;width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;flex-shrink:0;font-size:.82rem;}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+@media(max-width:900px){.g2{grid-template-columns:1fr;}nav.toc{display:none;}}
+ul,ol{padding-left:22px;}li{margin-bottom:6px;}
+.ascii{background:#14102a;color:#a78bfa;font-family:'JetBrains Mono',monospace;padding:20px;border-radius:10px;font-size:.77rem;overflow-x:auto;line-height:1.45;}
+.fn-row{display:flex;justify-content:space-between;padding:20px 0;border-top:2px solid var(--border);margin-top:40px;}
+.btn{background:var(--purple);color:#fff;padding:10px 20px;border-radius:8px;text-decoration:none;font-weight:600;font-size:.86rem;}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <h1>🏦 Advanced Enterprise Ansible — BFSI Series</h1>
+  <div style="display:flex;gap:8px;">
+    <span class="badge">PROJECT 03 / 30</span>
+    <span class="badge" style="background:rgba(255,255,255,.15);">SQL Server | Windows | WinRM</span>
+  </div>
+</div>
+<div class="layout">
+<nav class="toc">
+  <h3>Table of Contents</h3>
+  <a href="#story">1. The Banking Story</a>
+  <a href="#concepts">2. Always-On AG Concepts</a>
+  <a href="#business">3. Business Requirements</a>
+  <a href="#problem">4. Problem Statement</a>
+  <a href="#design">5. Solution Design</a>
+  <a href="#arch">6. Architecture Diagram</a>
+  <a href="#winrm">7. WinRM Configuration</a>
+  <a href="#structure">8. Project Structure</a>
+  <a href="#inventory">9. Inventory</a>
+  <a href="#vars">10. Variables</a>
+  <a href="#roles">11. Roles & Tasks</a>
+  <a href="#playbooks">12. Master Playbooks</a>
+  <a href="#aap">13. AAP Configuration</a>
+  <a href="#flow">14. Execution Flow</a>
+  <a href="#lab">15. Lab Setup</a>
+  <a href="#interview">16. Interview Prep</a>
+</nav>
+<main>
+
+<div class="hero">
+  <h2>Project 03: SQL Server Always-On Availability Group (AG) Validation &amp; Health Monitoring</h2>
+  <p>This project covers one of the most critical Windows automation challenges in banking: <strong>Microsoft SQL Server Always-On Availability Group health validation</strong>. SQL Server AG is the high-availability and disaster recovery solution used in banks for mission-critical databases like the Loan Management System (LMS), HR System, and Credit Card Processing. When an AG degrades — replica falls behind, synchronization breaks, or the listener fails — applications lose HA protection silently. This project automates complete AG health validation, synchronization lag monitoring, replica role verification, automatic alerting, and daily compliance reporting — all using Ansible with WinRM to manage Windows Server 2019 SQL Server nodes.</p>
+  <div class="tag-row">
+    <span class="tag">SQL Server 2019/2022</span><span class="tag">Windows Server 2019/2022</span>
+    <span class="tag">Always-On AG</span><span class="tag">WinRM</span><span class="tag">PowerShell</span>
+    <span class="tag">Red Hat AAP 2.5</span><span class="tag">WSFC</span><span class="tag">PagerDuty</span>
+  </div>
+</div>
+
+<!-- STORY -->
+<section id="story">
+<h2 class="st">🏦 1. The Banking Story</h2>
+<div class="card">
+<div class="story-box">
+<b>Setting:</b> ABC Global Bank uses SQL Server 2019 Always-On AG for the Loan Management System (LMS) — one of the bank's most critical applications with ₹45,000 crore in active loan portfolios. The AG runs across 3 nodes: Primary in Mumbai, Synchronous Secondary in Mumbai DR rack, and Asynchronous Secondary in Chennai for DR.<br><br>
+<b>The Incident:</b> During a quarterly DR drill, the infrastructure team initiates a planned failover of the LMS SQL Server AG from Mumbai Primary to the Synchronous Secondary. The failover fails. Investigation reveals: the synchronous secondary replica had been in a <b>"NOT SYNCHRONIZING"</b> state for 11 days. The secondary's transaction log had fallen 4.8 million transactions behind the primary. Nobody noticed because the monitoring alert for "AG synchronization" had been disabled 11 days ago when it was generating "too many false positives" during a maintenance window — and was never re-enabled.<br><br>
+<b>Impact:</b> The DR drill failed completely. The DR team had to rebuild the secondary replica from scratch — a 6-hour process. The LMS was unavailable for a planned maintenance window that stretched from 2 hours to 8+ hours. The business continuity team filed a formal report. Senior management demanded a permanent fix.<br><br>
+<b>The Ask:</b> "We need automated monitoring of ALL Always-On AG replicas every 10 minutes. We need the synchronization lag measured precisely. We need to know the moment any replica stops synchronizing — not 11 days later. And we need to prove to the RBI that we have HA monitoring controls in place."
+</div>
+</div>
+</section>
+
+<!-- CONCEPTS -->
+<section id="concepts">
+<h2 class="st">📚 2. SQL Server Always-On AG — Concepts You Must Know</h2>
+<div class="card">
+<details><summary>What is an Always-On Availability Group?</summary><div class="inner">
+Always-On Availability Group (AG) is SQL Server's enterprise HA/DR solution. It maintains <strong>one or more identical copies</strong> (replicas) of a group of databases across multiple SQL Server instances.<br><br>
+<b>Key Components:</b><br>
+• <b>Primary Replica:</b> The one replica that accepts read/write transactions. All writes go here.<br>
+• <b>Secondary Replica:</b> Receives and applies transaction log records from primary. Can be readable or not.<br>
+• <b>Synchronous Commit:</b> Primary waits for secondary to confirm before committing. Zero data loss. Suitable for same-DC or low-latency links.<br>
+• <b>Asynchronous Commit:</b> Primary does NOT wait for secondary. Some data loss possible in DR scenario. For geographically distant replicas.<br>
+• <b>AG Listener:</b> A virtual network name (VNN) with an IP that applications connect to — always points to the current primary.
+</div></details>
+
+<details><summary>Key SQL Server DMVs for AG Monitoring</summary><div class="inner">
+<div class="cw"><div class="cl"><span>SQL Server T-SQL — Key AG Monitoring Queries</span><button class="cb" onclick="copyCode(this)">Copy</button></div>
+<pre><code>-- sys.availability_groups: List of all AGs on this instance
+SELECT name, ag_id, failure_condition_level, health_check_timeout
+FROM sys.availability_groups;
+
+-- sys.availability_replicas: All replicas (primary + all secondaries)
+SELECT replica_server_name, availability_mode_desc, failover_mode_desc,
+       role_desc, operational_state_desc, connected_state_desc,
+       synchronization_health_desc
+FROM sys.availability_replicas ar
+JOIN sys.availability_groups ag ON ar.group_id = ag.group_id;
+
+-- sys.dm_hadr_availability_replica_states: REAL-TIME replica states
+-- This is the most important DMV for monitoring
+SELECT rs.role_desc,                -- PRIMARY or SECONDARY
+       rs.synchronization_health_desc, -- HEALTHY, PARTIALLY_HEALTHY, NOT_HEALTHY
+       rs.connected_state_desc,     -- CONNECTED or DISCONNECTED
+       rs.last_connect_error_number, -- Error code if disconnected
+       ags.synchronization_state_desc, -- SYNCHRONIZED or SYNCHRONIZING or NOT SYNCHRONIZING
+       ags.log_send_queue_size,     -- KB of log waiting to be sent to secondary
+       ags.redo_queue_size,         -- KB of log waiting to be applied on secondary
+       ags.log_send_rate,           -- KB/sec being sent
+       ags.redo_rate                -- KB/sec being applied
+FROM sys.dm_hadr_availability_replica_states rs
+JOIN sys.dm_hadr_availability_group_states ags ON rs.group_id = ags.group_id;</code></pre></div>
+</div></details>
+
+<details><summary>AG Health States — What Each Means</summary><div class="inner">
+<table>
+<tr><th>State</th><th>What It Means</th><th>Action Required</th></tr>
+<tr><td>SYNCHRONIZED</td><td>Secondary is in sync with primary. Failover is safe.</td><td>None — healthy</td></tr>
+<tr><td>SYNCHRONIZING</td><td>Secondary is catching up. Transactions being applied.</td><td>Monitor — normal after restart/maintenance</td></tr>
+<tr><td>NOT SYNCHRONIZING</td><td>Secondary has stopped applying logs. Data diverging.</td><td>IMMEDIATE ALERT — potential data loss if primary fails</td></tr>
+<tr><td>CONNECTED</td><td>Replica is connected to primary</td><td>Good</td></tr>
+<tr><td>DISCONNECTED</td><td>Replica cannot reach primary</td><td>ALERT — network issue or replica down</td></tr>
+<tr><td>HEALTHY</td><td>All databases in AG are synchronized</td><td>Good</td></tr>
+<tr><td>PARTIALLY_HEALTHY</td><td>Some databases synchronized, some not</td><td>Investigate which databases are behind</td></tr>
+<tr><td>NOT_HEALTHY</td><td>AG has serious issues</td><td>CRITICAL ALERT</td></tr>
+</table>
+</div></details>
+
+<details><summary>WinRM — How Ansible Connects to Windows</summary><div class="inner">
+Ansible uses <strong>WinRM (Windows Remote Management)</strong> to connect to Windows servers — the Windows equivalent of SSH. WinRM uses HTTP (port 5985) or HTTPS (port 5986).<br><br>
+Ansible needs the <code>pywinrm</code> Python library installed in the Execution Environment. The connection type is set to <code>ansible.builtin.winrm</code> or just <code>winrm</code> in inventory. All tasks use Windows-specific modules like <code>ansible.windows.win_shell</code> and <code>community.windows.win_mssql</code>.
+</div></details>
+</div>
+</section>
+
+<!-- BUSINESS -->
+<section id="business">
+<h2 class="st">📋 3. Business Requirements</h2>
+<div class="card">
+<table>
+<tr><th>Requirement</th><th>Detail</th><th>SLA</th></tr>
+<tr><td>AG synchronization monitoring</td><td>Check all replica sync states every 10 minutes</td><td>Alert within 10 minutes of degradation</td></tr>
+<tr><td>Lag threshold alerting</td><td>Alert when log_send_queue_size > 1GB or redo_queue_size > 2GB</td><td>Alert at threshold breach</td></tr>
+<tr><td>Replica role validation</td><td>Confirm Primary is where it's supposed to be (not unexpected failover)</td><td>Alert immediately on unplanned failover</td></tr>
+<tr><td>AG listener health</td><td>Validate AG listener DNS name resolves and port is open</td><td>Every 10 minutes</td></tr>
+<tr><td>WSFC cluster health</td><td>Validate Windows Server Failover Cluster is healthy (quorum OK)</td><td>Every 10 minutes</td></tr>
+<tr><td>Failover readiness</td><td>For DR drills: confirm secondary is SYNCHRONIZED before drill starts</td><td>On-demand pre-drill check</td></tr>
+<tr><td>Daily compliance report</td><td>AG health report for SQL DBA team, CISO, and BCP team</td><td>Daily 06:00 AM</td></tr>
+</table>
+</div>
+</section>
+
+<!-- PROBLEM -->
+<section id="problem">
+<h2 class="st">❗ 4. Problem Statement</h2>
+<div class="card">
+<div class="g2">
+<div>
+<h3>Before Automation</h3>
+<ul>
+  <li>SQL Server AG monitoring: manual dashboard checks once a day</li>
+  <li>Monitoring alerts disabled during maintenance → never re-enabled</li>
+  <li>Log send queue lag: never measured — discovered only during failover</li>
+  <li>No pre-drill validation — assumes AG is healthy before failover attempt</li>
+  <li>WinRM and PowerShell required expert knowledge — DBAs didn't automate</li>
+  <li>No compliance report for RBI BCP evidence</li>
+</ul>
+</div>
+<div>
+<h3>After Automation</h3>
+<ul>
+  <li>Automated check every 10 minutes — 24x7, never "disabled accidentally"</li>
+  <li>Log send queue and redo queue measured every run</li>
+  <li>NOT SYNCHRONIZING = immediate P1 PagerDuty within 10 minutes</li>
+  <li>Pre-drill validation playbook confirms AG is SYNCHRONIZED before starting</li>
+  <li>Ansible + WinRM handles all Windows complexity</li>
+  <li>Daily HTML report auto-generated and emailed</li>
+</ul>
+</div>
+</div>
+</section>
+
+<!-- DESIGN -->
+<section id="design">
+<h2 class="st">🛠️ 5. Solution Design</h2>
+<div class="card">
+<table>
+<tr><th>Playbook</th><th>Schedule</th><th>Hosts</th><th>Purpose</th></tr>
+<tr><td>sqlserver_ag_monitor.yml</td><td>Every 10 min</td><td>SQL Primary nodes only</td><td>Query DMVs, classify health, alert on issues</td></tr>
+<tr><td>sqlserver_ag_predrill_check.yml</td><td>On-demand (pre-DR drill)</td><td>All AG nodes</td><td>Confirm all replicas SYNCHRONIZED before drill</td></tr>
+<tr><td>sqlserver_ag_report.yml</td><td>Daily 06:00 AM</td><td>SQL Primary nodes</td><td>Generate daily HTML compliance report</td></tr>
+</table>
+<div class="info-box">
+<b>Key Design Decision — Query Only from Primary:</b> All AG health queries run against the PRIMARY replica. Secondary replicas can only see their own partial state. Querying the primary gives the authoritative view of ALL replica states including synchronization lag for every secondary. This is why we query <code>sys.dm_hadr_availability_replica_states</code> from the primary — it shows the status of every secondary from the primary's perspective.
+</div>
+</div>
+</section>
+
+<!-- ARCH -->
+<section id="arch">
+<h2 class="st">🗺️ 6. Architecture Diagram</h2>
+<div class="card">
+<div class="ascii">
+<pre style="background:none;color:inherit;">
+                    AAP CONTROLLER (Linux)
+                    ─────────────────────
+                    Schedule: Every 10 min → sqlserver_ag_monitor.yml
+                    Uses: pywinrm + WinRM/HTTPS (port 5986)
+                          │
+                          │ WinRM (HTTPS port 5986)
+                          │ connection: winrm
+                          │
+            ┌─────────────┼─────────────────────────────────────┐
+            │             │                                       │
+            ▼             ▼                                       ▼
+    ┌──────────────┐  ┌──────────────┐                  ┌──────────────────┐
+    │ SQL PRIMARY   │  │ SQL SECONDARY│                  │ SQL DR REPLICA    │
+    │ Mumbai        │  │ Mumbai DR    │                  │ Chennai           │
+    │ lms-sql01     │  │ lms-sql02    │                  │ lms-sql03         │
+    │               │  │              │                  │                   │
+    │ Role: PRIMARY │  │ Role: SECONDARY│                │ Role: SECONDARY   │
+    │ Mode: Sync    │◄─┤ Mode: Sync   │                  │ Mode: Async       │
+    │               │  │              │                  │                   │
+    │ Queries run   │  │ Data replicated│                │ Data replicated    │
+    │ HERE for all  │  │ from primary  │                 │ from primary       │
+    │ replica status│  │               │                 │                    │
+    └──────────────┘  └──────────────┘                  └──────────────────┘
+            │
+            │ T-SQL Queries (via ansible.windows.win_shell + sqlcmd)
+            ▼
+    ┌────────────────────────────────────────────────────────────┐
+    │  DMVs Queried:                                              │
+    │  • sys.availability_groups          → AG name, health      │
+    │  • sys.dm_hadr_availability_replica_states → replica roles │
+    │  • sys.dm_hadr_database_replica_states → per-DB sync state │
+    │  • sys.dm_hadr_availability_group_states → sync health     │
+    └────────────────────────────────────────────────────────────┘
+            │
+            ▼
+    CLASSIFICATION
+    ┌──────────────────────────────────────────────────────────────┐
+    │  All SYNCHRONIZED  → GREEN  → Log only                       │
+    │  SYNCHRONIZING     → YELLOW → Slack warn (catching up)       │
+    │  NOT SYNCHRONIZING → RED    → PagerDuty P1 (data risk!)      │
+    │  DISCONNECTED      → RED    → PagerDuty P1 (replica lost)    │
+    │  Lag > 1GB         → AMBER  → PagerDuty P2 (lag growing)    │
+    │  Unexpected PRIMARY role → RED → Alert (unplanned failover)  │
+    └──────────────────────────────────────────────────────────────┘
+            │
+            ▼
+    AG LISTENER VALIDATION (separate check)
+    • DNS: lms-ag-listener.abcbank.in → resolves to 10.10.6.100?
+    • Port: 1433 accepting connections on listener IP?
+    • Connection: can we actually CONNECT via listener?
+</pre>
+</div>
+</div>
+</section>
+
+<!-- WINRM -->
+<section id="winrm">
+<h2 class="st">🔧 7. WinRM Configuration — Connecting Ansible to Windows</h2>
+<div class="card">
+<div class="warn-box">
+<b>Critical prerequisite:</b> Before Ansible can manage Windows SQL Servers, WinRM must be configured on each Windows server. This is a one-time setup done by the Windows admin team.
+</div>
+
+<div class="cw"><div class="cl"><span>PowerShell — Run on each Windows SQL Server to enable WinRM (one-time setup)</span><button class="cb" onclick="copyCode(this)">Copy</button></div>
+<pre><code># Run this as Administrator on each SQL Server Windows node
+# =====================================================================
+
+# Enable WinRM service
+Enable-PSRemoting -Force                              # Enables WinRM and starts the service
+
+# Configure WinRM for HTTPS (more secure — use in production)
+# This requires an SSL certificate on the Windows server
+$cert = New-SelfSignedCertificate `                  # Create self-signed cert for lab
+    -DnsName $env:COMPUTERNAME `                      # Certificate for this hostname
+    -CertStoreLocation Cert:\LocalMachine\My          # Store in machine cert store
+
+# Create WinRM HTTPS listener using the certificate
+winrm create winrm/config/Listener?Address=*+Transport=HTTPS `
+    "@{Hostname=`"$env:COMPUTERNAME`";CertificateThumbprint=`"$($cert.Thumbprint)`"}"
+
+# Allow WinRM through Windows Firewall
+netsh advfirewall firewall add rule `
+    name="WinRM HTTPS" `
+    protocol=TCP `
+    dir=in `
+    localport=5986 `
+    action=allow
+
+# Set WinRM authentication to allow Negotiate (Kerberos/NTLM)
+winrm set winrm/config/service/auth '@{Negotiate="true"}'
+
+# Verify WinRM is working
+winrm enumerate winrm/config/listener               # Should show HTTPS listener on 5986
+
+# Test from Ansible control node (Linux):
+# curl -k https://lms-sql01.abcbank.in:5986/wsman</code></pre></div>
+
+<div class="cw"><div class="cl"><span>Install pywinrm on AAP Execution Environment (requirements.txt)</span><button class="cb" onclick="copyCode(this)">Copy</button></div>
+<pre><code># execution_environment/requirements.txt
+# Python libraries for Windows automation from Ansible
+pywinrm>=0.4.3          # Core WinRM library — enables Ansible to talk to Windows
+requests-kerberos       # For Kerberos authentication (domain-joined servers)
+requests-ntlm           # For NTLM authentication (workgroup or simpler setups)
+requests>=2.28.0        # HTTP library dependency for pywinrm</code></pre></div>
+</div>
+</section>
+
+<!-- STRUCTURE -->
+<section id="structure">
+<h2 class="st">📁 8. Project Folder Structure</h2>
+<div class="card">
+<div class="ascii">
+<pre style="background:none;color:inherit;">
+sqlserver-ag-automation/
+├── ansible.cfg
+├── inventory/
+│   └── production/
+│       ├── hosts.ini                        # SQL Server Windows nodes
+│       └── group_vars/
+│           ├── all.yml                      # Shared AG monitoring vars
+│           └── sql_primary.yml              # Primary-specific settings
+├── roles/
+│   ├── sqlserver_ag_query/                  # Role 1: Query AG health from DMVs
+│   │   ├── tasks/
+│   │   │   ├── main.yml
+│   │   │   ├── query_ag_status.yml          # Main DMV queries
+│   │   │   ├── query_replica_lag.yml        # Log send/redo queue sizes
+│   │   │   └── validate_listener.yml        # AG listener check
+│   │   ├── vars/main.yml
+│   │   └── files/
+│   │       ├── query_ag_health.sql          # T-SQL for AG health
+│   │       └── query_replica_lag.sql        # T-SQL for lag metrics
+│   │
+│   ├── sqlserver_ag_classify/               # Role 2: Classify health and alert
+│   │   └── tasks/
+│   │       ├── main.yml
+│   │       ├── classify_replicas.yml
+│   │       └── send_alerts.yml
+│   │
+│   └── sqlserver_ag_report/                 # Role 3: Daily report
+│       ├── tasks/main.yml
+│       └── templates/
+│           └── ag_health_report.html.j2
+│
+├── playbooks/
+│   ├── sqlserver_ag_monitor.yml             # Main monitoring playbook
+│   ├── sqlserver_ag_predrill_check.yml      # Pre-DR drill validation
+│   └── sqlserver_ag_report.yml             # Daily report
+└── ansible.cfg</code></pre></div>
+</div>
+</section>
+
+<!-- INVENTORY -->
+<section id="inventory">
+<h2 class="st">📂 9. Inventory Configuration</h2>
+<div class="card">
+<div class="cw"><div class="cl"><span>inventory/production/hosts.ini</span><button class="cb" onclick="copyCode(this)">Copy</button></div>
+<pre><code># =====================================================================
+# SQL Server Windows Inventory for Always-On AG Monitoring
+# Note: Windows uses WinRM, not SSH — different connection_type
+# =====================================================================
+
+[sql_primary]                                          # Primary SQL nodes (queries run here)
+lms-sql01.abcbank.in  ansible_host=10.10.6.10  ag_expected_role=PRIMARY  datacenter=mumbai
+
+[sql_secondary]                                        # Secondary SQL nodes
+lms-sql02.abcbank.in  ansible_host=10.10.6.11  ag_expected_role=SECONDARY datacenter=mumbai_dr
+lms-sql03.abcbank.in  ansible_host=10.10.6.12  ag_expected_role=SECONDARY datacenter=chennai
+
+[sql_all:children]                                     # All SQL Server nodes
+sql_primary
+sql_secondary
+
+# =====================================================================
+# WinRM Connection Variables — applied to ALL SQL Server nodes
+# =====================================================================
+[sql_all:vars]
+ansible_connection=winrm                               # Use WinRM, NOT SSH
+ansible_winrm_transport=ntlm                           # Authentication: NTLM (or kerberos)
+ansible_winrm_scheme=https                             # Use HTTPS (port 5986) — secure
+ansible_port=5986                                      # WinRM HTTPS port
+ansible_winrm_server_cert_validation=ignore            # Lab: ignore self-signed cert
+# In production: ansible_winrm_server_cert_validation=validate
+ansible_user=abcbank\ansible_svc                       # Domain service account
+# ansible_password: from AAP Vault credential — never hardcode!
+ansible_winrm_operation_timeout_sec=60                 # WinRM operation timeout
+ansible_winrm_read_timeout_sec=70                      # WinRM read timeout</code></pre></div>
+
+<div class="cw"><div class="cl"><span>inventory/production/group_vars/all.yml</span><button class="cb" onclick="copyCode(this)">Copy</button></div>
+<pre><code>---
+# ── SQL Server AG Settings ──────────────────────────────────────────
+ag_name: LMS_AG                              # Availability Group name (as in SQL Server)
+ag_listener_fqdn: lms-ag-listener.abcbank.in  # AG listener DNS name
+ag_listener_ip: 10.10.6.100                 # AG listener IP
+ag_listener_port: 1433                       # SQL Server port on listener
+
+# ── Alert Thresholds ────────────────────────────────────────────────
+log_send_queue_warn_mb: 500                  # Warn if log queue > 500MB
+log_send_queue_critical_mb: 1024             # Critical if log queue > 1GB
+redo_queue_warn_mb: 1024                     # Warn if redo queue > 1GB
+redo_queue_critical_mb: 2048                 # Critical if redo queue > 2GB
+
+# ── Alert Endpoints ─────────────────────────────────────────────────
+pagerduty_integration_url: "https://events.pagerduty.com/v2/enqueue"
+slack_webhook_url: "{{ vault_slack_webhook_url }}"
+
+# ── Reporting ───────────────────────────────────────────────────────
+report_output_path: C:\Ansible\AG-Reports    # Windows path on primary SQL node
+report_local_path: /opt/ansible/ag-reports   # Copy to Linux for email
+
+# ── SQL Query Settings ──────────────────────────────────────────────
+sqlcmd_path: "C:\\Program Files\\Microsoft SQL Server\\Client SDK\\ODBC\\170\\Tools\\Binn\\SQLCMD.EXE"</code></pre></div>
+</div>
+</section>
+
+<!-- VARS -->
+<section id="vars">
+<h2 class="st">🔑 10. Variables &amp; Vault</h2>
+<div class="card">
+<div class="cw"><div class="cl"><span>AAP Custom Credential Type — SQL Server Windows Credentials</span><button class="cb" onclick="copyCode(this)">Copy</button></div>
+<pre><code># Input Configuration (YAML) — defines fields for the credential form
+fields:
+  - id: windows_password
+    type: string
+    label: Windows Service Account Password
+    secret: true                              # Hidden in UI — shown as ****
+
+  - id: sql_sa_password
+    type: string
+    label: SQL Server SA Password (for sqlcmd)
+    secret: true
+
+  - id: pagerduty_routing_key
+    type: string
+    label: PagerDuty Routing Key
+    secret: true
+
+  - id: slack_webhook
+    type: string
+    label: Slack Webhook URL
+    secret: true
+
+required:
+  - windows_password
+  - sql_sa_password
+
+---
+# Injector Configuration (YAML) — maps credentials to Ansible variables
+extra_vars:
+  ansible_password: !unsafe '{{ windows_password }}'         # WinRM authentication
+  vault_sql_sa_password: !unsafe '{{ sql_sa_password }}'    # For sqlcmd -P
+  vault_pagerduty_routing_key: !unsafe '{{ pagerduty_routing_key }}'
+  vault_slack_webhook_url: !unsafe '{{ slack_webhook }}'</code></pre></div>
+</div>
+</section>
+
+<!-- ROLES -->
+<section id="roles">
+<h2 class="st">💻 11. Roles &amp; Tasks — Complete Code</h2>
+
+<div class="card">
+<h3>SQL Files — T-SQL Queries (stored as files in role)</h3>
+<div class="cw"><div class="cl"><span>roles/sqlserver_ag_query/files/query_ag_health.sql</span><button class="cb" onclick="copyCode(this)">Copy</button></div>
+<pre><code>-- =====================================================================
+-- AG Health Query — Returns JSON-compatible output for Ansible parsing
+-- Run on PRIMARY replica to get status of ALL replicas
+-- =====================================================================
+SET NOCOUNT ON;              -- Suppress row count messages in output
+
+SELECT
+    ag.name                        AS ag_name,         -- AG name: LMS_AG
+    ar.replica_server_name         AS replica_server,  -- Server name of each replica
+    ar.availability_mode_desc      AS availability_mode, -- SYNCHRONOUS_COMMIT or ASYNCHRONOUS
+    ar.failover_mode_desc          AS failover_mode,   -- AUTOMATIC or MANUAL
+    ars.role_desc                  AS current_role,    -- PRIMARY or SECONDARY
+    ars.connected_state_desc       AS connected_state, -- CONNECTED or DISCONNECTED
+    ars.synchronization_health_desc AS sync_health,    -- HEALTHY, PARTIALLY_HEALTHY, NOT_HEALTHY
+    ags.synchronization_state_desc AS sync_state,      -- SYNCHRONIZED, SYNCHRONIZING, NOT SYNCHRONIZING
+    ISNULL(ags.log_send_queue_size, 0) AS log_send_queue_kb,  -- KB waiting to be sent
+    ISNULL(ags.redo_queue_size, 0)     AS redo_queue_kb,      -- KB waiting to be applied
+    ISNULL(ags.log_send_rate, 0)       AS log_send_rate_kb,   -- KB/sec transmission rate
+    ISNULL(ags.redo_rate, 0)           AS redo_rate_kb        -- KB/sec application rate
+FROM
+    sys.availability_groups ag
+    INNER JOIN sys.availability_replicas ar
+        ON ag.group_id = ar.group_id
+    LEFT JOIN sys.dm_hadr_availability_replica_states ars
+        ON ar.replica_id = ars.replica_id
+    LEFT JOIN sys.dm_hadr_availability_group_states ags
+        ON ag.group_id = ags.group_id
+WHERE
+    ag.name = '$(AG_NAME)'          -- sqlcmd variable substitution
+ORDER BY
+    ars.role_desc DESC,             -- PRIMARY first, then SECONDARY
+    ar.replica_server_name;
+
+-- Output format: each replica on one row with | separator for Ansible parsing</code></pre></div>
+
+<div class="cw"><div class="cl"><span>roles/sqlserver_ag_query/files/query_replica_lag.sql</span><button class="cb" onclick="copyCode(this)">Copy</button></div>
+<pre><code>-- =====================================================================
+-- Per-database lag query — shows sync state for each database in the AG
+-- This identifies WHICH specific database is behind, not just the replica
+-- =====================================================================
+SET NOCOUNT ON;
+
+SELECT
+    DB_NAME(drs.database_id)       AS database_name,      -- Which database
+    ar.replica_server_name         AS replica_server,      -- On which replica
+    drs.synchronization_state_desc AS db_sync_state,       -- SYNCHRONIZED/SYNCHRONIZING/etc
+    drs.is_suspended               AS is_suspended,         -- 1 = manually suspended (issue!)
+    ISNULL(drs.log_send_queue_size, 0) AS db_log_send_kb,  -- Per-DB log queue
+    ISNULL(drs.redo_queue_size, 0)     AS db_redo_kb,      -- Per-DB redo queue
+    drs.last_hardened_time         AS last_hardened_time    -- When last log hardened on secondary
+FROM
+    sys.dm_hadr_database_replica_states drs
+    INNER JOIN sys.availability_replicas ar
+        ON drs.replica_id = ar.replica_id
+    INNER JOIN sys.availability_groups ag
+        ON ar.group_id = ag.group_id
+WHERE
+    ag.name = '$(AG_NAME)'
+    AND drs.is_local = 0            -- Only show remote (secondary) databases
+ORDER BY
+    drs.redo_queue_size DESC;       -- Largest lag first</code></pre></div>
+</div>
+
+<div class="card">
+<h3>Role 1: sqlserver_ag_query — Query AG Health from SQL Server</h3>
+<div class="cw"><div class="cl"><span>roles/sqlserver_ag_query/tasks/query_ag_status.yml</span><button class="cb" onclick="copyCode(this)">Copy</button></div>
+<pre><code>---
+# =====================================================================
+# Query SQL Server AG health using sqlcmd + T-SQL
+# Runs on Windows SQL Primary via WinRM
+# =====================================================================
+
+- name: Copy T-SQL query files to SQL Server (Windows path)
+  ansible.windows.win_copy:                                # win_copy: copies files to Windows
+    src: "{{ role_path }}/files/query_ag_health.sql"      # Source: on Ansible control node
+    dest: "C:\\Temp\\query_ag_health.sql"                 # Destination: Windows temp folder
+    # Note: Windows paths use backslash — must be escaped as \\
+
+- name: Copy replica lag query to SQL Server
+  ansible.windows.win_copy:
+    src: "{{ role_path }}/files/query_replica_lag.sql"
+    dest: "C:\\Temp\\query_replica_lag.sql"
+
+- name: Execute AG health query using sqlcmd
+  ansible.windows.win_shell:                               # win_shell: runs PowerShell/cmd on Windows
+    cmd: >-
+      "{{ sqlcmd_path }}"
+      -S localhost
+      -E
+      -v AG_NAME="{{ ag_name }}"
+      -i C:\Temp\query_ag_health.sql
+      -s "|"
+      -W
+      -h -1
+    # -S localhost: connect to local SQL instance
+    # -E: Windows Authentication (Trusted Connection) — no password needed
+    #     The Windows service account running Ansible task IS the SQL login
+    # -v AG_NAME=...: pass sqlcmd variable (used in SQL as $(AG_NAME))
+    # -i: input SQL file to execute
+    # -s "|": column separator — pipe character for easy parsing
+    # -W: remove trailing spaces from each field
+    # -h -1: no header row (pure data output for easy parsing)
+  register: ag_health_raw
+  changed_when: false                                      # Query doesn't change anything
+  no_log: false                                            # OK to log — no passwords in output
+
+- name: Parse AG health output into structured data
+  ansible.builtin.set_fact:
+    ag_replicas: >-
+      {{ ag_health_raw.stdout_lines
+         | reject('match', '^$')
+         | map('split', '|')
+         | map('map', 'trim')
+         | map('list')
+         | list }}
+    # reject('match', '^$'): remove empty lines from sqlcmd output
+    # map('split', '|'): split each line on the pipe delimiter
+    # map('map', 'trim'): trim whitespace from each field
+    # Result: list of lists [[ag_name, server, mode, failover, role, ...], ...]
+
+- name: Convert raw list to list of dicts for easier processing
+  ansible.builtin.set_fact:
+    ag_replica_dicts: >-
+      {{ ag_replicas | map('zip',
+        ['ag_name','replica_server','availability_mode','failover_mode',
+         'current_role','connected_state','sync_health','sync_state',
+         'log_send_queue_kb','redo_queue_kb','log_send_rate_kb','redo_rate_kb'])
+         | map('list')
+         | map('community.general.dict')
+         | list }}
+    # zip: pairs each value with its column name
+    # dict: converts paired tuples to a dictionary
+    # Result: [{'ag_name': 'LMS_AG', 'replica_server': 'LMS-SQL01', 'current_role': 'PRIMARY', ...}]
+
+- name: Display AG replica summary
+  ansible.builtin.debug:
+    msg:
+      - "AG: {{ ag_name }} on {{ inventory_hostname }}"
+      - "Replicas found: {{ ag_replica_dicts | length }}"
+      - "States: {{ ag_replica_dicts | map(attribute='sync_state') | list | join(', ') }}"</code></pre></div>
+
+<div class="cw"><div class="cl"><span>roles/sqlserver_ag_query/tasks/validate_listener.yml</span><button class="cb" onclick="copyCode(this)">Copy</button></div>
+<pre><code>---
+# =====================================================================
+# Validate AG Listener — DNS resolution and port check
+# Runs from AAP control node (Linux) using delegate_to: localhost
+# =====================================================================
+
+- name: Resolve AG listener DNS name
+  ansible.builtin.command:
+    cmd: "nslookup {{ ag_listener_fqdn }}"                 # DNS lookup of listener FQDN
+  register: listener_dns_result
+  changed_when: false
+  failed_when: false
+  delegate_to: localhost                                    # Run on Linux AAP node, not Windows
+
+- name: Check if AG listener port is accepting connections
+  ansible.builtin.wait_for:
+    host: "{{ ag_listener_ip }}"                           # Direct IP (not hostname — faster)
+    port: "{{ ag_listener_port }}"                         # SQL Server port: 1433
+    timeout: 15
+    state: started
+  register: listener_port_result
+  failed_when: false
+  delegate_to: localhost
+
+- name: Test actual SQL Server connection through listener (connection string test)
+  ansible.windows.win_shell:
+    cmd: >-
+      "{{ sqlcmd_path }}"
+      -S {{ ag_listener_fqdn }},{{ ag_listener_port }}
+      -E
+      -Q "SELECT @@SERVERNAME AS connected_to, GETDATE() AS connected_at"
+      -t 10
+    # -S listener_fqdn,port: connect via AG listener (not local)
+    # -E: Windows integrated auth
+    # -Q: quick query — execute and exit immediately
+    # -t 10: 10-second query timeout
+  register: listener_connection_result
+  changed_when: false
+  failed_when: false
+
+- name: Set listener health facts
+  ansible.builtin.set_fact:
+    listener_dns_ok: "{{ listener_dns_result.rc == 0 }}"
+    listener_port_ok: "{{ listener_port_result.elapsed is defined }}"
+    listener_connection_ok: "{{ listener_connection_result.rc == 0 }}"
+    listener_connected_to: >-
+      {{ listener_connection_result.stdout_lines
+         | select('match', '.*connected_to.*|.*LMS.*|.*SQL.*')
+         | first | default('UNKNOWN') }}</code></pre></div>
+</div>
+
+<div class="card">
+<h3>Role 2: sqlserver_ag_classify — Health Classification &amp; Alerting</h3>
+<div class="cw"><div class="cl"><span>roles/sqlserver_ag_classify/tasks/classify_replicas.yml</span><button class="cb" onclick="copyCode(this)">Copy</button></div>
+<pre><code>---
+# =====================================================================
+# Classify AG replica health and identify issues
+# =====================================================================
+
+- name: Identify replicas NOT synchronizing (critical — data risk)
+  ansible.builtin.set_fact:
+    not_syncing_replicas: >-
+      {{ ag_replica_dicts
+         | selectattr('sync_state', 'equalto', 'NOT SYNCHRONIZING')
+         | list }}
+    # selectattr: filter replicas where sync_state equals "NOT SYNCHRONIZING"
+    # This is the most critical alert — secondary has stopped applying logs
+
+- name: Identify disconnected replicas (network/server issue)
+  ansible.builtin.set_fact:
+    disconnected_replicas: >-
+      {{ ag_replica_dicts
+         | selectattr('connected_state', 'equalto', 'DISCONNECTED')
+         | list }}
+
+- name: Identify replicas with high log send queue (lag building up)
+  ansible.builtin.set_fact:
+    high_lag_replicas: >-
+      {{ ag_replica_dicts
+         | selectattr('log_send_queue_kb', '>', log_send_queue_critical_mb | int * 1024)
+         | list }}
+    # log_send_queue_critical_mb * 1024: convert MB threshold to KB for comparison
+
+- name: Identify unexpected role changes (unplanned failover detection)
+  ansible.builtin.set_fact:
+    wrong_role_replicas: >-
+      {{ ag_replica_dicts
+         | selectattr('replica_server', 'equalto', inventory_hostname.split('.')[0] | upper)
+         | rejectattr('current_role', 'equalto', ag_expected_role | upper)
+         | list }}
+    # Checks if THIS server's role matches what's expected in inventory
+    # inventory_hostname.split('.')[0]: extract short hostname from FQDN
+    # If expected PRIMARY but current role is SECONDARY → unplanned failover happened!
+
+- name: Log classification summary
+  ansible.builtin.debug:
+    msg:
+      - "═══ AG Health Classification: {{ ag_name }} ═══"
+      - "NOT SYNCHRONIZING: {{ not_syncing_replicas | map(attribute='replica_server') | list | join(', ') | default('None') }}"
+      - "DISCONNECTED: {{ disconnected_replicas | map(attribute='replica_server') | list | join(', ') | default('None') }}"
+      - "HIGH LAG: {{ high_lag_replicas | map(attribute='replica_server') | list | join(', ') | default('None') }}"
+      - "WRONG ROLE: {{ wrong_role_replicas | map(attribute='replica_server') | list | join(', ') | default('None') }}"</code></pre></div>
+
+<div class="cw"><div class="cl"><span>roles/sqlserver_ag_classify/tasks/send_alerts.yml</span><button class="cb" onclick="copyCode(this)">Copy</button></div>
+<pre><code>---
+# =====================================================================
+# Send PagerDuty and Slack alerts based on AG health classification
+# =====================================================================
+
+# ── P1 Alert: NOT SYNCHRONIZING ─────────────────────────────────────
+- name: Fire PagerDuty P1 — Replica NOT SYNCHRONIZING
+  ansible.builtin.uri:
+    url: "{{ pagerduty_integration_url }}"
+    method: POST
+    body_format: json
+    body:
+      routing_key: "{{ vault_pagerduty_routing_key }}"
+      event_action: "trigger"
+      dedup_key: "sqlserver-ag-notsync-{{ ag_name }}-{{ item.replica_server }}"
+      payload:
+        summary: >-
+          🚨 SQL Server AG CRITICAL: {{ item.replica_server }} is NOT SYNCHRONIZING
+          in AG {{ ag_name }} on {{ inventory_hostname }}.
+          DATA LOSS RISK if primary fails NOW!
+        severity: "critical"
+        source: "ansible-sqlserver-ag-monitor"
+        custom_details:
+          ag_name: "{{ ag_name }}"
+          replica_server: "{{ item.replica_server }}"
+          sync_state: "{{ item.sync_state }}"
+          connected_state: "{{ item.connected_state }}"
+          log_send_queue_kb: "{{ item.log_send_queue_kb }}"
+          redo_queue_kb: "{{ item.redo_queue_kb }}"
+          impact: "FAILOVER TO THIS REPLICA WILL RESULT IN DATA LOSS"
+          aap_job: "{{ tower_job_id | default('N/A') }}"
+    status_code: [202]
+  loop: "{{ not_syncing_replicas }}"
+  loop_control:
+    label: "{{ item.replica_server }}"
+  when: not_syncing_replicas | length > 0
+  delegate_to: localhost
+
+# ── P1 Alert: DISCONNECTED replica ──────────────────────────────────
+- name: Fire PagerDuty P1 — Replica DISCONNECTED
+  ansible.builtin.uri:
+    url: "{{ pagerduty_integration_url }}"
+    method: POST
+    body_format: json
+    body:
+      routing_key: "{{ vault_pagerduty_routing_key }}"
+      event_action: "trigger"
+      dedup_key: "sqlserver-ag-disconnected-{{ ag_name }}-{{ item.replica_server }}"
+      payload:
+        summary: >-
+          🔴 SQL Server AG: {{ item.replica_server }} DISCONNECTED from
+          {{ ag_name }}. HA protection is DEGRADED.
+        severity: "critical"
+        source: "ansible-sqlserver-ag-monitor"
+        custom_details:
+          ag_name: "{{ ag_name }}"
+          replica_server: "{{ item.replica_server }}"
+          connected_state: "{{ item.connected_state }}"
+    status_code: [202]
+  loop: "{{ disconnected_replicas }}"
+  loop_control:
+    label: "{{ item.replica_server }}"
+  when: disconnected_replicas | length > 0
+  delegate_to: localhost
+
+# ── P2 Alert: High Lag ───────────────────────────────────────────────
+- name: Fire PagerDuty P2 — High log send queue lag
+  ansible.builtin.uri:
+    url: "{{ pagerduty_integration_url }}"
+    method: POST
+    body_format: json
+    body:
+      routing_key: "{{ vault_pagerduty_routing_key }}"
+      event_action: "trigger"
+      dedup_key: "sqlserver-ag-lag-{{ ag_name }}-{{ item.replica_server }}"
+      payload:
+        summary: >-
+          ⚠️ SQL Server AG Lag: {{ item.replica_server }} log send queue is
+          {{ (item.log_send_queue_kb | int / 1024) | round(1) }}GB
+          (threshold: {{ log_send_queue_critical_mb }}MB)
+        severity: "error"
+        source: "ansible-sqlserver-ag-monitor"
+        custom_details:
+          replica_server: "{{ item.replica_server }}"
+          log_send_queue_mb: "{{ (item.log_send_queue_kb | int / 1024) | round(1) }}"
+          redo_queue_mb: "{{ (item.redo_queue_kb | int / 1024) | round(1) }}"
+          log_send_rate_kb: "{{ item.log_send_rate_kb }}"
+    status_code: [202]
+  loop: "{{ high_lag_replicas }}"
+  loop_control:
+    label: "{{ item.replica_server }}"
+  when: high_lag_replicas | length > 0
+  delegate_to: localhost
+
+# ── Slack: Summary notification (always — for visibility) ────────────
+- name: Send Slack AG health summary
+  ansible.builtin.uri:
+    url: "{{ vault_slack_webhook_url }}"
+    method: POST
+    body_format: json
+    body:
+      text: >-
+        {% if not_syncing_replicas | length > 0 or disconnected_replicas | length > 0 %}
+        🔴 *AG Alert: {{ ag_name }}*
+        {% else %}
+        ✅ *AG Healthy: {{ ag_name }}*
+        {% endif %}
+        *Primary:* {{ inventory_hostname }}
+        {% for r in ag_replica_dicts %}
+        • {{ r.replica_server }}: {{ r.sync_state }} |
+          Log Queue: {{ (r.log_send_queue_kb | int / 1024) | round(1) }}GB
+        {% endfor %}
+    status_code: [200]
+  delegate_to: localhost</code></pre></div>
+</div>
+
+<!-- PLAYBOOKS -->
+<section id="playbooks">
+<h2 class="st">📜 12. Master Playbooks</h2>
+<div class="card">
+<div class="cw"><div class="cl"><span>playbooks/sqlserver_ag_monitor.yml</span><button class="cb" onclick="copyCode(this)">Copy</button></div>
+<pre><code>---
+# =====================================================================
+# SQL Server Always-On AG Monitor — Every 10 minutes
+# Runs ONLY on sql_primary group (queries PRIMARY for all replica info)
+# =====================================================================
+- name: SQL Server AG Health Monitor — ABC Global Bank
+  hosts: sql_primary                         # Only primary nodes — they have full AG view
+  gather_facts: false                        # Windows facts gathering is slow — skip here
+  # gather_facts: false because win_setup (Windows facts) takes 15-20 seconds per host
+  # We get what we need from SQL Server DMVs instead
+
+  vars_files:
+    - "{{ inventory_dir }}/group_vars/all/vault.yml"
+
+  roles:
+    - role: sqlserver_ag_query               # Step 1: Query AG health from SQL DMVs
+      tags: [query, always]
+    - role: sqlserver_ag_classify            # Step 2: Classify and alert
+      tags: [classify, alert, always]</code></pre></div>
+
+<div class="cw"><div class="cl"><span>playbooks/sqlserver_ag_predrill_check.yml</span><button class="cb" onclick="copyCode(this)">Copy</button></div>
+<pre><code>---
+# =====================================================================
+# Pre-DR Drill Validation — Run BEFORE any planned failover
+# Ensures ALL replicas are SYNCHRONIZED before proceeding with drill
+# This prevents the "11-day unnoticed lag" scenario from recurring
+# =====================================================================
+- name: SQL Server AG Pre-Drill Validation — Failover Readiness Check
+  hosts: sql_primary
+  gather_facts: false
+
+  vars_files:
+    - "{{ inventory_dir }}/group_vars/all/vault.yml"
+
+  roles:
+    - role: sqlserver_ag_query               # Get current AG status
+
+  post_tasks:
+    - name: Check if ALL replicas are synchronized
+      ansible.builtin.set_fact:
+        all_synced: >-
+          {{ ag_replica_dicts
+             | selectattr('current_role', 'equalto', 'SECONDARY')
+             | map(attribute='sync_state')
+             | list
+             | difference(['SYNCHRONIZED'])
+             | length == 0 }}
+        # difference(['SYNCHRONIZED']): removes SYNCHRONIZED from list
+        # If length == 0: all secondaries are SYNCHRONIZED — safe to proceed
+
+    - name: Display failover readiness status
+      ansible.builtin.debug:
+        msg: >-
+          ════════════════════════════════════════════════
+          DR DRILL READINESS CHECK: {{ ag_name }}
+          ════════════════════════════════════════════════
+          {% for r in ag_replica_dicts %}
+          {{ r.replica_server }}: {{ r.sync_state }}
+             Log Queue: {{ (r.log_send_queue_kb | int / 1024) | round(2) }}GB
+             Redo Queue: {{ (r.redo_queue_kb | int / 1024) | round(2) }}GB
+          {% endfor %}
+          ════════════════════════════════════════════════
+          VERDICT: {{ '✅ SAFE TO FAILOVER' if all_synced else '❌ NOT READY — REPLICAS BEHIND' }}
+          ════════════════════════════════════════════════
+
+    - name: Block drill if any replica is not synchronized
+      ansible.builtin.fail:
+        msg: >-
+          ❌ DR DRILL BLOCKED: Not all replicas are SYNCHRONIZED.
+          Unsynced replicas: {{ ag_replica_dicts
+            | selectattr('current_role', 'equalto', 'SECONDARY')
+            | rejectattr('sync_state', 'equalto', 'SYNCHRONIZED')
+            | map(attribute='replica_server') | list | join(', ') }}
+          Allow replicas to fully synchronize before attempting failover.
+          Estimated sync time based on current lag:
+          Investigate with DBA before proceeding.
+      when: not all_synced
+
+    - name: Confirm drill can proceed
+      ansible.builtin.debug:
+        msg: "✅ ALL replicas SYNCHRONIZED. DR drill can proceed safely."
+      when: all_synced</code></pre></div>
+</div>
+</section>
+
+<!-- AAP -->
+<section id="aap">
+<h2 class="st">🔴 13. AAP Configuration</h2>
+<div class="card">
+<details><summary>Step 1: Create Windows Credential Type in AAP</summary><div class="inner">
+<p>Navigate: <b>Administration → Credential Types → Add</b></p>
+<p>Name: <code>SQLServer-Windows-AG-Credentials</code></p>
+<p>Add the Input and Injector YAML shown in the Variables section above.</p>
+<p>Then: <b>Resources → Credentials → Add</b>, select this type, fill in the Windows password and SQL SA password.</p>
+</div></details>
+
+<details><summary>Step 2: Create Custom EE with pywinrm</summary><div class="inner">
+<div class="cw"><div class="cl"><span>execution_environment/execution-environment.yml</span><button class="cb" onclick="copyCode(this)">Copy</button></div>
+<pre><code>---
+version: 3
+build_arg_defaults:
+  EE_BASE_IMAGE: "registry.redhat.io/ansible-automation-platform/ee-minimal-rhel8:latest"
+
+dependencies:
+  galaxy:
+    collections:
+      - name: ansible.windows          # Core Windows modules (win_copy, win_shell etc.)
+        version: ">=2.0.0"
+      - name: community.windows        # Extended Windows modules
+        version: ">=2.0.0"
+
+  python:
+    - pywinrm>=0.4.3                   # WinRM connectivity library
+    - requests-ntlm>=1.2.0             # NTLM authentication for WinRM
+    - requests-kerberos>=0.14.0        # Kerberos authentication (optional)</code></pre></div>
+</div></details>
+
+<details><summary>Step 3: Job Templates</summary><div class="inner">
+<table>
+<tr><th>Field</th><th>AG-Monitor</th><th>AG-Pre-Drill-Check</th></tr>
+<tr><td>Name</td><td>SQLServer-AG-Monitor</td><td>SQLServer-AG-Pre-Drill-Check</td></tr>
+<tr><td>Inventory</td><td>ABC-Bank-SQLServer-Prod</td><td>ABC-Bank-SQLServer-Prod</td></tr>
+<tr><td>Playbook</td><td>playbooks/sqlserver_ag_monitor.yml</td><td>playbooks/sqlserver_ag_predrill_check.yml</td></tr>
+<tr><td>Credentials</td><td>SQLServer-Windows-AG-Credentials</td><td>SQLServer-Windows-AG-Credentials</td></tr>
+<tr><td>Execution Environment</td><td>Windows-SqlServer-EE</td><td>Windows-SqlServer-EE</td></tr>
+<tr><td>Limit</td><td>sql_primary</td><td>sql_primary</td></tr>
+<tr><td>Job Tags</td><td>—</td><td>—</td></tr>
+</table>
+</div></details>
+
+<details><summary>Step 4: Schedules</summary><div class="inner">
+<table>
+<tr><th>Job Template</th><th>Schedule</th><th>Frequency</th></tr>
+<tr><td>SQLServer-AG-Monitor</td><td>Every-10-Min-AG-Monitor</td><td>Every 10 minutes, 24x7</td></tr>
+<tr><td>SQLServer-AG-Report</td><td>Daily-0600-AG-Report</td><td>Daily at 06:00 AM</td></tr>
+</table>
+<p>The Pre-Drill Check has NO schedule — it's launched manually by the DR team before every planned failover exercise.</p>
+</div></details>
+</div>
+</section>
+
+<!-- FLOW -->
+<section id="flow">
+<h2 class="st">🔄 14. Execution Flow</h2>
+<div class="card">
+<div class="fs"><div class="fn">1</div><div>Every 10 minutes: AAP scheduler fires SQLServer-AG-Monitor. Custom EE with pywinrm starts. WinRM HTTPS connection established to lms-sql01 (primary).</div></div>
+<div class="fs"><div class="fn">2</div><div>query_ag_health.sql uploaded to C:\Temp\ via win_copy. sqlcmd.exe executed with -E (Windows auth), -v AG_NAME="LMS_AG". Output returned as pipe-delimited text.</div></div>
+<div class="fs"><div class="fn">3</div><div>Ansible parses pipe-delimited output into list of dicts — one per replica. Each dict contains sync_state, connected_state, log_send_queue_kb, redo_queue_kb.</div></div>
+<div class="fs"><div class="fn">4</div><div>AG listener validated from AAP Linux control node: nslookup, wait_for port 1433, sqlcmd connection via listener FQDN.</div></div>
+<div class="fs"><div class="fn">5</div><div>Classification: selectattr filters identify NOT SYNCHRONIZING, DISCONNECTED, high-lag replicas. Any issue found → PagerDuty fires within 10 minutes of state change.</div></div>
+<div class="fs"><div class="fn">6</div><div>Slack summary sent regardless of status — green confirmation if all healthy, red alert with replica details if issues found.</div></div>
+<div class="fs"><div class="fn">7</div><div>Pre-drill: DR team runs SQLServer-AG-Pre-Drill-Check manually before drill. All secondaries must be SYNCHRONIZED — playbook fails explicitly if any replica is behind, blocking the drill and preventing a repeat of the 11-day undetected lag scenario.</div></div>
+</div>
+</section>
+
+<!-- LAB -->
+<section id="lab">
+<h2 class="st">🧪 15. Lab Setup</h2>
+<div class="card">
+<div class="cw"><div class="cl"><span>Lab Options for SQL Server AG Testing</span><button class="cb" onclick="copyCode(this)">Copy</button></div>
+<pre><code"># Option 1: SQL Server Developer Edition (FREE) on Windows VM
+# Download: https://www.microsoft.com/en-us/sql-server/sql-server-downloads
+# Developer Edition = full Enterprise features for dev/test — free
+
+# Minimum lab: 1 SQL Server instance (no AG needed — just test WinRM + queries)
+
+# ── Step 1: Enable WinRM on Windows lab VM ───────────────────────────
+# Run in PowerShell as Administrator:
+Enable-PSRemoting -Force
+winrm set winrm/config/service '@{AllowUnencrypted="true"}' # Lab only
+winrm set winrm/config/service/auth '@{Basic="true"}'       # Lab only — use NTLM in prod
+netsh advfirewall firewall add rule name="WinRM HTTP" protocol=TCP dir=in localport=5985 action=allow
+
+# ── Step 2: Test WinRM from Linux (Ansible control node) ─────────────
+pip install pywinrm
+python3 -c "
+import winrm
+s = winrm.Session('http://windows-vm-ip:5985/wsman',
+    auth=('administrator', 'YourPassword'))
+r = s.run_cmd('hostname')
+print(r.std_out.decode())
+"
+# Expected output: the Windows hostname
+
+# ── Step 3: Test Ansible connection to Windows ────────────────────────
+# inventory test:
+cat > /tmp/win_test.ini << 'EOF'
+[windows]
+lab-sql01 ansible_host=192.168.1.100
+
+[windows:vars]
+ansible_connection=winrm
+ansible_winrm_transport=basic
+ansible_winrm_scheme=http
+ansible_port=5985
+ansible_user=administrator
+ansible_password=YourPassword
+EOF
+
+ansible -i /tmp/win_test.ini windows -m ansible.windows.win_ping
+# Expected: "pong"
+
+# ── Step 4: Test sqlcmd query from Ansible ────────────────────────────
+ansible -i /tmp/win_test.ini windows \
+  -m ansible.windows.win_shell \
+  -a "cmd='sqlcmd -S localhost -E -Q \"SELECT @@VERSION\"'"
+
+# ── Step 5: Run monitoring playbook ──────────────────────────────────
+ansible-playbook playbooks/sqlserver_ag_monitor.yml \
+  -i inventory/production/hosts.ini \
+  -v</code></pre></div>
+
+<h3>Troubleshooting Common WinRM Issues</h3>
+<table>
+<tr><th>Error</th><th>Cause</th><th>Fix</th></tr>
+<tr><td>Connection refused port 5985/5986</td><td>WinRM not enabled or firewall blocking</td><td>Run Enable-PSRemoting -Force on Windows; add firewall rule</td></tr>
+<tr><td>AuthenticationError: 401 Unauthorized</td><td>Wrong credentials or auth method mismatch</td><td>Check ansible_winrm_transport matches Windows WinRM config</td></tr>
+<tr><td>ConnectionError: [SSL: CERTIFICATE_VERIFY_FAILED]</td><td>Self-signed cert not trusted</td><td>Set ansible_winrm_server_cert_validation=ignore in lab</td></tr>
+<tr><td>sqlcmd: command not found</td><td>sqlcmd not in PATH on Windows</td><td>Use full path in sqlcmd_path variable or add to system PATH</td></tr>
+<tr><td>AG query returns no rows</td><td>SQL instance is SECONDARY — no global AG view</td><td>Always run AG queries on PRIMARY replica only (sql_primary group)</td></tr>
+</table>
+</div>
+</section>
+
+<!-- INTERVIEW -->
+<section id="interview">
+<h2 class="st">🎯 16. Interview Preparation</h2>
+<div class="card">
+<div class="g2">
+<div>
+<details><summary>Q: How does Ansible connect to Windows — explain WinRM vs SSH?</summary><div class="inner">
+Ansible uses <b>SSH</b> for Linux (default, port 22) and <b>WinRM (Windows Remote Management)</b> for Windows (HTTP port 5985 or HTTPS port 5986). WinRM is Microsoft's implementation of the WS-Management protocol — the Windows-native remote management API.<br><br>
+Key differences: SSH is encrypted by default; WinRM HTTP is plaintext (use HTTPS in production). SSH uses key-pair authentication; WinRM supports Basic, NTLM, Kerberos, and Certificate auth. SSH runs Bash/Shell commands; WinRM runs PowerShell/CMD on Windows.<br><br>
+In inventory, you set <code>ansible_connection=winrm</code> and the <code>pywinrm</code> Python library handles the WinRM protocol. All Windows-specific Ansible modules (win_shell, win_copy, win_service etc.) automatically use WinRM when this connection type is set.
+</div></details>
+<details><summary>Q: Why query the AG from the PRIMARY replica only?</summary><div class="inner">
+SQL Server DMVs that show ALL replica states (<code>sys.dm_hadr_availability_replica_states</code>, <code>sys.dm_hadr_availability_group_states</code>) are only fully populated on the PRIMARY replica. On a secondary, these views only show the secondary's OWN state — not the state of other replicas.<br><br>
+Specifically, <code>log_send_queue_size</code> and <code>redo_queue_size</code> in <code>sys.dm_hadr_availability_group_states</code> show the LAG of secondaries AS SEEN BY THE PRIMARY. A secondary cannot tell you its own lag from the primary's perspective. So all meaningful AG monitoring queries must run on the primary.
+</div></details>
+</div>
+<div>
+<details><summary>Q: What is the difference between synchronous and asynchronous commit replicas in AG?</summary><div class="inner">
+<b>Synchronous Commit:</b> The primary waits for the secondary to CONFIRM that it has hardened (written to disk) the transaction log records before committing the transaction to the client. This guarantees ZERO DATA LOSS on failover. Latency impact: ~1-3ms added to each transaction (depends on network latency to secondary). Used for: same-DC secondary, or DR with dedicated WAN link.<br><br>
+<b>Asynchronous Commit:</b> The primary does NOT wait for secondary confirmation. Transactions commit immediately. Secondary may be behind by some number of transactions. POTENTIAL DATA LOSS on unplanned failover (you lose whatever wasn't replicated). Used for: geographically distant DR replicas where network latency would unacceptably impact transaction response times.
+</div></details>
+<details><summary>Q: How would you handle an unplanned failover detection in this automation?</summary><div class="inner">
+In the inventory, each SQL Server has an <code>ag_expected_role</code> host variable (PRIMARY or SECONDARY). After querying AG status, we compare <code>current_role</code> in the DMV with <code>ag_expected_role</code> in inventory.<br><br>
+If a server that's expected to be SECONDARY is now PRIMARY in the DMV — an unplanned failover occurred. We immediately fire a P1 PagerDuty alert: "UNPLANNED FAILOVER DETECTED: lms-sql02 is now PRIMARY but expected to be SECONDARY." This alert reaches the DBA team who can investigate whether the failover was expected, verify data integrity on the old primary, and decide whether to fail back.
+</div></details>
+</div>
+</div>
+</section>
+
+<div class="fn-row">
+  <span style="color:var(--text-dim);font-size:.85rem;">Advanced Series — Project 3 of 30 Complete</span>
+  <a class="btn" href="#">Request Project 04 →</a>
+</div>
+</main>
+</div>
+<script>
+function copyCode(btn){
+  const pre=btn.closest('.cw').querySelector('pre code')||btn.closest('.cw').querySelector('pre');
+  navigator.clipboard.writeText(pre.innerText).then(()=>{const o=btn.innerText;btn.innerText='Copied!';setTimeout(()=>btn.innerText=o,1500);});
+}
+</script>
+</body>
+</html>

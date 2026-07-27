@@ -1,0 +1,1284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Advanced Project 02: Oracle Listener Validation & Auto-Recovery — Ansible AAP</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--purple:#6d28d9;--purple-dark:#4c1d95;--purple-light:#8b5cf6;--purple-pale:#ede9fe;
+--accent:#7c3aed;--bg:#fafafa;--card:#fff;--border:#e5e7eb;--text:#1f2937;--text-dim:#6b7280;
+--code-bg:#1e1b2e;--code-text:#e2d9f3;--green:#059669;--amber:#d97706;--red:#dc2626;
+--shadow:0 1px 3px rgba(109,40,217,.1);}
+*{box-sizing:border-box;}
+body{margin:0;font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);line-height:1.7;}
+.topbar{background:linear-gradient(135deg,var(--purple-dark),var(--purple));color:#fff;padding:22px 5%;
+position:sticky;top:0;z-index:100;box-shadow:0 2px 12px rgba(109,40,217,.3);display:flex;
+justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;}
+.topbar h1{margin:0;font-size:1.1rem;font-weight:800;}
+.badge{background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.3);padding:4px 14px;border-radius:20px;font-size:.73rem;font-weight:700;}
+.layout{display:flex;max-width:1500px;margin:0 auto;}
+nav.toc{width:270px;flex-shrink:0;padding:20px 14px;position:sticky;top:76px;align-self:flex-start;max-height:calc(100vh-96px);overflow-y:auto;}
+nav.toc h3{font-size:.72rem;text-transform:uppercase;letter-spacing:1.2px;color:var(--text-dim);margin:0 0 10px 6px;}
+nav.toc a{display:block;padding:6px 12px;border-radius:8px;color:var(--text);text-decoration:none;font-size:.83rem;margin-bottom:2px;border-left:3px solid transparent;transition:all .15s;}
+nav.toc a:hover{background:var(--purple-pale);border-left-color:var(--purple-light);color:var(--purple);}
+main{flex:1;padding:26px 5% 80px;min-width:0;}
+.hero{background:linear-gradient(135deg,var(--purple-pale),#fff);border:1px solid #ddd6fe;border-radius:16px;padding:28px;margin-bottom:28px;box-shadow:var(--shadow);}
+.hero h2{margin-top:0;color:var(--purple-dark);font-size:1.5rem;line-height:1.3;}
+.tag-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;}
+.tag{background:var(--purple-pale);color:var(--purple);padding:4px 12px;border-radius:20px;font-size:.73rem;font-weight:600;}
+section{margin-bottom:32px;}
+.card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px 24px;box-shadow:var(--shadow);margin-bottom:16px;}
+h2.st{font-size:1.25rem;color:var(--purple-dark);border-bottom:3px solid var(--purple-light);padding-bottom:7px;margin-bottom:16px;}
+h3{color:var(--purple-dark);font-size:1.05rem;margin-top:18px;}
+.story-box{background:#fffbeb;border-left:4px solid var(--amber);border-radius:8px;padding:16px 20px;margin:14px 0;color:#78350f;}
+.story-box b{color:#92400e;}
+.warn-box{background:#fef2f2;border-left:4px solid var(--red);border-radius:8px;padding:14px 18px;margin:12px 0;color:#7f1d1d;}
+.tip-box{background:#ecfdf5;border-left:4px solid var(--green);border-radius:8px;padding:14px 18px;margin:12px 0;color:#064e3b;}
+.info-box{background:var(--purple-pale);border-left:4px solid var(--purple-light);border-radius:8px;padding:14px 18px;margin:12px 0;color:var(--purple-dark);}
+details{border:1px solid #ddd6fe;border-radius:10px;margin-bottom:10px;background:#faf9ff;overflow:hidden;}
+summary{padding:12px 16px;cursor:pointer;font-weight:600;color:var(--purple-dark);list-style:none;display:flex;justify-content:space-between;align-items:center;background:#f5f3ff;}
+summary::-webkit-details-marker{display:none;}
+summary::after{content:"+";font-size:1.1rem;font-weight:700;color:var(--purple-light);}
+details[open] summary::after{content:"−";}
+details>div.inner{padding:14px 16px;}
+table{border-collapse:collapse;width:100%;margin:12px 0;font-size:.86rem;}
+th,td{border:1px solid var(--border);padding:9px 12px;text-align:left;vertical-align:top;}
+th{background:var(--purple);color:#fff;font-weight:600;}
+tr:nth-child(even){background:#faf9ff;}
+.cw{position:relative;margin:14px 0;}
+.cl{background:#14102a;color:#a78bfa;padding:7px 14px;font-size:.72rem;font-family:'JetBrains Mono',monospace;border-radius:8px 8px 0 0;display:flex;justify-content:space-between;align-items:center;}
+pre{background:var(--code-bg);color:var(--code-text);padding:16px;border-radius:0 0 8px 8px;overflow-x:auto;margin:0;font-family:'JetBrains Mono',monospace;font-size:.82rem;line-height:1.6;}
+.cb{background:var(--purple-light);color:#fff;border:none;padding:3px 10px;border-radius:4px;font-size:.7rem;cursor:pointer;font-weight:600;}
+.cb:hover{background:var(--purple);}
+.le{border:1px solid #ddd6fe;border-radius:7px;margin:5px 0;padding:9px 14px;background:#fff;font-size:.85rem;}
+.le .cf{font-family:'JetBrains Mono',monospace;background:#14102a;color:#c4b5fd;padding:2px 7px;border-radius:4px;font-size:.8rem;}
+.fs{display:flex;gap:12px;padding:11px 0;border-bottom:1px dashed #e9d5ff;}
+.fn{background:var(--purple);color:#fff;width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;flex-shrink:0;font-size:.82rem;}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+@media(max-width:900px){.g2{grid-template-columns:1fr;}nav.toc{display:none;}}
+ul,ol{padding-left:22px;}li{margin-bottom:6px;}
+.ascii{background:#14102a;color:#a78bfa;font-family:'JetBrains Mono',monospace;padding:20px;border-radius:10px;font-size:.77rem;overflow-x:auto;line-height:1.45;}
+.fn-row{display:flex;justify-content:space-between;padding:20px 0;border-top:2px solid var(--border);margin-top:40px;}
+.btn{background:var(--purple);color:#fff;padding:10px 20px;border-radius:8px;text-decoration:none;font-weight:600;font-size:.86rem;}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <h1>🏦 Advanced Enterprise Ansible — BFSI Series</h1>
+  <div style="display:flex;gap:8px;">
+    <span class="badge">PROJECT 02 / 30</span>
+    <span class="badge" style="background:rgba(255,255,255,.15);">Oracle DBA Automation</span>
+  </div>
+</div>
+<div class="layout">
+<nav class="toc">
+  <h3>Table of Contents</h3>
+  <a href="#story">1. The Banking Story</a>
+  <a href="#concepts">2. Oracle Listener Concepts</a>
+  <a href="#business">3. Business Requirements</a>
+  <a href="#problem">4. Problem Statement</a>
+  <a href="#design">5. Solution Design</a>
+  <a href="#arch">6. Architecture Diagram</a>
+  <a href="#structure">7. Project Structure</a>
+  <a href="#inventory">8. Inventory</a>
+  <a href="#vars">9. Variables</a>
+  <a href="#roles">10. Roles & Tasks</a>
+  <a href="#handlers">11. Handlers</a>
+  <a href="#playbooks">12. Master Playbooks</a>
+  <a href="#aap">13. AAP Configuration</a>
+  <a href="#flow">14. Execution Flow</a>
+  <a href="#lab">15. Lab Setup</a>
+  <a href="#interview">16. Interview Prep</a>
+</nav>
+<main>
+
+<div class="hero">
+  <h2>Project 02: Oracle Database Listener Validation &amp; Auto-Recovery Automation</h2>
+  <p>The Oracle Listener is the <strong>front door to every Oracle database</strong>. When the listener goes down, every application that connects to Oracle — Core Banking, Loans, Treasury, SWIFT — loses connectivity instantly. This project automates listener health validation across all Oracle RAC and single-instance databases, detects failed or hanging listeners, restarts them automatically, validates TNS connectivity from application servers, analyzes listener logs for errors, and generates a daily listener health report.</p>
+  <div class="tag-row">
+    <span class="tag">Oracle RAC 19c/21c</span><span class="tag">LSNRCTL</span><span class="tag">TNS Validation</span>
+    <span class="tag">Auto-Recovery</span><span class="tag">Red Hat AAP 2.5</span><span class="tag">Log Analysis</span>
+    <span class="tag">PagerDuty</span><span class="tag">RAC Multi-Node</span>
+  </div>
+</div>
+
+<!-- STORY -->
+<section id="story">
+<h2 class="st">🏦 1. The Banking Story</h2>
+<div class="card">
+<div class="story-box">
+<b>Setting:</b> We are two months into our role at ABC Global Bank. The Oracle tablespace automation (Project 1) is running smoothly. Our manager calls us for an urgent meeting.<br><br>
+<b>The Incident:</b> It's 3:17 AM on a Thursday. The SWIFT payment processing system at ABC Bank attempts to send international wire transfers to correspondent banks. Every transaction fails with "ORA-12541: TNS:no listener." The SWIFT application team escalates to P1. The NOC engineer on duty tries to SSH into the database server — it's reachable. He runs <code>lsnrctl status</code>. The listener shows "The Listener is not currently known to be running." It had died silently at 2:44 AM. Nobody knows why. The DBA on call takes 22 minutes to be reached (asleep), another 8 minutes to SSH in and restart the listener. 30 minutes of SWIFT downtime — 47 international wire transfers queued, 3 already in breach of payment cutoff times. RBI SWIFT compliance team is involved. The estimated penalty: ₹2.5 crore.<br><br>
+<b>Root Cause:</b> A memory pressure event on the database server caused the listener process to be OOM-killed by the Linux kernel. There was no monitoring, no auto-restart, and no alert.<br><br>
+<b>The Ask:</b> "We need listeners monitored every 5 minutes. Auto-restart if down. And we need TNS connectivity validation from the application servers — not just from the DB server itself. A listener can appear up on the DB server but have TNS connectivity issues that only affect remote clients."
+</div>
+</div>
+</section>
+
+<!-- CONCEPTS -->
+<section id="concepts">
+<h2 class="st">📚 2. Oracle Listener Concepts You Must Know</h2>
+<div class="card">
+<details><summary>What is an Oracle Listener?</summary><div class="inner">
+The Oracle Listener is a <strong>server-side process</strong> (not a database process) that accepts incoming TCP/IP connection requests and hands them off to the Oracle database. It runs independently of the database — you can restart the database without affecting the listener, and vice versa.<br><br>
+<b>Default port:</b> 1521 (TCP). In banking, this is often changed to a custom port for security.<br>
+<b>Process name:</b> <code>tnslsnr</code> on Linux<br>
+<b>Config file:</b> <code>$ORACLE_HOME/network/admin/listener.ora</code><br>
+<b>Control tool:</b> <code>lsnrctl</code> (Listener Control Utility)
+</div></details>
+
+<details><summary>Key LSNRCTL Commands</summary><div class="inner">
+<div class="cw"><div class="cl"><span>LSNRCTL Command Reference</span><button class="cb" onclick="copyCode(this)">Copy</button></div>
+<pre><code># Check listener status — returns detailed status including services registered
+lsnrctl status
+
+# Short version — returns just UP/DOWN
+lsnrctl status | grep -i "Connecting to"
+
+# Start the listener (run as oracle OS user)
+lsnrctl start
+
+# Stop the listener
+lsnrctl stop
+
+# Reload listener.ora without stopping (for config changes)
+lsnrctl reload
+
+# Check listener services (what databases are registered)
+lsnrctl services
+
+# Get listener version
+lsnrctl version
+
+# Check if listener port is open (from remote server)
+# This validates TNS connectivity from application server perspective
+tnsping CBS_PROD       # Uses TNS alias from tnsnames.ora
+tnsping //hostname:1521/CBSPROD   # Direct TNS ping without alias</code></pre></div>
+</div></details>
+
+<details><summary>Oracle RAC Listener Architecture</summary><div class="inner">
+In Oracle RAC (Real Application Clusters), each node has its OWN listener. A 2-node RAC has:<br>
+<ul>
+<li><b>Node 1 Listener (LISTENER_NODE1):</b> Port 1521 on node1 — serves clients connecting to node 1</li>
+<li><b>Node 2 Listener (LISTENER_NODE2):</b> Port 1521 on node2 — serves clients connecting to node 2</li>
+<li><b>SCAN Listener (SCAN):</b> Runs on the SCAN IP — clients connect here, SCAN distributes across nodes (Oracle 11g+)</li>
+</ul>
+Our automation must check ALL three listener types. A common mistake is only checking one node's listener in RAC.
+</div></details>
+
+<details><summary>Listener Log File Patterns to Monitor</summary><div class="inner">
+<div class="cw"><div class="cl"><span>Common Listener Error Patterns in listener.log</span><button class="cb" onclick="copyCode(this)">Copy</button></div>
+<pre><code># Listener log location: $ORACLE_BASE/diag/tnslsnr/hostname/listener/trace/listener.log
+# Or older Oracle: $ORACLE_HOME/network/log/listener.log
+
+# Error patterns that indicate problems:
+# TNS-01190: The user is not authorized to execute the requested listener command
+# TNS-12541: TNS:no listener                 ← Listener is down
+# TNS-12537: TNS:connection closed           ← Client disconnected abruptly
+# TNS-01168: The listener has not been started ← Listener process missing
+# ORA-12514: TNS:listener does not currently know of service ← DB not registered
+# TNS-04061: The listener is already running ← Duplicate start attempt
+
+# Warning patterns (not critical but worth monitoring):
+# TNS-01168: Warning: could not register service  ← DB registration issue
+# TNS-12549: TNS: operating system resource quota exceeded ← OS limits</code></pre></div>
+</div></details>
+</div>
+</section>
+
+<!-- BUSINESS -->
+<section id="business">
+<h2 class="st">📋 3. Business Requirements</h2>
+<div class="card">
+<table>
+<tr><th>Requirement</th><th>Detail</th><th>Priority</th></tr>
+<tr><td>Listener process monitoring</td><td>Check if tnslsnr process is running on every Oracle server every 5 minutes</td><td>P1</td></tr>
+<tr><td>Port connectivity check</td><td>Validate port 1521 is accepting connections — process can exist but port may be stuck</td><td>P1</td></tr>
+<tr><td>TNS connectivity from app servers</td><td>Run tnsping FROM application servers (CBS, LMS, SWIFT) to validate end-to-end connectivity</td><td>P1</td></tr>
+<tr><td>Auto-restart on failure</td><td>Automatically restart listener if it has failed — no human needed for basic restart</td><td>P1</td></tr>
+<tr><td>RAC-aware validation</td><td>Validate ALL listener types: per-node listener + SCAN listener on RAC databases</td><td>P2</td></tr>
+<tr><td>Listener log analysis</td><td>Parse listener.log daily for error patterns and alert on repeated errors</td><td>P2</td></tr>
+<tr><td>SCAN IP validation</td><td>Confirm SCAN VIP is reachable and resolving correctly (DNS + ping)</td><td>P2</td></tr>
+<tr><td>Daily health report</td><td>HTML report of all listener statuses, uptime, error counts for operations team</td><td>P3</td></tr>
+</table>
+</div>
+</section>
+
+<!-- PROBLEM -->
+<section id="problem">
+<h2 class="st">❗ 4. Problem Statement</h2>
+<div class="card">
+<div class="g2">
+<div>
+<h3>Current State (Manual)</h3>
+<ul>
+  <li>DBA checks listener status once a day via email report from EM</li>
+  <li>No check from application server perspective — "listener up on DB server" ≠ "app can connect"</li>
+  <li>Auto-restart: not configured (Oracle restart not set up for listener)</li>
+  <li>RAC check: usually only one node checked, SCAN never validated</li>
+  <li>Listener log: never analyzed unless there's an incident</li>
+  <li>After SWIFT incident: 30-minute MTTR (Mean Time To Restore)</li>
+</ul>
+</div>
+<div>
+<h3>Target State (Automated)</h3>
+<ul>
+  <li>Check every 5 minutes from AAP — 24x7</li>
+  <li>TNS ping validation FROM each application server</li>
+  <li>Auto-restart within 60 seconds of listener failure detection</li>
+  <li>MTTR reduced from 30 min to &lt;2 minutes</li>
+  <li>RAC: all nodes + SCAN checked independently</li>
+  <li>Listener log: daily analysis, alert on error spikes</li>
+</ul>
+</div>
+</div>
+</section>
+
+<!-- DESIGN -->
+<section id="design">
+<h2 class="st">🛠️ 5. Solution Design</h2>
+<div class="card">
+<p>The automation is split into <strong>three playbooks</strong> that work together:</p>
+<table>
+<tr><th>Playbook</th><th>Frequency</th><th>What It Does</th></tr>
+<tr><td>oracle_listener_monitor.yml</td><td>Every 5 minutes</td><td>Check process + port + auto-restart if down</td></tr>
+<tr><td>oracle_tns_validation.yml</td><td>Every 15 minutes</td><td>Run tnsping FROM app servers to validate end-to-end TNS</td></tr>
+<tr><td>oracle_listener_log_analysis.yml</td><td>Daily 02:00 AM</td><td>Parse listener.log for errors, generate daily report</td></tr>
+</table>
+
+<div class="info-box">
+<b>Key Design Decision — Two-Perspective Monitoring:</b> We monitor from BOTH the database server (is the listener process running?) AND the application servers (can the app server actually connect via TNS?). This is essential because firewall rule changes, network issues, or SCAN IP problems can break TNS connectivity even when the listener process appears healthy on the DB server.
+</div>
+</div>
+</section>
+
+<!-- ARCH -->
+<section id="arch">
+<h2 class="st">🗺️ 6. Architecture Diagram</h2>
+<div class="card">
+<div class="ascii">
+<pre style="background:none;color:inherit;">
+                    AAP CONTROLLER
+                    ─────────────
+                    Schedule: Every 5 min → oracle_listener_monitor.yml
+                    Schedule: Every 15 min → oracle_tns_validation.yml
+                    Schedule: Daily 02:00 → oracle_listener_log_analysis.yml
+                         │
+            ┌────────────┴────────────────────────────────────┐
+            │                                                   │
+            ▼  PERSPECTIVE 1: DB Server Side                   ▼  PERSPECTIVE 2: App Server Side
+  ┌─────────────────────────┐                       ┌──────────────────────────────┐
+  │  Oracle DB Servers        │                       │  Application Servers          │
+  │  ──────────────────────  │                       │  ──────────────────────────  │
+  │  cbs-db01 (RAC Node 1)   │                       │  cbs-app01, cbs-app02        │
+  │  cbs-db02 (RAC Node 2)   │                       │  lms-app01, lms-app02        │
+  │  tms-db01 (Single)        │                       │  swift-gw01, swift-gw02      │
+  │                           │                       │                              │
+  │  CHECK:                   │                       │  CHECK:                      │
+  │  • tnslsnr process        │                       │  • tnsping CBS_PROD          │
+  │  • Port 1521 open         │                       │  • tnsping LMS_PROD          │
+  │  • lsnrctl status         │                       │  • tnsping TMS_PROD          │
+  │  • DB service registered  │                       │  • Response time < 500ms     │
+  │  • SCAN IP reachable      │                       │                              │
+  └─────────────────────────┘                       └──────────────────────────────┘
+            │                                                   │
+            ▼                                                   ▼
+  ┌─────────────────────────────────────────────────────────────────┐
+  │  RESULT CLASSIFICATION                                           │
+  │  • Listener UP + TNS OK     → GREEN (log only)                  │
+  │  • Listener UP + TNS FAIL   → AMBER (network/firewall issue)    │
+  │  • Listener DOWN            → RED (auto-restart + PagerDuty P1) │
+  │  • Listener HUNG (no resp)  → RED (kill + restart + PagerDuty)  │
+  └─────────────────────────────────────────────────────────────────┘
+            │
+            ▼
+  ┌─────────────────────────────────────────────────────────────────┐
+  │  AUTO-RECOVERY (if listener DOWN)                                │
+  │  Step 1: Kill any zombie tnslsnr process                         │
+  │  Step 2: Wait 10 seconds                                         │
+  │  Step 3: lsnrctl start (as oracle user)                          │
+  │  Step 4: Wait 15 seconds for listener to fully initialize        │
+  │  Step 5: Verify: lsnrctl status returns services registered      │
+  │  Step 6: Verify: port 1521 accepting connections                 │
+  │  Step 7: PagerDuty auto-resolve (if previously fired)            │
+  │  Step 8: Slack notification with recovery details                │
+  └─────────────────────────────────────────────────────────────────┘
+</pre>
+</div>
+</div>
+</section>
+
+<!-- STRUCTURE -->
+<section id="structure">
+<h2 class="st">📁 7. Project Folder Structure</h2>
+<div class="card">
+<div class="ascii">
+<pre style="background:none;color:inherit;">
+oracle-listener-automation/
+├── ansible.cfg
+├── inventory/
+│   ├── production/
+│   │   ├── hosts.ini                    # Oracle DB servers + App servers
+│   │   └── group_vars/
+│   │       ├── all.yml                  # Shared variables
+│   │       ├── oracle_rac.yml           # RAC-specific listener vars
+│   │       ├── oracle_single.yml        # Single-instance listener vars
+│   │       └── app_servers.yml          # TNS aliases for app server checks
+├── roles/
+│   ├── oracle_listener_check/           # Role 1: Listener health check
+│   │   ├── tasks/
+│   │   │   ├── main.yml                 # Entry point
+│   │   │   ├── check_process.yml        # tnslsnr process check
+│   │   │   ├── check_port.yml           # TCP port connectivity
+│   │   │   ├── check_lsnrctl.yml        # lsnrctl status output
+│   │   │   ├── check_scan.yml           # SCAN IP check (RAC only)
+│   │   │   └── classify_status.yml      # Combine results into status
+│   │   └── vars/main.yml
+│   │
+│   ├── oracle_listener_recovery/        # Role 2: Auto-restart listener
+│   │   ├── tasks/
+│   │   │   ├── main.yml
+│   │   │   ├── kill_zombie.yml          # Kill hung listener
+│   │   │   ├── start_listener.yml       # lsnrctl start
+│   │   │   └── verify_recovery.yml      # Confirm successful restart
+│   │   └── handlers/main.yml
+│   │
+│   ├── oracle_tns_validation/           # Role 3: TNS from app servers
+│   │   └── tasks/
+│   │       ├── main.yml
+│   │       └── run_tnsping.yml          # Execute tnsping per app server
+│   │
+│   └── oracle_listener_log/             # Role 4: Log analysis
+│       ├── tasks/
+│       │   ├── main.yml
+│       │   └── analyze_log.yml
+│       └── templates/
+│           └── listener_health_report.html.j2
+│
+├── playbooks/
+│   ├── oracle_listener_monitor.yml      # 5-min monitoring playbook
+│   ├── oracle_tns_validation.yml        # 15-min TNS check playbook
+│   └── oracle_listener_log_analysis.yml # Daily log analysis
+└── ansible.cfg
+</pre>
+</div>
+</div>
+</section>
+
+<!-- INVENTORY -->
+<section id="inventory">
+<h2 class="st">📂 8. Inventory Configuration</h2>
+<div class="card">
+<div class="cw"><div class="cl"><span>inventory/production/hosts.ini</span><button class="cb" onclick="copyCode(this)">Copy</button></div>
+<pre><code># =====================================================================
+# ABC Global Bank — Oracle Listener Automation Inventory
+# Two groups: Oracle DB servers + Application servers (for TNS check)
+# =====================================================================
+
+# ── Oracle Database Servers ──────────────────────────────────────────
+[oracle_rac]                                # Oracle RAC clusters (multi-node)
+cbs-db01.abcbank.in  ansible_host=10.10.4.10  rac_node=1   # CBS RAC Node 1
+cbs-db02.abcbank.in  ansible_host=10.10.4.11  rac_node=2   # CBS RAC Node 2
+
+[oracle_single]                             # Single-instance Oracle databases
+tms-db01.abcbank.in  ansible_host=10.30.4.10               # TMS Single DB
+
+[oracle_all:children]                       # Parent group for all Oracle DBs
+oracle_rac
+oracle_single
+
+# ── Application Servers (for TNS validation FROM app perspective) ────
+[cbs_app_servers]                           # CBS application tier
+cbs-app01.abcbank.in  ansible_host=10.10.2.11
+cbs-app02.abcbank.in  ansible_host=10.10.2.12
+
+[swift_app_servers]                         # SWIFT messaging tier
+swift-gw01.abcbank.in ansible_host=10.10.5.10
+
+[all_app_servers:children]                  # Parent group for all app servers
+cbs_app_servers
+swift_app_servers
+
+# ── RAC-specific host variables ───────────────────────────────────────
+[oracle_rac:vars]
+oracle_listener_name=LISTENER              # Listener name in listener.ora
+oracle_port=1521                           # Listener port
+oracle_scan_name=cbs-scan.abcbank.in       # SCAN hostname (DNS entry)
+oracle_scan_ip=10.10.4.20                  # SCAN IP address
+oracle_home=/u01/app/oracle/product/19.0.0/dbhome_1
+oracle_base=/u01/app/oracle
+oracle_user=oracle                         # OS user that owns Oracle
+oracle_sid=CBSPROD                         # Primary SID for service check
+listener_log_path=/u01/app/oracle/diag/tnslsnr/{{ inventory_hostname_short }}/listener/trace/listener.log
+
+[oracle_single:vars]
+oracle_listener_name=LISTENER
+oracle_port=1521
+oracle_home=/u01/app/oracle/product/21.0.0/dbhome_1
+oracle_base=/u01/app/oracle
+oracle_user=oracle
+oracle_sid=TMSPROD
+listener_log_path=/u01/app/oracle/diag/tnslsnr/{{ inventory_hostname_short }}/listener/trace/listener.log</code></pre></div>
+
+<div class="cw"><div class="cl"><span>inventory/production/group_vars/all.yml</span><button class="cb" onclick="copyCode(this)">Copy</button></div>
+<pre><code>---
+# ── Alert Configuration ─────────────────────────────────────────────
+pagerduty_integration_url: "https://events.pagerduty.com/v2/enqueue"
+# vault_pagerduty_routing_key: from AAP Vault credential
+
+# ── Listener Health Thresholds ──────────────────────────────────────
+tns_ping_timeout_ms: 500          # Alert if tnsping takes longer than 500ms
+listener_restart_wait_sec: 15     # Wait 15s after restart for initialization
+max_restart_attempts: 3           # Try restarting up to 3 times before escalating
+
+# ── TNS Aliases to validate from app servers ────────────────────────
+tns_aliases_to_validate:          # These TNS aliases must exist in tnsnames.ora on app servers
+  - CBS_PROD                      # Core Banking System production TNS alias
+  - TMS_PROD                      # Treasury Management System TNS alias
+
+# ── Log Analysis Settings ───────────────────────────────────────────
+log_error_spike_threshold: 10    # Alert if > 10 TNS errors in last 24 hours
+log_lines_to_analyze: 5000       # How many lines of listener.log to read (tail)
+
+# ── Reporting ───────────────────────────────────────────────────────
+report_dir: /opt/ansible/listener-reports
+report_retention_days: 90        # Keep reports for 90 days
+
+# ── Oracle OS Settings ──────────────────────────────────────────────
+oracle_env:                       # Environment variables needed for Oracle commands
+  ORACLE_HOME: "{{ oracle_home }}"
+  ORACLE_SID: "{{ oracle_sid }}"
+  PATH: "{{ oracle_home }}/bin:/usr/bin:/bin"
+  LD_LIBRARY_PATH: "{{ oracle_home }}/lib"</code></pre></div>
+</div>
+</section>
+
+<!-- VARS -->
+<section id="vars">
+<h2 class="st">🔑 9. Variables &amp; Vault</h2>
+<div class="card">
+<div class="cw"><div class="cl"><span>group_vars/all/vault.yml (ansible-vault encrypted)</span><button class="cb" onclick="copyCode(this)">Copy</button></div>
+<pre><code># Encrypted with: ansible-vault encrypt group_vars/all/vault.yml
+# Edit with:      ansible-vault edit group_vars/all/vault.yml
+
+vault_pagerduty_routing_key: "your-pagerduty-routing-key"  # PagerDuty API key
+vault_slack_webhook_url: "https://hooks.slack.com/services/xxx/yyy"
+vault_oracle_sys_password: "OracleSysPass@2024"             # For lsnrctl authentication</code></pre></div>
+<div class="tip-box">
+<b>Senior Tip:</b> In AAP, you don't need ansible-vault files for credentials. Create a <b>Custom Credential Type</b> called "Oracle-Listener-Creds" with fields for pagerduty_routing_key, slack_webhook_url, and oracle_sys_password. The credential injector maps them to extra_vars automatically. More secure than files on disk.
+</div>
+</div>
+</section>
+
+<!-- ROLES -->
+<section id="roles">
+<h2 class="st">💻 10. Roles &amp; Tasks — Complete Code</h2>
+
+<div class="card">
+<h3>Role 1: oracle_listener_check — Process, Port &amp; Status Validation</h3>
+
+<div class="cw"><div class="cl"><span>roles/oracle_listener_check/tasks/main.yml</span><button class="cb" onclick="copyCode(this)">Copy</button></div>
+<pre><code>---
+# =====================================================================
+# Main entry point — calls sub-tasks in order
+# Goal: Determine if listener is UP, DOWN, or HUNG
+# =====================================================================
+
+- name: Initialize listener status facts                   # Always start clean
+  ansible.builtin.set_fact:
+    listener_process_ok: false    # Will be set true if tnslsnr process exists
+    listener_port_ok: false       # Will be set true if port 1521 is open
+    listener_service_ok: false    # Will be set true if DB is registered
+    listener_overall_status: "UNKNOWN"  # Will be: UP, DOWN, HUNG, DEGRADED
+
+- name: Check Oracle listener process (is tnslsnr running?)
+  ansible.builtin.include_tasks: check_process.yml
+
+- name: Check Oracle listener port connectivity
+  ansible.builtin.include_tasks: check_port.yml
+
+- name: Run lsnrctl status and parse output
+  ansible.builtin.include_tasks: check_lsnrctl.yml
+
+- name: Check SCAN listener (RAC only)
+  ansible.builtin.include_tasks: check_scan.yml
+  when: "'oracle_rac' in group_names"   # Only run for RAC servers, not single-instance
+
+- name: Classify overall listener health status
+  ansible.builtin.include_tasks: classify_status.yml</code></pre></div>
+
+<div class="cw"><div class="cl"><span>roles/oracle_listener_check/tasks/check_process.yml</span><button class="cb" onclick="copyCode(this)">Copy</button></div>
+<pre><code>---
+# =====================================================================
+# Check if the tnslsnr (Oracle Listener) OS process is running
+# =====================================================================
+
+- name: Check if tnslsnr process is running on the server
+  ansible.builtin.shell:                                   # shell module for process check
+    cmd: "pgrep -f 'tnslsnr {{ oracle_listener_name }}' | wc -l"
+    # pgrep -f: search processes by full command line
+    # tnslsnr {{ oracle_listener_name }}: matches Oracle listener process
+    # wc -l: count the number of matching PIDs
+    # Result: "0" = no process, "1" or more = process running
+  register: listener_process_count                         # Save result
+  changed_when: false                                      # This never changes anything
+  become: true                                             # Need root to see all processes
+  become_user: root
+
+- name: Set listener process status fact
+  ansible.builtin.set_fact:
+    listener_process_ok: "{{ listener_process_count.stdout | trim | int > 0 }}"
+    listener_pid: "{{ listener_process_count.stdout | trim }}"
+    # trim: removes whitespace from stdout
+    # int: converts string to integer for comparison
+    # > 0: true if at least one listener process found
+
+- name: Log listener process check result
+  ansible.builtin.debug:
+    msg: >
+      Listener process check on {{ inventory_hostname }}:
+      Status={{ 'RUNNING' if listener_process_ok else 'NOT FOUND' }}
+      Process count={{ listener_pid }}</code></pre></div>
+
+<div class="cw"><div class="cl"><span>roles/oracle_listener_check/tasks/check_port.yml</span><button class="cb" onclick="copyCode(this)">Copy</button></div>
+<pre><code>---
+# =====================================================================
+# Check if port 1521 is open and accepting connections
+# A listener can be "running" but not actually accepting connections
+# (e.g., if it's in the process of starting up or hung)
+# =====================================================================
+
+- name: Check if Oracle listener port is accepting TCP connections
+  ansible.builtin.wait_for:                                # wait_for: checks TCP port
+    host: "{{ ansible_host }}"                             # DB server IP
+    port: "{{ oracle_port }}"                              # Default: 1521
+    timeout: 10                                            # Wait max 10 seconds
+    state: started                                         # started = port should be open
+  register: port_check_result                              # Save result
+  failed_when: false                                       # Don't fail playbook if port is down
+  delegate_to: localhost                                   # Test from AAP controller perspective
+  # delegate_to: localhost is CRITICAL here.
+  # We want to test if the port is reachable from OUTSIDE the DB server.
+  # If we run this ON the DB server, it would use localhost — not the same as
+  # testing remote connectivity that applications need.
+
+- name: Set port check status fact
+  ansible.builtin.set_fact:
+    listener_port_ok: "{{ port_check_result.elapsed is defined and port_check_result.elapsed < 10 }}"
+    listener_port_response_ms: "{{ (port_check_result.elapsed | default(0) * 1000) | int }}"
+    # elapsed: how many seconds it took to connect
+    # Multiply by 1000 for milliseconds
+
+- name: Log port check result
+  ansible.builtin.debug:
+    msg: >
+      Listener port check {{ ansible_host }}:{{ oracle_port }}
+      Result: {{ 'OPEN' if listener_port_ok else 'CLOSED/TIMEOUT' }}
+      Response time: {{ listener_port_response_ms }}ms</code></pre></div>
+
+<div class="cw"><div class="cl"><span>roles/oracle_listener_check/tasks/check_lsnrctl.yml</span><button class="cb" onclick="copyCode(this)">Copy</button></div>
+<pre><code>---
+# =====================================================================
+# Run lsnrctl status and parse the output
+# lsnrctl status gives detailed information about:
+# - Is listener running?
+# - What database services are registered?
+# - What version is the listener?
+# =====================================================================
+
+- name: Run lsnrctl status as oracle OS user
+  ansible.builtin.shell:                                   # shell needed for environment vars
+    cmd: "lsnrctl status {{ oracle_listener_name }}"       # lsnrctl status LISTENER
+  register: lsnrctl_output                                 # Capture full output
+  changed_when: false                                      # Read-only — no changes
+  failed_when: false                                       # Don't fail if listener is down
+  become: true                                             # Switch to oracle OS user
+  become_user: "{{ oracle_user }}"                         # Run as oracle user
+  environment: "{{ oracle_env }}"                          # Set ORACLE_HOME, PATH etc.
+  # become_user: oracle is critical — lsnrctl must run as the oracle OS user
+  # Running as root or ansible user will give authentication errors
+
+- name: Parse listener status from lsnrctl output
+  ansible.builtin.set_fact:
+    listener_lsnrctl_up: >-
+      {{ 'TNS-01190' not in lsnrctl_output.stdout
+         and 'not currently known to be running' not in lsnrctl_output.stdout
+         and lsnrctl_output.rc == 0 }}
+    # Three checks combined:
+    # 1. TNS-01190: specific error code for "listener not authenticated" — means it's down
+    # 2. "not currently known to be running" — the actual "down" message from lsnrctl
+    # 3. rc == 0: successful exit code from lsnrctl
+
+    listener_version: >-
+      {{ lsnrctl_output.stdout
+         | regex_search('Version ([0-9.]+)', '\\1')
+         | first | default('unknown') }}
+    # regex_search: extract listener version number from output
+    # Example output line: "TNSLSNR for Linux: Version 19.0.0.0.0"
+
+    listener_services_registered: >-
+      {{ 'Services Summary...' in lsnrctl_output.stdout
+         and 'has' in lsnrctl_output.stdout }}
+    # If "Services Summary" is in output, at least one database service is registered
+    # If no services registered, apps can't connect even if listener is up
+
+- name: Log lsnrctl status result
+  ansible.builtin.debug:
+    msg:
+      - "lsnrctl status on {{ inventory_hostname }}:"
+      - "Listener running: {{ listener_lsnrctl_up }}"
+      - "Version: {{ listener_version }}"
+      - "Services registered: {{ listener_services_registered }}"
+
+- name: Extract and display registered services from lsnrctl output
+  ansible.builtin.debug:
+    msg: "{{ lsnrctl_output.stdout_lines | select('match', '.*Service.*|.*Handler.*') | list }}"
+  when: listener_lsnrctl_up | bool</code></pre></div>
+
+<div class="cw"><div class="cl"><span>roles/oracle_listener_check/tasks/check_scan.yml</span><button class="cb" onclick="copyCode(this)">Copy</button></div>
+<pre><code>---
+# =====================================================================
+# RAC-specific: Validate SCAN (Single Client Access Name) listener
+# SCAN is the primary connection point for RAC — if SCAN fails, ALL
+# applications lose connectivity regardless of per-node listener status
+# =====================================================================
+
+- name: Check SCAN hostname DNS resolution
+  ansible.builtin.command:                                 # command module (no shell features needed)
+    cmd: "nslookup {{ oracle_scan_name }}"                 # DNS lookup of SCAN hostname
+  register: scan_dns_result
+  changed_when: false
+  failed_when: false
+  delegate_to: localhost                                   # DNS check from external perspective
+
+- name: Ping SCAN IP address to verify network reachability
+  ansible.builtin.command:
+    cmd: "ping -c 3 -W 2 {{ oracle_scan_ip }}"            # 3 pings, 2-second wait each
+    # -c 3: send 3 ICMP packets
+    # -W 2: wait 2 seconds for each response
+  register: scan_ping_result
+  changed_when: false
+  failed_when: false
+  delegate_to: localhost
+
+- name: Check if SCAN listener port is open
+  ansible.builtin.wait_for:
+    host: "{{ oracle_scan_ip }}"                           # SCAN IP (not hostname — faster)
+    port: "{{ oracle_port }}"                              # Port 1521
+    timeout: 10
+    state: started
+  register: scan_port_result
+  failed_when: false
+  delegate_to: localhost
+
+- name: Set SCAN validation status facts
+  ansible.builtin.set_fact:
+    scan_dns_ok: "{{ scan_dns_result.rc == 0 }}"           # DNS resolved successfully?
+    scan_ping_ok: "{{ scan_ping_result.rc == 0 }}"         # SCAN IP is pingable?
+    scan_port_ok: "{{ scan_port_result.elapsed is defined }}"  # SCAN port is open?
+    scan_overall_ok: >-
+      {{ scan_dns_result.rc == 0
+         and scan_ping_result.rc == 0
+         and scan_port_result.elapsed is defined }}
+
+- name: Alert if SCAN is degraded
+  ansible.builtin.debug:
+    msg: >-
+      ⚠️ SCAN ISSUE DETECTED on {{ oracle_sid }}:
+      DNS={{ 'OK' if scan_dns_ok else 'FAIL' }}
+      Ping={{ 'OK' if scan_ping_ok else 'FAIL' }}
+      Port={{ 'OK' if scan_port_ok else 'FAIL' }}
+  when: not scan_overall_ok</code></pre></div>
+
+<div class="cw"><div class="cl"><span>roles/oracle_listener_check/tasks/classify_status.yml</span><button class="cb" onclick="copyCode(this)">Copy</button></div>
+<pre><code>---
+# =====================================================================
+# Combine all check results into a single status determination
+# Status options: UP | DOWN | HUNG | DEGRADED
+# =====================================================================
+
+- name: Determine overall listener status
+  ansible.builtin.set_fact:
+    listener_overall_status: >-
+      {%- if listener_process_ok and listener_port_ok and listener_lsnrctl_up -%}
+        {%- if listener_services_registered -%}
+          UP
+        {%- else -%}
+          DEGRADED
+        {%- endif -%}
+      {%- elif listener_process_ok and not listener_port_ok -%}
+        HUNG
+      {%- else -%}
+        DOWN
+      {%- endif -%}
+    # Decision tree:
+    # process=YES, port=YES, lsnrctl=YES, services=YES → UP (all good)
+    # process=YES, port=YES, lsnrctl=YES, services=NO  → DEGRADED (listener up but no DB registered)
+    # process=YES, port=NO                              → HUNG (process exists but not accepting)
+    # process=NO                                        → DOWN (process missing)
+
+- name: Log final classification
+  ansible.builtin.debug:
+    msg: >-
+      ══════════════════════════════════════════
+      LISTENER STATUS: {{ listener_overall_status }}
+      DB: {{ oracle_sid }} | Host: {{ inventory_hostname }}
+      Process: {{ listener_process_ok }} | Port: {{ listener_port_ok }}
+      LSNRCTL: {{ listener_lsnrctl_up }} | Services: {{ listener_services_registered }}
+      ══════════════════════════════════════════</code></pre></div>
+</div>
+
+<!-- RECOVERY ROLE -->
+<div class="card">
+<h3>Role 2: oracle_listener_recovery — Auto-Restart</h3>
+<div class="cw"><div class="cl"><span>roles/oracle_listener_recovery/tasks/main.yml</span><button class="cb" onclick="copyCode(this)">Copy</button></div>
+<pre><code>---
+# =====================================================================
+# Oracle Listener Auto-Recovery
+# Only runs when listener_overall_status is DOWN or HUNG
+# =====================================================================
+
+- name: Skip recovery if listener is already UP
+  ansible.builtin.meta: end_host                           # Skip rest of role for this host
+  when: listener_overall_status == 'UP'
+
+- name: Log that auto-recovery is starting
+  ansible.builtin.debug:
+    msg: >-
+      🔄 INITIATING AUTO-RECOVERY for {{ oracle_sid }} on {{ inventory_hostname }}
+      Reason: Listener status is {{ listener_overall_status }}
+
+- name: Fire PagerDuty P1 alert — listener is down
+  ansible.builtin.uri:
+    url: "{{ pagerduty_integration_url }}"
+    method: POST
+    body_format: json
+    body:
+      routing_key: "{{ vault_pagerduty_routing_key }}"
+      event_action: "trigger"
+      dedup_key: "oracle-listener-{{ oracle_sid }}-{{ inventory_hostname }}"
+      # dedup_key prevents duplicate alerts — if already fired, PagerDuty just updates
+      payload:
+        summary: "🔴 Oracle Listener DOWN: {{ oracle_sid }} on {{ inventory_hostname }} — Auto-recovery in progress"
+        severity: "critical"
+        source: "ansible-oracle-listener-monitor"
+        custom_details:
+          database: "{{ oracle_sid }}"
+          host: "{{ inventory_hostname }}"
+          status: "{{ listener_overall_status }}"
+          action: "Ansible auto-recovery triggered"
+    status_code: [202]
+  delegate_to: localhost
+
+- name: Kill zombie tnslsnr process if HUNG
+  ansible.builtin.shell:
+    cmd: "pkill -9 -f 'tnslsnr {{ oracle_listener_name }}' || true"
+    # pkill -9: forceful kill (SIGKILL) — kills process that isn't responding
+    # -f: match full command line (not just process name)
+    # || true: don't fail if no process found (already dead)
+  become: true
+  become_user: root                                        # Need root to kill oracle processes
+  changed_when: true
+  when: listener_overall_status == 'HUNG'                 # Only kill if HUNG, not just DOWN
+
+- name: Wait 10 seconds after killing zombie process
+  ansible.builtin.pause:
+    seconds: 10                                            # Give OS time to clean up process state
+  when: listener_overall_status == 'HUNG'
+
+- name: Start Oracle Listener using lsnrctl
+  ansible.builtin.shell:
+    cmd: "lsnrctl start {{ oracle_listener_name }}"
+  register: lsnrctl_start_result
+  become: true
+  become_user: "{{ oracle_user }}"                        # MUST run as oracle OS user
+  environment: "{{ oracle_env }}"                         # ORACLE_HOME and PATH required
+  changed_when: "'Listener completed' in lsnrctl_start_result.stdout"
+  failed_when: lsnrctl_start_result.rc != 0
+
+- name: Wait {{ listener_restart_wait_sec }} seconds for listener to fully initialize
+  ansible.builtin.pause:
+    seconds: "{{ listener_restart_wait_sec }}"             # Default: 15 seconds
+    # Why wait? lsnrctl start returns success before listener is fully ready
+    # Without this wait, the verification step below may fail unnecessarily
+
+- name: Verify listener recovered successfully
+  ansible.builtin.include_tasks:
+    file: verify_recovery.yml
+
+- name: Auto-resolve PagerDuty alert if recovery succeeded
+  ansible.builtin.uri:
+    url: "{{ pagerduty_integration_url }}"
+    method: POST
+    body_format: json
+    body:
+      routing_key: "{{ vault_pagerduty_routing_key }}"
+      event_action: "resolve"                              # resolve = close the alert
+      dedup_key: "oracle-listener-{{ oracle_sid }}-{{ inventory_hostname }}"
+      # Same dedup_key as trigger — PagerDuty knows which alert to close
+    status_code: [202]
+  delegate_to: localhost
+  when: listener_recovery_successful | default(false)
+
+- name: Send Slack notification on successful recovery
+  ansible.builtin.uri:
+    url: "{{ vault_slack_webhook_url }}"
+    method: POST
+    body_format: json
+    body:
+      text: >-
+        ✅ *Oracle Listener Auto-Recovered*
+        *DB:* {{ oracle_sid }} | *Host:* {{ inventory_hostname }}
+        *Was:* {{ listener_overall_status }}
+        *Now:* UP
+        *Recovery time:* ~{{ listener_restart_wait_sec + 10 }} seconds
+        *Trigger:* Ansible AAP Auto-Recovery | Job: {{ tower_job_id | default('N/A') }}
+    status_code: [200]
+  delegate_to: localhost
+  when: listener_recovery_successful | default(false)</code></pre></div>
+
+<div class="cw"><div class="cl"><span>roles/oracle_listener_recovery/tasks/verify_recovery.yml</span><button class="cb" onclick="copyCode(this)">Copy</button></div>
+<pre><code>---
+# =====================================================================
+# Verify that the listener recovered successfully
+# Re-run the checks and confirm status is now UP
+# =====================================================================
+
+- name: Re-check listener process after restart
+  ansible.builtin.shell:
+    cmd: "pgrep -f 'tnslsnr {{ oracle_listener_name }}' | wc -l"
+  register: verify_process
+  changed_when: false
+  become: true
+  become_user: root
+
+- name: Re-check listener port after restart
+  ansible.builtin.wait_for:
+    host: "{{ ansible_host }}"
+    port: "{{ oracle_port }}"
+    timeout: 30                                            # Give 30s for port to open after start
+    state: started
+  register: verify_port
+  failed_when: false
+  delegate_to: localhost
+
+- name: Determine if recovery was successful
+  ansible.builtin.set_fact:
+    listener_recovery_successful: >-
+      {{ verify_process.stdout | trim | int > 0
+         and verify_port.elapsed is defined }}
+
+- name: Fail playbook if recovery was NOT successful (escalate to human)
+  ansible.builtin.fail:
+    msg: >-
+      ❌ AUTO-RECOVERY FAILED for {{ oracle_sid }} on {{ inventory_hostname }}.
+      Listener could not be started after {{ max_restart_attempts }} attempt(s).
+      MANUAL DBA INTERVENTION REQUIRED.
+      Check: listener.ora exists, Oracle processes running, disk space available.
+  when: not listener_recovery_successful</code></pre></div>
+</div>
+
+<!-- TNS VALIDATION -->
+<div class="card">
+<h3>Role 3: oracle_tns_validation — End-to-End TNS Check from App Servers</h3>
+<div class="cw"><div class="cl"><span>roles/oracle_tns_validation/tasks/run_tnsping.yml</span><button class="cb" onclick="copyCode(this)">Copy</button></div>
+<pre><code>---
+# =====================================================================
+# Run tnsping FROM each application server to validate TNS connectivity
+# This runs on app servers, not Oracle DB servers
+# =====================================================================
+
+- name: Run tnsping for each TNS alias from this app server
+  ansible.builtin.command:
+    cmd: "tnsping {{ item }} 3"                            # 3 = number of ping attempts
+    # tnsping: Oracle tool to test TNS connectivity
+    # Simulates exactly what the JDBC driver does when connecting
+    # Result: OK = TNS resolves and listener responds
+    #         TNS-12541 = no listener
+    #         TNS-12154 = TNS alias not found in tnsnames.ora
+  register: tnsping_results
+  loop: "{{ tns_aliases_to_validate }}"                    # Loop over all TNS aliases
+  loop_control:
+    label: "{{ item }}"                                    # Show alias name in AAP output
+  changed_when: false
+  failed_when: false                                       # Don't fail — we classify below
+  environment:                                             # Oracle environment for tnsping
+    ORACLE_HOME: "{{ app_oracle_home }}"
+    TNS_ADMIN: "{{ app_tns_admin }}"                       # Where tnsnames.ora lives on app server
+    LD_LIBRARY_PATH: "{{ app_oracle_home }}/lib"
+    PATH: "{{ app_oracle_home }}/bin:/usr/bin:/bin"
+
+- name: Parse tnsping results and detect failures
+  ansible.builtin.set_fact:
+    tns_failures: >-
+      {{ tnsping_results.results
+         | selectattr('rc', 'ne', 0)
+         | list }}
+    tns_successes: >-
+      {{ tnsping_results.results
+         | selectattr('rc', 'equalto', 0)
+         | list }}
+
+- name: Extract TNS response times for latency tracking
+  ansible.builtin.set_fact:
+    tns_response_times: >-
+      {{ tnsping_results.results
+         | selectattr('rc', 'equalto', 0)
+         | map(attribute='stdout')
+         | map('regex_search', 'OK \(([0-9]+) msec\)', '\\1')
+         | map('first')
+         | map('int')
+         | list }}
+    # regex_search: extracts the milliseconds from "OK (45 msec)" tnsping output
+    # map('first'): extracts from regex group
+    # map('int'): converts string to integer
+
+- name: Alert if TNS connectivity failure from this app server
+  ansible.builtin.uri:
+    url: "{{ vault_slack_webhook_url }}"
+    method: POST
+    body_format: json
+    body:
+      text: >-
+        🔴 *TNS Connectivity FAILURE*
+        *App Server:* {{ inventory_hostname }}
+        *Failed TNS Aliases:*
+        {% for f in tns_failures %}
+        • {{ f.item }}: {{ f.stdout | default(f.stderr) | truncate(100) }}
+        {% endfor %}
+        _This means applications on {{ inventory_hostname }} CANNOT connect to Oracle_
+    status_code: [200]
+  delegate_to: localhost
+  when: tns_failures | length > 0
+
+- name: Log TNS validation summary
+  ansible.builtin.debug:
+    msg:
+      - "TNS Validation from {{ inventory_hostname }}"
+      - "Success: {{ tns_successes | map(attribute='item') | list | join(', ') }}"
+      - "Failures: {{ tns_failures | map(attribute='item') | list | join(', ') | default('None') }}"
+      - "Avg response time: {{ (tns_response_times | sum / tns_response_times | length) | round(0) | int }}ms"</code></pre></div>
+</div>
+
+<!-- LOG ANALYSIS -->
+<div class="card">
+<h3>Role 4: oracle_listener_log — Daily Log Analysis</h3>
+<div class="cw"><div class="cl"><span>roles/oracle_listener_log/tasks/analyze_log.yml</span><button class="cb" onclick="copyCode(this)">Copy</button></div>
+<pre><code>---
+# =====================================================================
+# Analyze Oracle listener.log for error patterns
+# Runs daily — identifies issues before they become outages
+# =====================================================================
+
+- name: Get last {{ log_lines_to_analyze }} lines of listener.log
+  ansible.builtin.shell:
+    cmd: "tail -{{ log_lines_to_analyze }} {{ listener_log_path }}"
+    # tail: reads last N lines of the log file
+    # Efficient — doesn't read the entire log which can be gigabytes
+  register: listener_log_tail
+  changed_when: false
+  become: true
+  become_user: "{{ oracle_user }}"
+  failed_when: false                                       # Don't fail if log file missing
+
+- name: Count TNS error occurrences in log
+  ansible.builtin.set_fact:
+    tns_error_count: >-
+      {{ listener_log_tail.stdout_lines
+         | select('match', '.*TNS-[0-9]+.*')
+         | list | length }}
+    # select('match', pattern): filter lines matching regex
+    # TNS-[0-9]+: any TNS error code (TNS-12541, TNS-01190 etc.)
+
+    tns_12541_count: >-
+      {{ listener_log_tail.stdout_lines
+         | select('match', '.*TNS-12541.*')
+         | list | length }}
+    # TNS-12541 = "no listener" errors from clients trying to connect
+    # High count = many clients getting "no listener" errors
+
+    tns_12514_count: >-
+      {{ listener_log_tail.stdout_lines
+         | select('match', '.*ORA-12514.*')
+         | list | length }}
+    # ORA-12514 = service not registered — DB didn't register with listener
+
+    connection_refused_count: >-
+      {{ listener_log_tail.stdout_lines
+         | select('match', '.*connection refused.*|.*refused.*connect.*')
+         | list | length }}
+
+- name: Alert if error count exceeds threshold
+  ansible.builtin.uri:
+    url: "{{ vault_slack_webhook_url }}"
+    method: POST
+    body_format: json
+    body:
+      text: >-
+        ⚠️ *Oracle Listener Log Alert*
+        *DB:* {{ oracle_sid }} | *Host:* {{ inventory_hostname }}
+        *Last {{ log_lines_to_analyze }} log lines analyzed:*
+        • Total TNS errors: *{{ tns_error_count }}* (threshold: {{ log_error_spike_threshold }})
+        • TNS-12541 (no listener): {{ tns_12541_count }}
+        • ORA-12514 (service not registered): {{ tns_12514_count }}
+        • Connection refused: {{ connection_refused_count }}
+        _High error counts may indicate recurring connectivity issues_
+    status_code: [200]
+  delegate_to: localhost
+  when: tns_error_count | int > log_error_spike_threshold | int</code></pre></div>
+</div>
+
+<!-- HANDLERS -->
+<section id="handlers">
+<h2 class="st">⚡ 11. Handlers</h2>
+<div class="card">
+<div class="cw"><div class="cl"><span>roles/oracle_listener_recovery/handlers/main.yml</span><button class="cb" onclick="copyCode(this)">Copy</button></div>
+<pre><code>---
+# Handlers run at the END of a play when notified by tasks
+# This handler sends an escalation alert if auto-recovery fails
+
+- name: Send escalation alert — listener could not be restarted
+  ansible.builtin.uri:
+    url: "{{ pagerduty_integration_url }}"
+    method: POST
+    body_format: json
+    body:
+      routing_key: "{{ vault_pagerduty_routing_key }}"
+      event_action: "trigger"
+      dedup_key: "oracle-listener-escalation-{{ oracle_sid }}-{{ inventory_hostname }}"
+      payload:
+        summary: >-
+          🚨 ESCALATION: Oracle Listener {{ oracle_sid }} on {{ inventory_hostname }}
+          could not be auto-recovered. IMMEDIATE DBA INTERVENTION REQUIRED.
+        severity: "critical"
+        source: "ansible-oracle-listener-recovery"
+    status_code: [202]
+  delegate_to: localhost
+  listen: "escalate listener failure"
+  # listen: name that tasks use to notify this handler
+  # Usage in task: notify: escalate listener failure</code></pre></div>
+</div>
+</section>
+
+<!-- PLAYBOOKS -->
+<section id="playbooks">
+<h2 class="st">📜 12. Master Playbooks</h2>
+<div class="card">
+<div class="cw"><div class="cl"><span>playbooks/oracle_listener_monitor.yml</span><button class="cb" onclick="copyCode(this)">Copy</button></div>
+<pre><code>---
+# =====================================================================
+# Oracle Listener Monitor — Runs every 5 minutes via AAP Schedule
+# Checks listener status on ALL Oracle servers and auto-recovers
+# =====================================================================
+- name: Oracle Listener Health Check — ABC Global Bank
+  hosts: oracle_all                          # All Oracle DB servers
+  gather_facts: true                         # Need ansible_host, hostname etc.
+  become: false                              # Individual tasks handle become as needed
+  serial: 10                                # Check 10 databases at a time
+  max_fail_percentage: 50                   # Allow up to 50% failure before stopping
+  # max_fail_percentage: 50 — if MORE than 50% of databases have listener issues,
+  # this is likely a systemic network problem, not individual failures.
+  # Stop and alert immediately rather than continuing.
+
+  vars_files:
+    - "{{ inventory_dir }}/group_vars/all/vault.yml"
+
+  roles:
+    - role: oracle_listener_check            # Step 1: Check listener status
+      tags: [check, always]
+
+  post_tasks:
+    - name: Trigger auto-recovery if listener is DOWN or HUNG
+      ansible.builtin.include_role:
+        name: oracle_listener_recovery       # Step 2: Auto-recover if needed
+      when: listener_overall_status in ['DOWN', 'HUNG']
+      tags: recovery</code></pre></div>
+
+<div class="cw"><div class="cl"><span>playbooks/oracle_tns_validation.yml</span><button class="cb" onclick="copyCode(this)">Copy</button></div>
+<pre><code>---
+# =====================================================================
+# Oracle TNS Validation — Runs every 15 minutes via AAP Schedule
+# Tests TNS connectivity FROM application servers to Oracle
+# Runs on app servers (not Oracle DB servers)
+# =====================================================================
+- name: Oracle TNS Connectivity Validation from Application Servers
+  hosts: all_app_servers                     # Runs on CBS app servers, SWIFT gateways
+  gather_facts: false                        # No facts needed for this check
+  serial: 5
+
+  vars_files:
+    - "{{ inventory_dir }}/group_vars/all/vault.yml"
+
+  vars:
+    app_oracle_home: /u01/app/oracle/product/19.0.0/client # Oracle client on app server
+    app_tns_admin: /u01/app/oracle/product/19.0.0/client/network/admin
+
+  roles:
+    - role: oracle_tns_validation
+      tags: [tns, connectivity]</code></pre></div>
+</div>
+</section>
+
+<!-- AAP -->
+<section id="aap">
+<h2 class="st">🔴 13. AAP Configuration</h2>
+<div class="card">
+<details><summary>Job Templates Configuration</summary><div class="inner">
+<table>
+<tr><th>Field</th><th>Oracle-Listener-Monitor</th><th>Oracle-TNS-Validation</th></tr>
+<tr><td>Name</td><td>Oracle-Listener-Monitor</td><td>Oracle-TNS-Validation</td></tr>
+<tr><td>Inventory</td><td>ABC-Bank-Oracle-Production</td><td>ABC-Bank-App-Servers</td></tr>
+<tr><td>Playbook</td><td>playbooks/oracle_listener_monitor.yml</td><td>playbooks/oracle_tns_validation.yml</td></tr>
+<tr><td>Credentials</td><td>Oracle-Listener-Creds (custom type)</td><td>Oracle-Listener-Creds</td></tr>
+<tr><td>Verbosity</td><td>1 (Normal)</td><td>1 (Normal)</td></tr>
+<tr><td>Forks</td><td>10</td><td>5</td></tr>
+<tr><td>Job Timeout</td><td>300 seconds</td><td>120 seconds</td></tr>
+</table>
+</div></details>
+
+<details><summary>Schedule Configuration</summary><div class="inner">
+<table>
+<tr><th>Job Template</th><th>Schedule Name</th><th>Frequency</th><th>Purpose</th></tr>
+<tr><td>Oracle-Listener-Monitor</td><td>Every-5-Min-Listener-Check</td><td>Every 5 minutes, 24x7</td><td>Detect and auto-recover failures</td></tr>
+<tr><td>Oracle-TNS-Validation</td><td>Every-15-Min-TNS-Check</td><td>Every 15 minutes</td><td>Validate app-to-DB connectivity</td></tr>
+<tr><td>Oracle-Listener-Log-Analysis</td><td>Daily-0200-Log-Analysis</td><td>Daily at 02:00 AM</td><td>Error pattern analysis</td></tr>
+</table>
+<div class="tip-box"><b>Why 5 minutes, not 1 minute?</b> In a 47-database fleet, a 1-minute schedule with serial:10 might not complete before the next run starts — creating overlapping jobs and false alarms. 5 minutes provides enough buffer for serial execution while still meeting the "detect within minutes" SLA. For the most critical databases (SWIFT), use a separate job template with a 2-minute schedule and forks=5.</div>
+</div></details>
+
+<details><summary>Notification Template — PagerDuty Integration</summary><div class="inner">
+<p>In AAP: <b>Administration → Notification Templates → Add</b></p>
+<table>
+<tr><th>Field</th><th>Value</th></tr>
+<tr><td>Name</td><td>PagerDuty-Oracle-Critical</td></tr>
+<tr><td>Type</td><td>PagerDuty</td></tr>
+<tr><td>Subdomain</td><td>abcbank</td></tr>
+<tr><td>API Token</td><td>(from PagerDuty account)</td></tr>
+<tr><td>Service Key</td><td>(PagerDuty service integration key)</td></tr>
+</table>
+<p>Attach this notification to the Oracle-Listener-Monitor job template under "Notifications" tab — set it to trigger on FAILURE of the job template itself (separate from the PagerDuty API calls within the playbook).</p>
+</div></details>
+</div>
+</section>
+
+<!-- FLOW -->
+<section id="flow">
+<h2 class="st">🔄 14. Execution Flow</h2>
+<div class="card">
+<div class="fs"><div class="fn">1</div><div>Every 5 minutes: AAP scheduler fires. Oracle-Listener-Monitor job launches. Custom Oracle-EE starts.</div></div>
+<div class="fs"><div class="fn">2</div><div>For each Oracle server (serial:10): pgrep checks tnslsnr process. wait_for tests port 1521 from AAP controller. lsnrctl status run as oracle user (become: oracle).</div></div>
+<div class="fs"><div class="fn">3</div><div>RAC servers: additionally check SCAN DNS resolution, SCAN IP ping, SCAN port connectivity. All three must pass for SCAN to be considered healthy.</div></div>
+<div class="fs"><div class="fn">4</div><div>classify_status.yml combines results: UP / DOWN / HUNG / DEGRADED per database.</div></div>
+<div class="fs"><div class="fn">5</div><div>If DOWN or HUNG: PagerDuty P1 fires immediately. Auto-recovery starts: kill zombie (if HUNG) → lsnrctl start → wait 15s → verify port open → verify services registered.</div></div>
+<div class="fs"><div class="fn">6</div><div>Recovery successful: PagerDuty auto-resolve. Slack notification: "Listener auto-recovered in 25 seconds." No human involvement needed — MTTR down from 30 min to under 2 min.</div></div>
+<div class="fs"><div class="fn">7</div><div>Recovery failed after max_restart_attempts: escalation PagerDuty alert fires. DBA on call is woken up with full context: what was tried, what failed, what to check next.</div></div>
+<div class="fs"><div class="fn">8</div><div>Every 15 minutes: TNS validation playbook runs on all app servers. tnsping executed from CBS app servers, SWIFT gateways. Any TNS failure = Slack alert — "App server X cannot connect to Oracle via TNS."</div></div>
+</div>
+</section>
+
+<!-- LAB -->
+<section id="lab">
+<h2 class="st">🧪 15. Lab Setup</h2>
+<div class="card">
+<div class="cw"><div class="cl"><span>Lab validation commands</span><button class="cb" onclick="copyCode(this)">Copy</button></div>
+<pre><code"># ── On Oracle XE lab server ──────────────────────────────────────────
+# Check listener status manually first
+su - oracle
+lsnrctl status
+
+# Stop listener to simulate failure
+lsnrctl stop
+
+# Verify it's stopped
+lsnrctl status
+# Expected: "The listener is not currently known to be running"
+
+# ── From your Ansible control machine ────────────────────────────────
+# Test inventory connectivity
+ansible -i inventory/production/hosts.ini oracle_all -m ping
+
+# Run listener check (check mode first — no changes)
+ansible-playbook playbooks/oracle_listener_monitor.yml \
+  -i inventory/production/hosts.ini \
+  --check -v
+
+# Run actual listener monitor (will detect DOWN and auto-restart)
+ansible-playbook playbooks/oracle_listener_monitor.yml \
+  -i inventory/production/hosts.ini \
+  -v
+
+# After playbook runs — verify listener is back up on Oracle server
+su - oracle
+lsnrctl status
+# Expected: Listener is UP, services registered
+
+# ── Test TNS validation from app server ──────────────────────────────
+# On app server, manually test tnsping
+export ORACLE_HOME=/u01/app/oracle/product/19.0.0/client
+export TNS_ADMIN=/u01/app/oracle/product/19.0.0/client/network/admin
+export PATH=$ORACLE_HOME/bin:$PATH
+
+tnsping CBS_PROD 3
+# Expected output includes: OK (45 msec)</code></pre></div>
+
+<h3>Troubleshooting Common Issues</h3>
+<table>
+<tr><th>Symptom</th><th>Cause</th><th>Fix</th></tr>
+<tr><td>lsnrctl returns "TNS-01190 The user is not authorized"</td><td>Running lsnrctl as wrong OS user</td><td>Ensure become_user: oracle in tasks, not root</td></tr>
+<tr><td>pgrep returns 0 even though listener is running</td><td>Listener name mismatch — name in listener.ora differs from oracle_listener_name var</td><td>Run <code>ps -ef | grep tnslsnr</code> to find exact process name</td></tr>
+<tr><td>tnsping fails with TNS-12154: TNS not found</td><td>tnsnames.ora on app server doesn't have the TNS alias</td><td>Check TNS_ADMIN path; verify tnsnames.ora contains the alias</td></tr>
+<tr><td>wait_for port check passes but lsnrctl says DOWN</td><td>Port 1521 is used by another process (e.g., previous zombie listener)</td><td>Kill zombie process; check <code>ss -tlnp | grep 1521</code></td></tr>
+<tr><td>Auto-recovery restarts listener but services not registered</td><td>Database hasn't auto-registered with listener yet</td><td>Wait 60+ seconds for DB to register; check if Oracle DB itself is running</td></tr>
+</table>
+</div>
+</section>
+
+<!-- INTERVIEW -->
+<section id="interview">
+<h2 class="st">🎯 16. Interview Preparation</h2>
+<div class="card">
+<div class="g2">
+<div>
+<details><summary>Q: Why use pgrep to check the listener process instead of lsnrctl status alone?</summary><div class="inner">
+lsnrctl status requires the listener to respond to a management command — if the listener is hung (process exists but not responding), lsnrctl status will also hang waiting for a response. Using pgrep first gives us an immediate answer about whether the process exists without any risk of hanging. If pgrep shows the process exists but lsnrctl status hangs, we know the listener is HUNG vs DOWN — and the recovery action is different: HUNG needs kill + restart; DOWN just needs start.
+</div></details>
+<details><summary>Q: What is the difference between a HUNG and DOWN listener?</summary><div class="inner">
+<b>DOWN:</b> The tnslsnr process does not exist at all. lsnrctl start will create a fresh listener process. Common cause: OOM kill, accidental manual stop.<br><br>
+<b>HUNG:</b> The tnslsnr process exists (pgrep finds it) but it's not accepting connections (port check fails) and lsnrctl status doesn't respond. The process is stuck. Common cause: resource exhaustion, file descriptor limit hit, or the listener is in the middle of a restart that never completed. Recovery: must kill -9 first, then start fresh.
+</div></details>
+</div>
+<div>
+<details><summary>Q: Why validate TNS connectivity from application servers, not just from the DB server?</summary><div class="inner">
+Multiple scenarios can cause TNS to fail from app servers even when the listener appears healthy from the DB server itself:<br>
+1. Firewall rule change blocking port 1521 between app and DB subnets<br>
+2. SCAN IP or SCAN listener issue (common in RAC)<br>
+3. tnsnames.ora on the app server pointing to wrong IP/hostname<br>
+4. Network route issue between specific subnets<br><br>
+By running tnsping FROM the app server, we simulate exactly what the application's JDBC driver would experience. The listener can be perfectly healthy locally while all applications are failing to connect.
+</div></details>
+<details><summary>Q: How did you reduce MTTR from 30 minutes to under 2 minutes?</summary><div class="inner">
+Three improvements:<br>
+1. <b>Detection time:</b> From 22 minutes (DBA being woken up and responding) to 5 minutes (automated check detects failure at next schedule run)<br>
+2. <b>Recovery time:</b> From 8 minutes (DBA SSHing in and running lsnrctl) to 30 seconds (automated recovery runs immediately after detection)<br>
+3. <b>Alert quality:</b> Instead of a generic "DB down" page, the PagerDuty alert now includes: which listener, which host, which status (DOWN vs HUNG), what recovery was attempted, and the AAP job URL with full logs — dramatically reducing investigation time even when automation fails and a human must intervene.
+</div></details>
+</div>
+</div>
+</section>
+
+<div class="fn-row">
+  <span style="color:var(--text-dim);font-size:.85rem;">Advanced Series — Project 2 of 30 Complete</span>
+  <a class="btn" href="#">Request Project 03 →</a>
+</div>
+</main>
+</div>
+<script>
+function copyCode(btn){
+  const pre=btn.closest('.cw').querySelector('pre code')||btn.closest('.cw').querySelector('pre');
+  navigator.clipboard.writeText(pre.innerText).then(()=>{const o=btn.innerText;btn.innerText='Copied!';setTimeout(()=>btn.innerText=o,1500);});
+}
+</script>
+</body>
+</html>
