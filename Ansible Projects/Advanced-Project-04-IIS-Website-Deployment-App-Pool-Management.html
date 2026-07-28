@@ -1,0 +1,1317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Advanced Project 04: IIS Website Deployment & App Pool Management — Ansible AAP</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--purple:#6d28d9;--purple-dark:#4c1d95;--purple-light:#8b5cf6;--purple-pale:#ede9fe;
+--bg:#fafafa;--card:#fff;--border:#e5e7eb;--text:#1f2937;--text-dim:#6b7280;
+--code-bg:#1e1b2e;--code-text:#e2d9f3;--green:#059669;--amber:#d97706;--red:#dc2626;
+--shadow:0 1px 3px rgba(109,40,217,.1);}
+*{box-sizing:border-box;}
+body{margin:0;font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);line-height:1.7;}
+.topbar{background:linear-gradient(135deg,var(--purple-dark),var(--purple));color:#fff;padding:22px 5%;
+position:sticky;top:0;z-index:100;box-shadow:0 2px 12px rgba(109,40,217,.3);display:flex;
+justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;}
+.topbar h1{margin:0;font-size:1.1rem;font-weight:800;}
+.badge{background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.3);padding:4px 14px;border-radius:20px;font-size:.73rem;font-weight:700;}
+.layout{display:flex;max-width:1500px;margin:0 auto;}
+nav.toc{width:270px;flex-shrink:0;padding:20px 14px;position:sticky;top:76px;align-self:flex-start;max-height:calc(100vh - 96px);overflow-y:auto;}
+nav.toc h3{font-size:.72rem;text-transform:uppercase;letter-spacing:1.2px;color:var(--text-dim);margin:0 0 10px 6px;}
+nav.toc a{display:block;padding:6px 12px;border-radius:8px;color:var(--text);text-decoration:none;font-size:.83rem;margin-bottom:2px;border-left:3px solid transparent;}
+nav.toc a:hover{background:var(--purple-pale);border-left-color:var(--purple-light);color:var(--purple);}
+main{flex:1;padding:26px 5% 80px;min-width:0;}
+.hero{background:linear-gradient(135deg,var(--purple-pale),#fff);border:1px solid #ddd6fe;border-radius:16px;padding:28px;margin-bottom:28px;}
+.hero h2{margin-top:0;color:var(--purple-dark);font-size:1.5rem;line-height:1.3;}
+.tag-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;}
+.tag{background:var(--purple-pale);color:var(--purple);padding:4px 12px;border-radius:20px;font-size:.73rem;font-weight:600;}
+section{margin-bottom:32px;}
+.card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px 24px;box-shadow:var(--shadow);margin-bottom:16px;}
+h2.st{font-size:1.25rem;color:var(--purple-dark);border-bottom:3px solid var(--purple-light);padding-bottom:7px;margin-bottom:16px;}
+h3{color:var(--purple-dark);font-size:1.05rem;margin-top:18px;}
+.story-box{background:#fffbeb;border-left:4px solid var(--amber);border-radius:8px;padding:16px 20px;margin:14px 0;color:#78350f;}
+.story-box b{color:#92400e;}
+.warn-box{background:#fef2f2;border-left:4px solid var(--red);border-radius:8px;padding:14px 18px;margin:12px 0;color:#7f1d1d;}
+.tip-box{background:#ecfdf5;border-left:4px solid var(--green);border-radius:8px;padding:14px 18px;margin:12px 0;color:#064e3b;}
+.info-box{background:var(--purple-pale);border-left:4px solid var(--purple-light);border-radius:8px;padding:14px 18px;margin:12px 0;color:var(--purple-dark);}
+details{border:1px solid #ddd6fe;border-radius:10px;margin-bottom:10px;background:#faf9ff;overflow:hidden;}
+summary{padding:12px 16px;cursor:pointer;font-weight:600;color:var(--purple-dark);list-style:none;display:flex;justify-content:space-between;align-items:center;background:#f5f3ff;}
+summary::-webkit-details-marker{display:none;}
+summary::after{content:"+";font-size:1.1rem;font-weight:700;color:var(--purple-light);}
+details[open] summary::after{content:"−";}
+details>div.inner{padding:14px 16px;}
+table{border-collapse:collapse;width:100%;margin:12px 0;font-size:.86rem;}
+th,td{border:1px solid var(--border);padding:9px 12px;text-align:left;vertical-align:top;}
+th{background:var(--purple);color:#fff;font-weight:600;}
+tr:nth-child(even){background:#faf9ff;}
+.cw{position:relative;margin:14px 0;}
+.cl{background:#14102a;color:#a78bfa;padding:7px 14px;font-size:.72rem;font-family:'JetBrains Mono',monospace;border-radius:8px 8px 0 0;display:flex;justify-content:space-between;align-items:center;}
+pre{background:var(--code-bg);color:var(--code-text);padding:16px;border-radius:0 0 8px 8px;overflow-x:auto;margin:0;font-family:'JetBrains Mono',monospace;font-size:.82rem;line-height:1.6;}
+.cb{background:var(--purple-light);color:#fff;border:none;padding:3px 10px;border-radius:4px;font-size:.7rem;cursor:pointer;font-weight:600;}
+.cb:hover{background:var(--purple);}
+.fs{display:flex;gap:12px;padding:11px 0;border-bottom:1px dashed #e9d5ff;}
+.fn{background:var(--purple);color:#fff;width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;flex-shrink:0;font-size:.82rem;}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+@media(max-width:900px){.g2{grid-template-columns:1fr;}nav.toc{display:none;}}
+ul,ol{padding-left:22px;}li{margin-bottom:6px;}
+.ascii{background:#14102a;color:#a78bfa;font-family:'JetBrains Mono',monospace;padding:20px;border-radius:10px;font-size:.77rem;overflow-x:auto;line-height:1.45;}
+.fn-row{display:flex;justify-content:space-between;padding:20px 0;border-top:2px solid var(--border);margin-top:40px;}
+.btn{background:var(--purple);color:#fff;padding:10px 20px;border-radius:8px;text-decoration:none;font-weight:600;font-size:.86rem;}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <h1>🏦 Advanced Enterprise Ansible — BFSI Series</h1>
+  <div style="display:flex;gap:8px;">
+    <span class="badge">PROJECT 04 / 30</span>
+    <span class="badge" style="background:rgba(255,255,255,.15);">IIS | Windows | WinRM</span>
+  </div>
+</div>
+<div class="layout">
+<nav class="toc">
+  <h3>Table of Contents</h3>
+  <a href="#story">1. The Banking Story</a>
+  <a href="#concepts">2. IIS & App Pool Concepts</a>
+  <a href="#business">3. Business Requirements</a>
+  <a href="#problem">4. Problem Statement</a>
+  <a href="#design">5. Solution Design</a>
+  <a href="#arch">6. Architecture Diagram</a>
+  <a href="#structure">7. Project Structure</a>
+  <a href="#inventory">8. Inventory</a>
+  <a href="#vars">9. Variables</a>
+  <a href="#roles">10. Roles & Tasks</a>
+  <a href="#templates">11. Jinja2 Templates</a>
+  <a href="#playbooks">12. Master Playbooks</a>
+  <a href="#aap">13. AAP Configuration</a>
+  <a href="#flow">14. Execution Flow</a>
+  <a href="#lab">15. Lab Setup</a>
+  <a href="#interview">16. Interview Prep</a>
+</nav>
+<main>
+
+<div class="hero">
+  <h2>Project 04: Windows IIS Website Deployment &amp; Application Pool Management</h2>
+  <p>ABC Global Bank runs its <strong>Internet Banking Portal</strong>, <strong>Corporate Net Banking</strong>, and <strong>Internal HR Self-Service</strong> applications on <strong>Microsoft IIS (Internet Information Services)</strong> across 18 Windows Server 2019/2022 web servers. Deploying new application versions, managing SSL bindings, configuring application pools with correct service accounts, and validating site health after deployment — all done manually by the Windows admin team — takes 4–6 hours per release and frequently causes production incidents. This project automates the complete IIS lifecycle: application pool creation and configuration, website deployment with SSL binding, rolling deployment across web farm servers, post-deployment health validation, and automatic rollback on failure.</p>
+  <div class="tag-row">
+    <span class="tag">IIS 10</span><span class="tag">Windows Server 2019/2022</span><span class="tag">WinRM</span>
+    <span class="tag">App Pool Management</span><span class="tag">SSL Binding</span><span class="tag">Rolling Deploy</span>
+    <span class="tag">Red Hat AAP 2.5</span><span class="tag">ARR Load Balancer</span><span class="tag">win_iis_*</span>
+  </div>
+</div>
+
+<!-- STORY -->
+<section id="story">
+<h2 class="st">🏦 1. The Banking Story</h2>
+<div class="card">
+<div class="story-box">
+<b>Setting:</b> ABC Global Bank's Internet Banking Portal (IBP) serves 4.2 million retail banking customers. It runs on IIS across 6 Windows Server 2019 nodes behind an ARR (Application Request Routing) load balancer. Every 3 weeks, a new release of the IBP application (.NET 6 application packaged as a ZIP) is deployed.<br><br>
+<b>The Problem:</b> The deployment process is entirely manual: a Windows administrator SSHs into each IIS server (actually RDPs — Remote Desktop), stops the application pool, extracts the new ZIP to the web root, reconfigures the web.config with environment-specific settings (different connection strings for Dev/UAT/Prod), starts the app pool, and manually checks if the site loads. They do this for all 6 servers sequentially. During the last deployment of IBP v3.4.1:<br><br>
+• Server 3 had the wrong connection string pasted (UAT database instead of Prod). 8,000 customers who hit that server got errors.<br>
+• Server 5's app pool was left stopped — the admin forgot to restart it. ARR continued routing traffic to the stopped server for 15 minutes until the health probe timed out.<br>
+• The SSL certificate binding on server 6 was not updated (the certificate was renewed last week but the IIS binding still pointed to the old expired cert). HTTPS connections on server 6 failed.<br><br>
+<b>The Business Impact:</b> 3 separate incidents from a single deployment. 2-hour total customer-facing degradation. ₹80 lakh estimated transaction loss. Customer complaints to RBI's Sachet portal about "bank website not working."<br><br>
+<b>The Ask:</b> "Automate the complete IIS deployment pipeline — configuration-driven, rolling deployment, automatic rollback, zero manual steps."
+</div>
+</div>
+</section>
+
+<!-- CONCEPTS -->
+<section id="concepts">
+<h2 class="st">📚 2. IIS & Application Pool — Concepts You Must Know</h2>
+<div class="card">
+<details><summary>IIS Architecture — Sites, App Pools, Applications</summary><div class="inner">
+<b>IIS (Internet Information Services)</b> is Microsoft's web server. Understanding its hierarchy is essential:<br><br>
+<b>Site:</b> A top-level container with a binding (IP:Port:Hostname). Example: "ABC-Internet-Banking" bound to port 443 with SSL.<br>
+<b>Application Pool:</b> An isolated process that runs .NET code. Each site is assigned one app pool. App pools run under a specific Windows identity (service account). If an app pool crashes, only that site is affected.<br>
+<b>Application:</b> A web application within a site. A site can have multiple applications (virtual directories).<br>
+<b>web.config:</b> XML configuration file at the application root that controls .NET app behavior, connection strings, and app settings.<br><br>
+<b>Key Ansible modules:</b><br>
+• <code>community.windows.win_iis_website</code> — create/modify/delete IIS websites<br>
+• <code>community.windows.win_iis_webapppool</code> — manage application pools<br>
+• <code>community.windows.win_iis_webbinding</code> — manage SSL/HTTP bindings<br>
+• <code>ansible.windows.win_service</code> — manage the W3SVC (World Wide Web Publishing Service)
+</div></details>
+
+<details><summary>Application Pool Identity — Critical for Banking</summary><div class="inner">
+In banking, IIS application pools NEVER run as <code>ApplicationPoolIdentity</code> (default) or <code>NetworkService</code>. They always run as a <strong>dedicated Windows service account</strong> that has:<br>
+• Minimum permissions to the web root folder<br>
+• Access to the SQL Server database with a specific SQL login<br>
+• No local admin rights<br>
+• Password managed by Active Directory / CyberArk PAM<br><br>
+This is a PCI-DSS Req 7 requirement — least privilege access. Ansible automates setting the correct service account identity on each app pool.
+</div></details>
+
+<details><summary>SSL Binding in IIS — How It Works</summary><div class="inner">
+An IIS SSL binding links a <b>certificate</b> (by thumbprint) to a <b>site</b> on a specific <b>port</b>. When a client connects to HTTPS, IIS presents the certificate matching the binding.<br><br>
+The certificate must be installed in the <b>Windows Certificate Store</b> (Local Machine → Personal) before creating the binding. Ansible's <code>win_certificate_store</code> module handles certificate import, and <code>win_iis_webbinding</code> creates the SSL binding using the certificate thumbprint.
+</div></details>
+</div>
+</section>
+
+<!-- BUSINESS -->
+<section id="business">
+<h2 class="st">📋 3. Business Requirements</h2>
+<div class="card">
+<table>
+<tr><th>Requirement</th><th>Detail</th><th>Priority</th></tr>
+<tr><td>App pool configuration</td><td>Create/update app pools with correct .NET version, identity (service account), recycling policy, 32-bit setting</td><td>P1</td></tr>
+<tr><td>Rolling deployment</td><td>Deploy to one server at a time — drain from ARR LB before deployment, re-add after validation</td><td>P1</td></tr>
+<tr><td>Configuration-driven web.config</td><td>Generate web.config from Jinja2 template with environment-specific connection strings — no manual editing</td><td>P1</td></tr>
+<tr><td>SSL binding management</td><td>Import SSL certificate and create binding automatically — no manual thumbprint copy-paste</td><td>P1</td></tr>
+<tr><td>Post-deploy health validation</td><td>HTTP health check, app pool running check, event log check for errors after deployment</td><td>P1</td></tr>
+<tr><td>Automatic rollback</td><td>If health check fails → restore previous version from backup → alert team</td><td>P1</td></tr>
+<tr><td>IIS health monitoring</td><td>Daily check of all IIS sites status — running, stopped, or crashed app pools</td><td>P2</td></tr>
+</table>
+</div>
+</section>
+
+<!-- PROBLEM -->
+<section id="problem">
+<h2 class="st">❗ 4. Problem Statement</h2>
+<div class="card">
+<div class="g2">
+<div>
+<h3>Root Causes of Incidents</h3>
+<ul>
+  <li>Manual web.config editing → human copy-paste errors (wrong connection string)</li>
+  <li>No drain from LB before deployment → active traffic hit deploying server</li>
+  <li>No health gate → stopped app pool not detected before LB re-add</li>
+  <li>SSL binding not part of deployment checklist → expired cert binding not updated</li>
+  <li>Sequential manual deployment → 6 servers × 30 min each = 3 hours of risk</li>
+  <li>No rollback procedure → when things go wrong, rollback is manual and slow</li>
+</ul>
+</div>
+<div>
+<h3>Automation Fixes</h3>
+<ul>
+  <li>Jinja2 template generates web.config per-environment — no manual editing</li>
+  <li>ARR LB API drain before deployment, re-add after health gate passes</li>
+  <li>Health gate: HTTP 200, app pool running, event log clean before re-add to LB</li>
+  <li>SSL certificate import + binding update included in deployment role</li>
+  <li>Rolling deploy: serial:1 ensures only one server at a time in deployment</li>
+  <li>Automatic rollback: restore backup ZIP, re-validate, alert if rollback also fails</li>
+</ul>
+</div>
+</div>
+</section>
+
+<!-- DESIGN -->
+<section id="design">
+<h2 class="st">🛠️ 5. Solution Design</h2>
+<div class="card">
+<table>
+<tr><th>Phase</th><th>Playbook</th><th>Description</th></tr>
+<tr><td>Setup</td><td>iis_setup.yml</td><td>First-time: Install IIS features, create app pools, create sites, set permissions</td></tr>
+<tr><td>Deploy</td><td>iis_deploy.yml</td><td>Rolling deploy: drain LB → backup → deploy → config → restart → health check → re-add LB</td></tr>
+<tr><td>Monitor</td><td>iis_monitor.yml</td><td>Daily check of all IIS sites, app pool states, SSL cert expiry on bindings</td></tr>
+<tr><td>Rollback</td><td>iis_rollback.yml</td><td>Restore previous version from backup when triggered (manual or auto)</td></tr>
+</table>
+</div>
+</section>
+
+<!-- ARCH -->
+<section id="arch">
+<h2 class="st">🗺️ 6. Architecture Diagram</h2>
+<div class="card">
+<div class="ascii">
+<pre style="background:none;color:inherit;">
+                    AAP CONTROLLER (Linux/RHEL)
+                    ──────────────────────────
+                    Playbook: iis_deploy.yml
+                    Connection: WinRM HTTPS (port 5986)
+                         │
+                         │ serial: 1 (one server at a time)
+                         ▼
+  ┌──────────────────────────────────────────────────────────────────┐
+  │  ARR LOAD BALANCER (Windows ARR or F5)                            │
+  │  Healthy pool: ibp-web01, ibp-web02, ibp-web03, ibp-web04,       │
+  │               ibp-web05, ibp-web06                               │
+  └──────────────────────────────────────────────────────────────────┘
+                  │               │
+        ──────────┘               └──────────
+        ▼ Step 1: Drain this server from LB  ▼ Others still serving traffic
+  ┌─────────────────────────────────────────────────────────────────┐
+  │  ibp-web01 (CURRENT SERVER BEING DEPLOYED)                       │
+  │                                                                   │
+  │  IIS Structure:                                                   │
+  │  └── Site: ABC-Internet-Banking (port 443 HTTPS)                 │
+  │      ├── SSL Binding: thumbprint=AABBCC.. (auto-set by Ansible)  │
+  │      ├── App Pool: IBP-AppPool (.NET 6, Identity: svc_ibp_prod)  │
+  │      └── Web Root: C:\inetpub\wwwroot\IBP\                       │
+  │          ├── web.config (generated from Jinja2 template)         │
+  │          └── [application files from ZIP]                        │
+  │                                                                   │
+  │  DEPLOYMENT SEQUENCE ON THIS SERVER:                              │
+  │  1. Drain from ARR LB (no new traffic)                           │
+  │  2. Wait for active connections to drain (30 sec)                 │
+  │  3. Backup current web root → C:\Backups\IBP\v3.4.0\            │
+  │  4. Stop app pool IBP-AppPool                                     │
+  │  5. Extract new ZIP to web root                                   │
+  │  6. Deploy web.config from Ansible template (env-specific)        │
+  │  7. Import new SSL cert to cert store (if updated)               │
+  │  8. Update SSL binding with new cert thumbprint                   │
+  │  9. Start app pool IBP-AppPool                                    │
+  │  10. Wait 15 seconds for app to initialize                        │
+  │  11. HTTP health check → GET /health → expect HTTP 200           │
+  │  12. Check Windows Event Log for errors in last 60 seconds        │
+  │  13. Re-add to ARR LB                                             │
+  │  → REPEAT for ibp-web02, ibp-web03 ... ibp-web06                │
+  └─────────────────────────────────────────────────────────────────┘
+</pre>
+</div>
+</div>
+</section>
+
+<!-- STRUCTURE -->
+<section id="structure">
+<h2 class="st">📁 7. Project Folder Structure</h2>
+<div class="card">
+<div class="ascii">
+<pre style="background:none;color:inherit;">
+iis-deployment-automation/
+├── ansible.cfg
+├── inventory/
+│   └── production/
+│       ├── hosts.ini                        # IIS web servers
+│       └── group_vars/
+│           ├── all.yml                      # Shared IIS deployment vars
+│           ├── iis_internet_banking.yml     # IBP-specific settings
+│           └── iis_corporate_banking.yml    # Corporate banking settings
+├── roles/
+│   ├── iis_setup/                           # Role 1: First-time IIS setup
+│   │   ├── tasks/
+│   │   │   ├── main.yml
+│   │   │   ├── install_iis_features.yml    # Install IIS Windows features
+│   │   │   ├── create_app_pool.yml         # Create application pools
+│   │   │   └── create_website.yml          # Create IIS websites
+│   │   └── vars/main.yml
+│   │
+│   ├── iis_deploy/                          # Role 2: Deploy application
+│   │   ├── tasks/
+│   │   │   ├── main.yml
+│   │   │   ├── drain_lb.yml                # Remove server from LB
+│   │   │   ├── backup_current.yml          # Backup existing web root
+│   │   │   ├── deploy_application.yml      # Extract ZIP, deploy config
+│   │   │   ├── configure_ssl.yml           # Import cert, set binding
+│   │   │   ├── start_and_validate.yml      # Start app pool, health check
+│   │   │   ├── readd_lb.yml                # Re-add to LB
+│   │   │   └── rollback.yml                # Rollback to backup
+│   │   └── templates/
+│   │       └── web.config.j2               # Environment-specific web.config
+│   │
+│   ├── iis_monitor/                         # Role 3: Health monitoring
+│   │   └── tasks/
+│   │       ├── main.yml
+│   │       ├── check_sites.yml
+│   │       └── check_ssl_expiry.yml
+│   │
+│   └── iis_apppool_manage/                  # Role 4: App pool operations
+│       └── tasks/
+│           ├── main.yml
+│           ├── recycle_pool.yml             # Recycle app pool
+│           └── set_pool_identity.yml        # Configure service account
+│
+├── playbooks/
+│   ├── iis_setup.yml                        # First-time setup
+│   ├── iis_deploy.yml                       # Rolling deployment
+│   ├── iis_monitor.yml                      # Health monitoring
+│   └── iis_rollback.yml                     # Emergency rollback
+└── ansible.cfg</pre>
+</div>
+</div>
+</section>
+
+<!-- INVENTORY -->
+<section id="inventory">
+<h2 class="st">📂 8. Inventory Configuration</h2>
+<div class="card">
+<div class="cw"><div class="cl"><span>inventory/production/hosts.ini</span><button class="cb" onclick="copyCode(this)">Copy</button></div>
+<pre><code># =====================================================================
+# IIS Web Server Inventory — ABC Global Bank
+# =====================================================================
+
+[iis_internet_banking]                              # Internet Banking Portal servers
+ibp-web01.abcbank.in  ansible_host=10.10.7.11
+ibp-web02.abcbank.in  ansible_host=10.10.7.12
+ibp-web03.abcbank.in  ansible_host=10.10.7.13
+ibp-web04.abcbank.in  ansible_host=10.10.7.14
+
+[iis_corporate_banking]                             # Corporate Net Banking servers
+cnb-web01.abcbank.in  ansible_host=10.10.8.11
+cnb-web02.abcbank.in  ansible_host=10.10.8.12
+
+[iis_all:children]
+iis_internet_banking
+iis_corporate_banking
+
+# ── WinRM Connection settings for ALL IIS servers ───────────────────
+[iis_all:vars]
+ansible_connection=winrm                            # Use WinRM (not SSH)
+ansible_winrm_transport=ntlm                        # NTLM auth (domain-joined servers)
+ansible_winrm_scheme=https                          # HTTPS on port 5986
+ansible_port=5986
+ansible_winrm_server_cert_validation=ignore         # Lab: ignore self-signed
+ansible_user=ABCBANK\ansible_svc                    # Domain service account
+# ansible_password: injected from AAP Vault credential
+
+# ── IIS-specific host variables ─────────────────────────────────────
+[iis_internet_banking:vars]
+iis_site_name=ABC-Internet-Banking                  # IIS site name
+iis_app_pool_name=IBP-AppPool                       # Application pool name
+iis_site_port=443                                   # HTTPS port
+iis_web_root=C:\inetpub\wwwroot\IBP                 # Web root folder (Windows path)
+iis_app_name=IBP                                    # Application short name (for backup paths)
+iis_health_url=https://localhost/health             # Health check URL (from local server)
+iis_service_account=ABCBANK\svc_ibp_prod            # App pool identity (service account)
+arr_lb_server=arr-lb01.abcbank.in                   # ARR Load Balancer hostname
+arr_lb_pool=IBP-WebFarm                             # ARR web farm pool name</code></pre></div>
+
+<div class="cw"><div class="cl"><span>inventory/production/group_vars/all.yml</span><button class="cb" onclick="copyCode(this)">Copy</button></div>
+<pre><code>---
+# ── Deployment Settings ─────────────────────────────────────────────
+deployment_artifact_source: \\fileserver\releases\{{ iis_app_name }}
+# UNC path to network share where release ZIPs are stored
+# Example: \\fileserver\releases\IBP\IBP_v3.4.1.zip
+
+backup_base_path: C:\IIS-Backups                   # Windows backup root
+backup_retention_count: 5                           # Keep last 5 deployment backups
+
+# ── Application Pool Configuration ──────────────────────────────────
+app_pool_dotnet_version: v4.0                       # .NET CLR version
+app_pool_pipeline_mode: Integrated                  # Integrated or Classic pipeline
+app_pool_start_mode: AlwaysRunning                  # AlwaysRunning (not OnDemand) for banking
+app_pool_idle_timeout: 0                            # 0 = never idle timeout (banking apps must always be ready)
+app_pool_recycling_schedule: "02:00:00"             # Recycle at 2 AM (low traffic window)
+
+# ── Health Check Settings ───────────────────────────────────────────
+health_check_retries: 5                             # Try health check 5 times
+health_check_delay_sec: 15                          # Wait 15 seconds between retries
+health_check_timeout_sec: 30                        # 30-second timeout per check
+app_startup_wait_sec: 20                            # Wait 20s after app pool start before checking
+
+# ── SSL Settings ────────────────────────────────────────────────────
+ssl_cert_store: LocalMachine\My                     # Windows cert store location
+ssl_cert_pfx_source: \\fileserver\certs\{{ iis_app_name }}.pfx  # PFX file on network share
+
+# ── ARR Load Balancer API ───────────────────────────────────────────
+arr_api_base: "http://{{ arr_lb_server }}:8081/api"  # ARR management API
+
+# ── Event Log Settings ──────────────────────────────────────────────
+event_log_check_minutes: 2                          # Check events from last 2 minutes post-deploy
+event_log_error_sources:                            # IIS event log sources to check
+  - Application
+  - System
+
+# ── Notifications ───────────────────────────────────────────────────
+slack_webhook_url: "{{ vault_slack_webhook_url }}"
+pagerduty_integration_url: "https://events.pagerduty.com/v2/enqueue"</code></pre></div>
+</div>
+</section>
+
+<!-- VARS -->
+<section id="vars">
+<h2 class="st">🔑 9. Deployment Variables (Survey-driven in AAP)</h2>
+<div class="card">
+<div class="info-box">
+<b>AAP Survey Variables:</b> When launching the deployment playbook from AAP, operators fill in a survey form. These become extra_vars passed to the playbook. No hardcoding of version numbers.
+</div>
+<div class="cw"><div class="cl"><span>AAP Survey Definition — iis_deploy.yml job template survey</span><button class="cb" onclick="copyCode(this)">Copy</button></div>
+<pre><code># Survey fields configured in AAP Job Template → Survey tab:
+
+# Field 1: Application Version
+name: app_version                                    # Variable name in playbook
+label: "Application Version to Deploy"
+description: "Example: v3.4.1"
+type: text
+required: true
+
+# Field 2: Release Environment
+name: target_environment
+label: "Target Environment"
+type: multiplechoice
+choices:
+  - production
+  - uat
+  - staging
+default: production
+
+# Field 3: Skip SSL Update
+name: update_ssl_certificate
+label: "Update SSL Certificate?"
+type: multiplechoice
+choices:
+  - "yes"
+  - "no"
+default: "no"
+
+# Field 4: Enable Rollback on Failure
+name: auto_rollback_on_failure
+label: "Auto-rollback if health check fails?"
+type: multiplechoice
+choices:
+  - "yes"
+  - "no"
+default: "yes"</code></pre></div>
+</div>
+</section>
+
+<!-- ROLES -->
+<section id="roles">
+<h2 class="st">💻 10. Roles &amp; Tasks — Complete Code</h2>
+
+<div class="card">
+<h3>Role 1: iis_setup — First-Time IIS Configuration</h3>
+<div class="cw"><div class="cl"><span>roles/iis_setup/tasks/install_iis_features.yml</span><button class="cb" onclick="copyCode(this)">Copy</button></div>
+<pre><code>---
+# =====================================================================
+# Install required IIS Windows Features
+# Run once during server provisioning — idempotent (safe to re-run)
+# =====================================================================
+
+- name: Install IIS core web server feature
+  ansible.windows.win_feature:                              # win_feature: installs Windows features
+    name: Web-Server                                        # IIS base feature name
+    state: present                                          # present = install if not already installed
+    include_management_tools: true                          # Also install IIS Management Console
+  register: iis_install_result
+
+- name: Install IIS sub-features required for .NET banking apps
+  ansible.windows.win_feature:
+    name:                                                   # List of IIS sub-features
+      - Web-Http-Errors                                     # Custom HTTP error pages
+      - Web-Http-Logging                                    # IIS request logging (audit requirement)
+      - Web-Stat-Compression                                # Static content compression
+      - Web-Dyn-Compression                                 # Dynamic content compression
+      - Web-Filtering                                       # Request filtering (security)
+      - Web-IP-Security                                     # IP-based access control
+      - Web-Url-Auth                                        # URL authorization
+      - Web-Windows-Auth                                    # Windows Authentication
+      - Web-Asp-Net45                                       # ASP.NET 4.5 support
+      - Web-Net-Ext45                                       # .NET 4.5 extensibility
+      - Web-ISAPI-Ext                                       # ISAPI extensions
+      - Web-ISAPI-Filter                                    # ISAPI filters
+      - Web-Mgmt-Console                                    # IIS Management Console
+      - Web-Scripting-Tools                                 # IIS PowerShell tools
+    state: present
+    include_sub_features: false                             # false = don't auto-install children
+
+- name: Ensure W3SVC (IIS) service is running and set to automatic startup
+  ansible.windows.win_service:
+    name: W3SVC                                             # IIS service name
+    state: started                                          # Ensure it's running
+    start_mode: auto                                        # Start automatically after reboot
+
+- name: Reboot server if IIS installation requires it
+  ansible.windows.win_reboot:                              # win_reboot: handles Windows restart
+    reboot_timeout: 300                                    # Wait up to 5 minutes for reboot
+    msg: "Rebooting after IIS feature installation"
+  when: iis_install_result.reboot_required | default(false)
+  # Only reboot if the feature installation specifically requires it</code></pre></div>
+
+<div class="cw"><div class="cl"><span>roles/iis_setup/tasks/create_app_pool.yml</span><button class="cb" onclick="copyCode(this)">Copy</button></div>
+<pre><code>---
+# =====================================================================
+# Create and configure IIS Application Pool
+# App pools are the process container for .NET web applications
+# =====================================================================
+
+- name: Create IIS Application Pool for {{ iis_app_pool_name }}
+  community.windows.win_iis_webapppool:                    # Module for IIS app pool management
+    name: "{{ iis_app_pool_name }}"                        # Pool name: IBP-AppPool
+    state: present                                          # present = create if doesn't exist
+    attributes:                                             # Dictionary of pool attributes
+      managedRuntimeVersion: "{{ app_pool_dotnet_version }}"   # v4.0 or empty for .NET Core
+      managedPipelineMode: "{{ app_pool_pipeline_mode }}"  # Integrated (not Classic)
+      startMode: "{{ app_pool_start_mode }}"               # AlwaysRunning (banking requirement)
+      autoStart: true                                       # Start pool when IIS starts
+      # Recycling settings — when to automatically restart the pool
+      recycling.periodicRestart.time: "00:00:00"           # 00:00:00 = no time-based recycling
+      recycling.periodicRestart.schedule: "{{ app_pool_recycling_schedule }}"  # Recycle at 2 AM
+      processModel.idleTimeout: "{{ '00:00:00' if app_pool_idle_timeout == 0 else app_pool_idle_timeout }}"
+      # idleTimeout: 00:00:00 = never shut down pool due to inactivity
+      # Banking apps must always be warm — cold starts cause response time issues
+      processModel.loadUserProfile: true                   # Load service account profile
+      processModel.userName: "{{ iis_service_account }}"  # Identity: ABCBANK\svc_ibp_prod
+      processModel.password: "{{ vault_iis_service_account_password }}"  # From Vault
+      processModel.identityType: SpecificUser              # SpecificUser = named service account
+      # SpecificUser vs ApplicationPoolIdentity:
+      # ApplicationPoolIdentity = auto-created virtual account (default, least privilege)
+      # SpecificUser = named domain account (required for DB access, file shares)
+      # Banking always uses SpecificUser to control DB access via specific SQL login
+
+- name: Verify app pool was created successfully
+  community.windows.win_iis_webapppool:
+    name: "{{ iis_app_pool_name }}"
+    state: started                                          # Ensure pool is running after creation
+  register: pool_status
+
+- name: Log app pool creation result
+  ansible.builtin.debug:
+    msg: >
+      App Pool {{ iis_app_pool_name }}:
+      State={{ pool_status.state }}
+      Identity={{ iis_service_account }}</code></pre></div>
+
+<div class="cw"><div class="cl"><span>roles/iis_setup/tasks/create_website.yml</span><button class="cb" onclick="copyCode(this)">Copy</button></div>
+<pre><code>---
+# =====================================================================
+# Create IIS Website and configure HTTP/HTTPS bindings
+# =====================================================================
+
+- name: Create web root directory for {{ iis_site_name }}
+  ansible.windows.win_file:                                # win_file: Windows file/dir management
+    path: "{{ iis_web_root }}"                             # C:\inetpub\wwwroot\IBP
+    state: directory                                       # Create directory if not exists
+
+- name: Set permissions on web root for app pool service account
+  ansible.windows.win_acl:                                 # win_acl: Windows ACL management
+    path: "{{ iis_web_root }}"
+    user: "{{ iis_service_account }}"                      # ABCBANK\svc_ibp_prod
+    rights: FullControl                                    # App pool needs full control to serve files
+    type: allow
+    state: present
+    inherit: ContainerInherit,ObjectInherit               # Apply to all subfolders and files
+
+- name: Create IIS Website {{ iis_site_name }}
+  community.windows.win_iis_website:                       # Module for IIS website management
+    name: "{{ iis_site_name }}"                            # Site name: ABC-Internet-Banking
+    state: present                                          # Create if not exists
+    port: 80                                               # Start with HTTP, SSL added next
+    ip: "*"                                               # Listen on all IPs
+    hostname: ""                                           # No host header for now
+    physical_path: "{{ iis_web_root }}"                    # Web root path
+    application_pool: "{{ iis_app_pool_name }}"            # Assign our app pool
+    parameters: logfile.directory:C:\IIS-Logs\{{ iis_app_name }}  # Separate log folder per app
+
+- name: Remove default HTTP binding (we only want HTTPS)
+  community.windows.win_iis_webbinding:                   # Module for IIS bindings
+    name: "{{ iis_site_name }}"
+    protocol: http
+    port: 80
+    state: absent                                          # Remove HTTP binding (HTTPS only in banking)
+
+- name: Configure HTTPS SSL binding
+  community.windows.win_iis_webbinding:
+    name: "{{ iis_site_name }}"
+    protocol: https                                        # HTTPS protocol
+    port: "{{ iis_site_port }}"                           # Port 443
+    certificate_hash: "{{ ssl_cert_thumbprint }}"          # Certificate thumbprint (set later)
+    certificate_store_name: My                             # Certificate store: Personal
+    ssl_flags: 1                                           # 1 = SNI (Server Name Indication)
+    state: present
+  when: ssl_cert_thumbprint is defined</code></pre></div>
+</div>
+
+<div class="card">
+<h3>Role 2: iis_deploy — Rolling Deployment</h3>
+
+<div class="cw"><div class="cl"><span>roles/iis_deploy/tasks/drain_lb.yml</span><button class="cb" onclick="copyCode(this)">Copy</button></div>
+<pre><code>---
+# =====================================================================
+# Drain server from ARR Load Balancer before deployment
+# Critical: ensures no new traffic reaches this server during deploy
+# =====================================================================
+
+- name: Remove {{ inventory_hostname }} from ARR web farm
+  ansible.builtin.uri:                                     # API call to ARR LB
+    url: "{{ arr_api_base }}/webfarm/{{ arr_lb_pool }}/server/{{ ansible_host }}/disable"
+    method: POST
+    status_code: [200, 204]
+    timeout: 30
+  delegate_to: localhost                                   # API call from Ansible control node
+  # delegate_to: localhost because ARR API is called from the management network
+  # not from the IIS server itself
+
+- name: Wait 30 seconds for active connections to drain
+  ansible.builtin.pause:
+    seconds: 30
+    # Why 30 seconds? HTTP keep-alive connections can last up to 30 seconds.
+    # Without this pause, an active user's request could be interrupted mid-transaction
+    # Banking standard: always drain for minimum 30 seconds (some banks use 60 seconds)
+
+- name: Verify server is no longer receiving traffic
+  ansible.builtin.uri:
+    url: "{{ arr_api_base }}/webfarm/{{ arr_lb_pool }}/server/{{ ansible_host }}/status"
+    method: GET
+    return_content: true
+  register: lb_status
+  delegate_to: localhost
+
+- name: Log LB drain confirmation
+  ansible.builtin.debug:
+    msg: "{{ inventory_hostname }} drained from {{ arr_lb_pool }}: {{ lb_status.json }}"</code></pre></div>
+
+<div class="cw"><div class="cl"><span>roles/iis_deploy/tasks/backup_current.yml</span><button class="cb" onclick="copyCode(this)">Copy</button></div>
+<pre><code>---
+# =====================================================================
+# Backup current web root before deploying new version
+# This enables instant rollback if deployment fails
+# =====================================================================
+
+- name: Create backup directory for this deployment
+  ansible.windows.win_file:
+    path: "{{ backup_base_path }}\\{{ iis_app_name }}\\{{ ansible_date_time.iso8601_basic_short }}"
+    state: directory                                       # Create timestamped backup folder
+
+- name: Store backup path as fact for use in rollback tasks
+  ansible.builtin.set_fact:
+    current_backup_path: "{{ backup_base_path }}\\{{ iis_app_name }}\\{{ ansible_date_time.iso8601_basic_short }}"
+
+- name: Copy current web root to backup location
+  ansible.windows.win_xcopy:                              # win_xcopy: Windows file copy with recurse
+    src: "{{ iis_web_root }}"                             # Source: current web root
+    dest: "{{ current_backup_path }}"                     # Destination: timestamped backup
+    recurse: true                                          # Copy all subdirectories
+  register: backup_result
+
+- name: Record current version being backed up (from version file if exists)
+  ansible.windows.win_shell:
+    cmd: >
+      if (Test-Path "{{ iis_web_root }}\version.txt") {
+        Get-Content "{{ iis_web_root }}\version.txt"
+      } else { "unknown" }
+  register: current_version_file
+  changed_when: false
+
+- name: Log backup completion
+  ansible.builtin.debug:
+    msg: >
+      Backup complete for {{ inventory_hostname }}:
+      Previous version: {{ current_version_file.stdout | trim }}
+      Backed up to: {{ current_backup_path }}</code></pre></div>
+
+<div class="cw"><div class="cl"><span>roles/iis_deploy/tasks/deploy_application.yml</span><button class="cb" onclick="copyCode(this)">Copy</button></div>
+<pre><code>---
+# =====================================================================
+# Stop app pool, deploy new version, configure environment
+# =====================================================================
+
+- name: Stop IIS Application Pool before deployment
+  community.windows.win_iis_webapppool:
+    name: "{{ iis_app_pool_name }}"                        # IBP-AppPool
+    state: stopped                                          # Gracefully stop the pool
+
+- name: Wait for app pool to fully stop
+  ansible.builtin.pause:
+    seconds: 5                                             # Brief pause for clean shutdown
+
+- name: Clear existing files from web root (excluding backup-related files)
+  ansible.windows.win_shell:
+    cmd: >
+      Get-ChildItem -Path "{{ iis_web_root }}" |
+      Where-Object { $_.Name -notlike '*.bak' } |
+      Remove-Item -Recurse -Force
+    # PowerShell: delete all files except .bak files in web root
+    # We do this to ensure no old files from previous deployment remain
+    # Some updates only add new files — old conflicting files must be removed
+
+- name: Copy application ZIP from network share to IIS server
+  ansible.windows.win_copy:
+    src: "{{ deployment_artifact_source }}\\{{ iis_app_name }}_{{ app_version }}.zip"
+    dest: "C:\\Temp\\{{ iis_app_name }}_{{ app_version }}.zip"
+    remote_src: false                                      # false = copy FROM Ansible control node
+    # The ZIP file is on the Linux Ansible control node (fetched from Nexus/Artifactory)
+    # and copied to the Windows IIS server via WinRM
+
+- name: Extract application ZIP to web root
+  community.windows.win_unzip:                            # win_unzip: extract ZIP on Windows
+    src: "C:\\Temp\\{{ iis_app_name }}_{{ app_version }}.zip"
+    dest: "{{ iis_web_root }}"                            # Extract to web root
+    delete_archive: true                                   # Delete ZIP after extraction (save disk)
+
+- name: Deploy environment-specific web.config from Ansible template
+  ansible.windows.win_template:                           # win_template: Jinja2 template to Windows
+    src: web.config.j2                                    # Template file in role
+    dest: "{{ iis_web_root }}\\web.config"                # Replace web.config in web root
+    # This is the critical step that was being done manually before.
+    # The template generates environment-specific connection strings automatically.
+    # No more copy-paste errors between environments!
+
+- name: Write version file to web root (for tracking deployed version)
+  ansible.windows.win_copy:
+    content: "{{ app_version }}"                          # Write version string to file
+    dest: "{{ iis_web_root }}\\version.txt"               # Version file in web root
+
+- name: Ensure correct permissions on newly deployed files
+  ansible.windows.win_acl:
+    path: "{{ iis_web_root }}"
+    user: "{{ iis_service_account }}"
+    rights: FullControl
+    type: allow
+    state: present
+    inherit: ContainerInherit,ObjectInherit               # Apply to all new files</code></pre></div>
+
+<div class="cw"><div class="cl"><span>roles/iis_deploy/tasks/configure_ssl.yml</span><button class="cb" onclick="copyCode(this)">Copy</button></div>
+<pre><code>---
+# =====================================================================
+# Import SSL Certificate and Update IIS Binding
+# Only runs when update_ssl_certificate == 'yes' (survey variable)
+# =====================================================================
+
+- name: Skip SSL update if not requested in survey
+  ansible.builtin.meta: end_play
+  when: update_ssl_certificate | default('no') == 'no'
+
+- name: Copy SSL PFX certificate from network share to IIS server
+  ansible.windows.win_copy:
+    src: "\\\\fileserver\\certs\\{{ iis_app_name }}.pfx"  # UNC path to PFX file
+    dest: "C:\\Temp\\{{ iis_app_name }}.pfx"
+    remote_src: false
+
+- name: Import PFX certificate into Windows Certificate Store
+  ansible.windows.win_certificate_store:                  # Module for Windows cert management
+    path: "C:\\Temp\\{{ iis_app_name }}.pfx"             # PFX file path on Windows
+    password: "{{ vault_ssl_pfx_password }}"             # PFX password from Vault
+    store_location: LocalMachine                           # System cert store (not user)
+    store_name: My                                         # Personal store ("My" in registry)
+    state: present                                         # Import if not already present
+    key_storage: machine                                   # Machine-level key (not user profile)
+  register: cert_import_result
+  no_log: true                                             # Hide PFX password from logs
+
+- name: Extract thumbprint of imported certificate
+  ansible.builtin.set_fact:
+    ssl_cert_thumbprint: "{{ cert_import_result.thumbprints | first }}"
+    # cert_import_result.thumbprints: list of thumbprints of imported certs
+    # first: take the first (and usually only) thumbprint
+
+- name: Update IIS SSL binding with new certificate thumbprint
+  community.windows.win_iis_webbinding:
+    name: "{{ iis_site_name }}"                            # Site: ABC-Internet-Banking
+    protocol: https
+    port: "{{ iis_site_port }}"
+    certificate_hash: "{{ ssl_cert_thumbprint }}"          # New cert thumbprint
+    certificate_store_name: My
+    ssl_flags: 1                                           # SNI enabled
+    state: present
+  # This is the step that was missed in the incident — now automated
+  # The binding is ALWAYS updated when a new cert is deployed
+
+- name: Remove temporary PFX file from server (security cleanup)
+  ansible.windows.win_file:
+    path: "C:\\Temp\\{{ iis_app_name }}.pfx"
+    state: absent                                          # Delete PFX — don't leave on disk</code></pre></div>
+
+<div class="cw"><div class="cl"><span>roles/iis_deploy/tasks/start_and_validate.yml</span><button class="cb" onclick="copyCode(this)">Copy</button></div>
+<pre><code>---
+# =====================================================================
+# Start App Pool, Wait for Initialization, Run Health Checks
+# This is the GATE before re-adding to load balancer
+# =====================================================================
+
+- name: Start IIS Application Pool
+  community.windows.win_iis_webapppool:
+    name: "{{ iis_app_pool_name }}"
+    state: started                                         # Start the pool
+
+- name: Wait {{ app_startup_wait_sec }} seconds for application to initialize
+  ansible.builtin.pause:
+    seconds: "{{ app_startup_wait_sec }}"                  # Default: 20 seconds
+    # .NET applications need time to:
+    # 1. JIT-compile assemblies on first request
+    # 2. Initialize dependency injection containers
+    # 3. Load configuration and establish DB connection pool
+    # 20 seconds is typical — some complex apps need 60+ seconds
+
+- name: Verify app pool is in Running state after start
+  community.windows.win_iis_webapppool:
+    name: "{{ iis_app_pool_name }}"
+    state: started
+  register: pool_verify
+
+- name: Fail deployment if app pool is not running
+  ansible.builtin.fail:
+    msg: >-
+      App pool {{ iis_app_pool_name }} failed to start on {{ inventory_hostname }}.
+      Check Windows Event Log for errors. Triggering rollback.
+  when: pool_verify.state != 'started'
+
+- name: Perform HTTP health check against deployed application
+  ansible.builtin.uri:
+    url: "{{ iis_health_url }}"                            # https://localhost/health
+    method: GET
+    status_code: [200]                                     # Only 200 is acceptable
+    validate_certs: false                                  # Localhost cert may not be trusted
+    timeout: "{{ health_check_timeout_sec }}"              # 30-second timeout
+  register: health_check_result
+  retries: "{{ health_check_retries }}"                   # Retry up to 5 times
+  delay: "{{ health_check_delay_sec }}"                   # 15 seconds between retries
+  until: health_check_result.status == 200                 # Keep retrying until 200
+  failed_when: health_check_result.status != 200           # Fail if not 200 after all retries
+  delegate_to: "{{ inventory_hostname }}"                  # Run health check FROM the IIS server
+  # delegate_to same server: checks localhost — confirms IIS is serving locally
+  # This catches app pool starting but application throwing 500 errors
+
+- name: Check Windows Application Event Log for errors (post-deployment)
+  ansible.windows.win_shell:
+    cmd: >
+      Get-EventLog -LogName Application
+                   -EntryType Error,Warning
+                   -After (Get-Date).AddMinutes(-{{ event_log_check_minutes }})
+                   -Source "IIS*","ASP.NET*","W3SVC*"
+                   -ErrorAction SilentlyContinue |
+      Select-Object -First 10 |
+      ConvertTo-Json
+    # PowerShell: get recent error events from Application log
+    # Filters: only IIS/ASP.NET/W3SVC sources in last 2 minutes
+    # ConvertTo-Json: makes output parseable by Ansible
+  register: event_log_errors
+  changed_when: false
+  failed_when: false                                       # Don't fail if no events found
+
+- name: Alert if post-deployment errors found in event log
+  ansible.builtin.debug:
+    msg: >-
+      ⚠️ WARNING: Post-deployment errors found in Windows Event Log on {{ inventory_hostname }}.
+      First error: {{ (event_log_errors.stdout | from_json)[0].Message | default('N/A') | truncate(200) }}
+      Full details in AAP job output. Monitor carefully after LB re-add.
+  when:
+    - event_log_errors.stdout is defined
+    - event_log_errors.stdout | trim != ''
+    - event_log_errors.stdout | trim != 'null'
+
+- name: Log successful deployment validation
+  ansible.builtin.debug:
+    msg: >-
+      ✅ {{ inventory_hostname }} deployment validation PASSED:
+      HTTP {{ health_check_result.status }} from {{ iis_health_url }}
+      App Pool: {{ pool_verify.state }}
+      Ready to re-add to load balancer.</code></pre></div>
+
+<div class="cw"><div class="cl"><span>roles/iis_deploy/tasks/rollback.yml</span><button class="cb" onclick="copyCode(this)">Copy</button></div>
+<pre><code>---
+# =====================================================================
+# Rollback: Restore previous version from backup
+# Triggered when health check fails after deployment
+# =====================================================================
+
+- name: Stop app pool before rollback
+  community.windows.win_iis_webapppool:
+    name: "{{ iis_app_pool_name }}"
+    state: stopped
+
+- name: Clear failed deployment from web root
+  ansible.windows.win_shell:
+    cmd: "Remove-Item -Path '{{ iis_web_root }}\\*' -Recurse -Force"
+
+- name: Restore web root from backup
+  ansible.windows.win_shell:
+    cmd: >
+      Copy-Item -Path '{{ current_backup_path }}\*'
+                -Destination '{{ iis_web_root }}'
+                -Recurse -Force
+
+- name: Start app pool after rollback
+  community.windows.win_iis_webapppool:
+    name: "{{ iis_app_pool_name }}"
+    state: started
+
+- name: Validate rollback health
+  ansible.builtin.uri:
+    url: "{{ iis_health_url }}"
+    method: GET
+    status_code: [200]
+    validate_certs: false
+    timeout: 30
+  register: rollback_health
+  failed_when: false
+  delegate_to: "{{ inventory_hostname }}"
+
+- name: Fire PagerDuty alert — deployment failed and rolled back
+  ansible.builtin.uri:
+    url: "{{ pagerduty_integration_url }}"
+    method: POST
+    body_format: json
+    body:
+      routing_key: "{{ vault_pagerduty_routing_key }}"
+      event_action: trigger
+      dedup_key: "iis-deploy-rollback-{{ inventory_hostname }}-{{ ansible_date_time.date }}"
+      payload:
+        summary: >-
+          🔄 IIS Deployment ROLLED BACK: {{ iis_app_name }} v{{ app_version }}
+          on {{ inventory_hostname }} failed health check.
+          Rolled back to previous version. Server {{ 'HEALTHY' if rollback_health.status == 200 else 'STILL FAILING' }}.
+        severity: "error"
+        source: "ansible-iis-deploy"
+    status_code: [202]
+  delegate_to: localhost</code></pre></div>
+</div>
+
+<!-- TEMPLATES -->
+<section id="templates">
+<h2 class="st">📄 11. Jinja2 Template — web.config</h2>
+<div class="card">
+<div class="cw"><div class="cl"><span>roles/iis_deploy/templates/web.config.j2</span><button class="cb" onclick="copyCode(this)">Copy</button></div>
+<pre><code>&lt;?xml version="1.0" encoding="utf-8"?&gt;
+&lt;!--
+  Generated by Ansible Automation Platform
+  Application: {{ iis_app_name }}
+  Version: {{ app_version }}
+  Environment: {{ target_environment }}
+  Deployed: {{ ansible_date_time.iso8601 }}
+  Server: {{ inventory_hostname }}
+  DO NOT EDIT MANUALLY — changes will be overwritten by next deployment
+--&gt;
+&lt;configuration&gt;
+
+  &lt;appSettings&gt;
+    &lt;!-- Environment identifier — used by app to load correct configuration --&gt;
+    &lt;add key="Environment" value="{{ target_environment }}" /&gt;
+
+    &lt;!-- Application version — for support team identification --&gt;
+    &lt;add key="AppVersion" value="{{ app_version }}" /&gt;
+
+    &lt;!-- API Gateway URL — different per environment --&gt;
+    &lt;add key="ApiGatewayUrl"
+         value="{{ 'https://api.abcbank.in' if target_environment == 'production'
+                  else 'https://api-uat.abcbank.in' if target_environment == 'uat'
+                  else 'https://api-staging.abcbank.in' }}" /&gt;
+
+    &lt;!-- Session timeout in minutes --&gt;
+    &lt;add key="SessionTimeoutMinutes"
+         value="{{ '15' if target_environment == 'production' else '60' }}" /&gt;
+    &lt;!-- Production: 15-min session timeout (PCI-DSS Req 8.2.7)  --&gt;
+    &lt;!-- Non-prod: 60-min for developer convenience --&gt;
+  &lt;/appSettings&gt;
+
+  &lt;connectionStrings&gt;
+    &lt;!-- Primary database connection string — environment-specific --&gt;
+    &lt;add name="LMSDatabase"
+         connectionString="Server={{ vault_lms_db_server }};Database={{ vault_lms_db_name }};
+           User Id={{ vault_lms_db_user }};Password={{ vault_lms_db_password }};
+           Encrypt=True;TrustServerCertificate=False;
+           Connection Timeout=30;Max Pool Size=100"
+         providerName="System.Data.SqlClient" /&gt;
+    &lt;!-- All connection string values come from Ansible Vault --&gt;
+    &lt;!-- Environment-specific DB server injected per target_environment --&gt;
+  &lt;/connectionStrings&gt;
+
+  &lt;system.web&gt;
+    &lt;!-- Session state configuration --&gt;
+    &lt;sessionState mode="StateServer"
+                  stateConnectionString="tcpip=session-server.abcbank.in:42424"
+                  timeout="{{ '15' if target_environment == 'production' else '60' }}" /&gt;
+
+    &lt;!-- Custom errors — show custom pages, not stack traces in production --&gt;
+    &lt;customErrors mode="{{ 'On' if target_environment == 'production' else 'Off' }}"
+                  defaultRedirect="/error.html" /&gt;
+
+    &lt;!-- Compilation mode --&gt;
+    &lt;compilation debug="{{ 'false' if target_environment == 'production' else 'true' }}"
+                 targetFramework="4.8" /&gt;
+  &lt;/system.web&gt;
+
+  &lt;system.webServer&gt;
+    &lt;!-- Security headers --&gt;
+    &lt;httpProtocol&gt;
+      &lt;customHeaders&gt;
+        &lt;add name="X-Frame-Options" value="SAMEORIGIN" /&gt;
+        &lt;add name="X-Content-Type-Options" value="nosniff" /&gt;
+        &lt;add name="Strict-Transport-Security"
+             value="max-age=31536000; includeSubDomains" /&gt;
+        &lt;add name="X-Deployed-By" value="Ansible-AAP" /&gt;
+        &lt;add name="X-App-Version" value="{{ app_version }}" /&gt;
+      &lt;/customHeaders&gt;
+    &lt;/httpProtocol&gt;
+  &lt;/system.webServer&gt;
+
+&lt;/configuration&gt;</code></pre></div>
+<div class="tip-box">
+<b>Senior Engineer Note:</b> The web.config template is the single most important file in this project. It eliminates the copy-paste error that caused the production incident. Notice how database connection strings, API URLs, session timeouts, debug mode, and custom error pages all change based on <code>target_environment</code> — from a single template. This is Infrastructure as Code applied to application configuration.
+</div>
+</div>
+</section>
+
+<!-- PLAYBOOKS -->
+<section id="playbooks">
+<h2 class="st">📜 12. Master Playbooks</h2>
+<div class="card">
+<div class="cw"><div class="cl"><span>playbooks/iis_deploy.yml — Rolling Deployment Master Playbook</span><button class="cb" onclick="copyCode(this)">Copy</button></div>
+<pre><code>---
+# =====================================================================
+# IIS Rolling Deployment — ABC Global Bank
+# Deploys new application version one server at a time
+# survey vars: app_version, target_environment, update_ssl_certificate,
+#              auto_rollback_on_failure
+# =====================================================================
+- name: IIS Application Rolling Deployment — ABC Internet Banking
+  hosts: iis_internet_banking                # Target: IBP web farm
+  gather_facts: true                         # Need ansible_date_time for backup paths
+  serial: 1                                 # ONE server at a time — rolling deploy
+  max_fail_percentage: 0                    # Stop immediately if ANY server fails
+  # max_fail_percentage: 0 is critical for rolling deployments.
+  # If server 2 fails, we want to STOP — not continue deploying to servers 3-6
+  # with a potentially broken version. Safer to stop and investigate.
+
+  vars_files:
+    - "{{ inventory_dir }}/group_vars/all/vault.yml"
+
+  pre_tasks:
+    - name: Display deployment summary before starting
+      ansible.builtin.debug:
+        msg:
+          - "══════════════════════════════════════════"
+          - "IIS ROLLING DEPLOYMENT STARTING"
+          - "App: {{ iis_app_name }}"
+          - "Version: {{ app_version }}"
+          - "Environment: {{ target_environment }}"
+          - "Server: {{ inventory_hostname }} ({{ ansible_play_batch.index(inventory_hostname) + 1 }}/{{ ansible_play_hosts | length }})"
+          - "Update SSL: {{ update_ssl_certificate | default('no') }}"
+          - "Auto-rollback: {{ auto_rollback_on_failure | default('yes') }}"
+          - "══════════════════════════════════════════"
+
+  roles:
+    - role: iis_deploy
+      tags: deploy
+
+  # Rescue block: called if any task in the role fails
+  # (block/rescue/always at play level via pre/post_tasks pattern)
+  post_tasks:
+    - name: Re-add server to LB unconditionally (even if deployment failed)
+      ansible.builtin.uri:
+        url: "{{ arr_api_base }}/webfarm/{{ arr_lb_pool }}/server/{{ ansible_host }}/enable"
+        method: POST
+        status_code: [200, 204]
+      delegate_to: localhost
+      # This ensures the server is ALWAYS re-added to LB, even if the play fails.
+      # Without this, a failed deployment would leave the server permanently drained
+      # from the LB (hidden outage — less traffic served until noticed)</code></pre></div>
+
+<div class="cw"><div class="cl"><span>playbooks/iis_monitor.yml — Daily IIS Health Check</span><button class="cb" onclick="copyCode(this)">Copy</button></div>
+<pre><code>---
+# =====================================================================
+# IIS Site Health Monitor — Daily Check
+# Verifies all sites running, app pools started, SSL certs valid
+# =====================================================================
+- name: IIS Daily Health Monitor
+  hosts: iis_all
+  gather_facts: false
+  vars_files:
+    - "{{ inventory_dir }}/group_vars/all/vault.yml"
+
+  tasks:
+    - name: Get all IIS website states
+      community.windows.win_iis_website:
+        name: "{{ iis_site_name }}"
+        state: started                                     # Ensure started — alerts if stopped
+      register: site_status
+      check_mode: true                                     # check_mode: don't change, just report
+
+    - name: Get app pool state
+      community.windows.win_iis_webapppool:
+        name: "{{ iis_app_pool_name }}"
+        state: started
+      register: pool_status
+      check_mode: true
+
+    - name: Check SSL certificate expiry on IIS binding
+      ansible.windows.win_shell:
+        cmd: >
+          $binding = Get-WebBinding -Name "{{ iis_site_name }}" -Protocol https |
+            Select-Object -First 1
+          if ($binding) {
+            $thumb = $binding.certificateHash
+            $cert = Get-ChildItem Cert:\LocalMachine\My | Where-Object Thumbprint -eq $thumb
+            if ($cert) {
+              $daysLeft = ($cert.NotAfter - (Get-Date)).Days
+              Write-Output $daysLeft
+            } else { Write-Output -1 }
+          } else { Write-Output -2 }
+      register: ssl_days_left
+      changed_when: false
+
+    - name: Alert if SSL certificate expiring within 30 days
+      ansible.builtin.uri:
+        url: "{{ slack_webhook_url }}"
+        method: POST
+        body_format: json
+        body:
+          text: >-
+            ⚠️ *SSL Certificate Expiry Warning*
+            Server: {{ inventory_hostname }} | Site: {{ iis_site_name }}
+            Certificate expires in *{{ ssl_days_left.stdout | trim }} days*
+            Action: Update SSL certificate via iis_deploy.yml with update_ssl_certificate=yes
+        status_code: [200]
+      delegate_to: localhost
+      when: ssl_days_left.stdout | trim | int < 30 and ssl_days_left.stdout | trim | int >= 0</code></pre></div>
+</div>
+</section>
+
+<!-- AAP -->
+<section id="aap">
+<h2 class="st">🔴 13. AAP Configuration</h2>
+<div class="card">
+<details><summary>Job Templates & Workflow</summary><div class="inner">
+<table>
+<tr><th>Template</th><th>Playbook</th><th>Key Settings</th></tr>
+<tr><td>IIS-Setup-WebFarm</td><td>iis_setup.yml</td><td>Run once per server build. Limit to specific hosts.</td></tr>
+<tr><td>IIS-Deploy-InternetBanking</td><td>iis_deploy.yml</td><td>Survey: app_version, target_environment, update_ssl_certificate. serial:1 in playbook.</td></tr>
+<tr><td>IIS-Deploy-CorporateBanking</td><td>iis_deploy.yml</td><td>Same playbook, different limit: iis_corporate_banking</td></tr>
+<tr><td>IIS-Health-Monitor</td><td>iis_monitor.yml</td><td>Scheduled daily. Notification on failure.</td></tr>
+<tr><td>IIS-Emergency-Rollback</td><td>iis_rollback.yml</td><td>Survey: target_hostname, rollback_to_version. RBAC: senior engineers only.</td></tr>
+</table>
+<h3>Workflow: IIS-Deploy-With-Approval</h3>
+<p>Production deployments use a workflow with an approval node:</p>
+<ol>
+  <li><b>IIS-Deploy-UAT</b> — Deploy to UAT first (no approval needed)</li>
+  <li><b>Approval Node</b> — "UAT deployment complete. Approve production deployment?"</li>
+  <li><b>IIS-Deploy-InternetBanking</b> — Deploy to Production (after approval)</li>
+  <li><b>IIS-Health-Monitor</b> — Post-deployment health check on all servers</li>
+</ol>
+</div></details>
+
+<details><summary>RBAC Configuration</summary><div class="inner">
+<table>
+<tr><th>Team</th><th>Permission</th><th>Templates Accessible</th></tr>
+<tr><td>Dev Team</td><td>Execute</td><td>IIS-Deploy-UAT only</td></tr>
+<tr><td>Release Manager</td><td>Execute + Approval</td><td>IIS-Deploy-* + Approve workflow nodes</td></tr>
+<tr><td>Senior Windows Admin</td><td>Execute</td><td>IIS-Setup-WebFarm, IIS-Emergency-Rollback</td></tr>
+<tr><td>NOC</td><td>Read + Execute</td><td>IIS-Health-Monitor only</td></tr>
+</table>
+</div></details>
+</div>
+</section>
+
+<!-- FLOW -->
+<section id="flow">
+<h2 class="st">🔄 14. Execution Flow — What Happens During Deployment</h2>
+<div class="card">
+<div class="fs"><div class="fn">1</div><div>Release Manager launches <b>IIS-Deploy-With-Approval</b> workflow. Fills survey: app_version=v3.4.1, target_environment=production, update_ssl_certificate=yes. Approves production deployment after UAT passes.</div></div>
+<div class="fs"><div class="fn">2</div><div><b>Server ibp-web01 (serial:1):</b> ARR LB API call drains ibp-web01 from IBP-WebFarm pool. 30-second drain wait. Full web root backed up to C:\IIS-Backups\IBP\20240315-143022\.</div></div>
+<div class="fs"><div class="fn">3</div><div>App pool stopped. Old files cleared. IBP_v3.4.1.zip copied via WinRM and extracted to C:\inetpub\wwwroot\IBP\. web.config generated from Jinja2 template — correct production DB connection string, 15-min session timeout, custom errors ON.</div></div>
+<div class="fs"><div class="fn">4</div><div>New SSL certificate imported to LocalMachine\My cert store. IIS binding updated with new thumbprint. Temporary PFX file deleted from C:\Temp\.</div></div>
+<div class="fs"><div class="fn">5</div><div>App pool started. 20-second wait for .NET app initialization. HTTP GET to https://localhost/health → 200 OK after 2nd retry (18 seconds). Windows Event Log check: no IIS/ASP.NET errors in last 2 minutes.</div></div>
+<div class="fs"><div class="fn">6</div><div>ibp-web01 re-added to ARR LB pool. Slack notification: "ibp-web01 deployed v3.4.1 ✅". Playbook moves to ibp-web02. Same sequence repeats.</div></div>
+<div class="fs"><div class="fn">7</div><div>If ANY server fails health check: auto_rollback_on_failure=yes → rollback.yml restores backup → PagerDuty P2 fires → deployment STOPS (max_fail_percentage: 0) → remaining servers stay on old version → team investigates.</div></div>
+</div>
+</section>
+
+<!-- LAB -->
+<section id="lab">
+<h2 class="st">🧪 15. Lab Setup</h2>
+<div class="card">
+<div class="cw"><div class="cl"><span>Lab Setup — Windows Server with IIS (PowerShell)</span><button class="cb" onclick="copyCode(this)">Copy</button></div>
+<pre><code># ── On Windows Server lab VM (run as Administrator) ─────────────────
+
+# Install IIS with ASP.NET support
+Install-WindowsFeature -Name Web-Server,Web-Asp-Net45,Web-Net-Ext45,`
+  Web-ISAPI-Ext,Web-ISAPI-Filter,Web-Http-Logging,Web-Mgmt-Console `
+  -IncludeManagementTools
+
+# Enable WinRM for Ansible
+Enable-PSRemoting -Force
+Set-Item WSMan:\localhost\Service\Auth\Basic -Value true     # Lab only!
+Set-Item WSMan:\localhost\Service\AllowUnencrypted -Value true  # Lab only!
+netsh advfirewall firewall add rule name="WinRM HTTP" protocol=TCP dir=in localport=5985 action=allow
+
+# Create a test application pool
+New-WebAppPool -Name "TestAppPool"
+Set-ItemProperty IIS:\AppPools\TestAppPool processModel.identityType LocalSystem
+
+# Create a test website
+New-Item -Path C:\inetpub\wwwroot\TestApp -ItemType Directory -Force
+"OK" | Out-File C:\inetpub\wwwroot\TestApp\health.html -Encoding ASCII
+New-Website -Name "TestSite" -Port 8080 -PhysicalPath C:\inetpub\wwwroot\TestApp `
+            -ApplicationPool "TestAppPool"
+Start-Website -Name "TestSite"
+
+# Test the site locally
+Invoke-WebRequest http://localhost:8080/health.html
+
+# ── From Linux Ansible control node ─────────────────────────────────
+
+# Test WinRM connectivity
+pip install pywinrm ansible-collections ansible
+
+# Test Ansible ping to Windows
+cat > /tmp/win_inventory.ini << 'EOF'
+[iis_internet_banking]
+lab-iis01 ansible_host=192.168.1.200
+
+[iis_internet_banking:vars]
+ansible_connection=winrm
+ansible_winrm_transport=basic
+ansible_winrm_scheme=http
+ansible_port=5985
+ansible_user=Administrator
+ansible_password=YourLabPassword
+iis_site_name=TestSite
+iis_app_pool_name=TestAppPool
+iis_web_root=C:\inetpub\wwwroot\TestApp
+iis_health_url=http://localhost:8080/health.html
+iis_app_name=TestApp
+arr_lb_server=localhost
+arr_lb_pool=TestFarm
+EOF
+
+ansible -i /tmp/win_inventory.ini iis_internet_banking -m ansible.windows.win_ping
+
+# Run IIS monitoring playbook
+ansible-playbook playbooks/iis_monitor.yml -i /tmp/win_inventory.ini -v</code></pre></div>
+
+<h3>Troubleshooting</h3>
+<table>
+<tr><th>Error</th><th>Cause</th><th>Fix</th></tr>
+<tr><td>win_iis_website: module not found</td><td>community.windows collection not installed</td><td><code>ansible-galaxy collection install community.windows ansible.windows</code></td></tr>
+<tr><td>App pool starts then immediately stops</td><td>Identity user/password wrong, or user lacks logon as service right</td><td>Check Event Viewer → Application → W3SVC for specific error</td></tr>
+<tr><td>Health check returns 503</td><td>App pool stopped (failed to start)</td><td>Check App Pool state in IIS Manager; review App event log for errors</td></tr>
+<tr><td>win_certificate_store fails "file not found"</td><td>PFX path wrong or network share not accessible</td><td>Test UNC path access: <code>Test-Path \\fileserver\certs\IBP.pfx</code> from Windows</td></tr>
+<tr><td>web.config template has wrong DB string</td><td>Vault variable not loaded or wrong var name</td><td>Check vault.yml is loaded; verify variable names match template</td></tr>
+</table>
+</div>
+</section>
+
+<!-- INTERVIEW -->
+<section id="interview">
+<h2 class="st">🎯 16. Interview Preparation</h2>
+<div class="card">
+<div class="g2">
+<div>
+<details><summary>Q: What is the difference between Application Pool identity types in IIS?</summary><div class="inner">
+IIS App Pools support 4 identity types:<br>
+<b>LocalSystem:</b> Most privileged — full machine access. Never use in banking.<br>
+<b>LocalService:</b> Limited local rights. For non-domain apps.<br>
+<b>NetworkService:</b> Can access network resources as the machine account. Sometimes used.<br>
+<b>ApplicationPoolIdentity:</b> Auto-created virtual account (IIS AppPool\AppPoolName). Least privilege, secure default.<br>
+<b>SpecificUser:</b> Named domain account. Used in banking when the app needs to authenticate to SQL Server or network shares with specific, auditable credentials.<br><br>
+In banking, we use SpecificUser (domain service account) because: (1) SQL Server logins are mapped to specific Windows accounts for audit trail, (2) File share access is controlled per service account, (3) The account's actions are visible in Active Directory audit logs.
+</div></details>
+<details><summary>Q: Why use serial:1 and max_fail_percentage:0 for IIS rolling deployment?</summary><div class="inner">
+<b>serial:1:</b> Deploys to exactly one server at a time. If we used serial:3 (3 servers simultaneously), we'd have 3 servers simultaneously unavailable from the LB — potentially 50% of the web farm down during deployment. With serial:1, only 1 of 6 servers (17%) is under deployment at any time — 5 of 6 servers always serving traffic.<br><br>
+<b>max_fail_percentage:0:</b> Any single server failure immediately stops the deployment. With a broken application version, we don't want to automatically continue deploying the same bad version to the remaining 5 servers. The 0% threshold means we stop as soon as one failure occurs, investigate, and fix before continuing.
+</div></details>
+</div>
+<div>
+<details><summary>Q: How does the web.config Jinja2 template prevent environment mix-ups?</summary><div class="inner">
+Before automation, the web.config was manually copied from a template and the connection strings were edited manually for each environment. Human error inevitably led to UAT connection strings deployed to production (or vice versa).<br><br>
+With Jinja2 templating, the <code>target_environment</code> survey variable (production/uat/staging) drives ALL environment-specific values in the template. The connection strings, API URLs, session timeouts, debug mode, and custom error settings are all conditional on this single variable. It's physically impossible to get a UAT database connection string into a production deployment because the template doesn't allow it — only the vault_lms_db_server variable (which contains the production DB server for production deployments) is used.
+</div></details>
+<details><summary>Q: How do you handle the scenario where rollback also fails?</summary><div class="inner">
+The rollback task includes its own health check after restoring the backup. If the rollback health check also fails:<br>
+1. PagerDuty P1 escalation fires — "BOTH deployment AND rollback failed on server X"<br>
+2. The server stays drained from the LB (it's unhealthy regardless — no point routing traffic to it)<br>
+3. A specific Slack message goes to the #incident channel with the server name, both failure details, and the backup path that was restored from<br>
+4. The remaining servers in the rolling deploy are protected by max_fail_percentage:0 — the deployment has already stopped<br>
+5. The Windows admin team manually investigates the specific server — may require RDP access to check IIS Manager and Event Logs directly
+</div></details>
+</div>
+</div>
+</section>
+
+<div class="fn-row">
+  <span style="color:var(--text-dim);font-size:.85rem;">Advanced Series — Project 4 of 30 Complete</span>
+  <a class="btn" href="#">Request Project 05 →</a>
+</div>
+</main>
+</div>
+<script>
+function copyCode(btn){
+  const pre=btn.closest('.cw').querySelector('pre code')||btn.closest('.cw').querySelector('pre');
+  navigator.clipboard.writeText(pre.innerText).then(()=>{const o=btn.innerText;btn.innerText='Copied!';setTimeout(()=>btn.innerText=o,1500);});
+}
+</script>
+</body>
+</html>
