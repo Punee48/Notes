@@ -1,0 +1,1222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Advanced Project 05: Oracle Data Guard Failover Validation — Ansible AAP</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--purple:#6d28d9;--purple-dark:#4c1d95;--purple-light:#8b5cf6;--purple-pale:#ede9fe;
+--bg:#fafafa;--card:#fff;--border:#e5e7eb;--text:#1f2937;--text-dim:#6b7280;
+--code-bg:#1e1b2e;--code-text:#e2d9f3;--green:#059669;--amber:#d97706;--red:#dc2626;
+--shadow:0 1px 3px rgba(109,40,217,.1);}
+*{box-sizing:border-box;}
+body{margin:0;font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);line-height:1.7;}
+.topbar{background:linear-gradient(135deg,var(--purple-dark),var(--purple));color:#fff;padding:22px 5%;
+position:sticky;top:0;z-index:100;box-shadow:0 2px 12px rgba(109,40,217,.3);display:flex;
+justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;}
+.topbar h1{margin:0;font-size:1.1rem;font-weight:800;}
+.badge{background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.3);padding:4px 14px;border-radius:20px;font-size:.73rem;font-weight:700;}
+.layout{display:flex;max-width:1500px;margin:0 auto;}
+nav.toc{width:270px;flex-shrink:0;padding:20px 14px;position:sticky;top:76px;align-self:flex-start;max-height:calc(100vh - 96px);overflow-y:auto;}
+nav.toc h3{font-size:.72rem;text-transform:uppercase;letter-spacing:1.2px;color:var(--text-dim);margin:0 0 10px 6px;}
+nav.toc a{display:block;padding:6px 12px;border-radius:8px;color:var(--text);text-decoration:none;font-size:.83rem;margin-bottom:2px;border-left:3px solid transparent;}
+nav.toc a:hover{background:var(--purple-pale);border-left-color:var(--purple-light);color:var(--purple);}
+main{flex:1;padding:26px 5% 80px;min-width:0;}
+.hero{background:linear-gradient(135deg,var(--purple-pale),#fff);border:1px solid #ddd6fe;border-radius:16px;padding:28px;margin-bottom:28px;}
+.hero h2{margin-top:0;color:var(--purple-dark);font-size:1.5rem;line-height:1.3;}
+.tag-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;}
+.tag{background:var(--purple-pale);color:var(--purple);padding:4px 12px;border-radius:20px;font-size:.73rem;font-weight:600;}
+section{margin-bottom:32px;}
+.card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px 24px;box-shadow:var(--shadow);margin-bottom:16px;}
+h2.st{font-size:1.25rem;color:var(--purple-dark);border-bottom:3px solid var(--purple-light);padding-bottom:7px;margin-bottom:16px;}
+h3{color:var(--purple-dark);font-size:1.05rem;margin-top:18px;}
+.story-box{background:#fffbeb;border-left:4px solid var(--amber);border-radius:8px;padding:16px 20px;margin:14px 0;color:#78350f;}
+.story-box b{color:#92400e;}
+.warn-box{background:#fef2f2;border-left:4px solid var(--red);border-radius:8px;padding:14px 18px;margin:12px 0;color:#7f1d1d;}
+.tip-box{background:#ecfdf5;border-left:4px solid var(--green);border-radius:8px;padding:14px 18px;margin:12px 0;color:#064e3b;}
+.info-box{background:var(--purple-pale);border-left:4px solid var(--purple-light);border-radius:8px;padding:14px 18px;margin:12px 0;color:var(--purple-dark);}
+details{border:1px solid #ddd6fe;border-radius:10px;margin-bottom:10px;background:#faf9ff;overflow:hidden;}
+summary{padding:12px 16px;cursor:pointer;font-weight:600;color:var(--purple-dark);list-style:none;display:flex;justify-content:space-between;align-items:center;background:#f5f3ff;}
+summary::-webkit-details-marker{display:none;}
+summary::after{content:"+";font-size:1.1rem;font-weight:700;color:var(--purple-light);}
+details[open] summary::after{content:"−";}
+details>div.inner{padding:14px 16px;}
+table{border-collapse:collapse;width:100%;margin:12px 0;font-size:.86rem;}
+th,td{border:1px solid var(--border);padding:9px 12px;text-align:left;vertical-align:top;}
+th{background:var(--purple);color:#fff;font-weight:600;}
+tr:nth-child(even){background:#faf9ff;}
+.cw{position:relative;margin:14px 0;}
+.cl{background:#14102a;color:#a78bfa;padding:7px 14px;font-size:.72rem;font-family:'JetBrains Mono',monospace;border-radius:8px 8px 0 0;display:flex;justify-content:space-between;align-items:center;}
+pre{background:var(--code-bg);color:var(--code-text);padding:16px;border-radius:0 0 8px 8px;overflow-x:auto;margin:0;font-family:'JetBrains Mono',monospace;font-size:.82rem;line-height:1.6;}
+.cb{background:var(--purple-light);color:#fff;border:none;padding:3px 10px;border-radius:4px;font-size:.7rem;cursor:pointer;font-weight:600;}
+.cb:hover{background:var(--purple);}
+.fs{display:flex;gap:12px;padding:11px 0;border-bottom:1px dashed #e9d5ff;}
+.fn{background:var(--purple);color:#fff;width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;flex-shrink:0;font-size:.82rem;}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+@media(max-width:900px){.g2{grid-template-columns:1fr;}nav.toc{display:none;}}
+ul,ol{padding-left:22px;}li{margin-bottom:6px;}
+.ascii{background:#14102a;color:#a78bfa;font-family:'JetBrains Mono',monospace;padding:20px;border-radius:10px;font-size:.77rem;overflow-x:auto;line-height:1.45;}
+.fn-row{display:flex;justify-content:space-between;padding:20px 0;border-top:2px solid var(--border);margin-top:40px;}
+.btn{background:var(--purple);color:#fff;padding:10px 20px;border-radius:8px;text-decoration:none;font-weight:600;font-size:.86rem;}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <h1>🏦 Advanced Enterprise Ansible — BFSI Series</h1>
+  <div style="display:flex;gap:8px;">
+    <span class="badge">PROJECT 05 / 30</span>
+    <span class="badge" style="background:rgba(255,255,255,.15);">Oracle Data Guard | DR Validation</span>
+  </div>
+</div>
+<div class="layout">
+<nav class="toc">
+  <h3>Table of Contents</h3>
+  <a href="#story">1. The Banking Story</a>
+  <a href="#concepts">2. Data Guard Concepts</a>
+  <a href="#business">3. Business Requirements</a>
+  <a href="#problem">4. Problem Statement</a>
+  <a href="#design">5. Solution Design</a>
+  <a href="#arch">6. Architecture Diagram</a>
+  <a href="#structure">7. Project Structure</a>
+  <a href="#inventory">8. Inventory</a>
+  <a href="#vars">9. Variables</a>
+  <a href="#roles">10. Roles & Tasks</a>
+  <a href="#playbooks">11. Master Playbooks</a>
+  <a href="#aap">12. AAP Configuration</a>
+  <a href="#flow">13. Execution Flow</a>
+  <a href="#lab">14. Lab Setup</a>
+  <a href="#interview">15. Interview Prep</a>
+</nav>
+<main>
+
+<div class="hero">
+  <h2>Project 05: Oracle Data Guard Failover Validation &amp; DR Readiness Automation</h2>
+  <p>Oracle Data Guard is the <strong>cornerstone of disaster recovery</strong> for Oracle databases in banking. It maintains a synchronized standby database in a secondary data center. When the primary site fails, Data Guard enables failover — switching the standby into production role. But Data Guard's health degrades silently: the MRP (Managed Recovery Process) can stop, redo log transport can lag hours behind, or the standby can diverge from the primary. This project automates complete Data Guard health validation — MRP status, transport lag, apply lag, redo log gaps, DG Broker configuration health, pre-failover readiness scoring, and post-failover role verification.</p>
+  <div class="tag-row">
+    <span class="tag">Oracle Data Guard 19c/21c</span><span class="tag">DGMGRL</span>
+    <span class="tag">MRP Monitoring</span><span class="tag">Redo Log Transport</span>
+    <span class="tag">Failover Readiness</span><span class="tag">Red Hat AAP 2.5</span>
+    <span class="tag">RBI BCP Compliance</span><span class="tag">DR Drill Automation</span>
+  </div>
+</div>
+
+<!-- STORY -->
+<section id="story">
+<h2 class="st">🏦 1. The Banking Story</h2>
+<div class="card">
+<div class="story-box">
+<b>Setting:</b> ABC Global Bank runs the Core Banking System (CBS) on Oracle 19c RAC (2 nodes) in the primary Mumbai data center. A Data Guard standby database in Chennai serves as the DR site — capable of taking over if Mumbai goes down. RBI requires banks to demonstrate DR capability every quarter.<br><br>
+<b>The Incident:</b> On a Saturday at 11:42 PM, a fire suppression system accidentally discharged in the Mumbai data center's DB room. All Oracle servers shut down safely via power UPS logic. The DR team initiated CBS failover to Chennai. The standby database opened in read-write mode — but transaction processing immediately failed. After 90 minutes of frantic investigation, the DBA team discovered: the standby's MRP process had been stopped 4 days earlier during routine maintenance and never restarted. The standby had not applied any redo logs for 4 days — it was 4 days behind the primary. Failover succeeded, but 4 days of transactions were missing.<br><br>
+<b>Regulatory Impact:</b> RBI's Department of Regulation sent a show-cause notice. The bank's RTO (Recovery Time Objective) target was 4 hours — actual RTO was 6 hours including data reconciliation. RPO (Recovery Point Objective) was 0 (zero data loss) — actual RPO was 4 days. The bank was fined ₹5 crore and required to implement automated DR monitoring.<br><br>
+<b>The Ask:</b> "We need Data Guard health checked every 15 minutes, automated. We need the MRP status verified. We need transport and apply lag measured. And we need a pre-drill validation that BLOCKS the drill if DG is not healthy — we can never again start a DR drill against a 4-day-behind standby."
+</div>
+</div>
+</section>
+
+<!-- CONCEPTS -->
+<section id="concepts">
+<h2 class="st">📚 2. Oracle Data Guard — Concepts You Must Know</h2>
+<div class="card">
+<details><summary>Data Guard Architecture: Primary, Standby, MRP</summary><div class="inner">
+<b>Primary Database:</b> The active production database. All application writes go here.<br><br>
+<b>Standby Database:</b> An identical copy of the primary — kept in sync via redo log shipping. The standby applies redo logs from the primary to stay current. In banking: typically in a separate data center.<br><br>
+<b>MRP (Managed Recovery Process):</b> The background process on the standby that automatically applies redo logs. If MRP stops, the standby stops receiving updates. This is the process that was not running in our incident. MRP is started with <code>ALTER DATABASE RECOVER MANAGED STANDBY DATABASE DISCONNECT</code>.<br><br>
+<b>Log Transport:</b> The process of sending redo log data from primary to standby. Transport lag = how far behind the standby is in RECEIVING logs from primary.<br><br>
+<b>Apply Lag:</b> Even after logs are received, they must be applied by MRP. Apply lag = how far behind the standby is in APPLYING received logs. In production: both should be &lt; 30 seconds.
+</div></details>
+
+<details><summary>Key Oracle DG Views and Commands</summary><div class="inner">
+<div class="cw"><div class="cl"><span>Oracle SQL — Key Data Guard Monitoring Queries</span><button class="cb" onclick="copyCode(this)">Copy</button></div>
+<pre><code>-- Run on PRIMARY to check DG configuration
+SELECT DATABASE_ROLE, DB_UNIQUE_NAME, OPEN_MODE, PROTECTION_MODE
+FROM V$DATABASE;
+
+-- Run on PRIMARY to see all standby databases
+SELECT DEST_ID, STATUS, TARGET, ARCHIVER, SCHEDULE,
+       DESTINATION, ERROR, DB_UNIQUE_NAME
+FROM V$ARCHIVE_DEST_STATUS
+WHERE TARGET = 'STANDBY';
+
+-- Run on STANDBY to check MRP (Managed Recovery Process) status
+SELECT PROCESS, STATUS, THREAD#, SEQUENCE#, BLOCK#, BLOCKS
+FROM V$MANAGED_STANDBY
+WHERE PROCESS LIKE 'MRP%';
+-- If no rows returned: MRP is NOT running!
+-- STATUS should be 'APPLYING_LOG' (healthy) or 'WAIT_FOR_LOG' (waiting for next log)
+
+-- Run on STANDBY to measure apply and transport lag
+SELECT NAME, VALUE, DATUM_TIME
+FROM V$DATAGUARD_STATS
+WHERE NAME IN ('transport lag', 'apply lag',
+               'apply finish time', 'estimated startup time');
+-- transport lag: '+00 00:00:12' means 12-second transport lag
+-- apply lag:     '+00 00:00:08' means 8-second apply lag
+-- Format: +DD HH:MI:SS (days:hours:minutes:seconds)
+
+-- Check for redo log gaps on standby (data divergence)
+SELECT HIGH_SEQUENCE#, LOW_SEQUENCE#
+FROM V$ARCHIVE_GAP;
+-- Any rows here = SERIOUS PROBLEM: standby is missing redo logs
+-- This indicates data loss will occur on failover
+
+-- DGMGRL (Data Guard Broker) health check
+-- Run: dgmgrl / as sysdba
+-- DGMGRL> show configuration;
+-- DGMGRL> show database verbose 'CBSSTBY';</code></pre></div>
+</div></details>
+
+<details><summary>Switchover vs Failover — Critical Difference</summary><div class="inner">
+<b>Switchover (Planned):</b> A graceful role reversal. Primary becomes standby, standby becomes primary. ZERO data loss. Used for planned maintenance, DR drills. Both databases must be healthy and synchronized.<br><br>
+<b>Failover (Unplanned):</b> Emergency operation when primary is unavailable. Standby is activated as new primary. Possible data loss if standby was not fully synchronized (like our incident). Used when primary data center is down.<br><br>
+Our automation covers: validating if DG is ready for <b>switchover</b> (pre-drill), monitoring for conditions requiring <b>failover</b> (primary unreachable), and validating the DG configuration is healthy enough for <b>either</b> operation.
+</div></details>
+
+<details><summary>Protection Modes — How They Affect Banking</summary><div class="inner">
+<table>
+<tr><th>Mode</th><th>How It Works</th><th>Data Loss Risk</th><th>Banking Use Case</th></tr>
+<tr><td>Maximum Protection</td><td>Primary waits for standby to confirm before committing. If standby unavailable: primary shuts down.</td><td>Zero</td><td>Rare — too strict for most banks</td></tr>
+<tr><td>Maximum Availability</td><td>Primary waits for standby when available. Falls back to async if standby unavailable.</td><td>Zero when sync</td><td>Common for CBS, SWIFT</td></tr>
+<tr><td>Maximum Performance</td><td>Primary does NOT wait for standby. Async replication.</td><td>Possible (seconds to minutes)</td><td>Common for reporting databases</td></tr>
+</table>
+</div></details>
+</div>
+</section>
+
+<!-- BUSINESS -->
+<section id="business">
+<h2 class="st">📋 3. Business Requirements</h2>
+<div class="card">
+<table>
+<tr><th>Requirement</th><th>Detail</th><th>Threshold</th></tr>
+<tr><td>MRP process monitoring</td><td>Verify MRP is running on standby every 15 minutes</td><td>Alert if MRP not in APPLYING_LOG or WAIT_FOR_LOG</td></tr>
+<tr><td>Transport lag monitoring</td><td>Measure how far behind standby is in receiving redo logs</td><td>Alert if &gt; 5 minutes; Critical if &gt; 30 minutes</td></tr>
+<tr><td>Apply lag monitoring</td><td>Measure how far behind standby is in applying received logs</td><td>Alert if &gt; 10 minutes; Critical if &gt; 60 minutes</td></tr>
+<tr><td>Redo log gap detection</td><td>Check V$ARCHIVE_GAP — any gap = potential data loss</td><td>Immediate P1 alert if any gap found</td></tr>
+<tr><td>DG Broker health</td><td>DGMGRL show configuration — all databases should show SUCCESS</td><td>Alert if any WARNING or ERROR state</td></tr>
+<tr><td>Pre-drill readiness score</td><td>Composite score before DR drill — blocks drill if score &lt; 100%</td><td>All checks must pass</td></tr>
+<tr><td>Post-failover validation</td><td>After failover: confirm new primary is accepting writes, old primary is in standby role</td><td>Immediate post-failover check</td></tr>
+<tr><td>Daily DG compliance report</td><td>24-hour lag history, MRP uptime, gap events for RBI</td><td>Daily 05:00 AM</td></tr>
+</table>
+</div>
+</section>
+
+<!-- PROBLEM -->
+<section id="problem">
+<h2 class="st">❗ 4. Problem Statement &amp; Root Causes</h2>
+<div class="card">
+<div class="g2">
+<div>
+<h3>Why the Incident Happened</h3>
+<ul>
+  <li>MRP stopped during maintenance → nobody restarted it</li>
+  <li>No automated check of MRP status — only manual DBA dashboard</li>
+  <li>No alert when transport lag exceeded threshold</li>
+  <li>No pre-drill validation — DR drill started against degraded standby</li>
+  <li>RPO/RTO not continuously measured — only discovered during incident</li>
+  <li>DG Broker showed WARNING for 4 days — nobody saw it</li>
+</ul>
+</div>
+<div>
+<h3>What Automation Prevents</h3>
+<ul>
+  <li>MRP check every 15 min → PagerDuty P1 within 15 min if MRP stops</li>
+  <li>Transport/apply lag measured continuously → alert before it grows critical</li>
+  <li>Pre-drill check BLOCKS drill if MRP not running or lag &gt; threshold</li>
+  <li>Redo gap detection → immediate P1 — data divergence detected immediately</li>
+  <li>Daily report gives DBA team 24-hour visibility of DG health trends</li>
+  <li>Post-failover check confirms new primary is healthy before declaring DR complete</li>
+</ul>
+</div>
+</div>
+</section>
+
+<!-- DESIGN -->
+<section id="design">
+<h2 class="st">🛠️ 5. Solution Design</h2>
+<div class="card">
+<table>
+<tr><th>Playbook</th><th>Schedule</th><th>Runs On</th><th>Purpose</th></tr>
+<tr><td>dg_health_monitor.yml</td><td>Every 15 min</td><td>Standby DB server</td><td>MRP + lag + gap + DG Broker check</td></tr>
+<tr><td>dg_predrill_validation.yml</td><td>On-demand (pre-drill)</td><td>Both primary &amp; standby</td><td>Full readiness score — blocks drill if not ready</td></tr>
+<tr><td>dg_postfailover_validation.yml</td><td>On-demand (post-failover)</td><td>New primary (old standby)</td><td>Confirm new primary is accepting writes correctly</td></tr>
+<tr><td>dg_compliance_report.yml</td><td>Daily 05:00 AM</td><td>Both servers</td><td>24-hr history report for RBI BCP evidence</td></tr>
+</table>
+<div class="info-box">
+<b>Key Design Decision — Monitor from Standby:</b> MRP status and apply lag are best measured on the STANDBY server (because MRP runs there). Transport lag can be measured from either. We run the primary checks from the standby using database links or by querying both servers and combining results in Ansible.
+</div>
+</div>
+</section>
+
+<!-- ARCH -->
+<section id="arch">
+<h2 class="st">🗺️ 6. Architecture Diagram</h2>
+<div class="card">
+<div class="ascii">
+<pre style="background:none;color:inherit;">
+                    AAP CONTROLLER
+                    ──────────────
+                    Schedule: Every 15 min → dg_health_monitor.yml
+                         │
+              ┌──────────┴──────────────────────────────┐
+              │ SSH                                       │ SSH
+              ▼                                           ▼
+  ┌─────────────────────────┐               ┌──────────────────────────┐
+  │  PRIMARY DATABASE         │               │  STANDBY DATABASE          │
+  │  cbs-db01 (Mumbai)        │               │  cbs-stby01 (Chennai)      │
+  │  Oracle 19c RAC           │               │  Oracle 19c               │
+  │  DB_UNIQUE_NAME=CBSPROD   │               │  DB_UNIQUE_NAME=CBSSTBY   │
+  │                           │               │                            │
+  │  Role: PRIMARY            │ Redo Log      │  Role: PHYSICAL STANDBY   │
+  │  Mode: READ WRITE         │──Transport──►│  Mode: MOUNTED             │
+  │  Protection: Max Avail    │               │                            │
+  │                           │               │  MRP Process (target):     │
+  │  Checks on primary:       │               │  • Status: APPLYING_LOG    │
+  │  • V$DATABASE role        │               │  • Sequence#: 4521         │
+  │  • V$ARCHIVE_DEST_STATUS  │               │                            │
+  │  • DG Broker primary view │               │  Checks on standby:        │
+  │                           │               │  • V$MANAGED_STANDBY (MRP) │
+  └─────────────────────────┘               │  • V$DATAGUARD_STATS (lag) │
+                                              │  • V$ARCHIVE_GAP (gaps)    │
+                                              │  • DGMGRL show config      │
+                                              └──────────────────────────┘
+                                                           │
+                                              ┌────────────▼──────────────┐
+                                              │  CLASSIFICATION              │
+                                              │  MRP: APPLYING_LOG  ✅     │
+                                              │  Transport Lag: 8s   ✅     │
+                                              │  Apply Lag: 12s      ✅     │
+                                              │  Archive Gaps: NONE  ✅     │
+                                              │  DG Broker: SUCCESS  ✅     │
+                                              │  Overall: HEALTHY            │
+                                              └──────────────────────────┘
+</pre>
+</div>
+</div>
+</section>
+
+<!-- STRUCTURE -->
+<section id="structure">
+<h2 class="st">📁 7. Project Folder Structure</h2>
+<div class="card">
+<div class="ascii">
+<pre style="background:none;color:inherit;">
+oracle-dataguard-automation/
+├── ansible.cfg
+├── inventory/
+│   └── production/
+│       ├── hosts.ini
+│       └── group_vars/
+│           ├── all.yml
+│           ├── oracle_primary.yml
+│           └── oracle_standby.yml
+├── roles/
+│   ├── dg_check_primary/               # Role 1: Checks run on PRIMARY
+│   │   ├── tasks/
+│   │   │   ├── main.yml
+│   │   │   ├── check_primary_role.yml  # Confirm this DB is PRIMARY
+│   │   │   ├── check_transport.yml     # Log transport to standby
+│   │   │   └── check_broker_primary.yml # DG Broker from primary view
+│   │   └── files/
+│   │       └── query_dg_primary.sql
+│   │
+│   ├── dg_check_standby/               # Role 2: Checks run on STANDBY
+│   │   ├── tasks/
+│   │   │   ├── main.yml
+│   │   │   ├── check_mrp_status.yml    # MRP process check
+│   │   │   ├── check_lag.yml           # Transport + apply lag
+│   │   │   ├── check_gaps.yml          # Redo log gap detection
+│   │   │   └── check_broker_standby.yml # DGMGRL from standby
+│   │   └── files/
+│   │       └── query_dg_standby.sql
+│   │
+│   ├── dg_alert/                        # Role 3: Alerting
+│   │   └── tasks/
+│   │       ├── main.yml
+│   │       └── send_alerts.yml
+│   │
+│   └── dg_report/                       # Role 4: Daily report
+│       ├── tasks/main.yml
+│       └── templates/
+│           └── dg_health_report.html.j2
+│
+├── playbooks/
+│   ├── dg_health_monitor.yml           # 15-min monitoring
+│   ├── dg_predrill_validation.yml      # Pre-drill readiness
+│   ├── dg_postfailover_validation.yml  # Post-failover check
+│   └── dg_compliance_report.yml        # Daily report
+└── scripts/
+    └── dg_query.py                      # cx_Oracle query script</pre>
+</div>
+</div>
+</section>
+
+<!-- INVENTORY -->
+<section id="inventory">
+<h2 class="st">📂 8. Inventory</h2>
+<div class="card">
+<div class="cw"><div class="cl"><span>inventory/production/hosts.ini</span><button class="cb" onclick="copyCode(this)">Copy</button></div>
+<pre><code># =====================================================================
+# Oracle Data Guard Inventory — Primary + Standby
+# =====================================================================
+
+[oracle_primary]                                           # PRIMARY database servers
+cbs-db01.mumbai.abcbank.in  ansible_host=10.10.4.10      # CBS Primary Node 1
+cbs-db02.mumbai.abcbank.in  ansible_host=10.10.4.11      # CBS Primary Node 2 (RAC)
+
+[oracle_standby]                                           # STANDBY database servers
+cbs-stby01.chennai.abcbank.in ansible_host=10.20.4.10    # CBS Physical Standby
+
+[oracle_dg_all:children]                                   # All DG nodes
+oracle_primary
+oracle_standby
+
+[oracle_primary:vars]
+oracle_sid=CBSPROD                                         # Primary SID
+db_unique_name=CBSPROD                                     # DG unique name
+oracle_home=/u01/app/oracle/product/19.0.0/dbhome_1
+oracle_base=/u01/app/oracle
+oracle_user=oracle
+dg_role=PRIMARY                                            # Expected DG role
+oracle_port=1521
+
+[oracle_standby:vars]
+oracle_sid=CBSSTBY                                         # Standby SID
+db_unique_name=CBSSTBY                                     # DG unique name
+oracle_home=/u01/app/oracle/product/19.0.0/dbhome_1
+oracle_base=/u01/app/oracle
+oracle_user=oracle
+dg_role=STANDBY                                            # Expected DG role
+oracle_port=1521
+primary_db_unique_name=CBSPROD                             # Name of primary DB (for DGMGRL)
+
+[oracle_dg_all:vars]
+ansible_user=ansible                                       # OS user for SSH
+oracle_env:
+  ORACLE_HOME: "{{ oracle_home }}"
+  ORACLE_SID: "{{ oracle_sid }}"
+  PATH: "{{ oracle_home }}/bin:/usr/bin:/bin"
+  LD_LIBRARY_PATH: "{{ oracle_home }}/lib"</code></pre></div>
+
+<div class="cw"><div class="cl"><span>inventory/production/group_vars/all.yml</span><button class="cb" onclick="copyCode(this)">Copy</button></div>
+<pre><code>---
+# ── Data Guard Thresholds ────────────────────────────────────────────
+dg_transport_lag_warn_minutes: 5         # Warn if transport lag > 5 min
+dg_transport_lag_critical_minutes: 30   # Critical if transport lag > 30 min
+dg_apply_lag_warn_minutes: 10           # Warn if apply lag > 10 min
+dg_apply_lag_critical_minutes: 60       # Critical if apply lag > 60 min
+dg_gap_alert: true                       # Always alert on any archive gap
+
+# ── Pre-Drill Readiness Criteria (all must pass for drill to proceed) ─
+dg_predrill_checks:
+  - name: MRP running                    # MRP must be in APPLYING_LOG or WAIT_FOR_LOG
+  - name: Zero archive gaps              # No redo log gaps
+  - name: Transport lag under threshold  # Transport lag < 5 minutes
+  - name: Apply lag under threshold      # Apply lag < 10 minutes
+  - name: DG Broker healthy             # DGMGRL shows SUCCESS for all databases
+  - name: Standby in MOUNTED mode       # Standby DB must be MOUNTED (not OPEN)
+  - name: Primary in READ WRITE mode    # Primary must be fully open
+
+# ── Oracle Connection ────────────────────────────────────────────────
+oracle_monitor_user: ansible_monitor
+# vault_oracle_monitor_pass: from AAP Vault credential
+
+# ── Alerting ─────────────────────────────────────────────────────────
+pagerduty_integration_url: "https://events.pagerduty.com/v2/enqueue"
+slack_dg_channel_webhook: "{{ vault_slack_dg_webhook }}"
+
+# ── Reporting ────────────────────────────────────────────────────────
+report_output_dir: /opt/ansible/dg-reports
+report_retention_days: 365               # 1 year retention for RBI</code></pre></div>
+</div>
+</section>
+
+<!-- ROLES -->
+<section id="roles">
+<h2 class="st">💻 9. Roles &amp; Tasks — Complete Code</h2>
+
+<div class="card">
+<h3>Role 1: dg_check_standby — Core Monitoring on Standby</h3>
+<div class="cw"><div class="cl"><span>roles/dg_check_standby/tasks/check_mrp_status.yml</span><button class="cb" onclick="copyCode(this)">Copy</button></div>
+<pre><code>---
+# =====================================================================
+# Check MRP (Managed Recovery Process) status on standby
+# MRP is the heartbeat of Data Guard — if it stops, standby falls behind
+# =====================================================================
+
+- name: Query MRP process status from V$MANAGED_STANDBY
+  ansible.builtin.shell:
+    cmd: >
+      python3 /tmp/dg_query.py
+      --host {{ ansible_host }}
+      --port {{ oracle_port }}
+      --sid {{ oracle_sid }}
+      --user {{ oracle_monitor_user }}
+      --password "{{ vault_oracle_monitor_pass }}"
+      --query "SELECT PROCESS, STATUS, SEQUENCE#, BLOCK#
+               FROM V\$MANAGED_STANDBY
+               WHERE PROCESS LIKE 'MRP%'"
+  register: mrp_query_result
+  changed_when: false
+  no_log: true                                             # Hide Oracle password from AAP logs
+  become: true
+  become_user: "{{ oracle_user }}"
+  environment: "{{ oracle_env }}"
+
+- name: Parse MRP query results
+  ansible.builtin.set_fact:
+    mrp_data: "{{ mrp_query_result.stdout | from_json }}"
+
+- name: Determine MRP health status
+  ansible.builtin.set_fact:
+    mrp_is_running: "{{ mrp_data | length > 0 }}"
+    mrp_status: >-
+      {{ mrp_data[0].status if mrp_data | length > 0 else 'NOT_RUNNING' }}
+    mrp_sequence: >-
+      {{ mrp_data[0].sequence | default(0) if mrp_data | length > 0 else 0 }}
+    # MRP healthy states:
+    # APPLYING_LOG: MRP is actively applying redo from a log file
+    # WAIT_FOR_LOG: MRP is waiting for next redo log (normal between logs)
+    # WAIT_FOR_GAP: MRP waiting for a missing log — PROBLEM!
+    # NOT_RUNNING: No MRP process at all — CRITICAL!
+    mrp_is_healthy: >-
+      {{ mrp_data | length > 0
+         and mrp_data[0].status in ['APPLYING_LOG', 'WAIT_FOR_LOG'] }}
+
+- name: Log MRP status
+  ansible.builtin.debug:
+    msg: >-
+      MRP Status on {{ inventory_hostname }} ({{ oracle_sid }}):
+      Running: {{ mrp_is_running }}
+      Status: {{ mrp_status }}
+      Current Sequence: {{ mrp_sequence }}
+      Healthy: {{ mrp_is_healthy }}</code></pre></div>
+
+<div class="cw"><div class="cl"><span>roles/dg_check_standby/tasks/check_lag.yml</span><button class="cb" onclick="copyCode(this)">Copy</button></div>
+<pre><code>---
+# =====================================================================
+# Measure Transport Lag and Apply Lag from V$DATAGUARD_STATS
+# These are the key metrics for RPO measurement
+# =====================================================================
+
+- name: Query Data Guard lag statistics from V$DATAGUARD_STATS
+  ansible.builtin.shell:
+    cmd: >
+      python3 /tmp/dg_query.py
+      --host {{ ansible_host }}
+      --port {{ oracle_port }}
+      --sid {{ oracle_sid }}
+      --user {{ oracle_monitor_user }}
+      --password "{{ vault_oracle_monitor_pass }}"
+      --query "SELECT NAME, VALUE
+               FROM V\$DATAGUARD_STATS
+               WHERE NAME IN ('transport lag', 'apply lag',
+                              'apply finish time')"
+  register: lag_query_result
+  changed_when: false
+  no_log: true
+  become: true
+  become_user: "{{ oracle_user }}"
+  environment: "{{ oracle_env }}"
+
+- name: Parse lag query results into dict
+  ansible.builtin.set_fact:
+    lag_data_raw: "{{ lag_query_result.stdout | from_json }}"
+
+- name: Build lag metrics dict for easy access
+  ansible.builtin.set_fact:
+    lag_metrics: >-
+      {{ lag_data_raw | items2dict(key_name='name', value_name='value') }}
+    # items2dict: converts list of {name:, value:} to {name: value}
+    # Result: {'transport lag': '+00 00:00:08', 'apply lag': '+00 00:00:12'}
+
+- name: Parse lag values from Oracle interval format to minutes
+  # Oracle format: +DD HH:MI:SS (e.g., '+00 00:05:30' = 5 min 30 sec = 5.5 min)
+  ansible.builtin.set_fact:
+    transport_lag_raw: "{{ lag_metrics['transport lag'] | default('+99 99:99:99') }}"
+    apply_lag_raw: "{{ lag_metrics['apply lag'] | default('+99 99:99:99') }}"
+
+- name: Convert Oracle lag interval to total minutes
+  ansible.builtin.set_fact:
+    transport_lag_minutes: >-
+      {{ (transport_lag_raw
+          | regex_replace('\\+([0-9]+) ([0-9]+):([0-9]+):([0-9]+)', '\\1')
+          | int * 1440)
+         + (transport_lag_raw
+            | regex_replace('\\+([0-9]+) ([0-9]+):([0-9]+):([0-9]+)', '\\2')
+            | int * 60)
+         + (transport_lag_raw
+            | regex_replace('\\+([0-9]+) ([0-9]+):([0-9]+):([0-9]+)', '\\3')
+            | int) }}
+    apply_lag_minutes: >-
+      {{ (apply_lag_raw
+          | regex_replace('\\+([0-9]+) ([0-9]+):([0-9]+):([0-9]+)', '\\1')
+          | int * 1440)
+         + (apply_lag_raw
+            | regex_replace('\\+([0-9]+) ([0-9]+):([0-9]+):([0-9]+)', '\\2')
+            | int * 60)
+         + (apply_lag_raw
+            | regex_replace('\\+([0-9]+) ([0-9]+):([0-9]+):([0-9]+)', '\\3')
+            | int) }}
+    # regex_replace extracts days, hours, minutes separately
+    # Formula: days×1440 + hours×60 + minutes = total minutes
+
+- name: Classify lag severity
+  ansible.builtin.set_fact:
+    transport_lag_severity: >-
+      {{ 'CRITICAL' if transport_lag_minutes | int >= dg_transport_lag_critical_minutes
+         else ('WARNING' if transport_lag_minutes | int >= dg_transport_lag_warn_minutes
+               else 'OK') }}
+    apply_lag_severity: >-
+      {{ 'CRITICAL' if apply_lag_minutes | int >= dg_apply_lag_critical_minutes
+         else ('WARNING' if apply_lag_minutes | int >= dg_apply_lag_warn_minutes
+               else 'OK') }}
+
+- name: Log lag measurement results
+  ansible.builtin.debug:
+    msg:
+      - "Data Guard Lag on {{ oracle_sid }} ({{ inventory_hostname }}):"
+      - "Transport Lag: {{ transport_lag_raw }} ({{ transport_lag_minutes }} min) — {{ transport_lag_severity }}"
+      - "Apply Lag:     {{ apply_lag_raw }} ({{ apply_lag_minutes }} min) — {{ apply_lag_severity }}"</code></pre></div>
+
+<div class="cw"><div class="cl"><span>roles/dg_check_standby/tasks/check_gaps.yml</span><button class="cb" onclick="copyCode(this)">Copy</button></div>
+<pre><code>---
+# =====================================================================
+# Check for Redo Log Archive Gaps on Standby
+# A gap means the standby is MISSING redo log data — potential data loss
+# This is the most critical Data Guard health check
+# =====================================================================
+
+- name: Query V$ARCHIVE_GAP for missing redo log sequences
+  ansible.builtin.shell:
+    cmd: >
+      python3 /tmp/dg_query.py
+      --host {{ ansible_host }}
+      --port {{ oracle_port }}
+      --sid {{ oracle_sid }}
+      --user {{ oracle_monitor_user }}
+      --password "{{ vault_oracle_monitor_pass }}"
+      --query "SELECT THREAD#, LOW_SEQUENCE#, HIGH_SEQUENCE#,
+                      (HIGH_SEQUENCE# - LOW_SEQUENCE# + 1) AS MISSING_COUNT
+               FROM V\$ARCHIVE_GAP"
+  register: gap_query_result
+  changed_when: false
+  no_log: true
+  become: true
+  become_user: "{{ oracle_user }}"
+  environment: "{{ oracle_env }}"
+
+- name: Parse archive gap results
+  ansible.builtin.set_fact:
+    archive_gaps: "{{ gap_query_result.stdout | from_json }}"
+
+- name: Set gap health facts
+  ansible.builtin.set_fact:
+    has_archive_gaps: "{{ archive_gaps | length > 0 }}"
+    total_missing_logs: >-
+      {{ archive_gaps | map(attribute='missing_count') | map('int') | sum | default(0) }}
+
+- name: Log archive gap check result
+  ansible.builtin.debug:
+    msg: >-
+      Archive Gap Check on {{ oracle_sid }}:
+      Gaps Found: {{ has_archive_gaps }}
+      {% if has_archive_gaps %}
+      ⚠️  MISSING LOG SEQUENCES:
+      {% for gap in archive_gaps %}
+      Thread {{ gap.thread }}: Sequence {{ gap.low_sequence }} to {{ gap.high_sequence }}
+      ({{ gap.missing_count }} logs missing)
+      {% endfor %}
+      Total missing: {{ total_missing_logs }} archived redo logs
+      {% else %}
+      ✅ No archive gaps — standby has received all redo logs
+      {% endif %}</code></pre></div>
+
+<div class="cw"><div class="cl"><span>roles/dg_check_standby/tasks/check_broker_standby.yml</span><button class="cb" onclick="copyCode(this)">Copy</button></div>
+<pre><code>---
+# =====================================================================
+# Check Oracle Data Guard Broker (DGMGRL) configuration health
+# DG Broker provides centralized management and health status
+# =====================================================================
+
+- name: Run DGMGRL show configuration on standby
+  ansible.builtin.shell:
+    cmd: |
+      echo "show configuration;" | \
+      dgmgrl / "as sysdba" 2>/dev/null
+      # dgmgrl / "as sysdba": connects using OS authentication (oracle user)
+      # echo "show configuration;" | dgmgrl: pipe command to DGMGRL
+      # DG Broker must be enabled for this to work
+      # Shows status of ALL databases in DG configuration
+  register: dgmgrl_config_output
+  changed_when: false
+  failed_when: false                                       # Don't fail if DGMGRL not configured
+  become: true
+  become_user: "{{ oracle_user }}"
+  environment: "{{ oracle_env }}"
+
+- name: Parse DGMGRL output for configuration health
+  ansible.builtin.set_fact:
+    dgmgrl_config_healthy: >-
+      {{ 'SUCCESS' in dgmgrl_config_output.stdout
+         and 'WARNING' not in dgmgrl_config_output.stdout
+         and 'ERROR' not in dgmgrl_config_output.stdout }}
+    dgmgrl_has_warning: "{{ 'WARNING' in dgmgrl_config_output.stdout }}"
+    dgmgrl_has_error: "{{ 'ERROR' in dgmgrl_config_output.stdout }}"
+    dgmgrl_not_configured: >-
+      {{ dgmgrl_config_output.rc != 0
+         or 'DGConnectIdentifier' not in dgmgrl_config_output.stdout }}
+
+- name: Show DGMGRL detailed status for each database
+  ansible.builtin.shell:
+    cmd: |
+      echo "show database verbose '{{ oracle_sid }}';" | \
+      dgmgrl / "as sysdba" 2>/dev/null
+  register: dgmgrl_db_output
+  changed_when: false
+  failed_when: false
+  become: true
+  become_user: "{{ oracle_user }}"
+  environment: "{{ oracle_env }}"
+
+- name: Log DGMGRL status
+  ansible.builtin.debug:
+    msg:
+      - "DGMGRL Configuration Health: {{ 'HEALTHY' if dgmgrl_config_healthy else 'DEGRADED' }}"
+      - "Has WARNING: {{ dgmgrl_has_warning }}"
+      - "Has ERROR: {{ dgmgrl_has_error }}"
+      - "DGMGRL Output (first 500 chars): {{ dgmgrl_config_output.stdout[:500] }}"</code></pre></div>
+</div>
+
+<div class="card">
+<h3>Role 2: dg_alert — Alerting Logic</h3>
+<div class="cw"><div class="cl"><span>roles/dg_alert/tasks/send_alerts.yml</span><button class="cb" onclick="copyCode(this)">Copy</button></div>
+<pre><code>---
+# =====================================================================
+# Send Data Guard alerts based on health classification
+# Priority: Archive Gap > MRP Down > Transport/Apply Lag > DG Broker
+# =====================================================================
+
+# ── P1 CRITICAL: Archive Gap Detected ───────────────────────────────
+- name: Fire PagerDuty P1 — Archive Gap (POTENTIAL DATA LOSS)
+  ansible.builtin.uri:
+    url: "{{ pagerduty_integration_url }}"
+    method: POST
+    body_format: json
+    body:
+      routing_key: "{{ vault_pagerduty_routing_key }}"
+      event_action: "trigger"
+      dedup_key: "dg-archive-gap-{{ oracle_sid }}-{{ inventory_hostname }}"
+      payload:
+        summary: >-
+          🚨 CRITICAL: Oracle Data Guard ARCHIVE GAP detected on {{ oracle_sid }}!
+          {{ total_missing_logs }} redo logs MISSING from standby.
+          DATA LOSS WILL OCCUR if failover happens now!
+        severity: "critical"
+        source: "ansible-dataguard-monitor"
+        custom_details:
+          database: "{{ oracle_sid }}"
+          host: "{{ inventory_hostname }}"
+          missing_logs: "{{ total_missing_logs }}"
+          gaps: "{{ archive_gaps }}"
+          action_required: "DBA must resolve gap before any DR activity"
+    status_code: [202]
+  delegate_to: localhost
+  when: has_archive_gaps | bool
+
+# ── P1 CRITICAL: MRP Not Running ────────────────────────────────────
+- name: Fire PagerDuty P1 — MRP NOT RUNNING
+  ansible.builtin.uri:
+    url: "{{ pagerduty_integration_url }}"
+    method: POST
+    body_format: json
+    body:
+      routing_key: "{{ vault_pagerduty_routing_key }}"
+      event_action: "trigger"
+      dedup_key: "dg-mrp-down-{{ oracle_sid }}-{{ inventory_hostname }}"
+      payload:
+        summary: >-
+          🔴 Oracle Data Guard MRP NOT RUNNING on {{ oracle_sid }} ({{ inventory_hostname }}).
+          Standby is NOT receiving redo log updates. DR capability DEGRADED.
+        severity: "critical"
+        source: "ansible-dataguard-monitor"
+        custom_details:
+          database: "{{ oracle_sid }}"
+          mrp_status: "{{ mrp_status }}"
+          transport_lag: "{{ transport_lag_raw }}"
+          apply_lag: "{{ apply_lag_raw }}"
+          action: "Run: ALTER DATABASE RECOVER MANAGED STANDBY DATABASE DISCONNECT;"
+    status_code: [202]
+  delegate_to: localhost
+  when: not mrp_is_healthy | bool
+
+# ── P2 WARNING: High Lag ─────────────────────────────────────────────
+- name: Fire PagerDuty P2 — High transport or apply lag
+  ansible.builtin.uri:
+    url: "{{ pagerduty_integration_url }}"
+    method: POST
+    body_format: json
+    body:
+      routing_key: "{{ vault_pagerduty_routing_key }}"
+      event_action: "trigger"
+      dedup_key: "dg-lag-{{ oracle_sid }}-{{ inventory_hostname }}"
+      payload:
+        summary: >-
+          ⚠️ Oracle DG Lag Warning: {{ oracle_sid }}
+          Transport Lag: {{ transport_lag_minutes }} min ({{ transport_lag_severity }})
+          Apply Lag: {{ apply_lag_minutes }} min ({{ apply_lag_severity }})
+        severity: "{{ 'critical' if transport_lag_severity == 'CRITICAL' or apply_lag_severity == 'CRITICAL' else 'error' }}"
+        source: "ansible-dataguard-monitor"
+    status_code: [202]
+  delegate_to: localhost
+  when: >
+    transport_lag_severity in ['WARNING', 'CRITICAL']
+    or apply_lag_severity in ['WARNING', 'CRITICAL']
+
+# ── Auto-resolve PagerDuty alerts if everything healthy ──────────────
+- name: Auto-resolve lag alert if lag is now OK
+  ansible.builtin.uri:
+    url: "{{ pagerduty_integration_url }}"
+    method: POST
+    body_format: json
+    body:
+      routing_key: "{{ vault_pagerduty_routing_key }}"
+      event_action: "resolve"
+      dedup_key: "dg-lag-{{ oracle_sid }}-{{ inventory_hostname }}"
+    status_code: [202]
+  delegate_to: localhost
+  when: >
+    transport_lag_severity == 'OK'
+    and apply_lag_severity == 'OK'</code></pre></div>
+</div>
+
+<!-- PLAYBOOKS -->
+<section id="playbooks">
+<h2 class="st">📜 10. Master Playbooks</h2>
+<div class="card">
+<div class="cw"><div class="cl"><span>playbooks/dg_health_monitor.yml — Every 15 Minutes</span><button class="cb" onclick="copyCode(this)">Copy</button></div>
+<pre><code>---
+# =====================================================================
+# Oracle Data Guard Health Monitor — Every 15 Minutes
+# Runs checks on BOTH primary and standby databases
+# =====================================================================
+
+# PLAY 1: Checks on PRIMARY database
+- name: Data Guard Primary Health Check
+  hosts: oracle_primary                      # Run on primary nodes
+  gather_facts: true
+  become: false
+  serial: 1                                 # One primary at a time (RAC: check node 1)
+
+  vars_files:
+    - "{{ inventory_dir }}/group_vars/all/vault.yml"
+
+  tasks:
+    - name: Upload Oracle query script to primary
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/../scripts/dg_query.py"
+        dest: /tmp/dg_query.py
+        mode: '0700'
+        owner: "{{ oracle_user }}"
+
+    - name: Include primary DG check role
+      ansible.builtin.include_role:
+        name: dg_check_primary
+      tags: primary_check
+
+    - name: Remove query script from primary
+      ansible.builtin.file:
+        path: /tmp/dg_query.py
+        state: absent
+
+# PLAY 2: Checks on STANDBY database (most critical checks here)
+- name: Data Guard Standby Health Check
+  hosts: oracle_standby                      # Run on standby nodes
+  gather_facts: true
+  become: false
+
+  vars_files:
+    - "{{ inventory_dir }}/group_vars/all/vault.yml"
+
+  tasks:
+    - name: Upload Oracle query script to standby
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/../scripts/dg_query.py"
+        dest: /tmp/dg_query.py
+        mode: '0700'
+        owner: "{{ oracle_user }}"
+
+    - name: Check MRP status (most critical check)
+      ansible.builtin.include_role:
+        name: dg_check_standby
+        tasks_from: check_mrp_status
+      tags: mrp
+
+    - name: Check transport and apply lag
+      ansible.builtin.include_role:
+        name: dg_check_standby
+        tasks_from: check_lag
+      tags: lag
+
+    - name: Check for archive gaps
+      ansible.builtin.include_role:
+        name: dg_check_standby
+        tasks_from: check_gaps
+      tags: gaps
+
+    - name: Check DG Broker configuration
+      ansible.builtin.include_role:
+        name: dg_check_standby
+        tasks_from: check_broker_standby
+      tags: broker
+
+    - name: Send alerts based on all check results
+      ansible.builtin.include_role:
+        name: dg_alert
+      tags: alert
+
+    - name: Remove query script from standby
+      ansible.builtin.file:
+        path: /tmp/dg_query.py
+        state: absent</code></pre></div>
+
+<div class="cw"><div class="cl"><span>playbooks/dg_predrill_validation.yml — Pre-DR Drill Readiness</span><button class="cb" onclick="copyCode(this)">Copy</button></div>
+<pre><code>---
+# =====================================================================
+# Pre-DR Drill Validation — Run BEFORE any planned switchover/failover
+# Generates a readiness score — BLOCKS drill if any check fails
+# =====================================================================
+- name: Oracle Data Guard Pre-Drill Readiness Validation
+  hosts: oracle_standby
+  gather_facts: true
+
+  vars_files:
+    - "{{ inventory_dir }}/group_vars/all/vault.yml"
+
+  tasks:
+    - name: Upload query script
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/../scripts/dg_query.py"
+        dest: /tmp/dg_query.py
+        mode: '0700'
+        owner: "{{ oracle_user }}"
+
+    - name: Run all standby checks
+      ansible.builtin.include_role:
+        name: dg_check_standby
+
+    - name: Run all alerting
+      ansible.builtin.include_role:
+        name: dg_alert
+
+    - name: Build pre-drill readiness report
+      ansible.builtin.set_fact:
+        predrill_checks:
+          - name: MRP Running
+            passed: "{{ mrp_is_healthy | bool }}"
+            value: "{{ mrp_status }}"
+            blocker: true
+          - name: Zero Archive Gaps
+            passed: "{{ not has_archive_gaps | bool }}"
+            value: "{{ total_missing_logs }} missing logs"
+            blocker: true
+          - name: Transport Lag OK
+            passed: "{{ transport_lag_severity == 'OK' }}"
+            value: "{{ transport_lag_minutes }} minutes"
+            blocker: false
+          - name: Apply Lag OK
+            passed: "{{ apply_lag_severity == 'OK' }}"
+            value: "{{ apply_lag_minutes }} minutes"
+            blocker: false
+          - name: DG Broker Healthy
+            passed: "{{ dgmgrl_config_healthy | bool }}"
+            value: "{{ 'SUCCESS' if dgmgrl_config_healthy else 'WARNING/ERROR' }}"
+            blocker: true
+
+    - name: Identify blocking failures
+      ansible.builtin.set_fact:
+        blocking_failures: >-
+          {{ predrill_checks
+             | selectattr('blocker', 'equalto', true)
+             | rejectattr('passed', 'equalto', true)
+             | list }}
+
+    - name: Display pre-drill readiness report
+      ansible.builtin.debug:
+        msg:
+          - "════════════════════════════════════════════════════"
+          - "  ORACLE DATA GUARD PRE-DRILL READINESS REPORT"
+          - "  Database: {{ oracle_sid }} | {{ ansible_date_time.iso8601 }}"
+          - "════════════════════════════════════════════════════"
+          - "{% for check in predrill_checks %}"
+          - "  {{ '✅' if check.passed else '❌' }} {{ check.name }}: {{ check.value }}{{ ' [BLOCKER]' if check.blocker and not check.passed else '' }}"
+          - "{% endfor %}"
+          - "════════════════════════════════════════════════════"
+          - "  VERDICT: {{ '✅ READY FOR DR DRILL' if blocking_failures | length == 0 else '❌ DR DRILL BLOCKED — ' + blocking_failures | length | string + ' critical check(s) failed' }}"
+          - "════════════════════════════════════════════════════"
+
+    - name: Block DR drill if critical checks fail
+      ansible.builtin.fail:
+        msg: >-
+          ❌ DR DRILL BLOCKED. The following critical checks FAILED:
+          {% for f in blocking_failures %}
+          • {{ f.name }}: {{ f.value }}
+          {% endfor %}
+          Resolve all blocking issues before attempting DR drill.
+          A failed DR drill against a degraded standby can result in data loss.
+      when: blocking_failures | length > 0
+
+    - name: Remove query script
+      ansible.builtin.file:
+        path: /tmp/dg_query.py
+        state: absent</code></pre></div>
+
+<div class="cw"><div class="cl"><span>playbooks/dg_postfailover_validation.yml — Post-Failover Check</span><button class="cb" onclick="copyCode(this)">Copy</button></div>
+<pre><code>---
+# =====================================================================
+# Post-Failover Validation — Run AFTER completing a switchover/failover
+# Confirms new primary is accepting writes and roles are correct
+# =====================================================================
+- name: Post-Failover Database Role Validation
+  hosts: oracle_standby                      # Now acting as new PRIMARY after failover
+  gather_facts: true
+
+  vars_files:
+    - "{{ inventory_dir }}/group_vars/all/vault.yml"
+
+  tasks:
+    - name: Upload query script to new primary
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/../scripts/dg_query.py"
+        dest: /tmp/dg_query.py
+        mode: '0700'
+        owner: "{{ oracle_user }}"
+
+    - name: Query current database role (should now be PRIMARY)
+      ansible.builtin.shell:
+        cmd: >
+          python3 /tmp/dg_query.py
+          --host {{ ansible_host }}
+          --port {{ oracle_port }}
+          --sid {{ oracle_sid }}
+          --user {{ oracle_monitor_user }}
+          --password "{{ vault_oracle_monitor_pass }}"
+          --query "SELECT DATABASE_ROLE, OPEN_MODE, DB_UNIQUE_NAME,
+                          SWITCHOVER_STATUS
+                   FROM V\$DATABASE"
+      register: db_role_result
+      no_log: true
+      changed_when: false
+      become: true
+      become_user: "{{ oracle_user }}"
+      environment: "{{ oracle_env }}"
+
+    - name: Parse database role
+      ansible.builtin.set_fact:
+        db_info: "{{ (db_role_result.stdout | from_json)[0] }}"
+
+    - name: Validate new primary is in correct role
+      ansible.builtin.fail:
+        msg: >-
+          POST-FAILOVER VALIDATION FAILED!
+          Expected role: PRIMARY
+          Actual role: {{ db_info.database_role }}
+          Open mode: {{ db_info.open_mode }}
+          The failover may not have completed successfully.
+      when: db_info.database_role != 'PRIMARY'
+
+    - name: Test write capability on new primary
+      ansible.builtin.shell:
+        cmd: >
+          python3 /tmp/dg_query.py
+          --host {{ ansible_host }}
+          --port {{ oracle_port }}
+          --sid {{ oracle_sid }}
+          --user {{ oracle_monitor_user }}
+          --password "{{ vault_oracle_monitor_pass }}"
+          --query "SELECT SYSDATE AS write_test_time FROM DUAL"
+      register: write_test
+      no_log: true
+      changed_when: false
+      become: true
+      become_user: "{{ oracle_user }}"
+      environment: "{{ oracle_env }}"
+
+    - name: Log post-failover validation results
+      ansible.builtin.debug:
+        msg:
+          - "POST-FAILOVER VALIDATION RESULTS:"
+          - "New Primary Host: {{ inventory_hostname }}"
+          - "DB Role: {{ db_info.database_role }} ✅"
+          - "Open Mode: {{ db_info.open_mode }}"
+          - "Switchover Status: {{ db_info.switchover_status }}"
+          - "Write Test: {{ 'PASSED' if write_test.rc == 0 else 'FAILED' }}"
+
+    - name: Remove query script
+      ansible.builtin.file:
+        path: /tmp/dg_query.py
+        state: absent</code></pre></div>
+</div>
+
+<!-- AAP -->
+<section id="aap">
+<h2 class="st">🔴 11. AAP Configuration</h2>
+<div class="card">
+<details><summary>Job Templates</summary><div class="inner">
+<table>
+<tr><th>Template Name</th><th>Playbook</th><th>Schedule</th><th>RBAC</th></tr>
+<tr><td>Oracle-DG-Health-Monitor</td><td>dg_health_monitor.yml</td><td>Every 15 min</td><td>NOC: Read. DBA: Execute.</td></tr>
+<tr><td>Oracle-DG-Pre-Drill-Check</td><td>dg_predrill_validation.yml</td><td>On-demand</td><td>DBA Lead: Execute only</td></tr>
+<tr><td>Oracle-DG-Post-Failover-Check</td><td>dg_postfailover_validation.yml</td><td>On-demand</td><td>DBA Lead: Execute only</td></tr>
+<tr><td>Oracle-DG-Compliance-Report</td><td>dg_compliance_report.yml</td><td>Daily 05:00</td><td>DBA, CISO: Read</td></tr>
+</table>
+</div></details>
+
+<details><summary>Workflow: DG-Monitored-DR-Drill</summary><div class="inner">
+<p>For quarterly DR drills, use this workflow template:</p>
+<ol>
+  <li><b>Oracle-DG-Pre-Drill-Check</b> → Must succeed (no failures)</li>
+  <li><b>APPROVAL NODE</b> — "Pre-drill checks passed. Approve DR drill execution?"</li>
+  <li><b>Manual Step</b> — DBA executes switchover via DGMGRL (AAP sends reminder)</li>
+  <li><b>Oracle-DG-Post-Failover-Check</b> → Validates new primary health</li>
+  <li><b>Oracle-DG-Compliance-Report</b> → Generates drill evidence for RBI</li>
+</ol>
+<div class="tip-box"><b>RBI Evidence:</b> The pre-drill check report, post-failover validation, and compliance report together form the complete DR drill evidence package that RBI requires quarterly.</div>
+</div></details>
+</div>
+</section>
+
+<!-- FLOW -->
+<section id="flow">
+<h2 class="st">🔄 12. Execution Flow</h2>
+<div class="card">
+<div class="fs"><div class="fn">1</div><div>Every 15 minutes: AAP scheduler fires. Play 1 runs on oracle_primary: queries V$DATABASE to confirm primary role, checks V$ARCHIVE_DEST_STATUS for transport to standby.</div></div>
+<div class="fs"><div class="fn">2</div><div>Play 2 runs on oracle_standby: dg_query.py connects to standby Oracle via cx_Oracle. V$MANAGED_STANDBY queried — MRP row checked. Status must be APPLYING_LOG or WAIT_FOR_LOG.</div></div>
+<div class="fs"><div class="fn">3</div><div>V$DATAGUARD_STATS queried for transport and apply lag. Oracle +DD HH:MI:SS interval format parsed to total minutes. transport_lag_minutes and apply_lag_minutes set as Ansible facts.</div></div>
+<div class="fs"><div class="fn">4</div><div>V$ARCHIVE_GAP queried. Any rows = IMMEDIATE P1 PagerDuty "ARCHIVE GAP DETECTED." This is the check that would have caught the 4-day gap in our story — every 15 minutes, not once a day.</div></div>
+<div class="fs"><div class="fn">5</div><div>DGMGRL show configuration run. Output parsed for SUCCESS/WARNING/ERROR states. DG Broker WARNING fires P2 PagerDuty — gives DBA time to investigate before it becomes a gap.</div></div>
+<div class="fs"><div class="fn">6</div><div>Pre-drill: DBA runs Oracle-DG-Pre-Drill-Check before quarterly drill. All 5 checks evaluated. If MRP not running OR archive gap exists → playbook fails with explicit message "DR DRILL BLOCKED." Drill cannot proceed. This is the technical gate that prevents a repeat of the incident.</div></div>
+</div>
+</section>
+
+<!-- LAB -->
+<section id="lab">
+<h2 class="st">🧪 13. Lab Setup</h2>
+<div class="card">
+<div class="cw"><div class="cl"><span>Simulate Data Guard scenarios in lab</span><button class="cb" onclick="copyCode(this)">Copy</button></div>
+<pre><code"># Oracle XE doesn't support Data Guard (Enterprise feature)
+# For lab testing, simulate DG views with a regular Oracle XE:
+
+# ── Option 1: Mock DG views for testing query logic ──────────────────
+sqlplus sys/password@XE as sysdba << 'EOF'
+
+-- Create mock V$MANAGED_STANDBY behavior (use a real table)
+CREATE TABLE mock_managed_standby AS
+SELECT 'MRP0' AS PROCESS, 'APPLYING_LOG' AS STATUS,
+       1 AS "THREAD#", 4521 AS "SEQUENCE#", 1024 AS BLOCK#, 2048 AS BLOCKS
+FROM DUAL;
+
+-- Simulate MRP stopped (for testing alert logic)
+UPDATE mock_managed_standby SET STATUS = 'NOT_RUNNING' WHERE PROCESS = 'MRP0';
+COMMIT;
+
+-- Restore healthy MRP state
+UPDATE mock_managed_standby SET STATUS = 'APPLYING_LOG' WHERE PROCESS = 'MRP0';
+COMMIT;
+EOF
+
+# ── Option 2: Use Oracle 19c EE in Docker (supports Data Guard) ──────
+# Pull Oracle EE image (requires Oracle account)
+docker login container-registry.oracle.com
+docker pull container-registry.oracle.com/database/enterprise:19.3.0.0
+
+# Run primary
+docker run -d --name oracle-primary \
+  -p 1521:1521 \
+  -e ORACLE_SID=CBSPROD \
+  -e ORACLE_PDB=CBSPDB \
+  -e ORACLE_PWD=LabPass123 \
+  container-registry.oracle.com/database/enterprise:19.3.0.0
+
+# ── Test the query script ─────────────────────────────────────────────
+python3 scripts/dg_query.py \
+  --host localhost \
+  --port 1521 \
+  --sid CBSPROD \
+  --user ansible_monitor \
+  --password MonitorPass123 \
+  --query "SELECT PROCESS, STATUS FROM V\$MANAGED_STANDBY WHERE PROCESS LIKE 'MRP%'"
+
+# ── Validate Ansible inventory connectivity ───────────────────────────
+ansible -i inventory/production/hosts.ini oracle_standby -m ping
+
+# ── Run monitoring playbook (check mode first) ────────────────────────
+ansible-playbook playbooks/dg_health_monitor.yml \
+  -i inventory/production/hosts.ini \
+  --check -v
+
+# ── Run pre-drill validation ──────────────────────────────────────────
+ansible-playbook playbooks/dg_predrill_validation.yml \
+  -i inventory/production/hosts.ini \
+  -v</code></pre></div>
+
+<h3>Troubleshooting</h3>
+<table>
+<tr><th>Symptom</th><th>Cause</th><th>Fix</th></tr>
+<tr><td>V$MANAGED_STANDBY returns no rows</td><td>MRP is not running on standby</td><td>As oracle: ALTER DATABASE RECOVER MANAGED STANDBY DATABASE DISCONNECT;</td></tr>
+<tr><td>V$DATAGUARD_STATS returns null values</td><td>DG Broker not enabled or stats not yet populated</td><td>Enable DG Broker: ALTER SYSTEM SET DG_BROKER_START=TRUE; Wait 60 seconds.</td></tr>
+<tr><td>V$ARCHIVE_GAP has rows</td><td>Primary archived logs not received on standby</td><td>Check network connectivity; check archiver process on primary; manually register missing logs</td></tr>
+<tr><td>DGMGRL connect fails</td><td>DG Broker not started or listener.ora missing DGMGRL entries</td><td>ALTER SYSTEM SET DG_BROKER_START=TRUE on both primary and standby</td></tr>
+<tr><td>Lag shows +99 99:99:99</td><td>DG stats view not populated yet (freshly started MRP)</td><td>Wait 2-5 minutes after MRP start for V$DATAGUARD_STATS to populate</td></tr>
+</table>
+</div>
+</section>
+
+<!-- INTERVIEW -->
+<section id="interview">
+<h2 class="st">🎯 14. Interview Preparation</h2>
+<div class="card">
+<div class="g2">
+<div>
+<details><summary>Q: What is the difference between transport lag and apply lag in Oracle Data Guard?</summary><div class="inner">
+<b>Transport lag</b> is how far behind the standby is in RECEIVING redo log data from the primary. If the primary has committed transactions up to SCN 1000, but the standby has only received redo up to SCN 950, the transport lag is the time equivalent of those 50 SCNs.<br><br>
+<b>Apply lag</b> is how far behind the standby is in APPLYING the received redo data. Even if the standby has received redo up to SCN 1000, MRP may have only applied up to SCN 980. Apply lag = 20 SCNs worth of time.<br><br>
+In banking, <b>both</b> must be monitored independently. Transport lag = network/archive issue. Apply lag = MRP performance issue. Both affect RPO but for different reasons.
+</div></details>
+<details><summary>Q: What does the pre-drill check blocking logic prevent?</summary><div class="inner">
+The blocking logic prevents starting a DR drill against a degraded standby. The three blockers are:<br>
+1. <b>MRP not running:</b> Standby is not applying redo — could be hours or days behind. Failover would result in data loss equal to the unaplied lag.<br>
+2. <b>Archive gaps:</b> The standby is MISSING redo log files — specific transactions are permanently lost on the standby regardless of MRP state. Any failover will result in data loss for those gap sequences.<br>
+3. <b>DG Broker ERROR:</b> The broker has detected a configuration problem that may prevent successful switchover/failover execution.<br><br>
+Non-blocking warnings (transport lag &lt; critical, apply lag &lt; critical) allow the drill to proceed with awareness — they show on the report but don't stop the drill.
+</div></details>
+</div>
+<div>
+<details><summary>Q: How did you parse the Oracle lag interval format +DD HH:MI:SS in Ansible?</summary><div class="inner">
+Oracle's V$DATAGUARD_STATS returns lag as an interval string like '+00 00:05:30' (zero days, zero hours, 5 minutes, 30 seconds). To convert to minutes for threshold comparison:<br><br>
+We use Jinja2's <code>regex_replace</code> filter with capture groups to extract days, hours, and minutes separately, then calculate: days × 1440 + hours × 60 + minutes.<br><br>
+The regex pattern <code>\+([0-9]+) ([0-9]+):([0-9]+):([0-9]+)</code> captures: group 1 = days, group 2 = hours, group 3 = minutes, group 4 = seconds. Each is converted to int and multiplied by the appropriate factor. This gives a total minutes value that can be compared against integer threshold variables.
+</div></details>
+<details><summary>Q: How would you automate the actual switchover command in Data Guard?</summary><div class="inner">
+The switchover command itself (DGMGRL> switchover to CBSSTBY;) is a highly sensitive operation that should NOT be fully automated — it's a deliberate action that changes which database is primary. However, the pre-conditions and post-validation can be fully automated.<br><br>
+In practice: the pre-drill validation playbook ensures the system is ready, then an AAP Approval Node presents to the DBA: "Pre-flight passed. Run the DGMGRL switchover manually, then click Approve to trigger post-failover validation." The DBA executes the switchover via DGMGRL in their terminal, confirms it completed, then approves in AAP. The post-failover validation playbook runs automatically after approval — confirming roles are correct and new primary is accepting writes. This hybrid approach (automate the boring parts, keep human control on the critical command) is the industry standard in banking.
+</div></details>
+</div>
+</div>
+</section>
+
+<div class="fn-row">
+  <span style="color:var(--text-dim);font-size:.85rem;">Advanced Series — Project 5 of 30 Complete</span>
+  <a class="btn" href="#">Request Project 06 →</a>
+</div>
+</main>
+</div>
+<script>
+function copyCode(btn){
+  const pre=btn.closest('.cw').querySelector('pre code')||btn.closest('.cw').querySelector('pre');
+  navigator.clipboard.writeText(pre.innerText).then(()=>{const o=btn.innerText;btn.innerText='Copied!';setTimeout(()=>btn.innerText=o,1500);});
+}
+</script>
+</body>
+</html>

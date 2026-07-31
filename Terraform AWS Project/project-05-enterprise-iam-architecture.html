@@ -1,0 +1,624 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Project 05 — Enterprise IAM Architecture | ABC Bank Terraform Mastery</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/10.9.0/mermaid.min.js"></script>
+<style>
+  :root{
+    --bg:#ffffff; --surface:#f7f5fc; --surface-2:#efeaf9; --border:#e3ddf4;
+    --primary:#6d28d9; --primary-dark:#4c1d95; --primary-light:#8b5cf6;
+    --accent-soft:#ede9fe; --text:#211b32; --muted:#6b6480;
+    --code-bg:#2b2140; --code-text:#e9e3fb;
+    --good:#0f7b52; --warn:#a8630a; --danger:#b3261e;
+    --radius:14px; --shadow:0 4px 20px rgba(109,40,217,0.08);
+  }
+  *{box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;font-size:16px;line-height:1.65;}
+  h1,h2,h3,h4{font-family:'Space Grotesk',sans-serif;color:var(--primary-dark);letter-spacing:-0.01em;}
+  a{color:var(--primary);}
+  .layout{display:flex;min-height:100vh;}
+  #sidebar{width:290px;flex-shrink:0;background:linear-gradient(180deg,var(--primary-dark),var(--primary));color:#f2edff;position:sticky;top:0;height:100vh;overflow-y:auto;padding:22px 18px 40px;}
+  #sidebar .brand{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:1.05rem;color:#fff;margin-bottom:4px;}
+  #sidebar .brand-sub{font-size:0.78rem;color:#d9cbff;margin-bottom:22px;display:block;}
+  #sidebar .progress-pill{display:inline-block;background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.25);border-radius:999px;padding:4px 12px;font-size:0.72rem;margin-bottom:20px;color:#fff;}
+  #sidebar nav a{display:block;color:#e6dcff;text-decoration:none;font-size:0.85rem;padding:7px 10px;border-radius:8px;margin-bottom:2px;transition:background .15s ease, color .15s ease;}
+  #sidebar nav a:hover{background:rgba(255,255,255,0.14);color:#fff;}
+  #sidebar nav a.active{background:#fff;color:var(--primary-dark);font-weight:600;}
+  #sidebar .nav-group-label{text-transform:uppercase;font-size:0.68rem;letter-spacing:0.08em;color:#c8b6f7;margin:18px 0 6px 10px;}
+  #content{flex:1;min-width:0;padding:44px 56px 120px;max-width:980px;}
+  .kicker{display:inline-block;background:var(--accent-soft);color:var(--primary-dark);font-size:0.75rem;font-weight:600;padding:5px 12px;border-radius:999px;margin-bottom:14px;letter-spacing:0.03em;}
+  header.hero{padding-bottom:28px;border-bottom:1px solid var(--border);margin-bottom:34px;}
+  header.hero h1{font-size:2.1rem;margin:0 0 10px;}
+  header.hero p.lead{font-size:1.05rem;color:var(--muted);max-width:70ch;}
+  section{margin-bottom:52px;scroll-margin-top:20px;}
+  section h2{font-size:1.4rem;display:flex;align-items:center;gap:10px;border-bottom:2px solid var(--surface-2);padding-bottom:10px;margin-bottom:18px;}
+  section h2 .num{background:var(--primary);color:#fff;font-size:0.75rem;font-family:'JetBrains Mono',monospace;padding:3px 8px;border-radius:6px;}
+  section h3{font-size:1.08rem;margin-top:26px;color:var(--primary);}
+  .story-box{background:var(--surface);border-left:4px solid var(--primary);border-radius:10px;padding:20px 22px;font-size:0.98rem;}
+  .story-box em{color:var(--muted);}
+  .card-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:18px 0;}
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px;}
+  .card h4{margin:0 0 8px;font-size:0.92rem;color:var(--primary-dark);}
+  .card p, .card ul{margin:0;font-size:0.9rem;color:var(--text);}
+  .card ul{padding-left:18px;}
+  .note, .warn, .best{border-radius:10px;padding:14px 16px;margin:16px 0;font-size:0.92rem;border:1px solid transparent;}
+  .note{background:#eef2ff;border-color:#c7d2fe;}
+  .note::before{content:"📝 Note";display:block;font-weight:700;margin-bottom:4px;color:#3730a3;}
+  .warn{background:#fff7ed;border-color:#fed7aa;}
+  .warn::before{content:"⚠️ Watch out";display:block;font-weight:700;margin-bottom:4px;color:var(--warn);}
+  .best{background:#ecfdf5;border-color:#a7f3d0;}
+  .best::before{content:"✅ Best Practice";display:block;font-weight:700;margin-bottom:4px;color:var(--good);}
+  details.collapse{border:1px solid var(--border);border-radius:var(--radius);margin:14px 0;background:#fff;box-shadow:var(--shadow);overflow:hidden;}
+  details.collapse summary{cursor:pointer;padding:14px 18px;font-weight:600;font-family:'Space Grotesk',sans-serif;color:var(--primary-dark);background:var(--surface);list-style:none;}
+  details.collapse summary::-webkit-details-marker{display:none;}
+  details.collapse summary::before{content:"▸ ";color:var(--primary);}
+  details.collapse[open] summary::before{content:"▾ ";}
+  details.collapse .inner{padding:16px 20px;}
+  table{width:100%;border-collapse:collapse;margin:14px 0;font-size:0.9rem;}
+  th,td{border:1px solid var(--border);padding:8px 10px;text-align:left;}
+  th{background:var(--surface-2);color:var(--primary-dark);}
+  .code-block{position:relative;margin:14px 0;border-radius:12px;overflow:hidden;border:1px solid #3b2c5e;}
+  .code-block .code-head{background:#231a38;color:#cbb8f5;font-family:'JetBrains Mono',monospace;font-size:0.78rem;padding:8px 14px;display:flex;justify-content:space-between;align-items:center;}
+  .code-block pre{margin:0;background:var(--code-bg);color:var(--code-text);padding:16px;overflow-x:auto;font-family:'JetBrains Mono',monospace;font-size:0.83rem;line-height:1.55;}
+  .code-block .copy-btn{background:var(--primary);color:#fff;border:none;border-radius:6px;font-size:0.72rem;padding:4px 10px;cursor:pointer;font-family:'Inter',sans-serif;}
+  .code-block .copy-btn:hover{background:var(--primary-light);}
+  .cmt{color:#8ee6a3;}
+  .mermaid-wrap{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:18px;margin:16px 0;overflow-x:auto;}
+  .tree{font-family:'JetBrains Mono',monospace;font-size:0.83rem;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px;white-space:pre;overflow-x:auto;}
+  .qa{border-top:1px solid var(--border);padding:12px 0;}
+  .qa .q{font-weight:600;color:var(--primary-dark);margin-bottom:4px;}
+  .nextbar{background:linear-gradient(135deg,var(--primary),var(--primary-dark));color:#fff;border-radius:16px;padding:26px 30px;margin-top:40px;}
+  .nextbar h3{color:#fff;margin-top:0;}
+  .nextbar p{color:#e6dcff;margin-bottom:0;}
+  @media (max-width:900px){.layout{flex-direction:column;}#sidebar{position:relative;width:100%;height:auto;}#content{padding:30px 20px 80px;}.card-grid{grid-template-columns:1fr;}}
+</style>
+</head>
+<body>
+<div class="layout">
+
+  <aside id="sidebar">
+    <span class="brand">🏦 ABC Bank — DevOps Mastery</span>
+    <span class="brand-sub">Intermediate → Advanced Terraform Track</span>
+    <span class="progress-pill">Project 05 / 40</span>
+    <nav id="navlinks">
+      <div class="nav-group-label">Orientation</div>
+      <a href="#story">The Banking Story</a>
+      <a href="#requirements">Business &amp; Risk</a>
+      <a href="#why-iac">Why SCPs + Permission Boundaries</a>
+      <div class="nav-group-label">Concepts</div>
+      <a href="#tf-concepts">Terraform Concepts</a>
+      <a href="#aws-concepts">AWS Concepts (SCP, Boundaries, STS)</a>
+      <div class="nav-group-label">Design</div>
+      <a href="#architecture">Architecture Diagrams</a>
+      <a href="#solution-design">Solution Design</a>
+      <div class="nav-group-label">Build</div>
+      <a href="#folder-structure">Folder &amp; Repo Structure</a>
+      <a href="#implementation">Implementation (Full Code)</a>
+      <a href="#code-explained">Line-by-Line Explanation</a>
+      <div class="nav-group-label">Operate</div>
+      <a href="#execution-flow">Execution Flow</a>
+      <a href="#cicd">CI/CD Integration</a>
+      <a href="#local-lab">Local Lab &amp; Assignments</a>
+      <a href="#interview">Interview Preparation</a>
+      <a href="#next">What's Next</a>
+    </nav>
+  </aside>
+
+  <main id="content">
+    <header class="hero">
+      <span class="kicker">PROJECT 05 OF 40 · INTERMEDIATE</span>
+      <h1>Enterprise IAM Architecture — Guardrails, Boundaries &amp; Break-Glass</h1>
+      <p class="lead">Networking and logging are solid. Now we lock down identity itself: organization-wide guardrails no engineer can override, a permission boundary that caps what any role can ever be granted, and a tightly controlled emergency "break-glass" role for the 2am incident nobody planned for.</p>
+    </header>
+
+    <section id="story">
+      <h2><span class="num">01</span> The Banking Story</h2>
+      <div class="story-box">
+        Last week, a well-meaning engineer in the UAT account created an IAM role for a new Lambda function and, to "get it working quickly," attached <code>AdministratorAccess</code> to it, intending to scope it down later. They forgot. Three weeks later, that Lambda role still has full admin rights in UAT — an oversight, not malice, but exactly the kind of gap a real security incident would exploit.<br><br>
+        Separately, the on-call rotation had a genuine emergency last month: Production's primary CI/CD pipeline role lost permissions after an unrelated policy cleanup, and nobody had a pre-approved way to get emergency access without waiting for the regular change process — a customer-impacting outage stretched on for 40 extra minutes waiting for approvals.<br><br>
+        Our manager's brief: <em>"Two things. First: make it impossible — not just discouraged — for any engineer or automated role, in any account, to ever attach full admin permissions or disable CloudTrail. Second: give on-call engineers one clearly audited break-glass role for genuine emergencies, with MFA enforced and every session logged."</em>
+      </div>
+    </section>
+
+    <section id="requirements">
+      <h2><span class="num">02</span> Business Requirement, Risk &amp; Impact</h2>
+      <div class="card-grid">
+        <div class="card"><h4>Business Requirement</h4><p>No IAM principal in any account should ever be able to obtain unrestricted admin access or disable core security controls, regardless of individual mistakes.</p></div>
+        <div class="card"><h4>Customer Requirement</h4><p>On-call engineers need a fast, pre-approved path to emergency access during genuine incidents — without bypassing audit logging.</p></div>
+        <div class="card"><h4>Current Infrastructure</h4><p>Individual IAM roles created per-need, with no organization-wide ceiling on what permissions any role can ever be granted.</p></div>
+        <div class="card"><h4>Existing Manual Process</h4><p>Engineers self-review their own IAM policies before requesting a peer review — a process that depends entirely on individual diligence, with no automatic enforcement.</p></div>
+        <div class="card"><h4>Problems With Current Process</h4><ul><li>A single rushed decision (like the Lambda role above) can grant unintended admin access with nothing to stop it</li><li>No emergency access path exists, so genuine incidents wait on the normal change process</li><li>No org-wide, unbypassable restriction on disabling CloudTrail, deleting the logging bucket, or leaving the Organization</li></ul></div>
+        <div class="card"><h4>Business Challenges</h4><p>Regulators expect "least privilege by design," not "least privilege by policy that any engineer could technically override" — the difference matters in an audit finding.</p></div>
+        <div class="card"><h4>Risk Analysis</h4><p><strong>High:</strong> an over-permissioned role in any single account is a direct path to lateral movement across the whole environment if that role's credentials are ever compromised.</p></div>
+        <div class="card"><h4>Business Impact</h4><p>The 40 extra minutes of unplanned outage directly translate to a customer-facing SLA breach and a mandatory incident report to the bank's risk committee.</p></div>
+      </div>
+    </section>
+
+    <section id="why-iac">
+      <h2><span class="num">03</span> Why SCPs and Permission Boundaries Together, and What We Rejected</h2>
+      <h3>Why we need both an SCP AND a permission boundary</h3>
+      <p>A Service Control Policy (SCP) is an organization-wide ceiling — it applies to every principal in an account, including the account's own admins, and cannot be overridden from inside that account. A permission boundary is narrower — it caps what a <em>specific role</em> can be granted, even by someone with IAM-editing rights in that account. We need the SCP to stop "disable CloudTrail" org-wide, and the boundary to stop "grant this one Lambda role admin access" at the individual-role level — they solve different halves of the same problem.</p>
+      <h3>Alternatives considered, and why they were rejected</h3>
+      <table>
+        <tr><th>Alternative</th><th>Why considered</th><th>Why rejected for ABC Bank</th></tr>
+        <tr><td>Rely on IAM policy review / peer review alone</td><td>No new tooling, just process discipline</td><td>This is exactly what failed last week — process discipline doesn't scale and doesn't prevent a rushed mistake</td></tr>
+        <tr><td>Permission boundaries only, no SCPs</td><td>Simpler, single mechanism</td><td>Boundaries only apply to roles they're explicitly attached to — they don't stop someone from creating a brand-new role without one, which an org-wide SCP does prevent structurally</td></tr>
+        <tr><td>AWS IAM Access Analyzer alone (detective, not preventive)</td><td>Great for finding over-permissioned roles after the fact</td><td>Detective controls tell you about a problem after it may already have been exploited — we need this as a complement, not a replacement, for the preventive controls here</td></tr>
+      </table>
+    </section>
+
+    <section id="tf-concepts">
+      <h2><span class="num">04</span> Terraform Concepts You Must Understand Before We Build</h2>
+
+      <details class="collapse" open>
+        <summary><code>aws_iam_policy_document</code> Data Source</summary>
+        <div class="inner">
+          <p><strong>What it is:</strong> a data source that builds a valid IAM policy JSON document from native HCL blocks (<code>statement</code>, <code>actions</code>, <code>resources</code>, <code>condition</code>) instead of hand-writing or templating raw JSON.</p>
+          <p><strong>Why it exists:</strong> HCL block syntax gets Terraform's own validation and autocomplete, and avoids JSON-escaping mistakes that are easy to make in a raw string — especially valuable for SCPs and boundaries, where a syntax mistake could silently fail to apply the intended restriction.</p>
+          <p><strong>Production example:</strong> our SCP that denies disabling CloudTrail is built with <code>data "aws_iam_policy_document" "deny_cloudtrail_disable"</code>, using an explicit <code>Deny</code> effect and a condition that still allows the Logging account itself to manage its own trail.</p>
+          <p><strong>Alternative approach:</strong> <code>templatefile()</code> from Project 04 — better when a policy needs heavy looping over dynamic lists; <code>aws_iam_policy_document</code> is usually clearer for a fixed, well-known set of statements like an SCP.</p>
+        </div>
+      </details>
+
+      <details class="collapse">
+        <summary>Lifecycle Rules — <code>prevent_destroy</code> and <code>ignore_changes</code></summary>
+        <div class="inner">
+          <p><strong>What it is:</strong> the <code>lifecycle</code> meta-argument changes how Terraform handles a specific resource during plan/apply — <code>prevent_destroy = true</code> makes Terraform refuse to destroy that resource even if a plan would otherwise do so; <code>ignore_changes</code> tells Terraform to stop reporting drift on specific attributes.</p>
+          <p><strong>Why it exists here:</strong> the break-glass IAM role must never be accidentally destroyed by a careless <code>terraform destroy</code> or a refactor that renames it — <code>prevent_destroy</code> turns that mistake into a hard Terraform error instead of a silent, dangerous deletion.</p>
+          <p><strong>Production example:</strong> the break-glass role resource has <code>lifecycle { prevent_destroy = true }</code>; removing it from the Terraform config or attempting to destroy it fails with an explicit error until an engineer deliberately removes the lifecycle block first — a deliberate two-step action, not an accident.</p>
+          <p><strong>Common mistake:</strong> applying <code>prevent_destroy</code> everywhere "just to be safe" — overusing it makes legitimate refactors (like renaming a resource, which Terraform sees as destroy+create) painful; reserve it for genuinely irreplaceable or high-blast-radius resources.</p>
+        </div>
+      </details>
+
+      <details class="collapse">
+        <summary>Conditional Expressions for Environment-Aware Guardrails</summary>
+        <div class="inner">
+          <p><strong>What it is:</strong> we reuse the <code>condition ? true_val : false_val</code> pattern from Project 02, here to decide whether an account's SCP attachment includes the strictest "deny all except break-glass" statement, based on whether the account is tagged <code>production</code>.</p>
+          <p><strong>Production example:</strong> <code>policy_id = var.environment == "production" ? aws_organizations_policy.prod_scp.id : aws_organizations_policy.standard_scp.id</code> — Production gets an additional layer of restriction that Dev/UAT do not.</p>
+        </div>
+      </details>
+
+      <details class="collapse">
+        <summary>Multiple Provider Aliases for Cross-Account SCP Attachment</summary>
+        <div class="inner">
+          <p><strong>What it is:</strong> SCPs are created and attached from the AWS Organizations management account, while permission boundaries and the break-glass role are created inside each individual account — this project's root module uses an aliased provider for the management-account-only Organizations resources.</p>
+        </div>
+      </details>
+    </section>
+
+    <section id="aws-concepts">
+      <h2><span class="num">05</span> AWS Concepts: SCPs, Permission Boundaries, and STS</h2>
+      <div class="card-grid">
+        <div class="card"><h4>What is a Service Control Policy</h4><p>An organization-wide policy attached to an AWS Organizations OU or account that sets the maximum available permissions — even an account's root user cannot exceed what the SCP allows.</p></div>
+        <div class="card"><h4>Why it exists</h4><p>SCPs enforce guardrails structurally, at the Organizations layer, so no amount of in-account IAM misconfiguration can violate them — exactly the "disable CloudTrail" and "leave the Organization" restrictions ABC Bank needs.</p></div>
+        <div class="card"><h4>What is a Permission Boundary</h4><p>A managed policy attached to a specific IAM role or user that sets the maximum permissions that identity can ever be granted — even if its attached policies say otherwise, the boundary's intersection with those policies is what's actually allowed.</p></div>
+        <div class="card"><h4>Why it exists</h4><p>It stops the exact incident from our story: even if someone attaches <code>AdministratorAccess</code> to the Lambda role, the boundary intersects with it, so the role's effective permissions never exceed what the boundary allows.</p></div>
+        <div class="card"><h4>What is AWS STS AssumeRole with MFA condition</h4><p>The break-glass role's trust policy requires the calling principal to have authenticated with MFA within the last few minutes (<code>aws:MultiFactorAuthAge</code>), and its session duration is capped short (e.g. one hour).</p></div>
+        <div class="card"><h4>Security</h4><p>Every break-glass assumption is itself a CloudTrail event with a distinct role ARN — trivially searchable later, satisfying "who used emergency access, and when."</p></div>
+        <div class="card"><h4>Limitations</h4><p>SCPs are a denylist/allowlist on top of IAM, not a replacement for it — a service still needs an actual IAM policy granting an action; the SCP can only take permissions away, never grant them.</p></div>
+        <div class="card"><h4>Best Practice</h4><p>Test new SCPs in a dedicated "sandbox" OU first — an overly broad Deny statement can lock out an entire account, including the ability to fix the SCP itself, if applied directly to production without testing.</p></div>
+      </div>
+    </section>
+
+    <section id="architecture">
+      <h2><span class="num">06</span> Architecture Diagrams</h2>
+      <h3>Layered Guardrail Model</h3>
+      <div class="mermaid-wrap"><div class="mermaid">
+flowchart TB
+  Org[AWS Organization] --> SCP[Service Control Policy<br/>Deny: disable CloudTrail, leave Org, delete log buckets]
+  SCP --> Acct[Any AWS Account e.g. UAT]
+  Acct --> Boundary[Permission Boundary<br/>Max allowed: no IAM/Org actions, no full admin]
+  Boundary --> Role[Lambda Execution Role<br/>Even if AdministratorAccess is attached]
+  Role --> Effective[Effective permissions = Role policy ∩ Boundary]
+      </div></div>
+
+      <h3>Break-Glass Access Flow</h3>
+      <div class="mermaid-wrap"><div class="mermaid">
+sequenceDiagram
+  participant Eng as On-call Engineer
+  participant STS as AWS STS
+  participant BG as Break-Glass Role
+  participant CT as CloudTrail
+  Eng->>STS: AssumeRole (MFA-authenticated session)
+  STS->>BG: Check trust policy: MFA age < 5 min?
+  BG-->>STS: Allowed, 1-hour session
+  STS-->>Eng: Temporary credentials
+  Eng->>CT: Every action logged under BreakGlassSession identity
+  Note over CT: Security team alerted automatically on ANY break-glass assumption
+      </div></div>
+
+      <h3>SCP Attachment Across the Org Structure</h3>
+      <div class="mermaid-wrap"><div class="mermaid">
+flowchart TB
+  Root[Organization Root] --> OU1[OU: Workloads]
+  Root --> OU2[OU: Security/Logging]
+  OU1 --> Dev[Dev Account]
+  OU1 --> Uat[UAT Account]
+  OU1 --> Prod[Prod Account]
+  OU2 --> Logging[Logging Account]
+  Root -. baseline SCP .-> OU1
+  Root -. baseline SCP .-> OU2
+  Prod -. extra prod-only SCP .-> Prod
+      </div></div>
+    </section>
+
+    <section id="solution-design">
+      <h2><span class="num">07</span> Complete Solution Design</h2>
+      <p>Two SCPs are created and attached from the Organizations management account: a <strong>baseline SCP</strong> (applied to every OU) that denies disabling CloudTrail, deleting the centralized log buckets from Project 04, and leaving the Organization; and a <strong>production-only SCP</strong> (applied only to the Prod account) that additionally denies any IAM action outside of a pre-approved set, forcing all Production IAM changes through Terraform rather than console click-ops.</p>
+      <p>Inside every account, a reusable <strong>permission boundary module</strong> creates a managed policy capping any role it's attached to at a safe subset of actions (no <code>iam:*</code>, no <code>organizations:*</code>, no full <code>*:*</code>) — every future project's IAM roles in this series will attach this boundary by convention.</p>
+      <p>Finally, a <strong>break-glass module</strong>, deployed per account, creates one emergency-access IAM role with a strict MFA-age trust condition, a one-hour maximum session, <code>AdministratorAccess</code> attached (deliberately powerful, for genuine emergencies only), and an EventBridge rule + SNS topic that immediately alerts the security team the moment it's assumed.</p>
+    </section>
+
+    <section id="folder-structure">
+      <h2><span class="num">08</span> Folder Structure &amp; Repo Layout</h2>
+      <div class="tree">terraform-abc-bank/
+├── environments/
+│   ├── management/
+│   │   ├── main.tf                     # SCPs created + attached here (Org management account)
+│   │   ├── policies/
+│   │   │   └── baseline-scp.tf         # aws_iam_policy_document for the org-wide guardrail
+│   │   └── outputs.tf
+│   └── prod/  (and dev/, uat/)
+│       └── main.tf                     # calls modules "permission-boundary" and "break-glass"
+└── modules/
+    ├── permission-boundary/
+    │   ├── main.tf
+    │   ├── variables.tf
+    │   └── outputs.tf
+    └── break-glass-role/
+        ├── main.tf
+        ├── variables.tf
+        └── outputs.tf</div>
+    </section>
+
+    <section id="implementation">
+      <h2><span class="num">09</span> Implementation — Full Production Code</h2>
+
+      <h3>environments/management/main.tf — Baseline SCP</h3>
+      <div class="code-block">
+        <div class="code-head"><span>environments/management/main.tf</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre><code>data "aws_iam_policy_document" "baseline_scp" {                  <span class="cmt"># Builds the SCP's JSON from readable HCL blocks instead of raw JSON</span>
+  statement {
+    sid    = "DenyDisableCloudTrail"
+    effect = "Deny"                                               <span class="cmt"># SCPs are almost always Deny statements — they remove permissions, never grant them</span>
+    actions = [
+      "cloudtrail:StopLogging",
+      "cloudtrail:DeleteTrail",
+      "cloudtrail:UpdateTrail",
+    ]
+    resources = ["*"]
+  }
+
+  statement {
+    sid    = "DenyLeaveOrganization"
+    effect = "Deny"
+    actions   = ["organizations:LeaveOrganization"]
+    resources = ["*"]
+  }
+
+  statement {
+    sid    = "DenyDeleteCentralLogBuckets"
+    effect = "Deny"
+    actions = [
+      "s3:DeleteBucket",
+      "s3:PutBucketPolicy",                                        <span class="cmt"># Also blocks silently rewriting the bucket policy to something permissive</span>
+      "s3:PutLifecycleConfiguration",
+    ]
+    resources = [
+      "arn:aws:s3:::abc-bank-central-flow-logs-2026",
+      "arn:aws:s3:::abc-bank-central-flow-logs-2026/*",
+    ]
+
+    condition {
+      test     = "StringNotEquals"                                  <span class="cmt"># Exception: the Logging account itself is still allowed to manage its own bucket</span>
+      variable = "aws:PrincipalAccount"
+      values   = [var.logging_account_id]
+    }
+  }
+}
+
+resource "aws_organizations_policy" "baseline_scp" {
+  name    = "abc-bank-baseline-guardrails"
+  type    = "SERVICE_CONTROL_POLICY"
+  content = data.aws_iam_policy_document.baseline_scp.json           <span class="cmt"># Directly uses the rendered JSON from the data source above</span>
+}
+
+resource "aws_organizations_policy_attachment" "baseline_to_workloads_ou" {
+  policy_id = aws_organizations_policy.baseline_scp.id
+  target_id = var.workloads_ou_id                                    <span class="cmt"># Attached at the OU level so it automatically covers every account inside it</span>
+}
+
+resource "aws_organizations_policy_attachment" "baseline_to_security_ou" {
+  policy_id = aws_organizations_policy.baseline_scp.id
+  target_id = var.security_ou_id
+}</code></pre>
+      </div>
+
+      <h3>modules/permission-boundary/main.tf</h3>
+      <div class="code-block">
+        <div class="code-head"><span>modules/permission-boundary/main.tf</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre><code>data "aws_iam_policy_document" "boundary" {
+  statement {
+    sid       = "AllowMostServices"
+    effect    = "Allow"
+    actions   = ["s3:*", "dynamodb:*", "lambda:*", "logs:*", "sqs:*", "sns:*"]  <span class="cmt"># Deliberately broad ALLOW — the DENY statements below are what actually enforce the boundary</span>
+    resources = ["*"]
+  }
+
+  statement {
+    sid       = "DenyIAMAndOrgActions"                                <span class="cmt"># No role bounded by this policy can ever create/modify IAM or Organizations resources</span>
+    effect    = "Deny"
+    actions   = ["iam:*", "organizations:*", "sts:AssumeRole"]
+    resources = ["*"]
+  }
+
+  statement {
+    sid       = "DenyFullAdmin"
+    effect    = "Deny"
+    actions   = ["*"]
+    resources = ["*"]
+    condition {
+      test     = "StringEquals"
+      variable = "iam:PolicyARN"                                      <span class="cmt"># Explicitly blocks the AdministratorAccess managed policy from ever being effective, even if attached</span>
+      values   = ["arn:aws:iam::aws:policy/AdministratorAccess"]
+    }
+  }
+}
+
+resource "aws_iam_policy" "boundary" {
+  name   = "abc-bank-standard-permission-boundary"
+  policy = data.aws_iam_policy_document.boundary.json
+}</code></pre>
+      </div>
+
+      <h3>modules/permission-boundary/outputs.tf</h3>
+      <div class="code-block">
+        <div class="code-head"><span>modules/permission-boundary/outputs.tf</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre><code>output "boundary_policy_arn" {                                     <span class="cmt"># Every future role's aws_iam_role resource will set permissions_boundary to this ARN</span>
+  value = aws_iam_policy.boundary.arn
+}</code></pre>
+      </div>
+
+      <h3>modules/break-glass-role/variables.tf</h3>
+      <div class="code-block">
+        <div class="code-head"><span>modules/break-glass-role/variables.tf</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre><code>variable "trusted_group_arn" {                                     <span class="cmt"># The on-call IAM group/SSO permission set allowed to assume this role</span>
+  type = string
+}
+
+variable "alert_email" {
+  type = string
+}</code></pre>
+      </div>
+
+      <h3>modules/break-glass-role/main.tf</h3>
+      <div class="code-block">
+        <div class="code-head"><span>modules/break-glass-role/main.tf</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre><code>data "aws_iam_policy_document" "trust" {
+  statement {
+    effect  = "Allow"
+    actions = ["sts:AssumeRole"]
+    principals {
+      type        = "AWS"
+      identifiers = [var.trusted_group_arn]
+    }
+    condition {
+      test     = "NumericLessThan"
+      variable = "aws:MultiFactorAuthAge"                             <span class="cmt"># Requires MFA to have happened within the last 5 minutes (300 seconds) — not just "at some point"</span>
+      values   = ["300"]
+    }
+    condition {
+      test     = "Bool"
+      variable = "aws:MultiFactorAuthPresent"                          <span class="cmt"># Belt-and-braces: also requires MFA to be present on the session at all</span>
+      values   = ["true"]
+    }
+  }
+}
+
+resource "aws_iam_role" "break_glass" {
+  name                 = "break-glass-emergency-access"
+  assume_role_policy   = data.aws_iam_policy_document.trust.json
+  max_session_duration = 3600                                          <span class="cmt"># Hard cap of 1 hour — forces re-authentication for any incident lasting longer</span>
+
+  lifecycle {
+    prevent_destroy = true                                              <span class="cmt"># This role must never be accidentally destroyed by a refactor or careless destroy</span>
+  }
+
+  tags = { Purpose = "emergency-access", RequiresSecurityReview = "true" }
+}
+
+resource "aws_iam_role_policy_attachment" "admin" {                     <span class="cmt"># Deliberately powerful — this IS the point of a break-glass role</span>
+  role       = aws_iam_role.break_glass.name
+  policy_arn = "arn:aws:iam::aws:policy/AdministratorAccess"
+}
+
+resource "aws_cloudwatch_event_rule" "break_glass_used" {                <span class="cmt"># Watches CloudTrail for any AssumeRole event against this specific role</span>
+  name = "break-glass-role-assumed"
+  event_pattern = jsonencode({                                           <span class="cmt"># jsonencode() here — a simple fixed structure, no looping needed, so no templatefile required</span>
+    source      = ["aws.sts"]
+    detail-type = ["AWS API Call via CloudTrail"]
+    detail = {
+      eventName  = ["AssumeRole"]
+      requestParameters = { roleArn = [aws_iam_role.break_glass.arn] }
+    }
+  })
+}
+
+resource "aws_sns_topic" "break_glass_alert" {
+  name = "break-glass-alerts"
+}
+
+resource "aws_sns_topic_subscription" "security_team" {
+  topic_arn = aws_sns_topic.break_glass_alert.arn
+  protocol  = "email"
+  endpoint  = var.alert_email
+}
+
+resource "aws_cloudwatch_event_target" "notify" {
+  rule      = aws_cloudwatch_event_rule.break_glass_used.name
+  arn       = aws_sns_topic.break_glass_alert.arn
+}</code></pre>
+      </div>
+
+      <h3>environments/prod/main.tf (using both modules)</h3>
+      <div class="code-block">
+        <div class="code-head"><span>environments/prod/main.tf (excerpt)</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre><code>module "permission_boundary" {
+  source = "../../modules/permission-boundary"
+}
+
+module "break_glass" {
+  source            = "../../modules/break-glass-role"
+  trusted_group_arn = var.oncall_group_arn
+  alert_email       = "[email protected]"
+}
+
+resource "aws_iam_role" "payments_lambda" {                              <span class="cmt"># Example of a normal application role, now REQUIRED to use the boundary</span>
+  name                 = "payments-api-lambda-role"
+  assume_role_policy    = data.aws_iam_policy_document.lambda_trust.json
+  permissions_boundary  = module.permission_boundary.boundary_policy_arn <span class="cmt"># Even if someone later attaches AdministratorAccess, the boundary caps the effective result</span>
+}</code></pre>
+      </div>
+    </section>
+
+    <section id="code-explained">
+      <h2><span class="num">10</span> Code Explanation Summary</h2>
+      <table>
+        <tr><th>Block / Argument</th><th>What it does</th><th>Common mistake to avoid</th></tr>
+        <tr><td><code>permissions_boundary</code> on <code>aws_iam_role</code></td><td>Sets the maximum permissions envelope for that specific role</td><td>Setting the boundary on the POLICY document instead of the role resource's own argument — it must be set on the role (or user), not embedded in a policy</td></tr>
+        <tr><td><code>aws:MultiFactorAuthAge</code> condition</td><td>Numeric condition checking how many seconds since MFA was verified</td><td>Using only <code>aws:MultiFactorAuthPresent</code> alone — that only checks MFA is present on the session, not how recently, so a session from hours ago would still pass</td></tr>
+        <tr><td><code>lifecycle { prevent_destroy = true }</code></td><td>Blocks Terraform from ever destroying this specific resource</td><td>Forgetting this also blocks legitimate renames (destroy+recreate) — plan carefully before ever renaming a resource protected this way</td></tr>
+        <tr><td>SCP <code>DenyFullAdmin</code> statement's condition on <code>iam:PolicyARN</code></td><td>Denies any action when the specific AdministratorAccess managed policy is the one being evaluated</td><td>Assuming a Deny on <code>iam:AttachRolePolicy</code> alone would be enough — that would stop attaching it going forward, but wouldn't neutralize policies already attached before the SCP existed; the boundary's runtime Deny is what covers both cases</td></tr>
+      </table>
+    </section>
+
+    <section id="execution-flow">
+      <h2><span class="num">11</span> Execution Flow, Explained Internally</h2>
+      <div class="card-grid">
+        <div class="card"><h4>terraform plan (management account)</h4><p>Shows the SCP's rendered JSON from the <code>aws_iam_policy_document</code> data source as part of the plan — always read this JSON carefully in the PR review; an overly broad Deny here can lock out an entire OU.</p></div>
+        <div class="card"><h4>terraform apply (permission boundary)</h4><p>Creates the boundary policy as a standalone resource with no dependents yet — it only takes effect on a role once that role's own resource sets <code>permissions_boundary</code> to point at it.</p></div>
+        <div class="card"><h4>terraform destroy (break-glass module)</h4><p>Fails immediately on the <code>aws_iam_role.break_glass</code> resource due to <code>prevent_destroy</code> — Terraform prints an explicit error rather than silently skipping or force-destroying it.</p></div>
+      </div>
+      <div class="warn">Always test a new or modified SCP against a sandbox OU first. An SCP is enforced immediately upon attachment — if it accidentally denies the Organizations or IAM actions needed to fix itself, recovery requires management-account-level intervention outside of Terraform.</div>
+    </section>
+
+    <section id="cicd">
+      <h2><span class="num">12</span> CI/CD Integration</h2>
+      <div class="code-block">
+        <div class="code-head"><span>.github/workflows/terraform-iam-guardrails.yml</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre><code>name: terraform-iam-guardrails
+on:
+  pull_request:
+    paths: ["environments/management/**", "modules/permission-boundary/**", "modules/break-glass-role/**"]
+
+jobs:
+  plan-and-review:
+    runs-on: ubuntu-latest
+    defaults: { run: { working-directory: environments/management } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+      - run: terraform init
+      - run: terraform validate
+      - name: Plan
+        run: terraform plan -no-color | tee plan-output.txt
+      - name: Post plan as PR comment
+        uses: actions/github-script@v7                                  <span class="cmt"># Posts the SCP's rendered JSON as a PR comment so reviewers see the EXACT policy before merge</span>
+        with:
+          script: |
+            const fs = require('fs');
+            const plan = fs.readFileSync('plan-output.txt', 'utf8');
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: "```\n" + plan.slice(0, 60000) + "\n```"
+            });</code></pre>
+      </div>
+      <div class="best">Never auto-apply changes to SCPs or permission boundaries from CI/CD — require a second human reviewer (in addition to the PR author) specifically for any file under <code>environments/management/</code> or the permission boundary module.</div>
+    </section>
+
+    <section id="local-lab">
+      <h2><span class="num">13</span> Local Lab — Practice This Yourself</h2>
+      <h3>Prerequisites</h3>
+      <ul>
+        <li>An AWS Organization with at least a sandbox OU separate from any account holding real workloads</li>
+        <li>MFA enabled on your own IAM user/SSO identity, to test the break-glass trust condition realistically</li>
+      </ul>
+      <h3>Commands</h3>
+      <div class="code-block">
+        <div class="code-head"><span>terminal</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre><code>cd environments/management
+terraform init
+terraform plan     <span class="cmt"># Read the rendered SCP JSON output carefully before applying to any real OU</span>
+terraform apply</code></pre>
+      </div>
+      <h3>Expected output</h3>
+      <p>Attempting to disable CloudTrail manually in a test account under the guardrailed OU should fail with an <code>AccessDenied</code> error citing the SCP explicitly — confirming the org-wide guardrail, not just an IAM policy, is what's blocking it.</p>
+      <h3>Troubleshooting</h3>
+      <table>
+        <tr><th>Symptom</th><th>Likely cause</th></tr>
+        <tr><td>Legitimate actions suddenly denied after applying the SCP</td><td>An overly broad <code>Deny</code> statement — always test against a sandbox OU first, and scope Deny statements as narrowly as possible</td></tr>
+        <tr><td>Break-glass role assumption fails even with MFA</td><td>Session's MFA age exceeds 300 seconds — re-authenticate immediately before assuming the role, the condition is intentionally strict</td></tr>
+      </table>
+      <h3>Assignments</h3>
+      <ol>
+        <li>Add a second SCP statement denying <code>ec2:TerminateInstances</code> in the Production OU outside a defined maintenance window, using a date/time condition.</li>
+        <li>Extend the permission boundary to allow a narrowly-scoped exception for a specific, pre-approved IAM action your platform team needs day-to-day.</li>
+      </ol>
+      <h3>Challenge Task</h3>
+      <p>Add a scheduled AWS Config rule that automatically flags any IAM role created without a <code>permissions_boundary</code> set, feeding into the Security team's dashboard — a detective control that complements today's preventive ones.</p>
+    </section>
+
+    <section id="interview">
+      <h2><span class="num">14</span> Interview Preparation</h2>
+      <div class="qa"><div class="q">Q: What's the practical difference between an SCP and a permission boundary?</div><div>An SCP is an org-wide ceiling enforced by AWS Organizations across every principal in an account, including its root user; a permission boundary is attached to one specific IAM role or user and caps only that identity — you typically need both for full-depth defense.</div></div>
+      <div class="qa"><div class="q">Q: If a role has AdministratorAccess attached AND a permission boundary, what happens?</div><div>The role's effective permissions are the intersection of the attached policy and the boundary — AdministratorAccess grants everything, but the boundary's Deny statements still remove whatever it explicitly denies, regardless of what's attached.</div></div>
+      <div class="qa"><div class="q">Q: Why require aws:MultiFactorAuthAge instead of just aws:MultiFactorAuthPresent for break-glass access?</div><div>MultiFactorAuthPresent only proves MFA happened at some point in the session's lifetime; MultiFactorAuthAge lets you require it happened recently, preventing a long-lived session token from being used for emergency access long after the original MFA check.</div></div>
+      <div class="qa"><div class="q">Q: Why use prevent_destroy on the break-glass role but not on every resource?</div><div>It's reserved for genuinely high-blast-radius or hard-to-recreate resources; applying it broadly makes routine refactors (which Terraform often implements as destroy+recreate) unnecessarily painful across the whole codebase.</div></div>
+      <div class="qa"><div class="q">Manager round: How would you safely roll out a new, stricter SCP across the whole Organization?</div><div>Attach it to a sandbox OU first, verify expected behavior with real test accounts, then roll it out to lower-risk OUs (Dev/UAT) before Production, watching for unexpected AccessDenied errors at each stage.</div></div>
+    </section>
+
+    <div class="nextbar" id="next">
+      <h3>What's next</h3>
+      <p>Project 06 builds <strong>Secrets Manager Automation</strong> — rotating database credentials automatically, cross-account secret sharing via resource policies, and wiring secrets into the Lambda role we scoped with a permission boundary today. Tell me when you're ready for Project 06.</p>
+    </div>
+
+  </main>
+</div>
+
+<script>
+  mermaid.initialize({ startOnLoad: true, theme: 'base', themeVariables: {
+    primaryColor: '#ede9fe', primaryTextColor: '#4c1d95', primaryBorderColor: '#8b5cf6',
+    lineColor: '#8b5cf6', secondaryColor: '#f7f5fc', tertiaryColor: '#ffffff', fontFamily: 'Inter, sans-serif'
+  }});
+  function copyCode(btn){
+    const pre = btn.closest('.code-block').querySelector('pre');
+    const text = pre.innerText;
+    navigator.clipboard.writeText(text).then(()=>{
+      const original = btn.textContent;
+      btn.textContent = 'Copied!';
+      setTimeout(()=>{ btn.textContent = original; }, 1500);
+    });
+  }
+  const sections = document.querySelectorAll('section, .nextbar');
+  const links = document.querySelectorAll('#navlinks a');
+  const observer = new IntersectionObserver((entries)=>{
+    entries.forEach(entry=>{
+      if(entry.isIntersecting){
+        links.forEach(l=>l.classList.remove('active'));
+        const id = entry.target.getAttribute('id');
+        const match = document.querySelector(`#navlinks a[href="#${id}"]`);
+        if(match) match.classList.add('active');
+      }
+    });
+  }, { rootMargin: '-20% 0px -70% 0px' });
+  sections.forEach(s=>observer.observe(s));
+</script>
+</body>
+</html>

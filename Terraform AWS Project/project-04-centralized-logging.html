@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Project 04 — Centralized Logging Infrastructure | ABC Bank Terraform Mastery</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/10.9.0/mermaid.min.js"></script>
+<style>
+  :root{
+    --bg:#ffffff; --surface:#f7f5fc; --surface-2:#efeaf9; --border:#e3ddf4;
+    --primary:#6d28d9; --primary-dark:#4c1d95; --primary-light:#8b5cf6;
+    --accent-soft:#ede9fe; --text:#211b32; --muted:#6b6480;
+    --code-bg:#2b2140; --code-text:#e9e3fb;
+    --good:#0f7b52; --warn:#a8630a; --danger:#b3261e;
+    --radius:14px; --shadow:0 4px 20px rgba(109,40,217,0.08);
+  }
+  *{box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;font-size:16px;line-height:1.65;}
+  h1,h2,h3,h4{font-family:'Space Grotesk',sans-serif;color:var(--primary-dark);letter-spacing:-0.01em;}
+  a{color:var(--primary);}
+  .layout{display:flex;min-height:100vh;}
+  #sidebar{width:290px;flex-shrink:0;background:linear-gradient(180deg,var(--primary-dark),var(--primary));color:#f2edff;position:sticky;top:0;height:100vh;overflow-y:auto;padding:22px 18px 40px;}
+  #sidebar .brand{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:1.05rem;color:#fff;margin-bottom:4px;}
+  #sidebar .brand-sub{font-size:0.78rem;color:#d9cbff;margin-bottom:22px;display:block;}
+  #sidebar .progress-pill{display:inline-block;background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.25);border-radius:999px;padding:4px 12px;font-size:0.72rem;margin-bottom:20px;color:#fff;}
+  #sidebar nav a{display:block;color:#e6dcff;text-decoration:none;font-size:0.85rem;padding:7px 10px;border-radius:8px;margin-bottom:2px;transition:background .15s ease, color .15s ease;}
+  #sidebar nav a:hover{background:rgba(255,255,255,0.14);color:#fff;}
+  #sidebar nav a.active{background:#fff;color:var(--primary-dark);font-weight:600;}
+  #sidebar .nav-group-label{text-transform:uppercase;font-size:0.68rem;letter-spacing:0.08em;color:#c8b6f7;margin:18px 0 6px 10px;}
+  #content{flex:1;min-width:0;padding:44px 56px 120px;max-width:980px;}
+  .kicker{display:inline-block;background:var(--accent-soft);color:var(--primary-dark);font-size:0.75rem;font-weight:600;padding:5px 12px;border-radius:999px;margin-bottom:14px;letter-spacing:0.03em;}
+  header.hero{padding-bottom:28px;border-bottom:1px solid var(--border);margin-bottom:34px;}
+  header.hero h1{font-size:2.1rem;margin:0 0 10px;}
+  header.hero p.lead{font-size:1.05rem;color:var(--muted);max-width:70ch;}
+  section{margin-bottom:52px;scroll-margin-top:20px;}
+  section h2{font-size:1.4rem;display:flex;align-items:center;gap:10px;border-bottom:2px solid var(--surface-2);padding-bottom:10px;margin-bottom:18px;}
+  section h2 .num{background:var(--primary);color:#fff;font-size:0.75rem;font-family:'JetBrains Mono',monospace;padding:3px 8px;border-radius:6px;}
+  section h3{font-size:1.08rem;margin-top:26px;color:var(--primary);}
+  .story-box{background:var(--surface);border-left:4px solid var(--primary);border-radius:10px;padding:20px 22px;font-size:0.98rem;}
+  .story-box em{color:var(--muted);}
+  .card-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:18px 0;}
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px;}
+  .card h4{margin:0 0 8px;font-size:0.92rem;color:var(--primary-dark);}
+  .card p, .card ul{margin:0;font-size:0.9rem;color:var(--text);}
+  .card ul{padding-left:18px;}
+  .note, .warn, .best{border-radius:10px;padding:14px 16px;margin:16px 0;font-size:0.92rem;border:1px solid transparent;}
+  .note{background:#eef2ff;border-color:#c7d2fe;}
+  .note::before{content:"📝 Note";display:block;font-weight:700;margin-bottom:4px;color:#3730a3;}
+  .warn{background:#fff7ed;border-color:#fed7aa;}
+  .warn::before{content:"⚠️ Watch out";display:block;font-weight:700;margin-bottom:4px;color:var(--warn);}
+  .best{background:#ecfdf5;border-color:#a7f3d0;}
+  .best::before{content:"✅ Best Practice";display:block;font-weight:700;margin-bottom:4px;color:var(--good);}
+  details.collapse{border:1px solid var(--border);border-radius:var(--radius);margin:14px 0;background:#fff;box-shadow:var(--shadow);overflow:hidden;}
+  details.collapse summary{cursor:pointer;padding:14px 18px;font-weight:600;font-family:'Space Grotesk',sans-serif;color:var(--primary-dark);background:var(--surface);list-style:none;}
+  details.collapse summary::-webkit-details-marker{display:none;}
+  details.collapse summary::before{content:"▸ ";color:var(--primary);}
+  details.collapse[open] summary::before{content:"▾ ";}
+  details.collapse .inner{padding:16px 20px;}
+  table{width:100%;border-collapse:collapse;margin:14px 0;font-size:0.9rem;}
+  th,td{border:1px solid var(--border);padding:8px 10px;text-align:left;}
+  th{background:var(--surface-2);color:var(--primary-dark);}
+  .code-block{position:relative;margin:14px 0;border-radius:12px;overflow:hidden;border:1px solid #3b2c5e;}
+  .code-block .code-head{background:#231a38;color:#cbb8f5;font-family:'JetBrains Mono',monospace;font-size:0.78rem;padding:8px 14px;display:flex;justify-content:space-between;align-items:center;}
+  .code-block pre{margin:0;background:var(--code-bg);color:var(--code-text);padding:16px;overflow-x:auto;font-family:'JetBrains Mono',monospace;font-size:0.83rem;line-height:1.55;}
+  .code-block .copy-btn{background:var(--primary);color:#fff;border:none;border-radius:6px;font-size:0.72rem;padding:4px 10px;cursor:pointer;font-family:'Inter',sans-serif;}
+  .code-block .copy-btn:hover{background:var(--primary-light);}
+  .cmt{color:#8ee6a3;}
+  .mermaid-wrap{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:18px;margin:16px 0;overflow-x:auto;}
+  .tree{font-family:'JetBrains Mono',monospace;font-size:0.83rem;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px;white-space:pre;overflow-x:auto;}
+  .qa{border-top:1px solid var(--border);padding:12px 0;}
+  .qa .q{font-weight:600;color:var(--primary-dark);margin-bottom:4px;}
+  .nextbar{background:linear-gradient(135deg,var(--primary),var(--primary-dark));color:#fff;border-radius:16px;padding:26px 30px;margin-top:40px;}
+  .nextbar h3{color:#fff;margin-top:0;}
+  .nextbar p{color:#e6dcff;margin-bottom:0;}
+  @media (max-width:900px){.layout{flex-direction:column;}#sidebar{position:relative;width:100%;height:auto;}#content{padding:30px 20px 80px;}.card-grid{grid-template-columns:1fr;}}
+</style>
+</head>
+<body>
+<div class="layout">
+
+  <aside id="sidebar">
+    <span class="brand">🏦 ABC Bank — DevOps Mastery</span>
+    <span class="brand-sub">Intermediate → Advanced Terraform Track</span>
+    <span class="progress-pill">Project 04 / 40</span>
+    <nav id="navlinks">
+      <div class="nav-group-label">Orientation</div>
+      <a href="#story">The Banking Story</a>
+      <a href="#requirements">Business &amp; Risk</a>
+      <a href="#why-iac">Why Centralized Logging</a>
+      <div class="nav-group-label">Concepts</div>
+      <a href="#tf-concepts">Terraform Concepts</a>
+      <a href="#aws-concepts">AWS Concepts (CloudTrail, S3, KMS)</a>
+      <div class="nav-group-label">Design</div>
+      <a href="#architecture">Architecture Diagrams</a>
+      <a href="#solution-design">Solution Design</a>
+      <div class="nav-group-label">Build</div>
+      <a href="#folder-structure">Folder &amp; Repo Structure</a>
+      <a href="#implementation">Implementation (Full Code)</a>
+      <a href="#code-explained">Line-by-Line Explanation</a>
+      <div class="nav-group-label">Operate</div>
+      <a href="#execution-flow">Execution Flow</a>
+      <a href="#cicd">CI/CD Integration</a>
+      <a href="#local-lab">Local Lab &amp; Assignments</a>
+      <a href="#interview">Interview Preparation</a>
+      <a href="#next">What's Next</a>
+    </nav>
+  </aside>
+
+  <main id="content">
+    <header class="hero">
+      <span class="kicker">PROJECT 04 OF 40 · INTERMEDIATE</span>
+      <h1>Centralized Logging Infrastructure Across Every Account</h1>
+      <p class="lead">The network hub is live. Now we build its audit counterpart: one tamper-resistant logging account that every other account is required to ship CloudTrail, VPC Flow Logs, and application logs into — using cross-account IAM roles and templated bucket policies instead of another RAM share.</p>
+    </header>
+
+    <section id="story">
+      <h2><span class="num">01</span> The Banking Story</h2>
+      <div class="story-box">
+        A routine internal audit just asked a question nobody on the team could answer quickly: <em>"Show us every IAM policy change made in the Production account over the last 90 days."</em> The answer exists — CloudTrail is technically enabled in every account — but each account's trail writes to a local S3 bucket that any admin in that same account can also read, modify the bucket policy of, or even delete. That fails the auditor's very first test: logs must be stored somewhere the people being logged cannot tamper with.<br><br>
+        Our manager's assignment: <em>"Build one dedicated Logging account. Every other account's CloudTrail, VPC Flow Logs, and application logs get shipped there automatically, the moment the account is created — and nobody in Dev, UAT, Prod, or Shared Services should have the permissions to alter or delete a log once it lands."</em>
+      </div>
+    </section>
+
+    <section id="requirements">
+      <h2><span class="num">02</span> Business Requirement, Risk &amp; Impact</h2>
+      <div class="card-grid">
+        <div class="card"><h4>Business Requirement</h4><p>Every account's audit trail must be centrally stored, immutable once written, and queryable across the whole estate for a single audit request.</p></div>
+        <div class="card"><h4>Customer Requirement</h4><p>The bank's Security and Compliance team needs one place to search logs, not four separate accounts with four separate access requests.</p></div>
+        <div class="card"><h4>Current Infrastructure</h4><p>CloudTrail enabled per-account, writing to a local bucket in that same account, readable and modifiable by that account's own administrators.</p></div>
+        <div class="card"><h4>Existing Manual Process</h4><p>An auditor's request today means separately logging into four accounts, exporting CloudTrail data from each, and manually merging it — slow, and each export is only as trustworthy as that account's own admins.</p></div>
+        <div class="card"><h4>Problems With Current Process</h4><ul><li>Local admins can delete or alter their own account's trail — a serious tamper risk in a banking context</li><li>No unified view across accounts for incident investigation</li><li>Retention policy is set per-account, inconsistently</li></ul></div>
+        <div class="card"><h4>Business Challenges</h4><p>Financial regulators require audit logs to be immutable and centrally retained for a defined period (commonly 7 years for banking) — a per-account bucket an admin can delete does not meet that bar.</p></div>
+        <div class="card"><h4>Risk Analysis</h4><p><strong>High:</strong> a malicious or compromised admin in any single account could currently delete the evidence of their own actions — a direct regulatory and fraud-detection risk.</p></div>
+        <div class="card"><h4>Business Impact</h4><p>Failing this exact control in a regulatory audit can result in formal findings, fines, and mandated remediation timelines for a bank.</p></div>
+      </div>
+    </section>
+
+    <section id="why-iac">
+      <h2><span class="num">03</span> Why a Dedicated Logging Account, and What We Rejected</h2>
+      <h3>Why a separate AWS account for logging</h3>
+      <p>Account-level isolation is the strongest boundary AWS offers. An admin with full permissions in the Production account still has <em>zero</em> permissions in the Logging account by default — so even a fully compromised Production account cannot reach in and delete its own historical logs.</p>
+      <h3>Alternatives considered, and why they were rejected</h3>
+      <table>
+        <tr><th>Alternative</th><th>Why considered</th><th>Why rejected for ABC Bank</th></tr>
+        <tr><td>One S3 bucket per account, with stricter IAM policies</td><td>No new account to provision or maintain</td><td>The account's own root/admin credentials can still eventually change the bucket policy — account isolation is the only boundary that credential compromise in that account cannot cross</td></tr>
+        <tr><td>Third-party SIEM as the log store of record</td><td>Rich search and alerting out of the box</td><td>Good as a downstream consumer, but the bank still needs an AWS-native, immutable source of truth as the primary audit record — we'll integrate a SIEM as a later project that reads FROM this bucket</td></tr>
+        <tr><td>AWS Control Tower's built-in log archive</td><td>Purpose-built for exactly this pattern</td><td>ABC Bank hasn't adopted Control Tower yet (that's a later "Enterprise Landing Zone" project) — we build the pattern manually first so the team understands what Control Tower would automate</td></tr>
+      </table>
+    </section>
+
+    <section id="tf-concepts">
+      <h2><span class="num">04</span> Terraform Concepts You Must Understand Before We Build</h2>
+
+      <details class="collapse" open>
+        <summary>Cross-Account IAM Roles (AssumeRole)</summary>
+        <div class="inner">
+          <p><strong>What it is:</strong> an IAM role in the Logging account with a trust policy that names specific other accounts as allowed to assume it, plus a separate role in each spoke account that CloudTrail/Flow Logs uses to write into the Logging account's bucket.</p>
+          <p><strong>Why it exists:</strong> cross-account writes to S3 need explicit permission on <em>both</em> sides — the writer needs permission to write, and the bucket owner needs to explicitly allow that specific external account to do so. Neither side alone is sufficient.</p>
+          <p><strong>Production example:</strong> the Logging account's bucket policy allows the <code>cloudtrail.amazonaws.com</code> service principal <em>from a specific source account</em> to write objects, using a condition on <code>aws:SourceArn</code> so no other account's CloudTrail can write there even if it tried.</p>
+          <p><strong>Common mistake:</strong> writing a bucket policy that trusts "any CloudTrail, from anywhere" instead of scoping it to specific known account IDs — this would let an unrelated AWS account's CloudTrail write into your bucket if they happened to target it.</p>
+        </div>
+      </details>
+
+      <details class="collapse">
+        <summary>Template Files (<code>templatefile</code> function)</summary>
+        <div class="inner">
+          <p><strong>What it is:</strong> the <code>templatefile()</code> function renders an external <code>.tpl</code> file (usually a JSON IAM policy) as a string, substituting in variables — instead of writing enormous inline JSON blocks inside <code>main.tf</code>.</p>
+          <p><strong>Why it exists:</strong> the bucket policy in this project must list a dynamic set of source account IDs and ARNs. Writing that as a raw inline string is unreadable and error-prone to escape correctly; a template file keeps the JSON structure separate from the Terraform logic that fills it in.</p>
+          <p><strong>Production example:</strong> <code>templatefile("${path.module}/policies/logging-bucket-policy.json.tpl", { account_ids = var.spoke_account_ids, bucket_arn = aws_s3_bucket.logs.arn })</code> renders the same policy shape for as many accounts as are passed in.</p>
+          <p><strong>Alternative approach:</strong> Terraform's <code>aws_iam_policy_document</code> data source builds the same JSON without a separate file, using native HCL blocks — a good alternative when the policy doesn't need heavy templating logic; we compare both approaches below.</p>
+        </div>
+      </details>
+
+      <details class="collapse">
+        <summary>Terraform Functions Used in This Project</summary>
+        <div class="inner">
+          <p><strong>jsonencode():</strong> converts an HCL map/list directly into a JSON string — useful for simpler policies that don't need a separate template file.</p>
+          <p><strong>formatdate():</strong> used to compute a human-readable lifecycle transition label in tags, from a base timestamp.</p>
+          <p><strong>concat() and distinct():</strong> combine and de-duplicate the list of source account IDs gathered from multiple environments before rendering the bucket policy template.</p>
+        </div>
+      </details>
+    </section>
+
+    <section id="aws-concepts">
+      <h2><span class="num">05</span> AWS Concepts: CloudTrail, Centralized S3, and KMS</h2>
+      <div class="card-grid">
+        <div class="card"><h4>What is an Organization Trail</h4><p>A single CloudTrail trail, created once in the AWS Organization's management account, that automatically applies to and logs every member account — including future accounts created later, with zero per-account setup.</p></div>
+        <div class="card"><h4>Why it exists</h4><p>It removes the risk of a spoke account's admin disabling their own local trail — an organization trail cannot be disabled or altered from a member account at all.</p></div>
+        <div class="card"><h4>S3 Object Lock (Compliance Mode)</h4><p>Once enabled, Object Lock in Compliance mode prevents an object from being deleted or overwritten by <em>any</em> principal, including the AWS account root user, until the retention period expires — the true "immutability" a banking audit requires.</p></div>
+        <div class="card"><h4>KMS Cross-Account Key Policy</h4><p>The Logging account's KMS key (used to encrypt log objects) needs a key policy that explicitly grants spoke accounts' CloudTrail/Flow Logs roles permission to <code>Encrypt</code>, separate from the S3 bucket policy that grants <code>PutObject</code> — both layers must independently allow the write.</p></div>
+        <div class="card"><h4>High Availability</h4><p>S3 and CloudTrail are both regional-redundant by default; the Logging bucket itself needs no multi-AZ configuration to achieve this.</p></div>
+        <div class="card"><h4>Pricing</h4><p>CloudTrail management events are free for the first copy in an org trail; data events (e.g. S3 object-level logging) and storage/retention over years are the main ongoing costs to monitor.</p></div>
+        <div class="card"><h4>Limitations</h4><p>Object Lock must be enabled at bucket <em>creation</em> time — it cannot be turned on for an existing bucket, which is why this project creates the Logging bucket fresh with Object Lock specified up front.</p></div>
+        <div class="card"><h4>Best Practice</h4><p>Separate the CloudTrail log bucket from the VPC Flow Logs and application log buckets — different retention and access patterns, and it limits blast radius if one bucket's policy is ever misconfigured.</p></div>
+      </div>
+    </section>
+
+    <section id="architecture">
+      <h2><span class="num">06</span> Architecture Diagrams</h2>
+      <h3>Centralized Logging Flow</h3>
+      <div class="mermaid-wrap"><div class="mermaid">
+flowchart TB
+  Org[AWS Organization Trail] --> LB[(Logging Account<br/>S3 Bucket: cloudtrail-logs<br/>Object Lock: Compliance)]
+  DevVPC[Dev VPC Flow Logs] -->|cross-account IAM role| FB[(Logging Account<br/>S3 Bucket: flow-logs)]
+  UatVPC[UAT VPC Flow Logs] -->|cross-account IAM role| FB
+  ProdVPC[Prod VPC Flow Logs] -->|cross-account IAM role| FB
+  LB --> KMS[(Logging Account KMS Key)]
+  FB --> KMS
+  KMS -.cross-account key policy.-> DevVPC
+  KMS -.cross-account key policy.-> ProdVPC
+      </div></div>
+
+      <h3>Cross-Account Write Permission — Two Layers</h3>
+      <div class="mermaid-wrap"><div class="mermaid">
+sequenceDiagram
+  participant Prod as Prod Account (Flow Logs)
+  participant KMS as Logging Account KMS Key
+  participant S3 as Logging Account S3 Bucket
+  Prod->>KMS: Request Encrypt permission (key policy check)
+  KMS-->>Prod: Allowed (Prod account ID is trusted principal)
+  Prod->>S3: PutObject (bucket policy check)
+  S3-->>Prod: Allowed (Prod account ID + SourceArn condition matched)
+  Note over S3: Object Lock Compliance mode applied — cannot be deleted early by anyone
+      </div></div>
+
+      <h3>Template Rendering Flow</h3>
+      <div class="mermaid-wrap"><div class="mermaid">
+flowchart LR
+  Vars[variables.tf<br/>spoke_account_ids] --> TF[templatefile function]
+  Tpl[policies/logging-bucket-policy.json.tpl] --> TF
+  TF --> Rendered[Rendered JSON string]
+  Rendered --> BucketPolicy[aws_s3_bucket_policy resource]
+      </div></div>
+    </section>
+
+    <section id="solution-design">
+      <h2><span class="num">07</span> Complete Solution Design</h2>
+      <p>A new <strong>Logging</strong> AWS account hosts two S3 buckets (CloudTrail logs, VPC Flow Logs) and one KMS key, all created by a dedicated root module. An AWS Organizations-level trail (configured from the management account, referencing the Logging account's bucket) captures every account's API activity automatically. Each spoke account's Project 02 VPC gets Flow Logs enabled, targeting the Logging account's Flow Logs bucket via a cross-account IAM role.</p>
+      <ul>
+        <li><strong>Logging account module:</strong> KMS key with a templated cross-account key policy, CloudTrail bucket with Object Lock (Compliance, 7-year retention), Flow Logs bucket with Object Lock (Compliance, 1-year retention), bucket policies rendered via <code>templatefile()</code>.</li>
+        <li><strong>Management account resource:</strong> a single <code>aws_cloudtrail</code> resource with <code>is_organization_trail = true</code>, pointing at the Logging account's bucket.</li>
+        <li><strong>Spoke account module:</strong> <code>aws_flow_log</code> resource per VPC (reusing subnet/VPC IDs from Project 02), targeting the Logging account's S3 bucket with an IAM role scoped only to write flow log objects.</li>
+      </ul>
+    </section>
+
+    <section id="folder-structure">
+      <h2><span class="num">08</span> Folder Structure &amp; Repo Layout</h2>
+      <div class="tree">terraform-abc-bank/
+├── environments/
+│   ├── logging/
+│   │   ├── backend.tf                     # key = "security/logging/terraform.tfstate"
+│   │   ├── providers.tf
+│   │   ├── variables.tf
+│   │   ├── terraform.tfvars
+│   │   ├── main.tf
+│   │   ├── outputs.tf
+│   │   └── policies/
+│   │       ├── cloudtrail-bucket-policy.json.tpl
+│   │       ├── flow-logs-bucket-policy.json.tpl
+│   │       └── kms-key-policy.json.tpl
+│   ├── management/
+│   │   └── main.tf                        # aws_cloudtrail organization trail (run in the Org management account)
+│   └── dev/  (uat/, prod/, shared-services/ follow the same pattern)
+│       └── main.tf                        # adds module "flow_logs" call, referencing Project 02's VPC outputs
+└── modules/
+    └── vpc-flow-logs/
+        ├── variables.tf
+        ├── main.tf
+        └── outputs.tf</div>
+    </section>
+
+    <section id="implementation">
+      <h2><span class="num">09</span> Implementation — Full Production Code</h2>
+
+      <h3>environments/logging/policies/flow-logs-bucket-policy.json.tpl</h3>
+      <div class="code-block">
+        <div class="code-head"><span>policies/flow-logs-bucket-policy.json.tpl</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre><code>{
+  "Version": "2012-10-17",
+  "Statement": [
+    %{ for account_id in account_ids ~}                        <span class="cmt">// templatefile directive: loops once per account ID passed in</span>
+    {
+      "Sid": "AllowFlowLogsWrite-${account_id}",
+      "Effect": "Allow",
+      "Principal": { "Service": "delivery.logs.amazonaws.com" },
+      "Action": "s3:PutObject",
+      "Resource": "${bucket_arn}/AWSLogs/${account_id}/*",       <span class="cmt">// Interpolates BOTH the loop variable and an outer variable</span>
+      "Condition": {
+        "StringEquals": { "aws:SourceAccount": "${account_id}" }
+      }
+    }%{ if account_id != account_ids[length(account_ids) - 1] },%{ endif }
+    %{ endfor ~}
+  ]
+}</code></pre>
+      </div>
+
+      <h3>environments/logging/main.tf</h3>
+      <div class="code-block">
+        <div class="code-head"><span>environments/logging/main.tf</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre><code>resource "aws_kms_key" "logs" {                              <span class="cmt"># One shared key encrypts both log buckets in this account</span>
+  description             = "ABC Bank centralized logging KMS key"
+  deletion_window_in_days = 30                                 <span class="cmt"># Long window — accidental deletion of this key would make all past logs unreadable</span>
+  policy                  = templatefile("${path.module}/policies/kms-key-policy.json.tpl", {
+    spoke_account_ids = var.spoke_account_ids                  <span class="cmt"># Renders one Allow statement per spoke account, same pattern as the bucket policy</span>
+    logging_account_id = data.aws_caller_identity.current.account_id
+  })
+}
+
+resource "aws_s3_bucket" "flow_logs" {
+  bucket = "abc-bank-central-flow-logs-2026"
+}
+
+resource "aws_s3_bucket_versioning" "flow_logs" {
+  bucket = aws_s3_bucket.flow_logs.id
+  versioning_configuration { status = "Enabled" }               <span class="cmt"># Required precondition before Object Lock can be configured</span>
+}
+
+resource "aws_s3_bucket_object_lock_configuration" "flow_logs" {  <span class="cmt"># Makes every object written here immutable for the retention period</span>
+  bucket = aws_s3_bucket.flow_logs.id
+  rule {
+    default_retention {
+      mode = "COMPLIANCE"                                        <span class="cmt"># COMPLIANCE = cannot be shortened or deleted early by ANY principal, including root</span>
+      days = 365
+    }
+  }
+}
+
+resource "aws_s3_bucket_policy" "flow_logs" {                    <span class="cmt"># Applies the rendered template as the bucket's actual policy</span>
+  bucket = aws_s3_bucket.flow_logs.id
+  policy = templatefile("${path.module}/policies/flow-logs-bucket-policy.json.tpl", {
+    account_ids = var.spoke_account_ids
+    bucket_arn  = aws_s3_bucket.flow_logs.arn
+  })
+}
+
+data "aws_caller_identity" "current" {}                          <span class="cmt"># Reads the current (Logging) account's own ID, used inside the KMS key policy template</span></code></pre>
+      </div>
+
+      <h3>modules/vpc-flow-logs/variables.tf</h3>
+      <div class="code-block">
+        <div class="code-head"><span>modules/vpc-flow-logs/variables.tf</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre><code>variable "vpc_id" {
+  type = string
+}
+
+variable "central_log_bucket_arn" {                              <span class="cmt"># The Logging account's flow-logs bucket ARN, passed via terraform_remote_state</span>
+  type = string
+}
+
+variable "traffic_type" {                                        <span class="cmt"># ACCEPT, REJECT, or ALL — banking security teams typically want ALL for full visibility</span>
+  type    = string
+  default = "ALL"
+}</code></pre>
+      </div>
+
+      <h3>modules/vpc-flow-logs/main.tf</h3>
+      <div class="code-block">
+        <div class="code-head"><span>modules/vpc-flow-logs/main.tf</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre><code>resource "aws_flow_log" "this" {
+  vpc_id               = var.vpc_id
+  traffic_type         = var.traffic_type
+  log_destination_type = "s3"                                     <span class="cmt"># Writes directly to S3 rather than CloudWatch Logs — cheaper at this log volume</span>
+  log_destination       = var.central_log_bucket_arn               <span class="cmt"># Points cross-account at the Logging account's bucket — no IAM role needed for the S3 destination type</span>
+
+  destination_options {
+    file_format        = "parquet"                                 <span class="cmt"># Columnar format — far cheaper and faster to query later with Athena than plain text</span>
+    per_hour_partition = true                                       <span class="cmt"># Partitions objects by hour, keeping Athena query scans small and cheap</span>
+  }
+
+  tags = { Name = "vpc-flow-logs-${var.vpc_id}" }
+}</code></pre>
+      </div>
+
+      <h3>modules/vpc-flow-logs/outputs.tf</h3>
+      <div class="code-block">
+        <div class="code-head"><span>modules/vpc-flow-logs/outputs.tf</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre><code>output "flow_log_id" {
+  value = aws_flow_log.this.id
+}</code></pre>
+      </div>
+
+      <h3>environments/prod/main.tf (calling the module)</h3>
+      <div class="code-block">
+        <div class="code-head"><span>environments/prod/main.tf (excerpt)</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre><code>data "terraform_remote_state" "logging" {                        <span class="cmt"># Same remote-state pattern introduced in Project 03, reused here for a different hub</span>
+  backend = "s3"
+  config = {
+    bucket = "abc-bank-terraform-state-2026"
+    key    = "security/logging/terraform.tfstate"
+    region = "ap-south-1"
+  }
+}
+
+module "flow_logs" {
+  source = "../../modules/vpc-flow-logs"
+
+  vpc_id                  = module.vpc.vpc_id                     <span class="cmt"># From Project 02's vpc-framework module</span>
+  central_log_bucket_arn  = data.terraform_remote_state.logging.outputs.flow_logs_bucket_arn
+}</code></pre>
+      </div>
+
+      <h3>environments/management/main.tf (Organization Trail)</h3>
+      <div class="code-block">
+        <div class="code-head"><span>environments/management/main.tf</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre><code>data "terraform_remote_state" "logging" {
+  backend = "s3"
+  config = {
+    bucket = "abc-bank-terraform-state-2026"
+    key    = "security/logging/terraform.tfstate"
+    region = "ap-south-1"
+  }
+}
+
+resource "aws_cloudtrail" "org_trail" {                           <span class="cmt"># Must be created from the AWS Organizations MANAGEMENT account</span>
+  name                          = "abc-bank-org-trail"
+  s3_bucket_name                = data.terraform_remote_state.logging.outputs.cloudtrail_bucket_name
+  is_organization_trail         = true                             <span class="cmt"># Automatically covers every current AND future member account — no per-account setup</span>
+  is_multi_region_trail         = true                             <span class="cmt"># Captures events from every AWS region, not just ap-south-1</span>
+  enable_log_file_validation    = true                              <span class="cmt"># Adds a digest file so tampering with a log file after delivery is detectable</span>
+  kms_key_id                    = data.terraform_remote_state.logging.outputs.kms_key_arn
+}</code></pre>
+      </div>
+    </section>
+
+    <section id="code-explained">
+      <h2><span class="num">10</span> Code Explanation Summary</h2>
+      <table>
+        <tr><th>Block / Argument</th><th>What it does</th><th>Common mistake to avoid</th></tr>
+        <tr><td><code>%{ for account_id in account_ids ~}</code></td><td>Template directive syntax used only inside <code>templatefile()</code> source files — loops over a list to repeat a JSON statement block</td><td>Confusing this with HCL's <code>for</code> expression syntax — template directives use <code>%{ }</code>, not the same syntax as <code>for</code> expressions in <code>.tf</code> files</td></tr>
+        <tr><td><code>mode = "COMPLIANCE"</code></td><td>Object Lock mode where even the account root user cannot delete or shorten retention early</td><td>Choosing <code>GOVERNANCE</code> mode instead, which specific IAM users CAN override — insufficient for a true audit-immutability requirement</td></tr>
+        <tr><td><code>is_organization_trail = true</code></td><td>Applies the trail to every account in the AWS Organization automatically</td><td>Creating this resource from a member account instead of the management account — it will fail; organization trails can only be created from the management (or a delegated administrator) account</td></tr>
+        <tr><td><code>log_destination_type = "s3"</code></td><td>Flow Logs write straight to S3, with no IAM role argument required on the resource itself</td><td>Assuming you always need an IAM role for Flow Logs — that's only true for the CloudWatch Logs destination type, not S3</td></tr>
+      </table>
+    </section>
+
+    <section id="execution-flow">
+      <h2><span class="num">11</span> Execution Flow, Explained Internally</h2>
+      <div class="card-grid">
+        <div class="card"><h4>Apply order</h4><p>Logging account first (buckets, KMS key, policies), then the management account's organization trail (needs the bucket name as an output), then each spoke account's Flow Logs (needs the bucket ARN as an output) — three dependent applies, same pattern as Project 03's hub-then-spokes.</p></div>
+        <div class="card"><h4>templatefile() at plan time</h4><p>Terraform renders the template and computes its content hash during <code>plan</code> — if you change <code>spoke_account_ids</code>, the plan will show the bucket policy resource as "changed" even though no other line in <code>main.tf</code> was touched.</p></div>
+        <div class="card"><h4>terraform apply — Object Lock nuance</h4><p>Because Object Lock must be set at bucket creation, if you forget it on first apply, Terraform cannot retroactively add it — you'd need to create a brand-new bucket, another reason to get this right on the very first apply in a real account.</p></div>
+      </div>
+      <div class="warn">Never run <code>terraform destroy</code> against the Logging account's buckets while any retained objects are still inside their Compliance-mode lock window — AWS will refuse the deletion, by design, and Terraform will report the destroy as failed.</div>
+    </section>
+
+    <section id="cicd">
+      <h2><span class="num">12</span> CI/CD Integration</h2>
+      <div class="code-block">
+        <div class="code-head"><span>.github/workflows/terraform-logging.yml</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre><code>name: terraform-logging
+on:
+  push:
+    branches: [main]
+    paths: ["environments/logging/**"]
+
+jobs:
+  logging-account:
+    runs-on: ubuntu-latest
+    defaults: { run: { working-directory: environments/logging } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+      - run: terraform init
+      - run: terraform validate
+      - name: Plan
+        run: terraform plan -out=tfplan
+      - name: Manual approval gate
+        if: github.ref == 'refs/heads/main'
+        uses: trstringer/manual-approval@v1                        <span class="cmt"># Compliance-mode buckets are unrecoverable if misconfigured — require a human sign-off before apply</span>
+        with:
+          approvers: security-lead,platform-lead
+      - run: terraform apply -auto-approve tfplan</code></pre>
+      </div>
+      <div class="best">Any pipeline touching Object Lock or KMS key policies in a banking environment should require a manual approval step — the blast radius of a mistake here (permanently un-writable or un-readable logs) is high enough to justify slowing down for a human review.</div>
+    </section>
+
+    <section id="local-lab">
+      <h2><span class="num">13</span> Local Lab — Practice This Yourself</h2>
+      <h3>Prerequisites</h3>
+      <ul>
+        <li>A dedicated "logging" AWS account (or a throwaway sandbox account for practice) — never practice Object Lock in an account with data you can't afford to lock</li>
+        <li>Completed Project 03 (for a spoke VPC to attach Flow Logs to)</li>
+      </ul>
+      <h3>Commands</h3>
+      <div class="code-block">
+        <div class="code-head"><span>terminal</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre><code>cd environments/logging
+terraform init
+terraform plan   <span class="cmt"># Inspect the rendered templatefile() output carefully before apply</span>
+terraform apply</code></pre>
+      </div>
+      <h3>Expected output</h3>
+      <p>Two S3 buckets with Object Lock "Enabled" and default retention "COMPLIANCE / 365 days" visible in the AWS console's Properties tab, plus a KMS key whose key policy (visible in the console's JSON view) lists each spoke account ID explicitly.</p>
+      <h3>Troubleshooting</h3>
+      <table>
+        <tr><th>Symptom</th><th>Likely cause</th></tr>
+        <tr><td><code>InvalidBucketState: Object Lock configuration cannot be enabled</code></td><td>Versioning wasn't enabled before (or in the same apply as) the Object Lock configuration resource — check resource ordering/dependencies</td></tr>
+        <tr><td>Flow Logs show "delivery failing" in the VPC console</td><td>The bucket policy's <code>Resource</code> path doesn't match the exact <code>AWSLogs/&lt;account-id&gt;/...</code> prefix AWS delivers to — check the templated ARN pattern</td></tr>
+      </table>
+      <h3>Assignments</h3>
+      <ol>
+        <li>Add a third bucket for centralized application logs (e.g. shipped from EKS via Fluent Bit), reusing the same templated-policy pattern.</li>
+        <li>Add an S3 Lifecycle rule that transitions objects older than 90 days to Glacier Deep Archive, while remaining compatible with the Object Lock retention period.</li>
+      </ol>
+      <h3>Challenge Task</h3>
+      <p>Replace the hand-written bucket policy template with an equivalent built from the <code>aws_iam_policy_document</code> data source instead, and compare the two approaches — note in your own words when you'd reach for a template file versus this data source in future projects.</p>
+    </section>
+
+    <section id="interview">
+      <h2><span class="num">14</span> Interview Preparation</h2>
+      <div class="qa"><div class="q">Q: Why does centralized logging need its own AWS account instead of just stricter bucket policies?</div><div>Account-level isolation means even a fully compromised admin credential in a spoke account has zero default permissions in the Logging account — a bucket policy alone still lives inside a boundary that account's own admins can eventually alter.</div></div>
+      <div class="qa"><div class="q">Q: What's the difference between S3 Object Lock's Compliance and Governance modes?</div><div>Compliance mode blocks deletion or retention shortening for every principal, including the account root user, until the retention period expires; Governance mode allows specifically-permitted IAM principals to override it — only Compliance mode satisfies a strict audit-immutability requirement.</div></div>
+      <div class="qa"><div class="q">Q: Why use templatefile() instead of just writing the JSON policy inline with jsonencode()?</div><div>Both work; templatefile() keeps a large, loop-heavy policy readable in its own file with template directives, while jsonencode() is often cleaner for smaller, non-repeating policies — the choice is about readability and maintainability, not capability.</div></div>
+      <div class="qa"><div class="q">Q: Why must an AWS Organization trail be created from the management account?</div><div>Only the management account (or a delegated administrator account) has the organizational visibility and permission to apply a single trail across every current and future member account — member accounts cannot create org-wide trails themselves.</div></div>
+      <div class="qa"><div class="q">Manager round: An auditor asks how you'd prove logs haven't been tampered with. What's your answer?</div><div>CloudTrail log file validation produces cryptographic digest files alongside the logs, and Object Lock in Compliance mode makes the underlying objects themselves undeletable and unmodifiable for their retention period — together they provide both tamper-evidence and tamper-resistance.</div></div>
+    </section>
+
+    <div class="nextbar" id="next">
+      <h3>What's next</h3>
+      <p>Project 05 builds <strong>Enterprise IAM Architecture</strong> — permission boundaries, SCPs via AWS Organizations, and break-glass emergency access roles, tying directly into the account structure and cross-account trust patterns we've used in Projects 03 and 04. Tell me when you're ready for Project 05.</p>
+    </div>
+
+  </main>
+</div>
+
+<script>
+  mermaid.initialize({ startOnLoad: true, theme: 'base', themeVariables: {
+    primaryColor: '#ede9fe', primaryTextColor: '#4c1d95', primaryBorderColor: '#8b5cf6',
+    lineColor: '#8b5cf6', secondaryColor: '#f7f5fc', tertiaryColor: '#ffffff', fontFamily: 'Inter, sans-serif'
+  }});
+  function copyCode(btn){
+    const pre = btn.closest('.code-block').querySelector('pre');
+    const text = pre.innerText;
+    navigator.clipboard.writeText(text).then(()=>{
+      const original = btn.textContent;
+      btn.textContent = 'Copied!';
+      setTimeout(()=>{ btn.textContent = original; }, 1500);
+    });
+  }
+  const sections = document.querySelectorAll('section, .nextbar');
+  const links = document.querySelectorAll('#navlinks a');
+  const observer = new IntersectionObserver((entries)=>{
+    entries.forEach(entry=>{
+      if(entry.isIntersecting){
+        links.forEach(l=>l.classList.remove('active'));
+        const id = entry.target.getAttribute('id');
+        const match = document.querySelector(`#navlinks a[href="#${id}"]`);
+        if(match) match.classList.add('active');
+      }
+    });
+  }, { rootMargin: '-20% 0px -70% 0px' });
+  sections.forEach(s=>observer.observe(s));
+</script>
+</body>
+</html>

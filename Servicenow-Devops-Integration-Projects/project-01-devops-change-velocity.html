@@ -1,0 +1,814 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Project 01 · DevOps Change Velocity — Automated CR Creation from Jenkins | ABC Bank</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/vs.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/javascript.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/xml.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/bash.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/json.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/yaml.min.js"></script>
+<script type="module">
+  import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+  mermaid.initialize({ startOnLoad: true, theme: 'base', themeVariables: {
+    primaryColor: '#F3EEFC', primaryTextColor: '#3B0F70', primaryBorderColor: '#8B5CF6',
+    lineColor: '#8B5CF6', secondaryColor: '#FAF9FC', tertiaryColor: '#ffffff', fontFamily: 'Manrope'
+  }});
+  window.mermaid = mermaid;
+</script>
+<style>
+  :root{
+    --purple-900:#3B0F70;
+    --purple-700:#5B21B6;
+    --purple-600:#6D28D9;
+    --purple-500:#7C3AED;
+    --purple-300:#C4B5FD;
+    --purple-100:#EDE7FB;
+    --purple-050:#FAF9FC;
+    --ink:#211B2E;
+    --muted:#6B6478;
+    --line:#E7E1F4;
+    --white:#FFFFFF;
+    --ok:#1E7B4D;
+    --warn:#A15C00;
+    --danger:#B3261E;
+    --radius:14px;
+    --mono:'JetBrains Mono', ui-monospace, monospace;
+    --sans:'Manrope', -apple-system, Segoe UI, sans-serif;
+  }
+  *{box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{
+    margin:0; font-family:var(--sans); color:var(--ink); background:var(--white);
+    -webkit-font-smoothing:antialiased;
+  }
+  a{color:var(--purple-600);}
+
+  /* Layout */
+  .shell{display:grid; grid-template-columns:280px 1fr; min-height:100vh;}
+  .sidebar{
+    position:sticky; top:0; height:100vh; overflow-y:auto;
+    background:linear-gradient(180deg,var(--purple-900),#2A0A57);
+    color:#EDE7FB; padding:28px 20px 60px; border-right:1px solid var(--line);
+  }
+  .brand{display:flex; align-items:center; gap:10px; margin-bottom:6px;}
+  .brand-mark{width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,var(--purple-300),var(--purple-500)); display:flex;align-items:center;justify-content:center;font-weight:800;color:#2A0A57;font-size:15px;}
+  .brand-name{font-weight:800; font-size:15px; letter-spacing:.2px;}
+  .brand-sub{font-size:11.5px; color:#C9BCEF; margin:2px 0 22px; letter-spacing:.3px; text-transform:uppercase;}
+  .track-badge{
+    display:inline-block; font-size:11px; font-weight:700; letter-spacing:.4px;
+    background:rgba(255,255,255,.12); border:1px solid rgba(255,255,255,.18);
+    color:#EDE7FB; padding:4px 10px; border-radius:999px; margin-bottom:20px;
+  }
+  .nav-group{margin-bottom:4px;}
+  .nav-group-title{font-size:10.5px; text-transform:uppercase; letter-spacing:.8px; color:#A796D9; margin:18px 0 8px; font-weight:700;}
+  .nav-link{
+    display:block; padding:7px 10px; border-radius:8px; font-size:13.2px; color:#DED4F7;
+    text-decoration:none; margin-bottom:2px; line-height:1.4; border-left:2px solid transparent;
+  }
+  .nav-link:hover{background:rgba(255,255,255,.08); color:#fff;}
+  .nav-link.active{background:rgba(255,255,255,.14); color:#fff; border-left:2px solid var(--purple-300);}
+
+  .content{padding:48px 56px 120px; max-width:980px;}
+  @media (max-width:900px){
+    .shell{grid-template-columns:1fr;}
+    .sidebar{position:relative; height:auto;}
+    .content{padding:32px 22px 100px;}
+  }
+
+  .kicker{color:var(--purple-600); font-weight:700; font-size:12.5px; text-transform:uppercase; letter-spacing:1px; margin-bottom:10px;}
+  h1.title{font-size:clamp(28px,4vw,40px); line-height:1.12; margin:0 0 14px; font-weight:800; letter-spacing:-0.5px;}
+  .subtitle{font-size:16.5px; color:var(--muted); max-width:640px; line-height:1.55; margin-bottom:28px;}
+  .meta-row{display:flex; flex-wrap:wrap; gap:10px; margin-bottom:40px;}
+  .chip{font-size:12px; font-weight:600; background:var(--purple-100); color:var(--purple-700); padding:6px 12px; border-radius:999px;}
+
+  section.block{margin:56px 0; scroll-margin-top:24px;}
+  h2.h2{font-size:24px; font-weight:800; margin:0 0 6px; letter-spacing:-.3px; display:flex; align-items:center; gap:10px;}
+  h2.h2 .num{color:var(--purple-500); font-family:var(--mono); font-size:16px;}
+  h3.h3{font-size:18px; font-weight:700; margin:28px 0 10px; color:var(--purple-900);}
+  p{line-height:1.7; font-size:15px; color:#3A3346;}
+  ul,ol{line-height:1.75; font-size:15px; color:#3A3346; padding-left:22px;}
+  li{margin-bottom:6px;}
+  strong{color:var(--ink);}
+
+  .card{
+    background:var(--purple-050); border:1px solid var(--line); border-radius:var(--radius);
+    padding:22px 24px; margin:16px 0;
+  }
+  .card h4{margin:0 0 8px; font-size:14px; color:var(--purple-700); font-weight:800; text-transform:uppercase; letter-spacing:.4px;}
+
+  .grid-2{display:grid; grid-template-columns:1fr 1fr; gap:16px;}
+  @media (max-width:700px){.grid-2{grid-template-columns:1fr;}}
+
+  .story{
+    background:linear-gradient(135deg,var(--purple-900),#3A1170); color:#F3EEFC;
+    border-radius:18px; padding:30px 30px; margin:20px 0 8px; position:relative; overflow:hidden;
+  }
+  .story:before{content:"KT SESSION"; position:absolute; top:16px; right:20px; font-size:11px; letter-spacing:1.5px; color:#B9A6E8; font-weight:700;}
+  .story p{color:#E7DEFB; font-size:15.3px;}
+  .story .who{color:#C9BCEF; font-size:13px; font-weight:700; margin-bottom:10px; letter-spacing:.3px;}
+
+  table{width:100%; border-collapse:collapse; margin:16px 0; font-size:14px;}
+  th,td{text-align:left; padding:10px 12px; border-bottom:1px solid var(--line);}
+  th{background:var(--purple-050); color:var(--purple-700); font-size:12.5px; text-transform:uppercase; letter-spacing:.4px;}
+
+  .note, .warn-box, .best{
+    border-radius:12px; padding:16px 18px; margin:18px 0; font-size:14.3px; line-height:1.6; border-left:4px solid;
+  }
+  .note{background:#F3EEFC; border-color:var(--purple-500); }
+  .note b{color:var(--purple-700);}
+  .warn-box{background:#FFF6E8; border-color:#E0A100;}
+  .warn-box b{color:var(--warn);}
+  .best{background:#EAFAF1; border-color:#1E7B4D;}
+  .best b{color:var(--ok);}
+
+  /* code blocks */
+  .codewrap{position:relative; margin:16px 0 8px; border-radius:12px; overflow:hidden; border:1px solid var(--line);}
+  .codehead{
+    display:flex; justify-content:space-between; align-items:center; background:var(--purple-900); color:#DED4F7;
+    padding:9px 14px; font-family:var(--mono); font-size:12px; letter-spacing:.3px;
+  }
+  .copybtn{
+    background:rgba(255,255,255,.12); border:1px solid rgba(255,255,255,.2); color:#EDE7FB;
+    font-size:11.5px; padding:4px 10px; border-radius:7px; cursor:pointer; font-family:var(--sans); font-weight:600;
+  }
+  .copybtn:hover{background:rgba(255,255,255,.22);}
+  pre{margin:0; padding:0;}
+  pre code.hljs{
+    padding:18px 20px !important; font-family:var(--mono) !important; font-size:12.8px !important;
+    line-height:1.65 !important; background:#FCFBFF !important; display:block; overflow-x:auto;
+    counter-reset:line;
+  }
+  .line-numbers code.hljs .hljs-ln-line{counter-increment:line; }
+
+  details.section{
+    border:1px solid var(--line); border-radius:12px; margin:14px 0; overflow:hidden; background:#fff;
+  }
+  details.section summary{
+    cursor:pointer; padding:14px 18px; font-weight:700; font-size:14.5px; color:var(--purple-700);
+    background:var(--purple-050); list-style:none; display:flex; align-items:center; gap:8px;
+  }
+  details.section summary::-webkit-details-marker{display:none;}
+  details.section summary:before{content:"▸"; transition:transform .15s;}
+  details.section[open] summary:before{transform:rotate(90deg);}
+  details.section .inner{padding:16px 18px;}
+
+  .mermaid{background:#fff; border:1px solid var(--line); border-radius:12px; padding:14px; margin:18px 0; overflow-x:auto;}
+
+  .exp-line{
+    display:grid; grid-template-columns:230px 1fr; gap:14px; padding:10px 0; border-bottom:1px dashed var(--line);
+    align-items:start;
+  }
+  .exp-line code{background:var(--purple-100); color:var(--purple-900); padding:2px 6px; border-radius:5px; font-family:var(--mono); font-size:12.3px;}
+  .exp-line p{margin:0; font-size:13.8px;}
+
+  .qa{border:1px solid var(--line); border-radius:12px; padding:16px 18px; margin:12px 0;}
+  .qa .q{font-weight:700; color:var(--purple-800,var(--purple-700)); font-size:14.5px; margin-bottom:6px;}
+  .qa .a{font-size:14px; color:#3A3346; line-height:1.6;}
+
+  .footer-nav{
+    display:flex; justify-content:space-between; margin-top:70px; padding-top:26px; border-top:1px solid var(--line);
+  }
+  .footer-nav .btn{
+    background:var(--purple-600); color:#fff; padding:12px 20px; border-radius:10px; text-decoration:none;
+    font-weight:700; font-size:14px;
+  }
+  .footer-nav .btn.ghost{background:transparent; color:var(--purple-700); border:1.5px solid var(--purple-300);}
+  ::-webkit-scrollbar{width:10px;} ::-webkit-scrollbar-thumb{background:var(--purple-300); border-radius:8px;}
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <nav class="sidebar" id="sidebar">
+    <div class="brand">
+      <div class="brand-mark">SN</div>
+      <div class="brand-name">ServiceNow DevOps<br>Mastery Track</div>
+    </div>
+    <div class="brand-sub">Advanced · BFSI Production</div>
+    <div class="track-badge">PROJECT 1 / 40</div>
+
+    <div class="nav-group">
+      <div class="nav-group-title">Project 01</div>
+      <a class="nav-link" href="#story">Production Story</a>
+      <a class="nav-link" href="#requirement">Business Requirement</a>
+      <a class="nav-link" href="#current-state">Current State &amp; Risks</a>
+      <a class="nav-link" href="#why">Why ServiceNow DevOps</a>
+      <a class="nav-link" href="#concepts">Core Concepts</a>
+      <a class="nav-link" href="#architecture">Architecture</a>
+      <a class="nav-link" href="#design">Solution Design</a>
+    </div>
+    <div class="nav-group">
+      <div class="nav-group-title">Implementation</div>
+      <a class="nav-link" href="#jenkins-setup">1. Jenkins + Tool Record</a>
+      <a class="nav-link" href="#orchestration">2. Orchestration Task Table</a>
+      <a class="nav-link" href="#risk-si">3. Risk Calculator (Script Include)</a>
+      <a class="nav-link" href="#flow">4. Flow Designer — CR Automation</a>
+      <a class="nav-link" href="#br">5. Business Rule — Auto CAB</a>
+      <a class="nav-link" href="#rest">6. Scripted REST — Deployment Gate</a>
+      <a class="nav-link" href="#jenkinsfile">7. Jenkinsfile (Pipeline)</a>
+    </div>
+    <div class="nav-group">
+      <div class="nav-group-title">Deep Dive</div>
+      <a class="nav-link" href="#execution-flow">Execution Flow (Internals)</a>
+      <a class="nav-link" href="#lab">Local Lab (PDI)</a>
+      <a class="nav-link" href="#enterprise">Enterprise SDLC Workflow</a>
+      <a class="nav-link" href="#interview">Interview Preparation</a>
+      <a class="nav-link" href="#mistakes">Common Mistakes</a>
+    </div>
+  </nav>
+
+  <main class="content">
+
+    <div class="kicker">ServiceNow DevOps · Advanced Track · Project 1 of 40</div>
+    <h1 class="title">DevOps Change Velocity — Automated Change Request Creation from a Jenkins Pipeline</h1>
+    <p class="subtitle">The foundation project of the whole track. Every later project (Terraform tracking, ArgoCD, Kubernetes, risk-based CAB, rollback automation) builds on top of what you implement here, so we go slowly and explain every moving part.</p>
+    <div class="meta-row">
+      <span class="chip">DevOps Change Velocity</span>
+      <span class="chip">Jenkins Integration</span>
+      <span class="chip">Flow Designer</span>
+      <span class="chip">Script Include</span>
+      <span class="chip">Scripted REST API</span>
+      <span class="chip">Banking / BFSI</span>
+    </div>
+
+    <!-- STORY -->
+    <section class="block" id="story">
+      <h2 class="h2"><span class="num">01</span> The Production Story — ABC Bank</h2>
+      <div class="story">
+        <div class="who">Knowledge Transfer Session — Principal Architect to New DevOps Engineer</div>
+        <p>We joined ABC Bank as ServiceNow DevOps Engineers, sitting inside the Enterprise Release Management team.</p>
+        <p>ABC Bank runs roughly 260 application deployments a month across Core Banking, Internet Banking, and Mobile Banking. Every one of those deployments is supposed to have a Change Request in ServiceNow before it touches production — that is a regulatory requirement, not just good practice, because the bank is audited under RBI/PCI-DSS style controls.</p>
+        <p>Right now, a developer finishes a Jenkins build, pings the release coordinator on email, and the release coordinator manually opens a Change Request in ServiceNow, copies the build number, guesses the risk level, and routes it for CAB approval. This takes 30–90 minutes per deployment and it is done differently by every coordinator.</p>
+        <p>Our manager, the Head of Release Engineering, has given us the first milestone: <strong>when a Jenkins pipeline finishes a build for the Internet Banking application, ServiceNow must automatically create the Change Request, attach the build and commit details, calculate a risk score, and route it — with zero manual data entry.</strong></p>
+        <p>This is the DevOps Change Velocity capability. Let's build it end‑to‑end.</p>
+      </div>
+    </section>
+
+    <!-- REQUIREMENT -->
+    <section class="block" id="requirement">
+      <h2 class="h2"><span class="num">02</span> Business &amp; Customer Requirement</h2>
+      <div class="grid-2">
+        <div class="card">
+          <h4>Business Requirement</h4>
+          <p>Every production deployment must have a traceable, auditable Change Request that links directly back to the exact Jenkins build, the exact Git commit, and the exact pipeline that produced it — with no manual re-typing of data.</p>
+        </div>
+        <div class="card">
+          <h4>Customer Requirement (Release Engineering Head)</h4>
+          <p>Cut the average time-to-create-a-CR from ~45 minutes to under 2 minutes, remove human data-entry errors, and give the CAB a consistent, structured view of every change before they approve it.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- CURRENT STATE -->
+    <section class="block" id="current-state">
+      <h2 class="h2"><span class="num">03</span> Current Infrastructure, Manual Process, Risks</h2>
+      <h3 class="h3">Current infrastructure</h3>
+      <ul>
+        <li>Jenkins (on-prem, version 2.4x) running the Internet Banking build and deploy jobs.</li>
+        <li>Git repository (Bitbucket Server) holding the Internet Banking application code.</li>
+        <li>ServiceNow instance with standard <code>change_request</code>, <code>change_task</code> tables, no DevOps plugin activated yet.</li>
+        <li>No MID Server currently needed for this project — Jenkins will call ServiceNow directly over HTTPS through the bank's internal API gateway.</li>
+      </ul>
+      <h3 class="h3">Existing manual process</h3>
+      <ol>
+        <li>Developer merges code, Jenkins builds it.</li>
+        <li>Developer emails the release coordinator with build number and change summary.</li>
+        <li>Coordinator manually opens a Change Request, types the description, guesses risk (Low/Medium/High) from experience.</li>
+        <li>Coordinator manually assigns CAB approval group.</li>
+        <li>After approval, coordinator manually tells the Jenkins team "you're clear to deploy."</li>
+      </ol>
+      <h3 class="h3">Problems</h3>
+      <div class="grid-2">
+        <div class="card"><h4>Operational</h4><p>Inconsistent risk ratings between coordinators; CRs missing build/commit references, which makes rollback investigation slow during an incident.</p></div>
+        <div class="card"><h4>Compliance / Business Risk</h4><p>Auditors have flagged that CRs cannot always be traced to a specific artifact — a PCI-DSS control gap. Manual risk rating is not defensible in an audit.</p></div>
+      </div>
+      <h3 class="h3">Business impact</h3>
+      <p>Release delays average 40+ minutes per deployment purely on CR paperwork; at 260 deployments a month that is roughly 170+ hours a month of coordinator time, and it is a recurring audit finding.</p>
+    </section>
+
+    <!-- WHY -->
+    <section class="block" id="why">
+      <h2 class="h2"><span class="num">04</span> Why ServiceNow DevOps (and why not something else)</h2>
+      <p><strong>Why ServiceNow DevOps Change Velocity specifically:</strong> it gives us a native, governed pipeline between the CI/CD tool and the <code>change_request</code> table, with an out-of-the-box orchestration table (<code>sn_devops_orchestration_task</code>) that tracks the pipeline stage, and native "gate" checks so a pipeline can be paused until ServiceNow approves the change. That governance layer is the whole point — it's not just "create a record," it's "control whether the deployment is even allowed to continue."</p>
+
+      <h3 class="h3">Alternative solutions considered</h3>
+      <table>
+        <tr><th>Alternative</th><th>Why it was rejected</th></tr>
+        <tr><td>Custom REST API only (no DevOps plugin)</td><td>Works for creating the CR, but we would have to build our own orchestration/gate tracking from scratch, and lose native Jenkins plugin support and DORA metrics.</td></tr>
+        <tr><td>Jenkins post-build email + manual CR</td><td>This is the current broken process — no automation, no audit trail linking build to CR.</td></tr>
+        <tr><td>Third-party release tool (outside ServiceNow) syncing into ServiceNow nightly</td><td>Breaks real-time governance — a deployment could finish before ServiceNow even knows it started; unacceptable for a regulated bank.</td></tr>
+      </table>
+      <div class="note"><b>Architect's note:</b> In a bank, "governance" always beats "convenience." Any design that lets a deployment happen before ServiceNow has approved it will fail an audit, no matter how fast it is.</div>
+    </section>
+
+    <!-- CONCEPTS -->
+    <section class="block" id="concepts">
+      <h2 class="h2"><span class="num">05</span> Core Concepts — Explained Before We Touch Code</h2>
+
+      <details class="section" open>
+        <summary>DevOps Change Velocity — what it is, why it exists, how it works internally</summary>
+        <div class="inner">
+          <p><strong>What it is:</strong> DevOps Change Velocity is a ServiceNow plugin/capability (<code>sn_devops</code>) that connects CI/CD tools (Jenkins, GitHub Actions, Azure DevOps, GitLab...) to ServiceNow's Change Management process. It listens for pipeline events (build started, build finished, deployment started) and turns them into governed records.</p>
+          <p><strong>Why it exists:</strong> Before this capability, banks either slowed CI/CD down to a crawl (manual CR for every deploy) or skipped governance entirely (fast but not auditable). Change Velocity's goal is literally in the name — keep the *velocity* of DevOps while keeping the *control* of ITSM.</p>
+          <p><strong>Internal working:</strong> The Jenkins/GitHub plugin sends a webhook-style callback to a ServiceNow REST endpoint whenever a pipeline stage changes. ServiceNow writes that event into <code>sn_devops_orchestration_task</code>, correlates it to a "DevOps Change Control" configuration, and — if a Change Request doesn't already exist for that pipeline run — creates one automatically using a template. If a "gate" is configured, the pipeline literally pauses (Jenkins polls a status endpoint) until the Change Request reaches an approved state.</p>
+          <p><strong>Real banking example:</strong> Internet Banking release pipeline — build finishes → orchestration task created → risk calculated → if Low risk, standard change auto-approved in under a minute; if High risk, CR routed to CAB and the Jenkins pipeline literally sits paused on a "Waiting for Change Approval" stage until someone approves it.</p>
+          <p><strong>Alternative approaches:</strong> Build your own middleware (MuleSoft/custom Node service) polling Jenkins and calling the Table API — more flexible, but you lose native gate support and DORA metrics, and you now own an extra integration layer to secure and maintain.</p>
+          <p><strong>Best practice:</strong> Always model risk calculation as its own reusable Script Include (not inline in a Business Rule) so every entry point — Flow, REST API, scheduled job — uses identical logic. We do exactly that below.</p>
+          <p><strong>Common mistake:</strong> Teams often let the CI tool decide the risk level itself and just push it into ServiceNow. That's backwards — ServiceNow (the system of record for risk/compliance) should own the risk calculation, not the pipeline.</p>
+        </div>
+      </details>
+
+      <details class="section">
+        <summary>Orchestration Task — what it is and why we need a table at all</summary>
+        <div class="inner">
+          <p><strong>What it is:</strong> A record on <code>sn_devops_orchestration_task</code> represents one execution of one stage of a pipeline (e.g., "Build #482, stage = deploy-to-prod"). It is the glue record between "a thing that happened in Jenkins" and "a thing ServiceNow understands."</p>
+          <p><strong>Why it exists:</strong> A Change Request is too heavy to represent every pipeline event — you don't want 15 CRs for one pipeline run. The orchestration task is the lightweight, high-frequency record; the Change Request is the heavyweight, governed record created (or updated) from it.</p>
+          <p><strong>Internal working:</strong> Each event Jenkins sends becomes one orchestration task row, tagged with a correlation ID (the Jenkins build number + job name). ServiceNow uses that correlation ID to avoid creating a duplicate Change Request if Jenkins retries the callback.</p>
+        </div>
+      </details>
+
+      <details class="section">
+        <summary>Risk Calculation — what it is and why the CAB cares</summary>
+        <div class="inner">
+          <p><strong>What it is:</strong> A scoring function that looks at attributes of the deployment (which application, which environment, time of day, past failure rate of this pipeline, size of the change) and outputs Low / Medium / High risk.</p>
+          <p><strong>Why it exists:</strong> A human CAB cannot manually re-evaluate 260 changes a month with consistent judgment. A deterministic score means every change is judged by the same rule, which is exactly what an auditor wants to see.</p>
+          <p><strong>Real banking example:</strong> A deploy to the Internet Banking production environment between 9 AM–6 PM on a weekday is automatically High risk (customer-facing hours); the same deploy at 11 PM on a Saturday, with a clean pipeline history, is Low risk and can be a Standard Change with pre-approval.</p>
+        </div>
+      </details>
+    </section>
+
+    <!-- ARCHITECTURE -->
+    <section class="block" id="architecture">
+      <h2 class="h2"><span class="num">06</span> Architecture</h2>
+      <h3 class="h3">High-level architecture</h3>
+      <div class="mermaid">
+graph LR
+  DEV[Developer<br/>git push] --> JENKINS[Jenkins Pipeline<br/>Internet Banking Job]
+  JENKINS -->|1. Build event| SNDEVOPS[ServiceNow DevOps<br/>sn_devops_orchestration_task]
+  SNDEVOPS -->|2. correlate & create| CR[Change Request]
+  CR -->|3. risk score| RISK[Risk Calculator<br/>Script Include]
+  RISK -->|4. route| APPROVAL{Risk Level}
+  APPROVAL -->|Low| STD[Standard Change<br/>Auto-Approved]
+  APPROVAL -->|Medium/High| CAB[CAB Approval Group]
+  STD --> GATE[Deployment Gate<br/>Scripted REST API]
+  CAB --> GATE
+  GATE -->|status=approved| JENKINS2[Jenkins resumes<br/>Deploy Stage]
+      </div>
+
+      <h3 class="h3">CI/CD → Change flow</h3>
+      <div class="mermaid">
+sequenceDiagram
+  participant J as Jenkins
+  participant S as ServiceNow
+  participant C as CAB Approver
+  J->>S: POST /api/x_bank/devops/pipeline_event (build finished)
+  S->>S: Create sn_devops_orchestration_task
+  S->>S: Risk Calculator Script Include runs
+  alt Low risk
+    S->>S: Auto-create Standard Change, state=Implement
+    S-->>J: 200 OK { status: approved }
+  else Medium/High risk
+    S->>S: Create Normal Change, route to CAB
+    S-->>J: 200 OK { status: pending }
+    C->>S: Approves Change Request
+    J->>S: GET /api/x_bank/devops/gate_status?build=482
+    S-->>J: { status: approved }
+  end
+  J->>J: Resume deploy stage
+      </div>
+      <div class="note"><b>Read this diagram carefully:</b> Jenkins never decides risk and never decides approval. It only asks ServiceNow "am I allowed to continue?" — that single design decision is what makes this bank-audit-safe.</div>
+    </section>
+
+    <!-- SOLUTION DESIGN -->
+    <section class="block" id="design">
+      <h2 class="h2"><span class="num">07</span> Complete Solution Design</h2>
+      <ul>
+        <li><strong>Tool record:</strong> a <code>sn_devops_tool</code> record represents the Jenkins instance, holding its base URL and a scoped integration user token.</li>
+        <li><strong>Inbound endpoint:</strong> a custom Scripted REST API resource, <code>/api/x_bank/devops/pipeline_event</code>, that Jenkins calls with build metadata as its last pipeline step.</li>
+        <li><strong>Orchestration table:</strong> we log every event to <code>sn_devops_orchestration_task</code> so we have full pipeline history even if no CR is created yet.</li>
+        <li><strong>Flow Designer flow:</strong> "Create Change from Pipeline Event" — subscribed to the orchestration task's insert, it checks for an existing CR by correlation ID, and if none exists, creates one and calls the Risk Calculator.</li>
+        <li><strong>Script Include:</strong> <code>x_bank_devops.RiskCalculator</code> — pure scoring logic, callable from anywhere.</li>
+        <li><strong>Business Rule:</strong> on the Change Request table, before insert/update, auto-approves Standard Changes when risk = Low and marks CAB routing when risk ≥ Medium.</li>
+        <li><strong>Gate endpoint:</strong> a second Scripted REST resource, <code>/api/x_bank/devops/gate_status</code>, that Jenkins polls before the deploy stage runs.</li>
+      </ul>
+    </section>
+
+    <!-- IMPLEMENTATION -->
+    <section class="block" id="jenkins-setup">
+      <h2 class="h2"><span class="num">08</span> Implementation Step 1 — Jenkins Tool Record</h2>
+      <p>Before any script runs, ServiceNow needs to know Jenkins exists. We create a record on <code>sn_devops_tool</code> (this table ships with the DevOps plugin activated).</p>
+      <table>
+        <tr><th>Field</th><th>Value</th><th>Why</th></tr>
+        <tr><td>Name</td><td>ABC-Bank-Jenkins-InternetBanking</td><td>Human-readable identity for this Jenkins instance, used in every downstream correlation record.</td></tr>
+        <tr><td>Type</td><td>Jenkins</td><td>Tells ServiceNow which native integration behavior/plugin fields to expose.</td></tr>
+        <tr><td>Application</td><td>Internet Banking</td><td>Links every pipeline event from this tool to the correct Application Service / CMDB CI, so risk calculation can look up "how critical is this app."</td></tr>
+        <tr><td>Integration user</td><td>svc_devops_jenkins (scoped, API-only, no UI login)</td><td>Least-privilege principle — banking security policy requires machine accounts to never have interactive login rights.</td></tr>
+      </table>
+      <div class="warn-box"><b>Security note:</b> Never use a personal admin account as the Jenkins integration user. If that account is ever compromised, an attacker could create fake "approved" Change Requests and push unauthorized code to production. Always use a scoped service account with only the roles it needs (<code>sn_devops.integration_user</code>).</div>
+    </section>
+
+    <section class="block" id="orchestration">
+      <h2 class="h2"><span class="num">09</span> Implementation Step 2 — Understanding the Orchestration Task Table</h2>
+      <p>We don't create this table (it ships with the plugin), but we need to understand its key fields because our Flow and Script Include both read from it.</p>
+      <table>
+        <tr><th>Field</th><th>Purpose</th></tr>
+        <tr><td><code>correlation_id</code></td><td>Unique key = Jenkins job name + build number. Prevents duplicate Change Requests if Jenkins retries a webhook call.</td></tr>
+        <tr><td><code>pipeline_name</code></td><td>Used to look up historical failure rate for that pipeline in the Risk Calculator.</td></tr>
+        <tr><td><code>stage_name</code></td><td>e.g. "build", "test", "deploy" — our Flow only fires Change creation on the "deploy" stage.</td></tr>
+        <tr><td><code>tool_id</code></td><td>Reference to the <code>sn_devops_tool</code> record created above.</td></tr>
+        <tr><td><code>change_request</code></td><td>Reference field — empty until our Flow creates and links the CR here.</td></tr>
+      </table>
+    </section>
+
+    <section class="block" id="risk-si">
+      <h2 class="h2"><span class="num">10</span> Implementation Step 3 — Risk Calculator Script Include</h2>
+      <p>This is the most important piece of logic in the whole project. It is deliberately written as a reusable Script Include so the Flow, the REST API, and any future scheduled job can all call the same risk logic and get the same answer.</p>
+
+      <div class="codewrap">
+        <div class="codehead"><span>Script Include · x_bank_devops.RiskCalculator (Client callable: false)</span><button class="copybtn" onclick="copyCode(this)">Copy</button></div>
+        <pre><code class="language-javascript">var RiskCalculator = Class.create();                          // Defines a new reusable server-side class using ServiceNow's Class.create() pattern
+RiskCalculator.prototype = {
+
+    initialize: function() {                                    // Constructor — runs automatically when "new RiskCalculator()" is called
+        this.HIGH_RISK_APPS = ['Internet Banking', 'Core Banking', 'ATM Switch']; // Hardcoded list of apps treated as customer-critical; in production this would read from a CMDB attribute instead
+    },
+
+    // Main entry point: takes an orchestration task sys_id, returns 'low' | 'medium' | 'high'
+    calculateRisk: function(orchestrationTaskSysId) {
+        var task = new GlideRecord('sn_devops_orchestration_task');  // Opens a GlideRecord cursor on the orchestration task table
+        if (!task.get(orchestrationTaskSysId)) {                     // .get() loads the specific record by sys_id; returns false if not found
+            return 'high';                                          // Fail-safe: if we can't even read the task, treat it as High risk so a human reviews it
+        }
+
+        var appName = task.getValue('pipeline_name');                // getValue() returns the raw string value (not the display value) of the field — safer for logic than dot-walking
+        var score = 0;                                                // Running numeric score; higher = riskier
+
+        if (this._isCustomerFacingApp(appName)) {                    // Calls a private helper method (defined below) to check the app criticality
+            score += 40;                                              // Customer-facing apps automatically start with a high baseline score
+        }
+
+        if (this._isBusinessHours()) {                                // Checks current bank time against business hours
+            score += 30;                                              // Deploying during business hours is riskier because more customers are actively using the system
+        }
+
+        var failureRate = this._getRecentFailureRate(appName);        // Looks up how often this pipeline's last 10 deployments failed
+        score += Math.round(failureRate * 30);                        // Converts a 0.0–1.0 failure rate into up to 30 additional risk points
+
+        return this._scoreToLabel(score);                             // Converts the final numeric score into a Low/Medium/High label
+    },
+
+    _isCustomerFacingApp: function(appName) {                        // Private helper (underscore prefix is a ServiceNow convention meaning "internal use only")
+        return this.HIGH_RISK_APPS.indexOf(appName) > -1;             // indexOf() returns -1 if not found; > -1 means the app IS in our critical list
+    },
+
+    _isBusinessHours: function() {
+        var gdt = new GlideDateTime();                                // Gets the current date/time in the instance's configured time zone
+        var hour = gdt.getLocalTime().toString().split(':')[0];       // Extracts just the hour portion (e.g. "14") from the local time string
+        var h = parseInt(hour, 10);                                   // Converts the string hour into an actual number for comparison
+        return (h >= 9 && h < 18);                                    // Business hours defined as 9 AM to 6 PM, matching ABC Bank's branch/digital-channel peak hours
+    },
+
+    _getRecentFailureRate: function(pipelineName) {
+        var gr = new GlideAggregate('sn_devops_orchestration_task');  // GlideAggregate lets us run COUNT/SUM/AVG queries efficiently instead of looping over records in script
+        gr.addQuery('pipeline_name', pipelineName);                   // Filters to only this pipeline's history
+        gr.orderByDesc('sys_created_on');                              // Sorts newest first so we can look at the most recent runs
+        gr.setLimit(10);                                               // Only look at the last 10 runs — recent history matters more than all-time history
+        gr.addAggregate('COUNT');                                     // Tells GlideAggregate to compute a total row count
+        gr.query();                                                    // Executes the query against the database
+        var total = 0, failed = 0;
+        while (gr.next()) {                                           // Iterates through each matching record
+            total++;
+            if (gr.getValue('status') == 'failed') {                  // Compares the stage status field to the literal string 'failed'
+                failed++;
+            }
+        }
+        return total > 0 ? (failed / total) : 0;                      // Returns a 0.0–1.0 ratio; guards against divide-by-zero when there is no history yet
+    },
+
+    _scoreToLabel: function(score) {
+        if (score >= 60) return 'high';                                // 60+ points → High risk, must go to CAB
+        if (score >= 30) return 'medium';                               // 30–59 points → Medium risk, goes to a lightweight approval
+        return 'low';                                                    // Under 30 points → Low risk, eligible for Standard Change auto-approval
+    },
+
+    type: 'RiskCalculator'                                             // Required by ServiceNow — tells the platform the class name string, used internally for script reflection
+};</code></pre>
+      </div>
+
+      <h3 class="h3">Line-by-line: what matters most here</h3>
+      <div class="exp-line"><code>Class.create()</code><p>This is ServiceNow's standard pattern for defining a reusable, instantiable server-side object — think of it like a class in Java. Every Script Include you ever write in ServiceNow starts this way.</p></div>
+      <div class="exp-line"><code>GlideRecord vs GlideAggregate</code><p><code>GlideRecord</code> is for reading/writing individual records. <code>GlideAggregate</code> is for COUNT/SUM/AVG style queries — much faster than looping through GlideRecord rows when you only need a number, which matters a lot at banking transaction volumes.</p></div>
+      <div class="exp-line"><code>getValue() vs dot-walk</code><p><code>task.getValue('pipeline_name')</code> returns the raw stored value. If you instead wrote <code>task.pipeline_name.toString()</code> on a reference field you'd get the sys_id, not the display text — a classic beginner mistake that becomes a production bug under load.</p></div>
+      <div class="exp-line"><code>type: 'RiskCalculator'</code><p>Every Script Include must end with this line matching the class name exactly. If it's missing or mismatched, the platform throws a runtime error the moment the class is instantiated — this trips up almost everyone the first time.</p></div>
+
+      <div class="best"><b>Production best practice:</b> Notice the score thresholds (30 / 60) and the business-hours window are the only two "magic numbers" in this class. In a real bank implementation, move these into a System Property (<code>x_bank_devops.risk.high_threshold</code>) so Release Management can tune them without a developer touching code.</div>
+      <div class="warn-box"><b>Common mistake:</b> Calling <code>new RiskCalculator()</code> directly from a Client Script. This class has no <code>client callable</code> flag and touches server tables — it must only ever be called from server-side code (Business Rules, Flow script steps, Scripted REST APIs).</div>
+    </section>
+
+    <section class="block" id="flow">
+      <h2 class="h2"><span class="num">11</span> Implementation Step 4 — Flow Designer: "Create Change from Pipeline Event"</h2>
+      <p>Flow Designer is where the orchestration event actually becomes a Change Request. We build this as a Record-Triggered Flow.</p>
+      <table>
+        <tr><th>Flow setting</th><th>Value</th></tr>
+        <tr><td>Trigger type</td><td>Record Created on <code>sn_devops_orchestration_task</code></td></tr>
+        <tr><td>Condition</td><td><code>stage_name is deploy</code> AND <code>change_request is empty</code></td></tr>
+        <tr><td>Run as</td><td>System user (so it works regardless of which integration account triggered the insert)</td></tr>
+      </table>
+
+      <h3 class="h3">Flow steps</h3>
+      <ol>
+        <li><strong>Look Up Records</strong> — search <code>change_request</code> where <code>correlation_id</code> equals the trigger record's <code>correlation_id</code>. This is our duplicate-prevention check.</li>
+        <li><strong>Flow Logic → If</strong> — "Look Up Records returned 0 rows" (no existing CR for this build).</li>
+        <li><strong>Script Step</strong> — call <code>RiskCalculator</code> and store the result in a flow variable <code>risk_level</code>.</li>
+        <li><strong>Create Record</strong> — create a <code>change_request</code> with the fields shown below.</li>
+        <li><strong>Update Record</strong> — write the new Change Request's sys_id back onto the triggering orchestration task's <code>change_request</code> field, closing the loop.</li>
+      </ol>
+
+      <div class="codewrap">
+        <div class="codehead"><span>Flow Designer · Script Step "Calculate Risk"</span><button class="copybtn" onclick="copyCode(this)">Copy</button></div>
+        <pre><code class="language-javascript">(function execute(inputs, outputs) {
+    // inputs.orchestration_task_id is wired in the Flow Designer canvas from the trigger record's sys_id
+    var calculator = new RiskCalculator();          // Instantiates the Script Include we just built
+    var risk = calculator.calculateRisk(inputs.orchestration_task_id); // Runs the scoring logic against this specific pipeline event
+    outputs.risk_level = risk;                        // Publishes the result as a Flow output variable, usable by every later step in this Flow
+})(inputs, outputs);</code></pre>
+      </div>
+      <p>In Flow Designer's Script Step, <code>inputs</code> and <code>outputs</code> are pre-defined objects the platform gives you — you declare which inputs the step expects (here, <code>orchestration_task_id</code> as a Reference to the orchestration task table) and which outputs it produces (<code>risk_level</code> as a String) using the step's configuration panel, not in the script body itself.</p>
+
+      <h3 class="h3">Create Record step — field mapping</h3>
+      <table>
+        <tr><th>Change Request field</th><th>Mapped from</th></tr>
+        <tr><td>short_description</td><td>"Automated deploy — " + trigger.pipeline_name + " build #" + trigger.build_number</td></tr>
+        <tr><td>correlation_id</td><td>trigger.correlation_id (this is what step 1 searches on next time)</td></tr>
+        <tr><td>risk</td><td>Flow variable <code>risk_level</code> from the Script Step</td></tr>
+        <tr><td>type</td><td>"Standard" if risk_level = low, otherwise "Normal"</td></tr>
+        <tr><td>cmdb_ci</td><td>Looked up Application Service record matching trigger.pipeline_name</td></tr>
+        <tr><td>u_jenkins_build_url</td><td>trigger.build_url (custom field we add to change_request for traceability)</td></tr>
+      </table>
+      <div class="note"><b>Why this matters:</b> The <code>correlation_id</code> field is doing double duty — it's how the Flow prevents duplicate CRs, and it's also the audit trail linking one specific CR to one specific Jenkins build forever. This directly closes the audit gap described in Section 3.</div>
+    </section>
+
+    <section class="block" id="br">
+      <h2 class="h2"><span class="num">12</span> Implementation Step 5 — Business Rule: Auto-Approve Low-Risk Standard Changes</h2>
+      <p>We add a "before insert" Business Rule on <code>change_request</code> so Low risk Standard Changes don't sit waiting for a human at all — this is the actual "velocity" part of DevOps Change Velocity.</p>
+      <div class="codewrap">
+        <div class="codehead"><span>Business Rule · Auto-Approve Standard Change (before, insert)</span><button class="copybtn" onclick="copyCode(this)">Copy</button></div>
+        <pre><code class="language-javascript">(function executeRule(current, previous /*null when async*/) {
+
+    if (current.type != 'standard') {                     // Only Standard Changes are eligible for auto-approval — Normal/Emergency always need a human
+        return;                                            // Exits the function immediately, leaving the record untouched, for any non-standard change
+    }
+
+    if (current.risk != 'low') {                          // Double-check the risk level even though the Flow already filtered for this — defense in depth
+        return;                                             // A Business Rule should never fully trust that upstream logic ran correctly
+    }
+
+    current.approval = 'approved';                          // Sets the standard ServiceNow approval state field directly
+    current.state = 3;                                       // State 3 = "Scheduled" in the out-of-box change_request state model — ready to implement
+    current.work_notes = 'Auto-approved by DevOps Change Velocity: Low risk, Standard Change, correlation_id=' + current.correlation_id; // Leaves a permanent, auditable trail explaining WHY this was approved without a human
+
+})(current, previous);</code></pre>
+      </div>
+      <div class="exp-line"><code>current / previous</code><p>Every Business Rule script receives <code>current</code> (the record being inserted/updated, as a GlideRecord) and <code>previous</code> (the record's prior state — null on insert or on async rules). We only need <code>current</code> here since this fires on insert.</p></div>
+      <div class="exp-line"><code>before, insert</code><p>Running as a "before" rule means our field changes (<code>approval</code>, <code>state</code>) are written into the same database operation as the insert — no second database round trip, which matters at 260+ changes/month scale.</p></div>
+      <div class="warn-box"><b>Common mistake:</b> Doing this logic in an "after" Business Rule and calling <code>current.update()</code> — that causes a second insert trigger cycle and can create infinite-loop risk if you're not careful with conditions. Always prefer "before" rules for same-record field edits.</div>
+    </section>
+
+    <section class="block" id="rest">
+      <h2 class="h2"><span class="num">13</span> Implementation Step 6 — Scripted REST API: Deployment Gate</h2>
+      <p>This is the endpoint Jenkins polls before it's allowed to run the actual deploy stage. It is the enforcement point — this is what actually stops an unapproved deployment from happening.</p>
+      <div class="codewrap">
+        <div class="codehead"><span>Scripted REST Resource · GET /api/x_bank/devops/gate_status</span><button class="copybtn" onclick="copyCode(this)">Copy</button></div>
+        <pre><code class="language-javascript">(function process(/*RESTAPIRequest*/ request, /*RESTAPIResponse*/ response) {
+
+    var correlationId = request.queryParams.correlation_id;        // Reads the ?correlation_id=... query string parameter Jenkins sends
+
+    if (!correlationId) {                                           // Guard clause — Jenkins forgot to pass the parameter
+        response.setStatus(400);                                     // HTTP 400 = Bad Request, tells Jenkins its call was malformed
+        response.setBody({ error: 'correlation_id is required' });   // JSON body explaining exactly what went wrong, so pipeline logs are useful
+        return;
+    }
+
+    var cr = new GlideRecord('change_request');                     // Opens a GlideRecord on the Change Request table
+    cr.addQuery('correlation_id', correlationId);                    // Filters to the exact build this gate check is for
+    cr.query();                                                       // Executes the query
+
+    if (!cr.next()) {                                                 // .next() moves the cursor to the first matching row and returns false if none exist
+        response.setStatus(404);                                      // HTTP 404 = the Change Request doesn't exist yet (Flow may not have run yet)
+        response.setBody({ status: 'not_found' });                    // Jenkins should treat this as "keep waiting / retry", not as a hard failure
+        return;
+    }
+
+    var approvalState = cr.getValue('approval');                      // Reads the approval field: 'requested', 'approved', 'rejected', etc.
+    var gateResponse = {
+        change_number: cr.getValue('number'),                         // Human-readable CR number (e.g. CHG0012345), useful in Jenkins console logs
+        risk: cr.getValue('risk'),                                     // Echoes the risk level back for visibility in the pipeline log
+        status: (approvalState == 'approved') ? 'approved' : 'pending'  // Collapses ServiceNow's approval states into a simple two-value contract for Jenkins
+    };
+
+    response.setStatus(200);                                          // HTTP 200 = the check itself succeeded (regardless of approved/pending)
+    response.setBody(gateResponse);                                    // Sends the JSON payload back to Jenkins
+
+})(request, response);</code></pre>
+      </div>
+      <div class="exp-line"><code>request.queryParams</code><p>Scripted REST APIs expose query string parameters through this object automatically — you never manually parse the URL string yourself.</p></div>
+      <div class="exp-line"><code>response.setStatus / setBody</code><p>These two calls together form the entire HTTP response. Always set a meaningful status code — Jenkins pipelines can branch logic on HTTP status alone, so 400 vs 404 vs 200 are not interchangeable here.</p></div>
+      <div class="best"><b>Production best practice:</b> This endpoint deliberately never returns a 500 for "not yet approved" — an HTTP 500 would make Jenkins treat the whole pipeline as broken. "Pending" is a normal, expected state, not an error, and the HTTP code should reflect that.</div>
+    </section>
+
+    <section class="block" id="jenkinsfile">
+      <h2 class="h2"><span class="num">14</span> Implementation Step 7 — Jenkinsfile</h2>
+      <div class="codewrap">
+        <div class="codehead"><span>Jenkinsfile · Internet Banking Deploy Pipeline</span><button class="copybtn" onclick="copyCode(this)">Copy</button></div>
+        <pre><code class="language-groovy">pipeline {
+    agent any
+    environment {
+        SN_INSTANCE = 'https://abcbank.service-now.com'      // Base URL of the ServiceNow instance, stored as a Jenkins environment variable
+        CORR_ID = "internet-banking-${env.BUILD_NUMBER}"      // Builds a unique correlation ID from the job name and Jenkins' own build number
+    }
+    stages {
+        stage('Build') {
+            steps { sh 'mvn clean package' }                   // Standard Maven build step for the Internet Banking Java application
+        }
+        stage('Notify ServiceNow') {
+            steps {
+                sh """
+                curl -X POST "${SN_INSTANCE}/api/x_bank/devops/pipeline_event" \
+                  -u "\$SN_USER:\$SN_TOKEN" \
+                  -H "Content-Type: application/json" \
+                  -d '{
+                        "correlation_id": "${CORR_ID}",
+                        "pipeline_name": "Internet Banking",
+                        "stage_name": "deploy",
+                        "build_number": "${env.BUILD_NUMBER}",
+                        "build_url": "${env.BUILD_URL}"
+                      }'
+                """                                              // Sends the pipeline event to our Scripted REST endpoint, triggering the Flow that creates the Change Request
+            }
+        }
+        stage('Wait for Change Approval') {
+            steps {
+                script {
+                    timeout(time: 30, unit: 'MINUTES') {         // Caps how long the pipeline will wait for a human approver before failing the build
+                        waitUntil {
+                            def resp = sh(
+                                script: "curl -s '${SN_INSTANCE}/api/x_bank/devops/gate_status?correlation_id=${CORR_ID}'",
+                                returnStdout: true
+                            )                                      // Polls our gate_status endpoint and captures its JSON response as a string
+                            return resp.contains('"status":"approved"') // Jenkins keeps re-checking on an interval until this condition is true
+                        }
+                    }
+                }
+            }
+        }
+        stage('Deploy to Production') {
+            steps { sh './deploy.sh production' }                 // This stage only runs after the previous stage confirms ServiceNow approval — the actual gate enforcement
+        }
+    }
+}</code></pre>
+      </div>
+      <div class="warn-box"><b>Common mistake:</b> Polling too aggressively (every few seconds) hammers the ServiceNow instance with load, especially across dozens of pipelines. Use Jenkins' <code>waitUntil</code> with a sensible built-in backoff, or better, configure a longer poll interval explicitly — production banking implementations typically poll every 60 seconds, not every 5.</div>
+    </section>
+
+    <!-- EXECUTION FLOW -->
+    <section class="block" id="execution-flow">
+      <h2 class="h2"><span class="num">15</span> Execution Flow — What Actually Happens, Step by Step</h2>
+      <ol>
+        <li>Developer merges code → Jenkins "Build" stage compiles the Internet Banking app.</li>
+        <li>"Notify ServiceNow" stage POSTs the pipeline event to <code>/pipeline_event</code>.</li>
+        <li>That endpoint (built the same way as the gate endpoint) writes a new row into <code>sn_devops_orchestration_task</code>.</li>
+        <li>The insert fires our Record-Triggered Flow.</li>
+        <li>Flow checks for a duplicate CR by <code>correlation_id</code> — finds none.</li>
+        <li>Flow's Script Step calls <code>RiskCalculator.calculateRisk()</code>.</li>
+        <li>Risk Calculator queries recent pipeline history via <code>GlideAggregate</code>, checks business hours, checks app criticality, returns a label.</li>
+        <li>Flow creates the Change Request with that risk label and type (Standard or Normal).</li>
+        <li>The <code>change_request</code> insert fires our "before insert" Business Rule.</li>
+        <li>If Low risk + Standard → Business Rule auto-approves instantly. If Medium/High → record stays in "Requested" state, routed to CAB per the out-of-box approval engine.</li>
+        <li>Flow writes the new CR's sys_id back onto the orchestration task, closing the correlation loop.</li>
+        <li>Jenkins' "Wait for Change Approval" stage polls <code>/gate_status</code> every interval.</li>
+        <li>Once approval = approved (instantly for Low risk, or after a CAB member approves for Medium/High), the gate endpoint returns <code>status: approved</code>.</li>
+        <li>Jenkins proceeds to "Deploy to Production."</li>
+        <li>Post-deployment, a follow-up event (not built in this project — covered in Project 4: Deployment Validation) would close the Change Request automatically.</li>
+      </ol>
+    </section>
+
+    <!-- LAB -->
+    <section class="block" id="lab">
+      <h2 class="h2"><span class="num">16</span> Local Lab — Practice This Yourself</h2>
+      <h3 class="h3">Prerequisites</h3>
+      <ul>
+        <li>A ServiceNow Personal Developer Instance (PDI) — free at developer.servicenow.com.</li>
+        <li>DevOps Change Velocity plugin activated on the PDI (<code>System Applications &gt; Plugins &gt; search "DevOps"</code>).</li>
+        <li>Jenkins running locally — easiest path is Docker: <code>docker run -p 8080:8080 jenkins/jenkins:lts</code>.</li>
+        <li>VS Code with the ServiceNow extension (or use Studio directly in the PDI browser).</li>
+        <li>Postman for testing the two REST endpoints before wiring up real Jenkins.</li>
+        <li>A MID Server is <strong>not</strong> required for this project since Jenkins reaches ServiceNow directly over the public internet in a PDI setup.</li>
+      </ul>
+
+      <h3 class="h3">Setup steps</h3>
+      <ol>
+        <li>In the PDI, create a scoped application: <code>x_bank_devops</code>.</li>
+        <li>Create the <code>RiskCalculator</code> Script Include exactly as shown above, inside that scope.</li>
+        <li>Build the two Scripted REST resources under a new Scripted REST API named "DevOps Bank Integration", base path <code>/x_bank/devops</code>.</li>
+        <li>Build the Flow described in Section 11. Test it first with "Manually run" using a fake orchestration task record before wiring Jenkins.</li>
+        <li>Create a Basic Auth REST user with only the roles needed to POST to your Scripted REST API (do not use admin).</li>
+        <li>In Postman, POST a fake pipeline event to <code>/pipeline_event</code> and confirm a Change Request appears.</li>
+        <li>GET <code>/gate_status?correlation_id=...</code> and confirm you see <code>pending</code> or <code>approved</code> depending on the risk you engineered.</li>
+        <li>Only once Postman works end-to-end, connect a real local Jenkins job using the Jenkinsfile from Section 14, replacing curl credentials with a Jenkins credential binding.</li>
+      </ol>
+
+      <h3 class="h3">Validation checklist</h3>
+      <ul>
+        <li>☐ A Low-risk test event creates a Standard Change that is auto-approved within the same transaction.</li>
+        <li>☐ A High-risk test event (simulate business hours + critical app) creates a Normal Change that stays "Requested."</li>
+        <li>☐ Posting the same <code>correlation_id</code> twice does NOT create a second Change Request.</li>
+        <li>☐ <code>/gate_status</code> returns 404 for an unknown correlation_id, not a 500.</li>
+      </ul>
+
+      <h3 class="h3">Challenge tasks</h3>
+      <ol>
+        <li>Move the risk thresholds (30/60) into System Properties instead of hardcoding them.</li>
+        <li>Add a Slack notification (this becomes its own project later) when a change is routed to CAB.</li>
+        <li>Extend the Risk Calculator to also weigh the number of files changed in the Git commit.</li>
+      </ol>
+    </section>
+
+    <!-- ENTERPRISE WORKFLOW -->
+    <section class="block" id="enterprise">
+      <h2 class="h2"><span class="num">17</span> How This Ships in a Real Bank — End-to-End SDLC</h2>
+      <table>
+        <tr><th>Stage</th><th>What happens</th></tr>
+        <tr><td>Jira Story</td><td>"As Release Engineering, I want Jenkins deploys to automatically create governed Change Requests, so CRs are never manually typed."</td></tr>
+        <tr><td>Requirement Gathering</td><td>Workshops with Release Management + Security to agree the risk model and CAB routing rules.</td></tr>
+        <tr><td>Architecture Review</td><td>Architecture Review Board checks the design against the bank's integration security standards (auth model, least privilege, logging).</td></tr>
+        <tr><td>HLD / LLD</td><td>High-Level Design (this document's Section 6) and Low-Level Design (field mappings, script pseudocode) are signed off before dev starts.</td></tr>
+        <tr><td>Development</td><td>Built in a scoped application in a Dev instance, exactly as in the lab above.</td></tr>
+        <tr><td>Code Review</td><td>Peer review checks: no hardcoded credentials, no admin-scoped calls, Script Include has a <code>type</code> line, Business Rule condition is airtight.</td></tr>
+        <tr><td>Testing / UAT</td><td>Release Management team runs simulated deploys of varying risk in a Test instance connected to a Test Jenkins.</td></tr>
+        <tr><td>CAB Approval</td><td>The change to deploy THIS automation is itself a Normal Change, approved by CAB — meta, but mandatory.</td></tr>
+        <tr><td>Deployment</td><td>Update Set (or better, source-controlled app via CI/CD to ServiceNow — a later project) promoted through Dev → Test → Prod.</td></tr>
+        <tr><td>Rollback Plan</td><td>Deactivate the Flow and Business Rule (don't delete) so any in-flight Change Requests are unaffected while we investigate.</td></tr>
+        <tr><td>Post-Implementation Review</td><td>After 2 weeks, measure actual time-to-CR and false-positive/false-negative risk classifications against the CAB's manual judgment.</td></tr>
+      </table>
+    </section>
+
+    <!-- INTERVIEW -->
+    <section class="block" id="interview">
+      <h2 class="h2"><span class="num">18</span> Interview Preparation</h2>
+      <div class="qa"><div class="q">Q: How does ServiceNow prevent duplicate Change Requests when a CI/CD webhook fires twice?</div><div class="a">A: By using a correlation ID (built from the job name + build number) as a unique business key, and having the Flow do a Look Up Records check before ever creating a new Change Request.</div></div>
+      <div class="qa"><div class="q">Q: Why calculate risk in ServiceNow instead of letting Jenkins send a risk level?</div><div class="a">A: ServiceNow is the system of record for compliance and audit. If the CI tool self-declares risk, the rating isn't independently governed, and an auditor won't accept it as a real control.</div></div>
+      <div class="qa"><div class="q">Q: A pipeline is stuck forever on "Wait for Change Approval." How do you troubleshoot it?</div><div class="a">A: Check the orchestration task for the correlation_id — did the Flow actually create a Change Request? If yes, check the CR's approval state and CAB assignment. If no CR exists, check the Flow's execution log for a failed condition or a script error in the Risk Calculator.</div></div>
+      <div class="qa"><div class="q">Q: Why is the Business Rule "before insert" instead of "after insert" with a GlideRecord update?</div><div class="a">A: "Before" rules modify the record in the same database write — more efficient and avoids re-triggering insert-based Business Rules a second time, which "after" + manual update can accidentally do.</div></div>
+      <div class="qa"><div class="q">Q: How would you scale this if the bank added 15 more applications and pipelines?</div><div class="a">A: The Risk Calculator's hardcoded app list should move to a CMDB attribute (Application Service criticality field) so onboarding a new app is a data change, not a code change — no redeploy needed.</div></div>
+      <div class="qa"><div class="q">Q: What's the real production incident this design prevents?</div><div class="a">A: An unauthorized or unreviewed change reaching Core Banking or Internet Banking production without going through CAB — which is both an operational risk and a direct regulatory violation.</div></div>
+    </section>
+
+    <!-- MISTAKES -->
+    <section class="block" id="mistakes">
+      <h2 class="h2"><span class="num">19</span> Common Mistakes Seen in Real Implementations</h2>
+      <ul>
+        <li>Putting risk-scoring logic directly inside a Business Rule instead of a Script Include — impossible to reuse or unit test in isolation.</li>
+        <li>Using an admin account as the Jenkins integration user "to make the demo work faster," then forgetting to lock it down before go-live.</li>
+        <li>Forgetting the duplicate-prevention Look Up step in the Flow — causes a new CR on every Jenkins retry, flooding CAB queues.</li>
+        <li>Returning HTTP 500 from the gate endpoint for a normal "pending" state, which makes Jenkins mark healthy pipelines as broken.</li>
+        <li>Not adding a correlation_id field to <code>change_request</code> at design time, then having to retrofit it later once hundreds of CRs already exist without it.</li>
+      </ul>
+    </section>
+
+    <div class="footer-nav">
+      <span></span>
+      <a class="btn" href="#story">Request Project 2 next in chat →</a>
+    </div>
+
+  </main>
+</div>
+
+<script>
+  hljs.highlightAll();
+  function copyCode(btn){
+    const code = btn.closest('.codewrap').querySelector('code').innerText;
+    navigator.clipboard.writeText(code).then(()=>{
+      const original = btn.innerText;
+      btn.innerText = 'Copied!';
+      setTimeout(()=>{ btn.innerText = original; }, 1500);
+    });
+  }
+  // Active nav link highlight on scroll
+  const links = document.querySelectorAll('.nav-link');
+  const sections = Array.from(links).map(l => document.querySelector(l.getAttribute('href'))).filter(Boolean);
+  window.addEventListener('scroll', () => {
+    let current = sections[0];
+    for (const sec of sections){
+      if (sec.getBoundingClientRect().top - 100 <= 0) current = sec;
+    }
+    links.forEach(l => l.classList.toggle('active', l.getAttribute('href') === '#' + current.id));
+  });
+</script>
+</body>
+</html>
