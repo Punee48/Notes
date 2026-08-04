@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Project 08 — VPC Endpoint Architecture | ABC Bank Terraform Mastery</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/10.9.0/mermaid.min.js"></script>
+<style>
+  :root{
+    --bg:#ffffff; --surface:#f7f5fc; --surface-2:#efeaf9; --border:#e3ddf4;
+    --primary:#6d28d9; --primary-dark:#4c1d95; --primary-light:#8b5cf6;
+    --accent-soft:#ede9fe; --text:#211b32; --muted:#6b6480;
+    --code-bg:#2b2140; --code-text:#e9e3fb;
+    --good:#0f7b52; --warn:#a8630a; --danger:#b3261e;
+    --radius:14px; --shadow:0 4px 20px rgba(109,40,217,0.08);
+  }
+  *{box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;font-size:16px;line-height:1.65;}
+  h1,h2,h3,h4{font-family:'Space Grotesk',sans-serif;color:var(--primary-dark);letter-spacing:-0.01em;}
+  a{color:var(--primary);}
+  .layout{display:flex;min-height:100vh;}
+  #sidebar{width:290px;flex-shrink:0;background:linear-gradient(180deg,var(--primary-dark),var(--primary));color:#f2edff;position:sticky;top:0;height:100vh;overflow-y:auto;padding:22px 18px 40px;}
+  #sidebar .brand{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:1.05rem;color:#fff;margin-bottom:4px;}
+  #sidebar .brand-sub{font-size:0.78rem;color:#d9cbff;margin-bottom:22px;display:block;}
+  #sidebar .progress-pill{display:inline-block;background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.25);border-radius:999px;padding:4px 12px;font-size:0.72rem;margin-bottom:20px;color:#fff;}
+  #sidebar nav a{display:block;color:#e6dcff;text-decoration:none;font-size:0.85rem;padding:7px 10px;border-radius:8px;margin-bottom:2px;transition:background .15s ease, color .15s ease;}
+  #sidebar nav a:hover{background:rgba(255,255,255,0.14);color:#fff;}
+  #sidebar nav a.active{background:#fff;color:var(--primary-dark);font-weight:600;}
+  #sidebar .nav-group-label{text-transform:uppercase;font-size:0.68rem;letter-spacing:0.08em;color:#c8b6f7;margin:18px 0 6px 10px;}
+  #content{flex:1;min-width:0;padding:44px 56px 120px;max-width:980px;}
+  .kicker{display:inline-block;background:var(--accent-soft);color:var(--primary-dark);font-size:0.75rem;font-weight:600;padding:5px 12px;border-radius:999px;margin-bottom:14px;letter-spacing:0.03em;}
+  header.hero{padding-bottom:28px;border-bottom:1px solid var(--border);margin-bottom:34px;}
+  header.hero h1{font-size:2.1rem;margin:0 0 10px;}
+  header.hero p.lead{font-size:1.05rem;color:var(--muted);max-width:70ch;}
+  section{margin-bottom:52px;scroll-margin-top:20px;}
+  section h2{font-size:1.4rem;display:flex;align-items:center;gap:10px;border-bottom:2px solid var(--surface-2);padding-bottom:10px;margin-bottom:18px;}
+  section h2 .num{background:var(--primary);color:#fff;font-size:0.75rem;font-family:'JetBrains Mono',monospace;padding:3px 8px;border-radius:6px;}
+  section h3{font-size:1.08rem;margin-top:26px;color:var(--primary);}
+  .story-box{background:var(--surface);border-left:4px solid var(--primary);border-radius:10px;padding:20px 22px;font-size:0.98rem;}
+  .story-box em{color:var(--muted);}
+  .card-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:18px 0;}
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px;}
+  .card h4{margin:0 0 8px;font-size:0.92rem;color:var(--primary-dark);}
+  .card p, .card ul{margin:0;font-size:0.9rem;color:var(--text);}
+  .card ul{padding-left:18px;}
+  .note, .warn, .best{border-radius:10px;padding:14px 16px;margin:16px 0;font-size:0.92rem;border:1px solid transparent;}
+  .note{background:#eef2ff;border-color:#c7d2fe;}
+  .note::before{content:"📝 Note";display:block;font-weight:700;margin-bottom:4px;color:#3730a3;}
+  .warn{background:#fff7ed;border-color:#fed7aa;}
+  .warn::before{content:"⚠️ Watch out";display:block;font-weight:700;margin-bottom:4px;color:var(--warn);}
+  .best{background:#ecfdf5;border-color:#a7f3d0;}
+  .best::before{content:"✅ Best Practice";display:block;font-weight:700;margin-bottom:4px;color:var(--good);}
+  details.collapse{border:1px solid var(--border);border-radius:var(--radius);margin:14px 0;background:#fff;box-shadow:var(--shadow);overflow:hidden;}
+  details.collapse summary{cursor:pointer;padding:14px 18px;font-weight:600;font-family:'Space Grotesk',sans-serif;color:var(--primary-dark);background:var(--surface);list-style:none;}
+  details.collapse summary::-webkit-details-marker{display:none;}
+  details.collapse summary::before{content:"▸ ";color:var(--primary);}
+  details.collapse[open] summary::before{content:"▾ ";}
+  details.collapse .inner{padding:16px 20px;}
+  table{width:100%;border-collapse:collapse;margin:14px 0;font-size:0.9rem;}
+  th,td{border:1px solid var(--border);padding:8px 10px;text-align:left;}
+  th{background:var(--surface-2);color:var(--primary-dark);}
+  .code-block{position:relative;margin:14px 0;border-radius:12px;overflow:hidden;border:1px solid #3b2c5e;}
+  .code-block .code-head{background:#231a38;color:#cbb8f5;font-family:'JetBrains Mono',monospace;font-size:0.78rem;padding:8px 14px;display:flex;justify-content:space-between;align-items:center;}
+  .code-block pre{margin:0;background:var(--code-bg);color:var(--code-text);padding:16px;overflow-x:auto;font-family:'JetBrains Mono',monospace;font-size:0.83rem;line-height:1.55;}
+  .code-block .copy-btn{background:var(--primary);color:#fff;border:none;border-radius:6px;font-size:0.72rem;padding:4px 10px;cursor:pointer;font-family:'Inter',sans-serif;}
+  .code-block .copy-btn:hover{background:var(--primary-light);}
+  .cmt{color:#8ee6a3;}
+  .mermaid-wrap{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:18px;margin:16px 0;overflow-x:auto;}
+  .tree{font-family:'JetBrains Mono',monospace;font-size:0.83rem;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px;white-space:pre;overflow-x:auto;}
+  .qa{border-top:1px solid var(--border);padding:12px 0;}
+  .qa .q{font-weight:600;color:var(--primary-dark);margin-bottom:4px;}
+  .nextbar{background:linear-gradient(135deg,var(--primary),var(--primary-dark));color:#fff;border-radius:16px;padding:26px 30px;margin-top:40px;}
+  .nextbar h3{color:#fff;margin-top:0;}
+  .nextbar p{color:#e6dcff;margin-bottom:0;}
+  @media (max-width:900px){.layout{flex-direction:column;}#sidebar{position:relative;width:100%;height:auto;}#content{padding:30px 20px 80px;}.card-grid{grid-template-columns:1fr;}}
+</style>
+</head>
+<body>
+<div class="layout">
+
+  <aside id="sidebar">
+    <span class="brand">🏦 ABC Bank — DevOps Mastery</span>
+    <span class="brand-sub">Intermediate → Advanced Terraform Track</span>
+    <span class="progress-pill">Project 08 / 40</span>
+    <nav id="navlinks">
+      <div class="nav-group-label">Orientation</div>
+      <a href="#story">The Banking Story</a>
+      <a href="#requirements">Business &amp; Risk</a>
+      <a href="#why-iac">Why PrivateLink</a>
+      <div class="nav-group-label">Concepts</div>
+      <a href="#tf-concepts">Terraform Concepts</a>
+      <a href="#aws-concepts">AWS Concepts (VPC Endpoints)</a>
+      <div class="nav-group-label">Design</div>
+      <a href="#architecture">Architecture Diagrams</a>
+      <a href="#solution-design">Solution Design</a>
+      <div class="nav-group-label">Build</div>
+      <a href="#folder-structure">Folder &amp; Repo Structure</a>
+      <a href="#implementation">Implementation (Full Code)</a>
+      <a href="#importing">Importing the Existing Endpoint</a>
+      <a href="#code-explained">Line-by-Line Explanation</a>
+      <div class="nav-group-label">Operate</div>
+      <a href="#execution-flow">Execution Flow</a>
+      <a href="#cicd">CI/CD Integration</a>
+      <a href="#local-lab">Local Lab &amp; Assignments</a>
+      <a href="#interview">Interview Preparation</a>
+      <a href="#next">What's Next</a>
+    </nav>
+  </aside>
+
+  <main id="content">
+    <header class="hero">
+      <span class="kicker">PROJECT 08 OF 40 · INTERMEDIATE</span>
+      <h1>VPC Endpoint Architecture — Keeping AWS Traffic Off the Internet</h1>
+      <p class="lead">Every S3 read, every Secrets Manager call, every SSM Agent heartbeat from our private subnets has been quietly routing out through the NAT Gateway and back into AWS over the public internet path. Today we give each of those services a private, direct on-ramp into the VPC — and along the way, discover (and properly adopt) an endpoint someone already created by hand.</p>
+    </header>
+
+    <section id="story">
+      <h2><span class="num">01</span> The Banking Story</h2>
+      <div class="story-box">
+        This month's AWS bill review turned up something odd: NAT Gateway data processing charges in Production are nearly triple what the team expected for the current traffic volume. Digging in, it turns out every S3 request from the payments-api pods, every Secrets Manager rotation call from Project 06, and every Session Manager heartbeat from Project 07 has been leaving the VPC through the NAT Gateway, out to the public internet, and back into AWS's public endpoints for those services — a round trip that costs money and, worse, is a network path a banking security review will always ask uncomfortable questions about.<br><br>
+        While investigating, an engineer discovered something else: an S3 Gateway endpoint already exists in the Production VPC — created by hand, months ago, by someone no longer on the team, entirely outside Terraform. It works, so nobody's touched it, but it's now an untracked, undocumented resource that could be silently deleted by anyone with console access.<br><br>
+        Our manager's brief: <em>"Build proper VPC Endpoints for S3, Secrets Manager, and SSM across every environment. And that orphaned endpoint someone made by hand — bring it under Terraform's management properly. Don't destroy and recreate it; that would cause a brief outage. Import it."</em>
+      </div>
+    </section>
+
+    <section id="requirements">
+      <h2><span class="num">02</span> Business Requirement, Risk &amp; Impact</h2>
+      <div class="card-grid">
+        <div class="card"><h4>Business Requirement</h4><p>Traffic to core AWS services (S3, Secrets Manager, SSM) from private subnets must stay entirely within the AWS network, never routing over the public internet.</p></div>
+        <div class="card"><h4>Customer Requirement</h4><p>The Security team wants a demonstrable network diagram where private subnet traffic to AWS APIs has no public internet path at all — a specific control banking network reviews check for.</p></div>
+        <div class="card"><h4>Current Infrastructure</h4><p>NAT Gateways from Project 02 handle all outbound traffic, including calls to AWS's own public service endpoints; one hand-created, untracked S3 Gateway endpoint exists in Production.</p></div>
+        <div class="card"><h4>Existing Manual Process</h4><p>None formalized — the one existing endpoint was a one-off fix by an engineer who is no longer with the team, with no record of why or how it was created.</p></div>
+        <div class="card"><h4>Problems With Current Process</h4><ul><li>Unnecessary NAT Gateway data processing costs for traffic that never needed to leave AWS's network</li><li>An untracked, manually created resource that Terraform doesn't know about and could conflict with</li><li>A public-internet-adjacent network path for security-sensitive API calls (Secrets Manager, SSM)</li></ul></div>
+        <div class="card"><h4>Business Challenges</h4><p>Banking network security reviews specifically look for AWS API traffic staying within the AWS network backbone — the current NAT-routed path doesn't clearly demonstrate that.</p></div>
+        <div class="card"><h4>Risk Analysis</h4><p><strong>Medium:</strong> the untracked manual endpoint is a small but real risk — anyone with console access could delete it, and if we later run Terraform apply and try to create a duplicate S3 endpoint (a VPC can normally only have one Gateway endpoint per service), the apply would fail with a confusing error.</p></div>
+        <div class="card"><h4>Business Impact</h4><p>Unplanned NAT Gateway cost overruns compound across every environment and every month; the untracked resource is a small governance gap an audit would flag.</p></div>
+      </div>
+    </section>
+
+    <section id="why-iac">
+      <h2><span class="num">03</span> Why VPC Endpoints, and What We Rejected</h2>
+      <h3>Why VPC Endpoints (PrivateLink)</h3>
+      <p>A VPC Endpoint creates a private, direct path from inside the VPC to a specific AWS service — Gateway endpoints (S3, DynamoDB) work via route table entries at no additional cost; Interface endpoints (Secrets Manager, SSM, most other services) create an Elastic Network Interface with a private IP directly in your subnets, backed by AWS PrivateLink. Either way, traffic never touches the public internet or a NAT Gateway.</p>
+      <h3>Alternatives considered, and why they were rejected</h3>
+      <table>
+        <tr><th>Alternative</th><th>Why considered</th><th>Why rejected for ABC Bank</th></tr>
+        <tr><td>Keep routing through NAT, just monitor costs more closely</td><td>Zero infrastructure change</td><td>Doesn't address the actual security review finding — the network path itself, not just its cost, is the concern</td></tr>
+        <tr><td>Restrict NAT Gateway with a proxy/firewall allowlist</td><td>Centralizes control of what NAT traffic is allowed</td><td>Adds a new component to operate, and still routes AWS-native traffic through NAT unnecessarily — VPC Endpoints solve this more directly, at the network layer</td></tr>
+        <tr><td>Destroy and recreate the orphaned manual endpoint</td><td>Simplest to implement in Terraform</td><td>Would cause a brief but real service disruption for anything currently using it — <code>terraform import</code> achieves the same end state with zero downtime</td></tr>
+      </table>
+    </section>
+
+    <section id="tf-concepts">
+      <h2><span class="num">04</span> Terraform Concepts You Must Understand Before We Build</h2>
+
+      <details class="collapse" open>
+        <summary>Importing Existing Infrastructure</summary>
+        <div class="inner">
+          <p><strong>What it is:</strong> bringing a resource that already exists in AWS — but was never created by Terraform — under Terraform's management, so it appears in state and future applies can manage it, without destroying and recreating the real resource.</p>
+          <p><strong>Why it exists:</strong> infrastructure created by hand, by a different tool, or before Terraform adoption doesn't just disappear — import lets you adopt it into IaC management going forward without any outage.</p>
+          <p><strong>Two ways to do it:</strong> the classic <code>terraform import &lt;address&gt; &lt;id&gt;</code> CLI command (imperative, run once, not saved anywhere), and the modern declarative <code>import</code> block (Terraform 1.5+, written directly in a <code>.tf</code> file and version-controlled, so the import is visible and repeatable in code review).</p>
+          <p><strong>Critical nuance:</strong> importing only brings the resource into <em>state</em> — it does NOT generate the matching HCL configuration for you automatically (older Terraform versions) or does so only with <code>terraform plan -generate-config-out</code> (newer versions). Either way, you must carefully write configuration that matches the real resource's actual settings, or the very next <code>plan</code> will show unexpected changes.</p>
+          <p><strong>Common mistake:</strong> importing a resource into state without first writing matching configuration — the next <code>terraform plan</code> then shows a huge, confusing diff trying to "fix" real infrastructure to match empty or incorrect config.</p>
+        </div>
+      </details>
+
+      <details class="collapse">
+        <summary>Reinforcing <code>for_each</code> — a Map of Endpoint Definitions</summary>
+        <div class="inner">
+          <p><strong>What it is:</strong> rather than writing three nearly-identical <code>aws_vpc_endpoint</code> resource blocks (one each for Secrets Manager, SSM, SSM Messages), we define one structured map variable and let a single resource block with <code>for_each</code> create all three — the same complex-variable pattern from Project 02's subnets, applied here to interface endpoints.</p>
+          <p><strong>Why it matters here specifically:</strong> AWS regularly adds new services needing an Interface endpoint (SSM added a second one, "EC2 Messages", after SSM itself) — with <code>for_each</code> over a map, adding a fourth service is a one-line variable change, not a new resource block to write and maintain.</p>
+        </div>
+      </details>
+
+      <details class="collapse">
+        <summary>Data Sources — Reusing Route Table IDs from Project 02</summary>
+        <div class="inner">
+          <p><strong>What it is:</strong> the S3 Gateway endpoint needs to be associated with every private and database route table so instances in those subnets can reach S3 privately — we pull those route table IDs from Project 02's vpc-framework module outputs rather than re-declaring them.</p>
+        </div>
+      </details>
+    </section>
+
+    <section id="aws-concepts">
+      <h2><span class="num">05</span> AWS Concepts: Gateway vs. Interface Endpoints</h2>
+      <div class="card-grid">
+        <div class="card"><h4>Gateway Endpoints (S3, DynamoDB only)</h4><p>Implemented as a route table target, not a network interface — traffic to S3 is redirected privately at the routing layer. No hourly charge, no data processing charge, and no private DNS configuration needed.</p></div>
+        <div class="card"><h4>Interface Endpoints (everything else)</h4><p>Creates an Elastic Network Interface with a private IP in your chosen subnets, backed by AWS PrivateLink. Charged per-hour per endpoint plus per-GB data processed — still typically far cheaper than the NAT Gateway data processing it replaces.</p></div>
+        <div class="card"><h4>Private DNS</h4><p>Enabling <code>private_dns_enabled</code> on an Interface endpoint means the standard AWS service hostname (e.g. <code>secretsmanager.ap-south-1.amazonaws.com</code>) resolves to the endpoint's private IP automatically — no application code changes needed at all.</p></div>
+        <div class="card"><h4>Security</h4><p>Interface endpoints get their own security group — scope it to allow inbound HTTPS only from the VPC's own CIDR, so only resources inside this VPC can use the endpoint.</p></div>
+        <div class="card"><h4>High Availability</h4><p>Deploy Interface endpoint network interfaces across the same multiple AZs as your application subnets — an endpoint only in one AZ becomes a single point of failure for every service that depends on it.</p></div>
+        <div class="card"><h4>Cost</h4><p>Gateway endpoints are free; Interface endpoints cost roughly $0.01/hour per AZ plus a small per-GB fee — still typically a net cost reduction once NAT Gateway data processing charges for the same traffic are removed.</p></div>
+        <div class="card"><h4>Limitations</h4><p>Not every AWS service supports Interface endpoints, and Gateway endpoints exist only for S3 and DynamoDB — always check AWS's current PrivateLink service list before assuming an endpoint is available for a given service.</p></div>
+      </div>
+    </section>
+
+    <section id="architecture">
+      <h2><span class="num">06</span> Architecture Diagrams</h2>
+      <h3>Traffic Path — Before vs After</h3>
+      <div class="mermaid-wrap"><div class="mermaid">
+flowchart TB
+  subgraph Before[Before]
+    App1[App in Private Subnet] --> NAT1[NAT Gateway] --> IGW1[Internet Gateway] --> AWSPublic[AWS Public S3/SSM Endpoint]
+  end
+  subgraph After[After]
+    App2[App in Private Subnet] --> VPCE[VPC Endpoint<br/>Interface or Gateway] --> AWSService[AWS Service<br/>Private PrivateLink Path]
+  end
+      </div></div>
+
+      <h3>Endpoint Types in This VPC</h3>
+      <div class="mermaid-wrap"><div class="mermaid">
+flowchart LR
+  VPC[ABC Bank Prod VPC] --> S3EP[S3 Gateway Endpoint<br/>route table association]
+  VPC --> SM[Secrets Manager<br/>Interface Endpoint]
+  VPC --> SSM1[SSM Interface Endpoint]
+  VPC --> SSM2[SSM Messages Interface Endpoint]
+  VPC --> SSM3[EC2 Messages Interface Endpoint]
+      </div></div>
+
+      <h3>Import Flow for the Orphaned Endpoint</h3>
+      <div class="mermaid-wrap"><div class="mermaid">
+sequenceDiagram
+  participant Eng as Engineer
+  participant TF as Terraform
+  participant AWS as AWS (existing endpoint)
+  Eng->>Eng: Write aws_vpc_endpoint config matching the real endpoint exactly
+  Eng->>TF: Add import block referencing the existing endpoint ID
+  Eng->>TF: terraform plan
+  TF->>AWS: Read current endpoint configuration
+  TF-->>Eng: Plan shows "0 to add, 0 to change" if config matches exactly
+  Eng->>TF: terraform apply
+  TF-->>Eng: Resource now tracked in state, zero downtime
+      </div></div>
+    </section>
+
+    <section id="solution-design">
+      <h2><span class="num">07</span> Complete Solution Design</h2>
+      <p>The pre-existing S3 Gateway endpoint is adopted via a declarative <code>import</code> block, with hand-written configuration matching its real settings exactly — verified with a <code>plan</code> that shows zero changes before it's ever applied. Three new Interface endpoints (Secrets Manager, SSM, SSM Messages) are created using a single <code>for_each</code>-driven resource block from a structured map variable, each with private DNS enabled and a dedicated security group scoped to the VPC's own CIDR.</p>
+    </section>
+
+    <section id="folder-structure">
+      <h2><span class="num">08</span> Folder Structure &amp; Repo Layout</h2>
+      <div class="tree">terraform-abc-bank/
+└── environments/
+    └── prod/
+        ├── vpc-endpoints.tf         # Gateway + Interface endpoints, both imported and new
+        ├── variables.tf
+        └── outputs.tf</div>
+    </section>
+
+    <section id="implementation">
+      <h2><span class="num">09</span> Implementation — Full Production Code</h2>
+
+      <h3>environments/prod/vpc-endpoints.tf — S3 Gateway Endpoint (to be imported)</h3>
+      <div class="code-block">
+        <div class="code-head"><span>environments/prod/vpc-endpoints.tf (excerpt)</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre><code>resource "aws_vpc_endpoint" "s3_gateway" {                          <span class="cmt"># Configuration written to match the EXISTING manually created endpoint exactly</span>
+  vpc_id            = var.vpc_id
+  service_name      = "com.amazonaws.${var.aws_region}.s3"
+  vpc_endpoint_type = "Gateway"                                       <span class="cmt"># Must match the real endpoint's type — S3 supports both, but this one was created as Gateway</span>
+
+  route_table_ids = concat(                                            <span class="cmt"># concat() merges the private and database route table ID lists from Project 02 into one list</span>
+    var.private_route_table_ids,
+    var.database_route_table_ids
+  )
+
+  tags = {
+    Name    = "s3-gateway-endpoint"
+    Adopted = "true"                                                    <span class="cmt"># Documents in the resource itself that this was imported, not originally created by Terraform</span>
+  }
+}</code></pre>
+      </div>
+
+      <h3>environments/prod/vpc-endpoints.tf — Interface Endpoints via for_each</h3>
+      <div class="code-block">
+        <div class="code-head"><span>environments/prod/vpc-endpoints.tf (excerpt)</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre><code>variable "interface_endpoints" {                                     <span class="cmt"># Complex variable — one entry per Interface endpoint to create</span>
+  type = map(object({
+    service_name_suffix = string                                       <span class="cmt"># e.g. "secretsmanager", appended to the standard com.amazonaws.<region>. prefix</span>
+  }))
+  default = {
+    secretsmanager = { service_name_suffix = "secretsmanager" }
+    ssm            = { service_name_suffix = "ssm" }
+    ssmmessages    = { service_name_suffix = "ssmmessages" }           <span class="cmt"># Required alongside "ssm" for Session Manager's interactive channel specifically</span>
+  }
+}
+
+resource "aws_security_group" "vpc_endpoints" {
+  name   = "vpc-interface-endpoints-sg"
+  vpc_id = var.vpc_id
+
+  ingress {
+    from_port   = 443                                                   <span class="cmt"># PrivateLink endpoints communicate over HTTPS only</span>
+    to_port     = 443
+    protocol    = "tcp"
+    cidr_blocks = [var.vpc_cidr]                                        <span class="cmt"># Scoped to ONLY this VPC's own CIDR — nothing outside it can reach these endpoints</span>
+  }
+}
+
+resource "aws_vpc_endpoint" "interface" {
+  for_each            = var.interface_endpoints                        <span class="cmt"># One resource instance per map entry — keyed by name, safe to add a 4th service later</span>
+  vpc_id              = var.vpc_id
+  service_name        = "com.amazonaws.${var.aws_region}.${each.value.service_name_suffix}"
+  vpc_endpoint_type   = "Interface"
+  subnet_ids          = var.private_subnet_ids                          <span class="cmt"># Deployed across every private-tier AZ for high availability</span>
+  security_group_ids  = [aws_security_group.vpc_endpoints.id]
+  private_dns_enabled = true                                            <span class="cmt"># Lets existing application code keep using the standard AWS hostname with zero changes</span>
+
+  tags = { Name = "vpce-${each.key}" }
+}</code></pre>
+      </div>
+
+      <h3>environments/prod/outputs.tf</h3>
+      <div class="code-block">
+        <div class="code-head"><span>environments/prod/outputs.tf</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre><code>output "interface_endpoint_ids" {
+  value = { for k, ep in aws_vpc_endpoint.interface : k => ep.id }
+}</code></pre>
+      </div>
+    </section>
+
+    <section id="importing">
+      <h2><span class="num">10</span> Importing the Existing Endpoint — Step by Step</h2>
+      <p>Before touching anything, find the real endpoint's ID from the AWS console or CLI, and read its exact current configuration — this is the configuration your <code>.tf</code> file above must match precisely.</p>
+      <div class="code-block">
+        <div class="code-head"><span>terminal — discover the real endpoint's settings</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre><code>aws ec2 describe-vpc-endpoints --filters "Name=service-name,Values=com.amazonaws.ap-south-1.s3" \
+  --query "VpcEndpoints[*].{Id:VpcEndpointId,RouteTables:RouteTableIds,Tags:Tags}"</code></pre>
+      </div>
+      <h3>Modern approach: declarative import block (Terraform 1.5+)</h3>
+      <div class="code-block">
+        <div class="code-head"><span>environments/prod/imports.tf</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre><code>import {
+  to = aws_vpc_endpoint.s3_gateway                                    <span class="cmt"># Must match the resource address in vpc-endpoints.tf exactly</span>
+  id = "vpce-0abc123def456789a"                                        <span class="cmt"># The real endpoint's ID, discovered via the AWS CLI command above</span>
+}</code></pre>
+      </div>
+      <div class="best">Keeping the import declared in a version-controlled <code>import</code> block (rather than running the imperative <code>terraform import</code> CLI command once, by hand, and never recording it) means any teammate, or a fresh CI/CD run, can reproduce exactly how this resource was adopted — a real audit-trail advantage for a banking codebase.</div>
+      <h3>Verifying before applying</h3>
+      <div class="code-block">
+        <div class="code-head"><span>terminal</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre><code>terraform plan
+<span class="cmt"># Expected: "Terraform will perform the following actions: ... 0 to add, 0 to change, 0 to destroy"
+# If the plan shows CHANGES to the endpoint, your .tf configuration doesn't yet match reality —
+# fix the config, do NOT apply a plan that would modify a resource you just discovered and imported.</span>
+terraform apply   <span class="cmt"># Only once the plan is clean — this writes the import into state with no infrastructure change</span></code></pre>
+      </div>
+      <h3>Legacy approach, for comparison</h3>
+      <div class="code-block">
+        <div class="code-head"><span>terminal (older Terraform versions, or a one-off fix)</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre><code>terraform import aws_vpc_endpoint.s3_gateway vpce-0abc123def456789a</code></pre>
+      </div>
+      <div class="warn">The legacy CLI command achieves the same result but leaves no trace in version control — a teammate reviewing the Git history later would have no idea this resource was ever imported rather than created by <code>apply</code>. Prefer the <code>import</code> block for anything going through code review.</div>
+    </section>
+
+    <section id="code-explained">
+      <h2><span class="num">10</span> Code Explanation Summary</h2>
+      <table>
+        <tr><th>Block / Argument</th><th>What it does</th><th>Common mistake to avoid</th></tr>
+        <tr><td><code>vpc_endpoint_type = "Gateway"</code></td><td>Must exactly match the type of the real, pre-existing endpoint being imported</td><td>Guessing "Interface" because that's more common for other services — S3's existing endpoint here was specifically created as Gateway; import fails or shows drift if the type doesn't match</td></tr>
+        <tr><td><code>concat(private_route_table_ids, database_route_table_ids)</code></td><td>Merges two lists into one, used as the Gateway endpoint's full set of associated route tables</td><td>Only associating the private route tables and forgetting database — database-tier instances needing S3 access (e.g. for backups) would then fail to reach it privately</td></tr>
+        <tr><td><code>private_dns_enabled = true</code></td><td>Makes the endpoint transparent to existing application code using the standard service hostname</td><td>Leaving this false — applications would need code changes to use the endpoint's specific DNS name instead of the standard AWS hostname</td></tr>
+        <tr><td><code>import { to = ..., id = ... }</code></td><td>Declares an import as part of the configuration itself, applied on the next <code>terraform apply</code></td><td>Leaving the import block in the codebase permanently after the import succeeds — remove it once applied, since it has no further purpose and re-running it against an already-imported resource is a harmless no-op but unnecessary clutter</td></tr>
+      </table>
+    </section>
+
+    <section id="execution-flow">
+      <h2><span class="num">11</span> Execution Flow, Explained Internally</h2>
+      <div class="card-grid">
+        <div class="card"><h4>terraform plan with an import block present</h4><p>Terraform reads the real resource's current state from AWS, compares it against your written configuration, and shows the import as a state action separate from any configuration drift — a clean import shows the resource being added to state with no attribute changes.</p></div>
+        <div class="card"><h4>terraform apply — import step</h4><p>Writes the resource into state exactly as read from AWS; if your configuration doesn't match, this step can still succeed at importing while leaving a subsequent drift that the next plan will want to "correct" — always verify a clean plan first.</p></div>
+        <div class="card"><h4>terraform apply — new Interface endpoints</h4><p>Creates the security group first (no dependency on anything else), then all three Interface endpoints in parallel via <code>for_each</code>, since none of them depend on each other.</p></div>
+      </div>
+      <div class="warn">Never apply an import alongside unrelated infrastructure changes in the same apply — isolate the import to its own review and apply, so if anything about the imported resource's configuration is subtly wrong, it's easy to identify and doesn't get tangled up with unrelated changes.</div>
+    </section>
+
+    <section id="cicd">
+      <h2><span class="num">12</span> CI/CD Integration</h2>
+      <div class="code-block">
+        <div class="code-head"><span>.github/workflows/terraform-vpc-endpoints.yml</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre><code>name: terraform-vpc-endpoints
+on:
+  pull_request:
+    paths: ["environments/prod/vpc-endpoints.tf", "environments/prod/imports.tf"]
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    defaults: { run: { working-directory: environments/prod } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+      - run: terraform init
+      - name: Plan
+        run: terraform plan -no-color | tee plan.txt
+      - name: Fail if the import would change the resource
+        run: |                                                          <span class="cmt"># Extra safety net: block merge if the import isn't a clean, zero-change adoption</span>
+          if grep -q "~ resource \"aws_vpc_endpoint\" \"s3_gateway\"" plan.txt; then
+            echo "Import would modify the existing endpoint — configuration doesn't match reality. Fix before merging."
+            exit 1
+          fi</code></pre>
+      </div>
+    </section>
+
+    <section id="local-lab">
+      <h2><span class="num">13</span> Local Lab — Practice This Yourself</h2>
+      <h3>Prerequisites</h3>
+      <ul>
+        <li>An existing VPC (from Project 02) with at least one resource created manually (create a throwaway S3 Gateway endpoint by hand in the console, specifically to practice importing it)</li>
+      </ul>
+      <h3>Commands</h3>
+      <div class="code-block">
+        <div class="code-head"><span>terminal</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre><code>aws ec2 describe-vpc-endpoints --query "VpcEndpoints[*].VpcEndpointId"
+<span class="cmt"># Write your .tf config to match, then add the import block, then:</span>
+terraform plan     <span class="cmt"># MUST show 0 changes before proceeding</span>
+terraform apply</code></pre>
+      </div>
+      <h3>Expected output</h3>
+      <p>After apply, <code>terraform state list</code> shows the endpoint tracked in state, while the AWS console shows zero downtime or modification to the resource itself.</p>
+      <h3>Troubleshooting</h3>
+      <table>
+        <tr><th>Symptom</th><th>Likely cause</th></tr>
+        <tr><td>Plan shows changes immediately after import</td><td>Your written configuration doesn't exactly match the real resource's settings — re-check every argument against the AWS CLI's describe output</td></tr>
+        <tr><td><code>Error: Cannot import non-existent remote object</code></td><td>The ID in the import block doesn't match any real resource — double check the exact endpoint ID and region</td></tr>
+      </table>
+      <h3>Assignments</h3>
+      <ol>
+        <li>Add a DynamoDB Gateway endpoint alongside the S3 one, reusing the same route table association pattern.</li>
+        <li>Add a fourth Interface endpoint (e.g. CloudWatch Logs) to the <code>interface_endpoints</code> map variable and confirm exactly one new resource appears in the plan.</li>
+      </ol>
+      <h3>Challenge Task</h3>
+      <p>Use <code>terraform plan -generate-config-out=generated.tf</code> against a second manually created resource, and compare the auto-generated configuration to what you'd have hand-written — note any differences you'd want to clean up before merging it for real.</p>
+    </section>
+
+    <section id="interview">
+      <h2><span class="num">14</span> Interview Preparation</h2>
+      <div class="qa"><div class="q">Q: What's the difference between a Gateway and an Interface VPC endpoint?</div><div>Gateway endpoints (S3, DynamoDB only) work as a route table target with no hourly cost; Interface endpoints create an actual network interface with a private IP via AWS PrivateLink, supporting most other AWS services, and incur an hourly plus per-GB charge.</div></div>
+      <div class="qa"><div class="q">Q: How do you safely import an existing resource without causing downtime or unwanted changes?</div><div>Read the real resource's exact current configuration first, write matching Terraform configuration, use an import block (or the import CLI command) to bring it into state, then run terraform plan and confirm it shows zero changes before ever applying anything further.</div></div>
+      <div class="qa"><div class="q">Q: Does terraform import generate the HCL configuration for you?</div><div>Not by default — classic import only writes to state; you must write matching configuration yourself, or use the newer plan -generate-config-out flag to have Terraform draft a starting configuration you still need to review.</div></div>
+      <div class="qa"><div class="q">Q: Why put multiple Interface endpoints in one for_each block instead of separate resources?</div><div>It keeps the code DRY and makes adding a new required service endpoint (which AWS does periodically) a one-line variable change instead of a new resource block to write and maintain.</div></div>
+      <div class="qa"><div class="q">Manager round: How would you find every piece of infrastructure that exists outside Terraform's management today?</div><div>Run a drift/discovery tool like AWS Config's resource inventory or a Terraform-aware scanner against each account, cross-reference against terraform state list per environment, and treat any gap as a candidate for the same import workflow used here.</div></div>
+    </section>
+
+    <div class="nextbar" id="next">
+      <h3>What's next</h3>
+      <p>Project 09 builds <strong>Route53 Enterprise DNS</strong> — private hosted zones shared across every account via the Transit Gateway hub from Project 03, split-horizon DNS for internal vs. external resolution, and DNS failover records feeding into the Multi-Region DR project later in this series. Tell me when you're ready for Project 09.</p>
+    </div>
+
+  </main>
+</div>
+
+<script>
+  mermaid.initialize({ startOnLoad: true, theme: 'base', themeVariables: {
+    primaryColor: '#ede9fe', primaryTextColor: '#4c1d95', primaryBorderColor: '#8b5cf6',
+    lineColor: '#8b5cf6', secondaryColor: '#f7f5fc', tertiaryColor: '#ffffff', fontFamily: 'Inter, sans-serif'
+  }});
+  function copyCode(btn){
+    const pre = btn.closest('.code-block').querySelector('pre');
+    const text = pre.innerText;
+    navigator.clipboard.writeText(text).then(()=>{
+      const original = btn.textContent;
+      btn.textContent = 'Copied!';
+      setTimeout(()=>{ btn.textContent = original; }, 1500);
+    });
+  }
+  const sections = document.querySelectorAll('section, .nextbar');
+  const links = document.querySelectorAll('#navlinks a');
+  const observer = new IntersectionObserver((entries)=>{
+    entries.forEach(entry=>{
+      if(entry.isIntersecting){
+        links.forEach(l=>l.classList.remove('active'));
+        const id = entry.target.getAttribute('id');
+        const match = document.querySelector(`#navlinks a[href="#${id}"]`);
+        if(match) match.classList.add('active');
+      }
+    });
+  }, { rootMargin: '-20% 0px -70% 0px' });
+  sections.forEach(s=>observer.observe(s));
+</script>
+</body>
+</html>
