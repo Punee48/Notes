@@ -1,0 +1,689 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Project 01 — Enterprise SSH Hardening Automation | AWS RHEL Fleet</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&family=JetBrains+Mono:wght@400;500;700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg: #0b0e0f;
+    --bg-panel: #12171a;
+    --bg-panel-2: #161c20;
+    --line: #23303580;
+    --line-strong: #2c3b3f;
+    --amber: #ff9d3d;
+    --amber-dim: #7a5326;
+    --teal: #35d6b0;
+    --teal-dim: #1c6a58;
+    --red: #ff5c5c;
+    --red-dim: #5a2323;
+    --text: #dbe4e6;
+    --text-dim: #8fa1a6;
+    --text-faint: #5c6d71;
+    --mono: 'JetBrains Mono', monospace;
+    --display: 'Sora', sans-serif;
+    --body: 'Manrope', sans-serif;
+  }
+  *{box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{
+    margin:0; background:var(--bg); color:var(--text);
+    font-family:var(--body); line-height:1.65; font-size:15.5px;
+  }
+  ::selection{background:var(--amber); color:#101314;}
+
+  /* ---- Top pipeline rail ---- */
+  .rail{
+    position:sticky; top:0; z-index:50;
+    background:linear-gradient(180deg,#0d1113 0%, #0d1113ee 100%);
+    border-bottom:1px solid var(--line-strong);
+    backdrop-filter: blur(6px);
+  }
+  .rail-inner{
+    max-width:1180px; margin:0 auto; padding:10px 28px;
+    display:flex; align-items:center; gap:14px; overflow-x:auto;
+  }
+  .rail-tag{
+    font-family:var(--mono); font-size:11px; letter-spacing:.08em;
+    color:var(--text-faint); white-space:nowrap; padding-right:10px;
+    border-right:1px solid var(--line-strong);
+  }
+  .rail-steps{display:flex; gap:0; align-items:center; white-space:nowrap;}
+  .rail-step{
+    font-family:var(--mono); font-size:11.5px; color:var(--text-faint);
+    padding:4px 10px; border-radius:3px; position:relative;
+  }
+  .rail-step.done{color:var(--teal);}
+  .rail-step.active{color:var(--amber); background:#1c1512; border:1px solid var(--amber-dim);}
+  .rail-arrow{color:var(--text-faint); font-size:11px; opacity:.5;}
+
+  /* ---- Header / hero ---- */
+  header.hero{
+    max-width:1180px; margin:0 auto; padding:64px 28px 40px;
+    border-bottom:1px solid var(--line);
+  }
+  .eyebrow{
+    font-family:var(--mono); font-size:12px; color:var(--amber);
+    letter-spacing:.14em; text-transform:uppercase; display:flex; align-items:center; gap:10px;
+  }
+  .eyebrow::before{content:"●"; font-size:8px; color:var(--teal); animation:pulse 2s infinite;}
+  @keyframes pulse{0%,100%{opacity:1;}50%{opacity:.3;}}
+  h1.title{
+    font-family:var(--display); font-weight:800; font-size:clamp(28px,4vw,44px);
+    margin:14px 0 10px; letter-spacing:-0.01em; color:#f2f6f6;
+  }
+  .subtitle{color:var(--text-dim); font-size:16px; max-width:760px;}
+  .meta-strip{
+    display:flex; flex-wrap:wrap; gap:10px; margin-top:26px;
+  }
+  .meta-chip{
+    font-family:var(--mono); font-size:11.5px; color:var(--text-dim);
+    background:var(--bg-panel); border:1px solid var(--line-strong);
+    padding:6px 12px; border-radius:20px;
+  }
+  .meta-chip b{color:var(--text);}
+
+  /* ---- Layout ---- */
+  main{max-width:1180px; margin:0 auto; padding:0 28px 100px; display:flex; gap:40px;}
+  nav.toc{
+    width:230px; flex-shrink:0; position:sticky; top:64px; align-self:flex-start;
+    padding-top:36px; max-height:calc(100vh - 80px); overflow-y:auto;
+  }
+  nav.toc a{
+    display:block; font-size:12.5px; color:var(--text-faint); text-decoration:none;
+    padding:6px 0 6px 14px; border-left:2px solid var(--line); transition:.15s;
+  }
+  nav.toc a:hover{color:var(--amber); border-left-color:var(--amber);}
+  .content{flex:1; min-width:0; padding-top:36px;}
+
+  section{margin-bottom:64px; scroll-margin-top:80px;}
+  .sec-head{display:flex; align-items:baseline; gap:12px; margin-bottom:20px;}
+  .sec-num{font-family:var(--mono); color:var(--amber); font-size:13px;}
+  h2{
+    font-family:var(--display); font-weight:700; font-size:22px; color:#f2f6f6; margin:0;
+  }
+  h3{font-family:var(--display); font-weight:600; font-size:16px; color:var(--teal); margin:26px 0 10px;}
+  p{color:var(--text-dim); margin:10px 0;}
+  strong{color:var(--text);}
+  a{color:var(--amber);}
+
+  .callout{
+    background:var(--bg-panel); border:1px solid var(--line-strong); border-left:3px solid var(--amber);
+    padding:16px 20px; border-radius:4px; margin:16px 0; color:var(--text-dim); font-size:14.5px;
+  }
+  .callout.teal{border-left-color:var(--teal);}
+  .callout.red{border-left-color:var(--red);}
+  .callout b{color:var(--text); display:block; font-family:var(--mono); font-size:11.5px; letter-spacing:.06em; text-transform:uppercase; margin-bottom:6px;}
+
+  table{width:100%; border-collapse:collapse; margin:16px 0; font-size:13.5px;}
+  th,td{text-align:left; padding:9px 12px; border-bottom:1px solid var(--line);}
+  th{font-family:var(--mono); font-size:11px; letter-spacing:.05em; text-transform:uppercase; color:var(--text-faint); font-weight:500;}
+  td{color:var(--text-dim);}
+  tr:hover td{color:var(--text);}
+
+  ul,ol{color:var(--text-dim); padding-left:22px;}
+  li{margin:6px 0;}
+  li::marker{color:var(--amber);}
+
+  /* code blocks */
+  pre{
+    background:#0a0d0e; border:1px solid var(--line-strong); border-radius:6px;
+    padding:18px 20px; overflow-x:auto; font-family:var(--mono); font-size:12.6px;
+    line-height:1.7; color:#c9d6d8; margin:16px 0;
+  }
+  .code-label{
+    font-family:var(--mono); font-size:11px; color:var(--bg); background:var(--teal);
+    display:inline-block; padding:3px 10px; border-radius:4px 4px 0 0; letter-spacing:.05em;
+    margin-bottom:-1px; position:relative; top:1px;
+  }
+  .cmt{color:#5c8f7f;}
+  .kw{color:#ff9d3d;}
+  .str{color:#8fd0e6;}
+
+  code.inline{
+    font-family:var(--mono); background:#1a2225; color:var(--teal); padding:2px 6px;
+    border-radius:3px; font-size:12.8px;
+  }
+
+  /* workflow diagram */
+  .flow{display:flex; flex-direction:column; gap:0; margin:20px 0;}
+  .flow-node{
+    display:flex; align-items:center; gap:14px; padding:12px 16px;
+    background:var(--bg-panel); border:1px solid var(--line-strong); border-radius:6px;
+    position:relative;
+  }
+  .flow-node .n{
+    font-family:var(--mono); font-size:11px; color:var(--bg); background:var(--amber);
+    width:26px; height:26px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+    flex-shrink:0; font-weight:700;
+  }
+  .flow-node .label{font-family:var(--display); font-weight:600; color:var(--text); font-size:14px;}
+  .flow-node .desc{color:var(--text-faint); font-size:12.5px;}
+  .flow-connector{
+    width:1px; height:20px; background:var(--line-strong); margin-left:29px;
+  }
+
+  /* team grid */
+  .team-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(230px,1fr)); gap:14px; margin:16px 0;}
+  .team-card{
+    background:var(--bg-panel); border:1px solid var(--line-strong); border-radius:6px; padding:16px;
+  }
+  .team-card h4{font-family:var(--mono); font-size:12px; color:var(--amber); margin:0 0 8px; letter-spacing:.04em;}
+  .team-card ul{margin:0; padding-left:16px; font-size:13px;}
+
+  /* ticket card */
+  .ticket{
+    background:var(--bg-panel-2); border:1px solid var(--line-strong); border-radius:6px; overflow:hidden; margin:16px 0;
+  }
+  .ticket-head{
+    display:flex; justify-content:space-between; align-items:center;
+    background:#191f22; padding:10px 18px; border-bottom:1px solid var(--line-strong);
+    font-family:var(--mono); font-size:12px;
+  }
+  .ticket-id{color:var(--teal);}
+  .ticket-badge{
+    padding:2px 10px; border-radius:10px; font-size:10.5px; letter-spacing:.05em; text-transform:uppercase;
+  }
+  .ticket-badge.change{background:var(--amber-dim); color:var(--amber);}
+  .ticket-body{padding:16px 18px;}
+  .ticket-row{display:flex; gap:10px; margin:6px 0; font-size:13px;}
+  .ticket-row .k{width:150px; flex-shrink:0; color:var(--text-faint); font-family:var(--mono); font-size:11.5px;}
+  .ticket-row .v{color:var(--text-dim);}
+
+  /* approval chain */
+  .chain{display:flex; align-items:center; flex-wrap:wrap; gap:8px; margin:16px 0;}
+  .chain-item{
+    font-family:var(--mono); font-size:12px; background:var(--bg-panel); border:1px solid var(--line-strong);
+    padding:8px 14px; border-radius:4px; color:var(--text-dim);
+  }
+  .chain-arrow{color:var(--amber);}
+
+  /* interview qa */
+  .qa{background:var(--bg-panel); border:1px solid var(--line-strong); border-radius:6px; padding:18px 20px; margin:14px 0;}
+  .qa .q{font-family:var(--display); font-weight:600; color:var(--amber); font-size:14.5px; margin-bottom:8px;}
+  .qa .a{color:var(--text-dim); font-size:13.8px;}
+
+  .divider{height:1px; background:var(--line); margin:40px 0;}
+
+  footer{
+    max-width:1180px; margin:0 auto; padding:30px 28px 60px; color:var(--text-faint);
+    font-family:var(--mono); font-size:11.5px; border-top:1px solid var(--line);
+  }
+
+  @media (max-width:900px){
+    main{flex-direction:column;}
+    nav.toc{display:none;}
+  }
+</style>
+</head>
+<body>
+
+<div class="rail">
+  <div class="rail-inner">
+    <span class="rail-tag">NOVASTACK BANK · AUTOMATION ENGINEERING</span>
+    <div class="rail-steps">
+      <span class="rail-step done">TICKET</span><span class="rail-arrow">→</span>
+      <span class="rail-step done">DESIGN</span><span class="rail-arrow">→</span>
+      <span class="rail-step done">DEV</span><span class="rail-arrow">→</span>
+      <span class="rail-step active">UAT</span><span class="rail-arrow">→</span>
+      <span class="rail-step">CAB</span><span class="rail-arrow">→</span>
+      <span class="rail-step">PROD</span><span class="rail-arrow">→</span>
+      <span class="rail-step">CLOSE</span>
+    </div>
+  </div>
+</div>
+
+<header class="hero">
+  <div class="eyebrow">Project 01 of 25 · Intermediate</div>
+  <h1 class="title">Enterprise SSH Security Hardening Automation<br>Across the AWS RHEL Fleet</h1>
+  <p class="subtitle">A security-driven compliance remediation delivered as reusable Ansible automation, executed through RHAAP/AAP across DEV → UAT → PROD, under formal ITSM change control.</p>
+  <div class="meta-strip">
+    <span class="meta-chip">Company: <b>NovaStack Bank</b></span>
+    <span class="meta-chip">Fleet: <b>420 RHEL 8/9 EC2 instances</b></span>
+    <span class="meta-chip">Trigger: <b>Security audit finding</b></span>
+    <span class="meta-chip">Environments: <b>DEV · UAT · PROD</b></span>
+    <span class="meta-chip">Change: <b>CHG0041872</b></span>
+  </div>
+</header>
+
+<main>
+<nav class="toc">
+  <a href="#scenario">01 · Business Scenario</a>
+  <a href="#arch">02 · Architecture</a>
+  <a href="#workflow">03 · Project Workflow</a>
+  <a href="#teams">04 · Team Responsibilities</a>
+  <a href="#tickets">05 · Ticket Flow</a>
+  <a href="#approval">06 · Approval Flow</a>
+  <a href="#requirements">07 · Requirement Gathering</a>
+  <a href="#auth">08 · Authentication</a>
+  <a href="#design">09 · Ansible Design</a>
+  <a href="#code">10 · Code &amp; Roles</a>
+  <a href="#aap">11 · RHAAP / AAP</a>
+  <a href="#testing">12 · Testing Strategy</a>
+  <a href="#prod">13 · Production Deployment</a>
+  <a href="#rollback">14 · Rollback</a>
+  <a href="#troubleshoot">15 · Troubleshooting</a>
+  <a href="#monitoring">16 · Monitoring</a>
+  <a href="#security">17 · Security</a>
+  <a href="#docs">18 · Documentation</a>
+  <a href="#interview">19 · Interview Prep</a>
+  <a href="#takeaways">20 · Key Takeaways</a>
+</nav>
+
+<div class="content">
+
+<section id="scenario">
+  <div class="sec-head"><span class="sec-num">01</span><h2>Business Scenario</h2></div>
+  <p>NovaStack Bank runs 420 RHEL 8 and RHEL 9 EC2 instances across its retail banking, payments, and core ledger platforms. During a quarterly external security assessment, the bank's Information Security team found that SSH daemon configuration across the fleet does not meet the organization's hardened baseline — weak key exchange algorithms are still permitted, root login over SSH is enabled on a subset of hosts, and idle sessions are not timed out.</p>
+  <p>This is flagged as a <strong>Sev-2 audit finding</strong> with a mandated remediation SLA of 30 days. Manually logging into 420 servers, editing <code class="inline">sshd_config</code>, and restarting the service is not acceptable — it's slow, inconsistent across engineers, impossible to prove in an audit, and risky for a live banking environment where a single fat-fingered config can lock out access to a production host.</p>
+  <div class="callout">
+    <b>Why this can't be manual</b>
+    A manual change on 420 hosts means 420 opportunities for human error, no consistent evidence trail for the auditor, and no safe way to re-run the same change identically in DEV, UAT, and PROD. Automation gives repeatability, idempotency, and a produced audit log per run — which is exactly what a bank's compliance function needs to sign off on.
+  </div>
+  <p>Security raises a finding in <strong>ServiceNow</strong>, which becomes a Problem record owned by Infrastructure Operations. Infrastructure Ops determines this requires configuration automation and routes it to the <strong>Automation Engineering team</strong> — this is where you, as the assigned engineer, pick up the work.</p>
+</section>
+
+<section id="arch">
+  <div class="sec-head"><span class="sec-num">02</span><h2>Architecture</h2></div>
+  <p>The automation is delivered as an Ansible role executed through AAP, sourced from Git, targeting environment-specific dynamic inventories backed by AWS EC2 tags.</p>
+  <div class="flow">
+    <div class="flow-node"><div class="n">1</div><div><div class="label">Git Repository</div><div class="desc">ansible-ssh-hardening — source of truth, branch-protected</div></div></div>
+    <div class="flow-connector"></div>
+    <div class="flow-node"><div class="n">2</div><div><div class="label">AAP Project</div><div class="desc">Syncs playbook + role from Git on each run</div></div></div>
+    <div class="flow-connector"></div>
+    <div class="flow-node"><div class="n">3</div><div><div class="label">Dynamic Inventory (AWS EC2 plugin)</div><div class="desc">Filters hosts by tag: Environment, Platform=RHEL</div></div></div>
+    <div class="flow-connector"></div>
+    <div class="flow-node"><div class="n">4</div><div><div class="label">AAP Credentials</div><div class="desc">Machine credential (SSH key) + AWS credential for dynamic inventory</div></div></div>
+    <div class="flow-connector"></div>
+    <div class="flow-node"><div class="n">5</div><div><div class="label">Job Template + Survey</div><div class="desc">Engineer selects environment, check-mode toggle</div></div></div>
+    <div class="flow-connector"></div>
+    <div class="flow-node"><div class="n">6</div><div><div class="label">Target Fleet</div><div class="desc">420 RHEL EC2 hosts across DEV / UAT / PROD VPCs</div></div></div>
+  </div>
+</section>
+
+<section id="workflow">
+  <div class="sec-head"><span class="sec-num">03</span><h2>Project Workflow</h2></div>
+  <p>This is the path the work actually takes, end to end. As the automation engineer, you own everything from "Requirement Analysis" through "Post-Validation."</p>
+  <div class="flow">
+    <div class="flow-node"><div class="n">1</div><div><div class="label">Security Finding → ServiceNow Problem</div><div class="desc">PRB0009214 opened by Security</div></div></div>
+    <div class="flow-connector"></div>
+    <div class="flow-node"><div class="n">2</div><div><div class="label">Infra Ops Requirement Analysis</div><div class="desc">Confirms scope: 420 hosts, all three environments</div></div></div>
+    <div class="flow-connector"></div>
+    <div class="flow-node"><div class="n">3</div><div><div class="label">Assigned to Automation Engineering</div><div class="desc">You're pulled into a technical discussion with Infra + Security</div></div></div>
+    <div class="flow-connector"></div>
+    <div class="flow-node"><div class="n">4</div><div><div class="label">Requirement Gathering</div><div class="desc">Baseline document, scope, access, rollback expectations</div></div></div>
+    <div class="flow-connector"></div>
+    <div class="flow-node"><div class="n">5</div><div><div class="label">Design + Role Development</div><div class="desc">Idempotent role, environment-aware defaults</div></div></div>
+    <div class="flow-connector"></div>
+    <div class="flow-node"><div class="n">6</div><div><div class="label">Git Commit + Peer Review</div><div class="desc">Merge request reviewed by senior automation engineer</div></div></div>
+    <div class="flow-connector"></div>
+    <div class="flow-node"><div class="n">7</div><div><div class="label">DEV Execution + UAT Sign-off</div><div class="desc">Run via AAP, validated by Infra Ops and App teams</div></div></div>
+    <div class="flow-connector"></div>
+    <div class="flow-node"><div class="n">8</div><div><div class="label">Change Request + CAB Approval</div><div class="desc">CHG0041872 raised for PROD window</div></div></div>
+    <div class="flow-connector"></div>
+    <div class="flow-node"><div class="n">9</div><div><div class="label">Production Execution</div><div class="desc">Batched by AZ, monitored live</div></div></div>
+    <div class="flow-connector"></div>
+    <div class="flow-node"><div class="n">10</div><div><div class="label">Post-Validation + Evidence + Closure</div><div class="desc">Ticket updated, PRB closed by Security</div></div></div>
+  </div>
+</section>
+
+<section id="teams">
+  <div class="sec-head"><span class="sec-num">04</span><h2>Team Responsibilities</h2></div>
+  <p>An experienced engineer knows exactly where their responsibility ends and another team's begins. Blurring this in a bank environment causes delays and audit confusion.</p>
+  <div class="team-grid">
+    <div class="team-card"><h4>YOU — AUTOMATION ENGINEER</h4><ul>
+      <li>Gather requirements from Security's baseline doc</li>
+      <li>Design and develop the Ansible role</li>
+      <li>Test in DEV, support UAT validation</li>
+      <li>Raise the CHG with implementation plan</li>
+      <li>Execute in PROD via AAP, capture evidence</li>
+    </ul></div>
+    <div class="team-card"><h4>SECURITY TEAM</h4><ul>
+      <li>Owns the SSH hardening baseline document</li>
+      <li>Approves final compliance evidence</li>
+      <li>Signs off on the CAB change</li>
+    </ul></div>
+    <div class="team-card"><h4>INFRASTRUCTURE OPS</h4><ul>
+      <li>Owns the servers, confirms server list</li>
+      <li>Provides the maintenance window</li>
+      <li>Validates host reachability post-change</li>
+    </ul></div>
+    <div class="team-card"><h4>CLOUD TEAM</h4><ul>
+      <li>Confirms EC2 tagging is accurate for inventory</li>
+      <li>Confirms Security Group allows AAP → host SSH (22)</li>
+    </ul></div>
+    <div class="team-card"><h4>APPLICATION TEAMS</h4><ul>
+      <li>Confirm no app depends on root SSH login</li>
+      <li>Validate application health post-change in UAT/PROD</li>
+    </ul></div>
+    <div class="team-card"><h4>CHANGE MANAGEMENT</h4><ul>
+      <li>Schedules CAB review</li>
+      <li>Approves/rejects the production window</li>
+    </ul></div>
+  </div>
+</section>
+
+<section id="tickets">
+  <div class="sec-head"><span class="sec-num">05</span><h2>Ticket Flow (ServiceNow)</h2></div>
+
+  <div class="ticket">
+    <div class="ticket-head"><span class="ticket-id">PRB0009214</span><span class="ticket-badge change">PROBLEM</span></div>
+    <div class="ticket-body">
+      <div class="ticket-row"><div class="k">SHORT DESC</div><div class="v">SSH configuration non-compliant with security baseline — RHEL fleet</div></div>
+      <div class="ticket-row"><div class="k">ASSIGNMENT GROUP</div><div class="v">Automation Engineering</div></div>
+      <div class="ticket-row"><div class="k">PRIORITY</div><div class="v">P2 — 30 day SLA</div></div>
+      <div class="ticket-row"><div class="k">BUSINESS IMPACT</div><div class="v">Regulatory audit exposure; potential finding escalation to Board Risk Committee</div></div>
+    </div>
+  </div>
+
+  <div class="ticket">
+    <div class="ticket-head"><span class="ticket-id">CHG0041872</span><span class="ticket-badge change">CHANGE</span></div>
+    <div class="ticket-body">
+      <div class="ticket-row"><div class="k">IMPLEMENTATION PLAN</div><div class="v">Run ssh_hardening role via AAP job template "SSH-Hardening-PROD" in batches of 25 hosts per AZ, serial execution</div></div>
+      <div class="ticket-row"><div class="k">VALIDATION PLAN</div><div class="v">ansible ping + sshd -t syntax check + confirm active sessions unaffected</div></div>
+      <div class="ticket-row"><div class="k">ROLLBACK PLAN</div><div class="v">Restore sshd_config from timestamped backup, restart sshd, re-validate</div></div>
+      <div class="ticket-row"><div class="k">MAINTENANCE WINDOW</div><div class="v">Saturday 01:00–04:00 IST</div></div>
+      <div class="ticket-row"><div class="k">RISK</div><div class="v">Medium — SSH service restart; mitigated by serial batching and pre-flight checks</div></div>
+    </div>
+  </div>
+</section>
+
+<section id="approval">
+  <div class="sec-head"><span class="sec-num">06</span><h2>Approval Flow</h2></div>
+  <div class="chain">
+    <span class="chain-item">You (Engineer)</span><span class="chain-arrow">→</span>
+    <span class="chain-item">Automation Lead</span><span class="chain-arrow">→</span>
+    <span class="chain-item">Infra Ops Owner</span><span class="chain-arrow">→</span>
+    <span class="chain-item">Security Sign-off</span><span class="chain-arrow">→</span>
+    <span class="chain-item">CAB / Change Manager</span>
+  </div>
+  <p>Security sign-off exists here specifically because <em>they</em> raised the original finding — they must confirm the design actually satisfies the baseline before it goes anywhere near CAB. Skipping this step is the most common enterprise mistake: an engineer builds "a reasonable hardening playbook" without formally re-checking it against the actual baseline document.</p>
+</section>
+
+<section id="requirements">
+  <div class="sec-head"><span class="sec-num">07</span><h2>Requirement Gathering</h2></div>
+  <p>Before writing a single task, these are the questions you'd actually ask in the technical discussion:</p>
+  <table>
+    <tr><th>Question</th><th>Why it matters</th></tr>
+    <tr><td>What exact baseline document defines "compliant"?</td><td>You can't automate a vague finding — you need the literal parameter list</td></tr>
+    <tr><td>Which OS versions are in scope — RHEL 8 only, or 8 and 9?</td><td>sshd_config defaults and package names differ across versions</td></tr>
+    <tr><td>Is root login disabled everywhere, or are there jump-host exceptions?</td><td>Bastion hosts often have legitimate exceptions that must not break</td></tr>
+    <tr><td>What is the current SSH session timeout policy, if any?</td><td>Avoids overwriting an existing, intentional setting</td></tr>
+    <tr><td>Is there a maintenance window per environment?</td><td>PROD requires an approved window; DEV/UAT usually don't</td></tr>
+    <tr><td>What is the rollback expectation if sshd fails to restart?</td><td>SSH service failure can lock out an entire host — must have a safety net</td></tr>
+    <tr><td>Who owns the EC2 tagging used for dynamic inventory?</td><td>Wrong tags mean wrong hosts get targeted — critical in a bank</td></tr>
+    <tr><td>Is a backup of sshd_config required before every change?</td><td>Needed for the rollback plan in the CHG record</td></tr>
+  </table>
+</section>
+
+<section id="auth">
+  <div class="sec-head"><span class="sec-num">08</span><h2>Authentication &amp; Access</h2></div>
+  <ul>
+    <li><strong>Target host auth:</strong> SSH key-based, using a dedicated service account <code class="inline">svc_ansible_infra</code> with sudo rights scoped only to the tasks this role performs (via a restrictive sudoers entry, not full root sudo).</li>
+    <li><strong>Credential storage:</strong> The private key is never in Git. It's stored as an <strong>AAP Machine Credential</strong>, encrypted at rest, and only exposed to the job at runtime.</li>
+    <li><strong>AWS auth for dynamic inventory:</strong> An IAM role scoped to <code class="inline">ec2:DescribeInstances</code> only, attached as an AAP AWS credential — no long-lived access keys.</li>
+    <li><strong>Access request process:</strong> You raise an Access Request ticket to Infra Ops requesting the service account be provisioned/added to the target host group; Security approves the sudoers scope.</li>
+  </ul>
+  <div class="callout red">
+    <b>Never in Git</b>
+    Private keys, AWS access keys, sudo passwords, or any AAP credential material. Git only ever holds the playbook, role, and non-sensitive variables.
+  </div>
+</section>
+
+<section id="design">
+  <div class="sec-head"><span class="sec-num">09</span><h2>Ansible Design — Repository Structure</h2></div>
+  <p>A role is used here — not a flat playbook — because this hardening logic will be reused across every RHEL host in the bank, not just this fleet. A role makes it independently testable, versionable, and reviewable.</p>
+  <pre><span class="cmt"># ansible-ssh-hardening/</span>
+├── inventories/
+│   ├── dev/hosts.aws_ec2.yml
+│   ├── uat/hosts.aws_ec2.yml
+│   └── prod/hosts.aws_ec2.yml
+├── group_vars/
+│   ├── all.yml
+│   ├── dev.yml
+│   ├── uat.yml
+│   └── prod.yml
+├── roles/
+│   └── ssh_hardening/
+│       ├── defaults/main.yml
+│       ├── vars/main.yml
+│       ├── tasks/main.yml
+│       ├── handlers/main.yml
+│       ├── templates/sshd_config.j2
+│       └── molecule/default/          <span class="cmt"># role-level test scenario</span>
+├── playbooks/
+│   └── site.yml
+└── README.md</pre>
+</section>
+
+<section id="code">
+  <div class="sec-head"><span class="sec-num">10</span><h2>Code &amp; Role Implementation</h2></div>
+
+  <span class="code-label">roles/ssh_hardening/defaults/main.yml</span>
+  <pre><span class="cmt"># Defaults are intentionally conservative and overridable per environment.</span>
+<span class="cmt"># PROD can override any of these in group_vars/prod.yml without touching the role.</span>
+ssh_permit_root_login: "no"
+ssh_client_alive_interval: 300        <span class="cmt"># seconds before an idle session is probed</span>
+ssh_client_alive_count_max: 2         <span class="cmt"># probes before disconnect (10 min idle timeout total)</span>
+ssh_allowed_kex_algorithms:
+  - curve25519-sha256
+  - diffie-hellman-group16-sha512
+ssh_backup_dir: /opt/ansible_backups/sshd_config   <span class="cmt"># used by rollback</span>
+ssh_bastion_exception_group: []       <span class="cmt"># hostnames excluded from root-login lockdown, set per env</span></pre>
+
+  <span class="code-label">roles/ssh_hardening/tasks/main.yml</span>
+  <pre><span class="kw">---</span>
+<span class="cmt"># 1. Pre-flight: back up the current config before touching anything.</span>
+<span class="cmt">#    This backup is what the CHG rollback plan actually refers to.</span>
+- name: Ensure backup directory exists
+  ansible.builtin.file:
+    path: "{{ ssh_backup_dir }}"
+    state: directory
+    mode: "0700"
+
+- name: Back up current sshd_config with a run timestamp
+  ansible.builtin.copy:
+    src: /etc/ssh/sshd_config
+    dest: "{{ ssh_backup_dir }}/sshd_config.{{ ansible_date_time.iso8601_basic_short }}"
+    remote_src: true
+    mode: "0600"
+
+<span class="cmt"># 2. Render the hardened config from a template rather than editing in place.</span>
+<span class="cmt">#    A template is deterministic and idempotent -- re-running produces</span>
+<span class="cmt">#    the same file every time, which is exactly what a compliance audit wants.</span>
+- name: Deploy hardened sshd_config from template
+  ansible.builtin.template:
+    src: sshd_config.j2
+    dest: /etc/ssh/sshd_config
+    owner: root
+    group: root
+    mode: "0600"
+    validate: "/usr/sbin/sshd -t -f %s"   <span class="cmt"># refuses to deploy a config that won't parse</span>
+  notify: restart sshd
+  register: sshd_config_result
+
+<span class="cmt"># 3. Never blindly restart sshd on a live banking host without a safety check.</span>
+<span class="cmt">#    Block/rescue lets us catch a bad restart and immediately roll back</span>
+<span class="cmt">#    in the same run, instead of leaving a host in an unknown state.</span>
+- name: Apply and verify sshd restart safely
+  block:
+    - name: Flush handlers to apply the restart now, in this block
+      ansible.builtin.meta: flush_handlers
+
+    - name: Confirm sshd is active after restart
+      ansible.builtin.systemd:
+        name: sshd
+        state: started
+      register: sshd_status
+
+  rescue:
+    - name: Restore previous config on failure
+      ansible.builtin.copy:
+        src: "{{ ssh_backup_dir }}/sshd_config.{{ ansible_date_time.iso8601_basic_short }}"
+        dest: /etc/ssh/sshd_config
+        remote_src: true
+        mode: "0600"
+
+    - name: Restart sshd with restored config
+      ansible.builtin.systemd:
+        name: sshd
+        state: restarted
+
+    - name: Fail the run so the batch stops and the engineer is alerted
+      ansible.builtin.fail:
+        msg: "sshd restart failed on {{ inventory_hostname }} — restored previous config. Investigate before continuing this batch."</pre>
+
+  <span class="code-label">roles/ssh_hardening/handlers/main.yml</span>
+  <pre><span class="kw">---</span>
+- name: restart sshd
+  ansible.builtin.systemd:
+    name: sshd
+    state: restarted
+    <span class="cmt"># Only fires if the templated config actually changed --</span>
+    <span class="cmt"># this is what makes the whole role idempotent on re-runs.</span></pre>
+
+  <h3>Execution flow, in plain terms</h3>
+  <p>The role backs up the existing config, renders a new one from a Jinja2 template using environment-specific variables, validates the syntax with <code class="inline">sshd -t</code> before it's ever applied, and only restarts the service if the file actually changed. If the restart fails, the rescue block automatically restores the previous file and restarts again — so a single bad host fails loudly rather than silently breaking access.</p>
+</section>
+
+<section id="aap">
+  <div class="sec-head"><span class="sec-num">11</span><h2>RHAAP / AAP Configuration</h2></div>
+  <table>
+    <tr><th>Component</th><th>Configuration</th></tr>
+    <tr><td>Project</td><td><code class="inline">ansible-ssh-hardening</code>, synced from Git main branch on each launch</td></tr>
+    <tr><td>Inventory</td><td>AWS EC2 dynamic inventory plugin, filtered by tag <code class="inline">Environment</code> and <code class="inline">Platform=RHEL</code></td></tr>
+    <tr><td>Credentials</td><td>Machine credential (SSH key) + AWS credential (read-only IAM role)</td></tr>
+    <tr><td>Job Template</td><td><code class="inline">SSH-Hardening-{ENV}</code> — one per environment, serial batch size 25 for PROD</td></tr>
+    <tr><td>Survey</td><td>Prompts for: target environment, check-mode (dry run) yes/no</td></tr>
+    <tr><td>Workflow</td><td>DEV job → manual approval node → UAT job → manual approval node → PROD job</td></tr>
+    <tr><td>RBAC</td><td>Automation team: Execute only. Automation Lead: Admin on the project.</td></tr>
+  </table>
+  <p>The <strong>approval node</strong> between UAT and PROD in the workflow is what maps to CAB sign-off — nobody can click "run" against PROD until the Change Manager approves the node inside AAP itself, which is also captured as evidence in the job history.</p>
+</section>
+
+<section id="testing">
+  <div class="sec-head"><span class="sec-num">12</span><h2>Testing Strategy</h2></div>
+  <ul>
+    <li><strong>Syntax check:</strong> <code class="inline">ansible-playbook site.yml --syntax-check</code></li>
+    <li><strong>Dry run:</strong> <code class="inline">ansible-playbook site.yml -i inventories/dev --check --diff</code> — shows exactly what would change with zero risk</li>
+    <li><strong>DEV execution:</strong> Full run against 15 DEV hosts, engineer manually verifies SSH still connects post-run</li>
+    <li><strong>UAT sign-off:</strong> Application teams confirm their deployment/monitoring tooling that relies on SSH still functions</li>
+  </ul>
+</section>
+
+<section id="prod">
+  <div class="sec-head"><span class="sec-num">13</span><h2>Production Deployment</h2></div>
+  <h3>Before</h3>
+  <ul><li>Confirm CHG0041872 is in "Scheduled" state</li><li>Confirm maintenance window is active</li><li>Run check-mode against the full PROD batch first</li></ul>
+  <h3>During</h3>
+  <ul><li>Launch the AAP workflow, serial batches of 25 per AZ</li><li>Watch job output live; a batch failure pauses the workflow rather than continuing blind</li></ul>
+  <h3>After</h3>
+  <ul><li>Confirm SSH connectivity to a sample from each batch</li><li>Attach the AAP job output as evidence to CHG0041872</li><li>Update PRB0009214 with remediation confirmation</li></ul>
+</section>
+
+<section id="rollback">
+  <div class="sec-head"><span class="sec-num">14</span><h2>Rollback Procedure</h2></div>
+  <p>Rollback is largely automatic inside the role's rescue block, but if a whole batch needs reverting after the fact:</p>
+  <pre>ansible-playbook rollback.yml -i inventories/prod -e "restore_timestamp=20260810T0100"</pre>
+  <p>This restores the specific timestamped backup taken immediately before the change and restarts <code class="inline">sshd</code>, returning the host to its pre-change state.</p>
+</section>
+
+<section id="troubleshoot">
+  <div class="sec-head"><span class="sec-num">15</span><h2>Troubleshooting</h2></div>
+
+  <div class="callout red">
+    <b>sshd fails to restart after config change</b>
+    <strong>Symptom:</strong> Handler fires, systemd reports failed state.<br>
+    <strong>Investigate:</strong> <code class="inline">journalctl -u sshd -n 50</code>, <code class="inline">sshd -t</code> manually on host.<br>
+    <strong>Root cause (typical):</strong> An unsupported KexAlgorithm on an older OpenSSH build.<br>
+    <strong>Fix:</strong> Rescue block auto-restores previous config; engineer adjusts the algorithm list for that OS version and re-runs.<br>
+    <strong>Prevention:</strong> Add an OS-version-conditional variable file so RHEL 8 and RHEL 9 get different algorithm lists.
+  </div>
+
+  <div class="callout red">
+    <b>AAP job fails with "Permission denied (publickey)"</b>
+    <strong>Symptom:</strong> Job fails immediately at the Gathering Facts step.<br>
+    <strong>Investigate:</strong> Confirm the service account key in the AAP Machine Credential matches what's authorized on the host.<br>
+    <strong>Root cause (typical):</strong> Host was provisioned after the last key rotation and wasn't onboarded with the current service account key.<br>
+    <strong>Fix:</strong> Raise access request to Infra Ops to add the key to the host's authorized_keys via the standard onboarding process.
+  </div>
+
+  <div class="callout red">
+    <b>Dynamic inventory returns zero hosts for an environment</b>
+    <strong>Symptom:</strong> Job template reports "No hosts matched."<br>
+    <strong>Investigate:</strong> <code class="inline">ansible-inventory -i inventories/prod/hosts.aws_ec2.yml --graph</code><br>
+    <strong>Root cause (typical):</strong> Cloud team changed an EC2 tag key without notifying Automation.<br>
+    <strong>Fix:</strong> Align inventory filter with actual tag key; raise a tagging-standard discussion with Cloud team to prevent recurrence.
+  </div>
+</section>
+
+<section id="monitoring">
+  <div class="sec-head"><span class="sec-num">16</span><h2>Monitoring &amp; Validation</h2></div>
+  <p>A successful Ansible run doesn't guarantee the host is actually healthy. CloudWatch alarms on the SSH-related security group and host-level agent checks are watched for 30 minutes post-change per batch — if an unexpected spike in failed connection attempts or an unreachable-host alarm fires, the workflow is paused before the next batch proceeds.</p>
+</section>
+
+<section id="security">
+  <div class="sec-head"><span class="sec-num">17</span><h2>Security Considerations</h2></div>
+  <ul>
+    <li><strong>Least privilege:</strong> Service account sudo rights are scoped to only the commands this role needs.</li>
+    <li><strong>Audit trail:</strong> Every AAP job run is logged with who launched it, when, against which inventory, and the full output — this is the evidence Security signs off on.</li>
+    <li><strong>Compliance mapping:</strong> The role's variables map 1:1 to the line items in the Security baseline document, so the mapping itself is part of the audit evidence.</li>
+  </ul>
+</section>
+
+<section id="docs">
+  <div class="sec-head"><span class="sec-num">18</span><h2>Documentation Maintained</h2></div>
+  <ul>
+    <li>README with prerequisites, variable reference, and how to run each environment</li>
+    <li>Change history log mapping each Git tag to a CHG number</li>
+    <li>Known issues doc (e.g. bastion host exception list, OS-version algorithm differences)</li>
+  </ul>
+</section>
+
+<section id="interview">
+  <div class="sec-head"><span class="sec-num">19</span><h2>Interview Preparation</h2></div>
+
+  <div class="qa">
+    <div class="q">Why did you use a role instead of a single playbook?</div>
+    <div class="a">Because this hardening logic needs to be reused across every RHEL host in the organization, not just this one fleet. A role is independently versionable, testable with Molecule, and easy for another engineer to review without wading through a monolithic playbook.</div>
+  </div>
+  <div class="qa">
+    <div class="q">How is this idempotent?</div>
+    <div class="a">The config is rendered from a template and compared to what's on disk — the handler only restarts sshd when the file content actually changes. Running it twice in a row produces zero changes on the second run.</div>
+  </div>
+  <div class="qa">
+    <div class="q">What happens if a restart fails on a production host?</div>
+    <div class="a">The block/rescue construct catches it immediately, restores the pre-change backup, restarts sshd again, and fails that host loudly so the batch stops rather than silently leaving a host inaccessible.</div>
+  </div>
+  <div class="qa">
+    <div class="q">How would you scale this to 2,000 servers instead of 420?</div>
+    <div class="a">Keep the same role, increase batch parallelism carefully, and split the AAP workflow into per-region or per-AZ job templates so a regional issue doesn't stall the entire fleet. I'd also add a Slack/ITSM notification per batch completion instead of watching job output manually.</div>
+  </div>
+  <div class="qa">
+    <div class="q">What would you do if the application team rejected the change in UAT?</div>
+    <div class="a">Get the specific technical reason — usually a monitoring agent relying on root SSH — document it as an exception in the requirement, add it to the bastion exception group variable, and re-run UAT rather than overriding their objection.</div>
+  </div>
+</section>
+
+<section id="takeaways">
+  <div class="sec-head"><span class="sec-num">20</span><h2>Skills Learned</h2></div>
+  <ul>
+    <li>Translating a security audit finding into a scoped, automatable requirement</li>
+    <li>Designing an idempotent, environment-aware Ansible role with safe rollback via block/rescue</li>
+    <li>Structuring an AAP workflow with approval gates that map to real CAB governance</li>
+    <li>Using AWS dynamic inventory correctly and troubleshooting tagging mismatches</li>
+    <li>Producing audit-grade evidence as a natural byproduct of the automation, not an afterthought</li>
+  </ul>
+</section>
+
+</div>
+</main>
+
+<footer>
+  NovaStack Bank — Automation Engineering Internal Documentation · Project 01/25 · Generated for training purposes, no real infrastructure or credentials represented.
+</footer>
+
+</body>
+</html>

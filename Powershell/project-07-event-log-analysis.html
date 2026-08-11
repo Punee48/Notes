@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Project 07 — Event Log Analysis | PowerShell Masterclass</title>
+<style>
+  :root{
+    --primary:#6D28D9; --secondary:#7C3AED; --light-purple:#EDE9FE; --xlight-purple:#F5F3FF;
+    --bg:#FFFFFF; --text:#1F2937; --muted:#6B7280; --border:#E5E1F5;
+    --success:#15803D; --warn:#B45309; --danger:#B91C1C;
+    --code-bg:#1E1B2E; --code-text:#E9E4FF;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0; font-family:"Segoe UI",Calibri,Roboto,Arial,sans-serif; background:var(--bg); color:var(--text); line-height:1.65;}
+  a{color:var(--primary);}
+  .layout{display:flex; max-width:1400px; margin:0 auto;}
+  nav.sidebar{width:270px; flex-shrink:0; position:sticky; top:0; height:100vh; overflow-y:auto; background:var(--xlight-purple); border-right:1px solid var(--border); padding:22px 16px;}
+  nav.sidebar h3{color:var(--primary); font-size:13px; text-transform:uppercase; letter-spacing:.06em; margin:18px 0 8px;}
+  nav.sidebar a{display:block; padding:7px 10px; border-radius:8px; color:var(--text); text-decoration:none; font-size:14px; margin-bottom:2px;}
+  nav.sidebar a:hover{background:var(--light-purple); color:var(--primary);}
+  #progressWrap{background:var(--light-purple); border-radius:10px; padding:10px; margin-bottom:8px;}
+  #progressBar{height:8px; background:var(--border); border-radius:6px; overflow:hidden;}
+  #progressFill{height:100%; width:0%; background:linear-gradient(90deg,var(--primary),var(--secondary)); transition:width .2s;}
+  #progressLabel{font-size:12px; color:var(--muted); margin-top:6px;}
+  main{flex:1; min-width:0; padding:0;}
+  .cover{background:linear-gradient(135deg,var(--primary),var(--secondary)); color:#fff; padding:60px 48px; position:relative; overflow:hidden;}
+  .cover::after{content:"";position:absolute;right:-80px;top:-80px;width:300px;height:300px;border-radius:50%;background:rgba(255,255,255,.08);}
+  .badge{display:inline-block; background:rgba(255,255,255,.18); padding:5px 14px; border-radius:20px; font-size:12px; letter-spacing:.05em; margin-right:8px; margin-bottom:14px;}
+  .cover h1{font-size:34px; margin:6px 0 10px; max-width:760px;}
+  .cover p.sub{font-size:16px; opacity:.92; max-width:640px;}
+  .cover-meta{display:flex; gap:28px; margin-top:26px; flex-wrap:wrap;}
+  .cover-meta div{background:rgba(255,255,255,.12); padding:12px 18px; border-radius:10px; min-width:140px;}
+  .cover-meta span{display:block; font-size:12px; opacity:.85;}
+  .cover-meta strong{font-size:16px;}
+  section{padding:34px 48px; border-bottom:1px solid var(--border);}
+  section h2{color:var(--primary); font-size:24px; border-left:5px solid var(--primary); padding-left:14px; margin-top:0;}
+  section h3{color:var(--secondary); font-size:18px; margin-top:26px;}
+  .story{background:var(--xlight-purple); border-left:5px solid var(--primary); padding:20px 24px; border-radius:0 10px 10px 0; font-size:15px;}
+  .story b{color:var(--primary);}
+  .callout{border-radius:10px; padding:16px 18px; margin:16px 0; font-size:14.5px;}
+  .callout.tip{background:#F0FDF4; border-left:5px solid var(--success);}
+  .callout.note{background:var(--xlight-purple); border-left:5px solid var(--secondary);}
+  .callout.warn{background:#FFFBEB; border-left:5px solid var(--warn);}
+  .callout.security{background:#FEF2F2; border-left:5px solid var(--danger);}
+  .callout .lbl{font-weight:700; display:block; margin-bottom:4px;}
+  table{width:100%; border-collapse:collapse; margin:16px 0; font-size:14px;}
+  th,td{border:1px solid var(--border); padding:9px 12px; text-align:left; vertical-align:top;}
+  th{background:var(--light-purple); color:var(--primary);}
+  tr:nth-child(even){background:var(--xlight-purple);}
+  .codewrap{position:relative; margin:16px 0;}
+  pre{background:var(--code-bg); color:var(--code-text); padding:18px 16px; border-radius:10px; overflow-x:auto; font-family:Consolas,"Cascadia Code",Menlo,monospace; font-size:13.5px; line-height:1.7;}
+  pre code{white-space:pre;}
+  .copybtn{position:absolute; top:10px; right:10px; background:var(--secondary); color:#fff; border:none; padding:6px 12px; border-radius:6px; font-size:12px; cursor:pointer;}
+  .copybtn:hover{background:var(--primary);}
+  .explain-list{list-style:none; padding:0; margin:14px 0;}
+  .explain-list li{background:var(--xlight-purple); border-radius:8px; padding:10px 14px; margin-bottom:6px; font-size:14.5px;}
+  .explain-list code{background:var(--light-purple); padding:2px 6px; border-radius:5px; color:var(--primary); font-weight:600;}
+  details{background:var(--xlight-purple); border-radius:10px; padding:12px 16px; margin:10px 0;}
+  details summary{cursor:pointer; font-weight:600; color:var(--primary);}
+  .diagram{background:var(--xlight-purple); border-radius:12px; padding:20px; margin:16px 0; overflow-x:auto;}
+  .flow{display:flex; flex-wrap:wrap; align-items:center; gap:10px; font-size:13.5px;}
+  .flow .box{background:#fff; border:2px solid var(--secondary); border-radius:8px; padding:8px 14px; font-weight:600; color:var(--primary);}
+  .flow .arrow{color:var(--secondary); font-size:18px;}
+  .steps{counter-reset:step;}
+  .steps .step{position:relative; padding-left:44px; margin-bottom:18px;}
+  .steps .step::before{counter-increment:step; content:counter(step); position:absolute; left:0; top:0; background:var(--primary); color:#fff; width:30px; height:30px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:700;}
+  .grid2{display:grid; grid-template-columns:1fr 1fr; gap:16px;}
+  @media(max-width:900px){.grid2{grid-template-columns:1fr;} nav.sidebar{display:none;} section{padding:26px 20px;} .cover{padding:36px 22px;}}
+  footer{padding:30px 48px; background:var(--xlight-purple); color:var(--muted); font-size:13px;}
+</style>
+</head>
+<body>
+
+<div class="layout">
+  <nav class="sidebar">
+    <div id="progressWrap">
+      <div id="progressLabel">Reading progress</div>
+      <div id="progressBar"><div id="progressFill"></div></div>
+    </div>
+    <h3>Project 07</h3>
+    <a href="#cover">Cover</a>
+    <a href="#recap1">Recap: Projects 1–6</a>
+    <a href="#story">The Story</a>
+    <a href="#concepts">Concepts First</a>
+    <a href="#lab">Hands-On Lab</a>
+    <a href="#script">Full Script</a>
+    <a href="#linebyline">Line-by-Line</a>
+    <a href="#architecture">Architecture</a>
+    <a href="#incident">Production Incident</a>
+    <a href="#troubleshoot">Troubleshooting</a>
+    <a href="#security">Security Notes</a>
+    <a href="#recap">Key Learnings</a>
+    <a href="#interview">Interview Prep</a>
+    <a href="#challenges">Coding Challenges</a>
+    <a href="#resume">Resume Points</a>
+    <a href="#assignment">Practice Assignment</a>
+    <a href="#next">Next Project</a>
+  </nav>
+
+  <main id="top">
+    <div class="cover" id="cover">
+      <span class="badge">PROJECT 07</span><span class="badge">BEGINNER</span><span class="badge">BFSI TRACK</span>
+      <h1>Windows Event Log Analysis</h1>
+      <p class="sub">Search the System and Application event logs for unexpected restarts and application errors, and turn thousands of raw entries into a readable, prioritized report.</p>
+      <div class="cover-meta">
+        <div><span>Difficulty</span><strong>Beginner</strong></div>
+        <div><span>Estimated Lab Time</span><strong>60–80 min</strong></div>
+        <div><span>Concepts</span><strong>9 core concepts</strong></div>
+        <div><span>Track</span><strong>7 of 40</strong></div>
+      </div>
+    </div>
+
+    <section id="recap1">
+      <h2>Quick Recap of Projects 1–6</h2>
+      <p>We've collected data, classified it, sampled it, checked named lists with error handling, ranked/grouped
+      processes, and safely cleaned up files with -WhatIf. This project reads from a completely new data source:
+      the <b>Windows Event Log</b> — a place where Windows itself, and every application on it, records what
+      happened and when.</p>
+    </section>
+
+    <section id="story">
+      <h2>The Story — Why We're Building This</h2>
+      <div class="story">
+        <b>WINAPP09</b> has rebooted twice this week with no scheduled maintenance window and no one admitting to
+        doing it manually. Our manager suspects either a hardware/power issue or an application crash severe enough
+        to bring the whole box down, but nobody wants to scroll through Event Viewer by hand across multiple logs
+        and thousands of entries looking for a needle in a haystack.<br><br>
+        Our task: build a script that searches the <b>System</b> log for unexpected shutdown/restart events and the
+        <b>Application</b> log for Critical/Error-level events, within a configurable time window, and summarizes
+        what it finds so a human can quickly spot the pattern.
+      </div>
+    </section>
+
+    <section id="concepts">
+      <h2>Concepts First — Before We Touch Code</h2>
+
+      <h3>1. What the Windows Event Log Actually Is</h3>
+      <div class="diagram">
+        <div class="flow">
+          <div class="box">Windows / Application</div><div class="arrow">→</div>
+          <div class="box">Windows Event Log Service</div><div class="arrow">→</div>
+          <div class="box">.evtx Files on Disk</div><div class="arrow">→</div>
+          <div class="box">Get-WinEvent</div><div class="arrow">→</div>
+          <div class="box">Event Objects in PowerShell</div>
+        </div>
+      </div>
+      <p>Windows and installed applications constantly write structured records — called <b>events</b> — to the
+      <b>Windows Event Log service</b>, which stores them in <code>.evtx</code> files under
+      <code>C:\Windows\System32\winevt\Logs</code>. Different categories go into different <b>logs</b> — the two
+      we care about today are <b>System</b> (OS-level events like restarts) and <b>Application</b> (events raised by
+      installed software).</p>
+
+      <h3>2. Get-WinEvent vs the Older Get-EventLog</h3>
+      <table>
+        <tr><th>Get-EventLog</th><th>Get-WinEvent</th></tr>
+        <tr><td>Older, simpler syntax</td><td>Modern, more powerful, works with newer log formats</td></tr>
+        <tr><td>Windows PowerShell only, being phased out</td><td>Works in both Windows PowerShell and PowerShell 7</td></tr>
+        <tr><td>Filters client-side (slower on large logs)</td><td>Supports <code>-FilterHashtable</code> for fast server-side filtering</td></tr>
+      </table>
+      <div class="callout note"><span class="lbl">Why we're using Get-WinEvent</span>Just like choosing
+      <code>Get-CimInstance</code> over <code>Get-WmiObject</code> back in Project 1, we default to the modern
+      cmdlet here — it's faster on large logs and is the one still being actively maintained.</div>
+
+      <h3>3. -FilterHashtable — Fast, Server-Side Filtering</h3>
+      <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code>Get-WinEvent -FilterHashtable @{
+    LogName   = "System"                    # Which log to search
+    Level     = 1,2                          # 1 = Critical, 2 = Error
+    StartTime = (Get-Date).AddDays(-7)      # Only events from the last 7 days
+}</code></pre></div>
+      <ul class="explain-list">
+        <li>This is a hash table (from Project 1) used as a structured set of filter criteria. Filtering this way
+        happens efficiently at the log-reading level, instead of pulling every event first and filtering afterward
+        with <code>Where-Object</code> — critical for performance on logs with tens of thousands of entries.</li>
+      </ul>
+
+      <h3>4. Key Event Properties</h3>
+      <table>
+        <tr><th>Property</th><th>Meaning</th></tr>
+        <tr><td><code>Id</code></td><td>The Event ID — a numeric code identifying the specific type of event</td></tr>
+        <tr><td><code>LevelDisplayName</code></td><td>Critical, Error, Warning, Information, etc.</td></tr>
+        <tr><td><code>ProviderName</code></td><td>What component/application logged this event</td></tr>
+        <tr><td><code>TimeCreated</code></td><td>When the event occurred</td></tr>
+        <tr><td><code>Message</code></td><td>The human-readable description</td></tr>
+      </table>
+
+      <h3>5. Event IDs Worth Knowing for This Project</h3>
+      <table>
+        <tr><th>Event ID</th><th>Log</th><th>Meaning</th></tr>
+        <tr><td>6008</td><td>System</td><td>The system previously shut down unexpectedly (not a clean shutdown)</td></tr>
+        <tr><td>41</td><td>System</td><td>Kernel-Power: the system rebooted without cleanly shutting down first (often power loss or a hard hang)</td></tr>
+        <tr><td>1074</td><td>System</td><td>A clean, intentional shutdown or restart, and who/what initiated it</td></tr>
+      </table>
+      <div class="callout warn"><span class="lbl">Why these specific IDs</span>6008 and 41 are two of the most
+      well-known "something went wrong" signals in Windows administration — they're exactly what we'd expect to
+      find if WINAPP09's mystery reboots were caused by a crash or power event rather than a planned restart.</div>
+
+      <h3>6. Grouping Events to Find Patterns</h3>
+      <p>Same <code>Group-Object</code> technique from Project 5 — here applied to event <code>Id</code> or
+      <code>ProviderName</code>, to answer "which specific error is happening over and over" instead of just
+      listing every occurrence individually.</p>
+    </section>
+
+    <section id="lab">
+      <h2>Hands-On Lab — Build It Yourself</h2>
+      <div class="steps">
+        <div class="step"><b>Create the project folder:</b>
+          <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code>New-Item -ItemType Directory -Path "C:\PS-Masterclass\Project07\reports" -Force
+Set-Location "C:\PS-Masterclass\Project07"</code></pre></div>
+        </div>
+        <div class="step"><b>Explore your own System log first</b> so you know what real data looks like:
+          <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code>Get-WinEvent -LogName System -MaxEvents 5 | Format-List TimeCreated, Id, LevelDisplayName, ProviderName</code></pre></div>
+        </div>
+        <div class="step"><b>Create <code>Get-EventLogReport.ps1</code></b> in VS Code and paste the full script below.</div>
+        <div class="step"><b>Run it:</b>
+          <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code>.\Get-EventLogReport.ps1</code></pre></div>
+        </div>
+        <div class="step"><b>Validate:</b> confirm the console shows a summary count per log, any restart-related
+        events found (most personal laptops will have at least one 1074 or 6008 from a normal update/restart), and a
+        CSV saved to <code>.\reports\</code>.</div>
+      </div>
+      <div class="callout note"><span class="lbl">No admin rights needed</span>Reading the System and Application
+      logs is allowed for standard users on most systems; the Security log (which we're not using in this beginner
+      project) typically does require elevated access.</div>
+    </section>
+
+    <section id="script">
+      <h2>Full Script — Get-EventLogReport.ps1</h2>
+      <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code># =====================================================================
+# Get-EventLogReport.ps1
+# ABC Bank - Windows Infrastructure Automation Team
+# Purpose: Search System/Application logs for restart and error events
+# =====================================================================
+
+$ComputerName  = $env:COMPUTERNAME     # The server being checked
+$DaysBack      = 7                      # How many days of history to search
+$RestartEventIds = @(6008, 41, 1074)   # Event IDs related to shutdowns/restarts (System log)
+
+$StartTime = (Get-Date).AddDays(-$DaysBack)   # The earliest time we care about
+
+Write-Host "`n=== EVENT LOG REPORT: $ComputerName (last $DaysBack days) ===" -ForegroundColor Magenta
+
+# ---------------------------------------------------------------
+# STEP 1: Search the System log for restart-related events
+# ---------------------------------------------------------------
+$RestartEvents = @()   # Will hold restart-related events if any are found
+
+try {
+    $RestartEvents = Get-WinEvent -FilterHashtable @{        # Fast, server-side filtered query
+        LogName   = "System"                                    # Search the System log
+        Id        = $RestartEventIds                             # Only these specific event IDs
+        StartTime = $StartTime                                    # Only within our time window
+    } -ErrorAction Stop                                            # Turns "no matching events" into a catchable error
+}
+catch {
+    Write-Host "No restart-related events found in the System log for this period." -ForegroundColor Green
+}
+
+if ($RestartEvents.Count -gt 0) {                              # Only runs if something was actually found
+    Write-Host "`n--- RESTART / SHUTDOWN EVENTS FOUND ---" -ForegroundColor Red
+    foreach ($Event in $RestartEvents) {                         # Loops through each matching event
+        Write-Host "  $($Event.TimeCreated)  [ID $($Event.Id)]  $($Event.ProviderName)" -ForegroundColor Yellow
+    }
+}
+
+# ---------------------------------------------------------------
+# STEP 2: Search the Application log for Critical/Error events
+# ---------------------------------------------------------------
+$AppErrors = @()   # Will hold application-level error events
+
+try {
+    $AppErrors = Get-WinEvent -FilterHashtable @{               # Another server-side filtered query
+        LogName   = "Application"                                 # Search the Application log this time
+        Level     = 1,2                                             # 1 = Critical, 2 = Error (comma means "either")
+        StartTime = $StartTime
+    } -ErrorAction Stop
+}
+catch {
+    Write-Host "`nNo Critical/Error events found in the Application log for this period." -ForegroundColor Green
+}
+
+# ---------------------------------------------------------------
+# STEP 3: Group Application errors by source to find repeat offenders
+# ---------------------------------------------------------------
+if ($AppErrors.Count -gt 0) {                                  # Only runs if something was found
+
+    $GroupedErrors = $AppErrors |                                 # Starts from the raw error events
+        Group-Object -Property ProviderName |                       # Groups by which application logged them
+        Sort-Object Count -Descending                                # Worst offenders first
+
+    Write-Host "`n--- APPLICATION ERRORS BY SOURCE ---" -ForegroundColor Red
+    foreach ($Group in $GroupedErrors) {                           # Loops through each source group
+        Write-Host "  $($Group.Name): $($Group.Count) error(s)" -ForegroundColor Yellow
+    }
+}
+
+# ---------------------------------------------------------------
+# STEP 4: Build a combined report and export it
+# ---------------------------------------------------------------
+$AllFindings = @()   # Will hold every finding as a clean, exportable row
+
+foreach ($Event in $RestartEvents) {                            # Adds each restart event to the report
+    $AllFindings += [PSCustomObject]@{
+        Category    = "System Restart"
+        TimeCreated = $Event.TimeCreated
+        EventId     = $Event.Id
+        Source      = $Event.ProviderName
+        Message     = ($Event.Message -split "`n")[0]              # Keeps just the first line for a readable CSV
+    }
+}
+
+foreach ($Event in $AppErrors) {                                # Adds each application error to the report
+    $AllFindings += [PSCustomObject]@{
+        Category    = "Application Error"
+        TimeCreated = $Event.TimeCreated
+        EventId     = $Event.Id
+        Source      = $Event.ProviderName
+        Message     = ($Event.Message -split "`n")[0]
+    }
+}
+
+if (-not (Test-Path ".\reports")) {                              # Creates the reports folder if missing
+    New-Item -ItemType Directory -Path ".\reports" | Out-Null
+}
+$Timestamp = Get-Date -Format "yyyyMMdd_HHmmss"                  # Sortable timestamp for the filename
+$AllFindings | Export-Csv -Path ".\reports\EventLogReport_$Timestamp.csv" -NoTypeInformation
+
+Write-Host "`nSummary: $($RestartEvents.Count) restart event(s), $($AppErrors.Count) application error(s)." -ForegroundColor Cyan
+Write-Host "Report saved to .\reports\" -ForegroundColor Green
+</code></pre></div>
+      </div>
+    </section>
+
+    <section id="linebyline">
+      <h2>Line-by-Line Explanation</h2>
+
+      <h3><code>Get-WinEvent -FilterHashtable @{ LogName = "System"; Id = $RestartEventIds; StartTime = $StartTime } -ErrorAction Stop</code></h3>
+      <ul class="explain-list">
+        <li><code>Id = $RestartEventIds</code> — passing an <b>array</b> of numbers here means "match any of these
+        IDs," not just one; the hash table key accepts a single value or a list interchangeably.</li>
+        <li><code>-ErrorAction Stop</code> — same technique from Project 4. <code>Get-WinEvent</code> actually
+        throws an error (not just an empty result) when a filter matches zero events, so we deliberately catch that
+        specific, expected "no results" case rather than letting it look like a script failure.</li>
+      </ul>
+
+      <h3><code>Level = 1,2</code></h3>
+      <ul class="explain-list">
+        <li>Windows Event Log levels are numeric: 1=Critical, 2=Error, 3=Warning, 4=Information, 5=Verbose. Listing
+        two numbers separated by a comma inside the hash table, just like the <code>Id</code> array above, means
+        "match either of these levels."</li>
+      </ul>
+
+      <h3><code>($Event.Message -split "`n")[0]</code></h3>
+      <ul class="explain-list">
+        <li><code>-split "`n"</code> — the <b>split operator</b> breaks a string into an array of pieces wherever
+        the given separator appears; here we split on newline characters, since event messages are often several
+        lines long.</li>
+        <li><code>[0]</code> — array index syntax (first seen conceptually back in the concepts overview) grabs just
+        the <b>first</b> piece — the summary line — keeping our CSV readable instead of packing a huge multi-line
+        message into one cell.</li>
+      </ul>
+
+      <h3><code>Group-Object -Property ProviderName | Sort-Object Count -Descending</code></h3>
+      <ul class="explain-list">
+        <li>Directly reuses the Project 5 grouping pattern, just pointed at a new property — proof that
+        <code>Group-Object</code> is a general-purpose tool, not something specific to processes.</li>
+      </ul>
+    </section>
+
+    <section id="architecture">
+      <h2>Architecture &amp; Execution Flow</h2>
+      <div class="diagram">
+        <div class="flow">
+          <div class="box">Get-WinEvent (System)</div><div class="arrow">→</div>
+          <div class="box">Restart Events</div>
+        </div>
+        <div class="flow" style="margin-top:12px;">
+          <div class="box">Get-WinEvent (Application)</div><div class="arrow">→</div>
+          <div class="box">Group-Object by Source</div><div class="arrow">→</div>
+          <div class="box">Repeat-Offender Report</div>
+        </div>
+        <div class="flow" style="margin-top:12px;">
+          <div class="box">Both Result Sets</div><div class="arrow">→</div>
+          <div class="box">Combined $AllFindings</div><div class="arrow">→</div>
+          <div class="box">Console + CSV</div>
+        </div>
+      </div>
+      <p>Two independent queries — one per log — feed into a single combined report at the end. This "query
+      separately, report together" shape will reappear whenever a script needs to correlate data from multiple
+      sources, which becomes increasingly common from here on.</p>
+    </section>
+
+    <section id="incident">
+      <h2>Production Incident Walkthrough</h2>
+      <div class="story">
+        Our report comes back showing two Event ID 41 (Kernel-Power) entries in the System log, timestamped almost
+        exactly when Operations noticed WINAPP09 had rebooted — and zero related Application errors around those
+        same times.
+      </div>
+      <ul class="explain-list">
+        <li><b>What does "41 present, no correlating app errors" suggest?</b> Event ID 41 specifically means Windows
+        itself didn't get a chance to shut down cleanly — pointing toward a hardware, power, or OS-level hang rather
+        than an application crash, which would usually leave its own error trail in the Application log first.</li>
+        <li><b>Why search both logs even though the problem turned out to be System-level?</b> Before running the
+        script, we didn't know that — ruling out application-level causes is just as valuable as confirming the
+        System-level ones, and doing both in one pass saves a second investigation round-trip.</li>
+      </ul>
+    </section>
+
+    <section id="troubleshoot">
+      <h2>Troubleshooting Cheat Sheet</h2>
+      <table>
+        <tr><th>Symptom</th><th>Likely Root Cause</th><th>Fix</th></tr>
+        <tr><td>"No events found" even though you know a restart happened recently</td><td>DaysBack window too short, or the event ID isn't among the ones being searched</td><td>Temporarily increase <code>$DaysBack</code>, and browse <code>Get-WinEvent -LogName System -MaxEvents 20</code> to see what IDs actually appear</td></tr>
+        <tr><td>Script errors immediately instead of showing "no events found"</td><td>An unrelated problem (e.g. invalid LogName spelling)</td><td>Check the exact log name with <code>Get-WinEvent -ListLog * | Select LogName</code></td></tr>
+        <tr><td>CSV Message column is empty or truncated oddly</td><td>Some events have an empty or unusually formatted Message property</td><td>Print <code>$Event.Message</code> directly for that event to inspect it before assuming a bug</td></tr>
+        <tr><td>"Access is denied" reading a specific log</td><td>Some logs (notably Security) require elevated permissions</td><td>Expected for the Security log; not needed for System/Application in this project</td></tr>
+      </table>
+    </section>
+
+    <section id="security">
+      <h2>Security &amp; Best Practices</h2>
+      <div class="callout tip"><span class="lbl">Best practice reinforced here</span><code>-FilterHashtable</code>
+      filters at the source instead of pulling every event and filtering with <code>Where-Object</code> afterward —
+      on a busy Production server's event log, this is the difference between a query that finishes in under a
+      second and one that takes minutes and consumes significant memory.</div>
+      <div class="callout security"><span class="lbl">Read-only, still local-only</span>This script only reads
+      event logs; it makes no changes to the system, and it's still targeting the local machine. Remote event log
+      queries (which do need proper credential handling) come with the remoting projects later in the course.</div>
+    </section>
+
+    <section id="recap">
+      <h2>Key Learnings &amp; Recap</h2>
+      <div class="grid2">
+        <div>
+          <h3>Commands/Syntax Learned</h3>
+          <ul class="explain-list">
+            <li><code>Get-WinEvent -FilterHashtable</code></li>
+            <li>Hash table filter keys: <code>LogName</code>, <code>Id</code>, <code>Level</code>, <code>StartTime</code></li>
+            <li><code>-split</code> operator</li>
+            <li>Array index <code>[0]</code></li>
+          </ul>
+        </div>
+        <div>
+          <h3>Concepts Learned</h3>
+          <ul class="explain-list">
+            <li>Windows Event Log architecture (service → .evtx → objects)</li>
+            <li>Server-side vs client-side filtering, and why it matters at scale</li>
+            <li>Key restart/shutdown event IDs (6008, 41, 1074)</li>
+            <li>Correlating findings across multiple logs into one report</li>
+          </ul>
+        </div>
+      </div>
+      <h3>Common Mistakes to Avoid</h3>
+      <ul class="explain-list">
+        <li>Pulling all events and filtering with <code>Where-Object</code> instead of using <code>-FilterHashtable</code> — much slower on real servers.</li>
+        <li>Forgetting that "no matching events" is a normal, expected outcome to handle gracefully, not a script error.</li>
+        <li>Dumping the full multi-line Message property into a CSV cell without trimming it first.</li>
+      </ul>
+    </section>
+
+    <section id="interview">
+      <h2>Interview Preparation</h2>
+      <details><summary>Q1. Why is -FilterHashtable preferred over piping Get-WinEvent into Where-Object?</summary>
+        <p><b>Answer:</b> <code>-FilterHashtable</code> filters events at the log-reading level (closer to the
+        source), so PowerShell never has to load and hold irrelevant events in memory just to discard them.
+        Piping into <code>Where-Object</code> retrieves everything first and filters client-side, which is far
+        slower and more memory-intensive on large logs.</p>
+        <p><b>Follow-up:</b> "Are there filtering needs FilterHashtable can't express, where Where-Object is still needed?"
+        — Answer: yes — complex conditions like text matching inside the Message property aren't supported by
+        FilterHashtable, so you'd filter by the structured fields first with FilterHashtable, then refine further
+        with Where-Object on the smaller result set.</p>
+      </details>
+      <details><summary>Q2. What does Event ID 41 specifically tell you that a generic "the server rebooted" doesn't?</summary>
+        <p><b>Answer:</b> It indicates the system restarted without a clean shutdown sequence completing first —
+        pointing toward power loss, a hardware fault, or a hang/crash severe enough that Windows couldn't shut down
+        gracefully, as opposed to a normal, intentional restart.</p>
+        <p><b>Follow-up:</b> "How would you distinguish a power-related cause from a hang?" — Answer: correlate with
+        hardware/BMC logs or other System log entries around the same timestamp — a topic that goes beyond what
+        PowerShell alone can determine and typically needs hardware-level diagnostics.</p>
+      </details>
+      <details><summary>Q3. Why catch "no events found" as an expected outcome instead of treating any error as a failure?</summary>
+        <p><b>Answer:</b> A clean server with nothing to report is a perfectly normal and desirable result — treating
+        it as a script failure would create false alarms and erode trust in the automation. Distinguishing "nothing
+        found" from "something actually went wrong retrieving data" keeps the reporting meaningful.</p>
+        <p><b>Follow-up:</b> "How would you tell those two cases apart in the catch block if you needed to?" —
+        Answer: inspect <code>$_.Exception.Message</code> for the specific "no events were found" text versus other
+        error text, and branch your handling accordingly rather than treating every catch identically.</p>
+      </details>
+    </section>
+
+    <section id="challenges">
+      <h2>Coding Challenges</h2>
+      <details><summary>Challenge 1: Also search for Event ID 6005 (Event Log service started - a normal boot marker) to show boot times</summary>
+        <details><summary>Show answer</summary>
+        <pre><code>$BootEvents = Get-WinEvent -FilterHashtable @{ LogName = "System"; Id = 6005; StartTime = $StartTime } -ErrorAction SilentlyContinue
+$BootEvents | Select-Object TimeCreated | Sort-Object TimeCreated</code></pre>
+        </details>
+      </details>
+      <details><summary>Challenge 2: Count how many Application errors happened per calendar day</summary>
+        <details><summary>Show answer</summary>
+        <pre><code>$AppErrors | Group-Object { $_.TimeCreated.ToString("yyyy-MM-dd") } | Sort-Object Name | Select-Object Name, Count</code></pre>
+        </details>
+      </details>
+      <details><summary>Challenge 3: Only include Application errors from sources that appeared more than twice (real patterns, not one-offs)</summary>
+        <details><summary>Show answer</summary>
+        <pre><code>$GroupedErrors | Where-Object { $_.Count -gt 2 } | ForEach-Object { $_.Group }</code></pre>
+        </details>
+      </details>
+    </section>
+
+    <section id="resume">
+      <h2>Resume Points</h2>
+      <ul class="explain-list">
+        <li>Built a PowerShell event log analysis script using efficient server-side filtering (FilterHashtable) to investigate unexpected server restarts.</li>
+        <li>Correlated System and Application log data to distinguish OS-level failures from application-level errors.</li>
+        <li>Implemented grouping and pattern analysis to surface repeat-offender error sources from raw event data.</li>
+      </ul>
+    </section>
+
+    <section id="assignment">
+      <h2>Practice Assignment</h2>
+      <div class="callout note">
+        Change <code>$DaysBack</code> to 30 and re-run the script on your own machine. Review the Application error
+        summary and pick one source with the highest count — search online (or in Event Viewer) for what that
+        specific error typically means, and write one sentence summarizing it.
+      </div>
+    </section>
+
+    <section id="next">
+      <h2>Next Project Prerequisites</h2>
+      <p>Project 08 (Basic Network Troubleshooting) will use similar time-windowed, pattern-based thinking applied to
+      network connectivity — testing reachability, ports, and DNS resolution across multiple targets. Be comfortable
+      with hash-table filtering and Group-Object before moving on. When ready, say <b>"Next Project."</b></p>
+    </section>
+
+    <footer>
+      PowerShell Masterclass — ABC Bank Automation Track · Project 07 of 40 · Generated for offline, self-contained use.
+    </footer>
+  </main>
+</div>
+
+<script>
+function copyCode(btn){
+  const code = btn.parentElement.querySelector('pre').innerText;
+  navigator.clipboard.writeText(code).then(()=>{
+    const old = btn.innerText; btn.innerText = "Copied!";
+    setTimeout(()=>btn.innerText = old, 1200);
+  });
+}
+window.addEventListener('scroll', ()=>{
+  const h = document.documentElement;
+  const pct = (h.scrollTop) / (h.scrollHeight - h.clientHeight) * 100;
+  document.getElementById('progressFill').style.width = pct + '%';
+  document.getElementById('progressLabel').innerText = 'Reading progress: ' + Math.round(pct) + '%';
+});
+</script>
+</body>
+</html>

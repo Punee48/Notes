@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Assignment 07 — Auto Scaling &amp; Production Health Checks</title>
+<style>
+:root{
+  --bg:#0B1120; --bg-2:#111827; --card:#17202F; --card-2:#1C2536; --border:#26314A;
+  --orange:#FF9900; --orange-dim:#B96E00; --blue:#00A8E1; --green:#34D399;
+  --warning:#FBBF24; --error:#F87171; --text:#E5E9F0; --text-dim:#94A3B8;
+  --code-bg:#0A0E17; --code-text:#D1D9E6;
+  --mono:'JetBrains Mono','Fira Code',ui-monospace,monospace;
+  --sans:'Inter',-apple-system,sans-serif; --display:'Space Grotesk','Inter',sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html{scroll-behavior:smooth;}
+body{background:var(--bg);color:var(--text);font-family:var(--sans);line-height:1.65;font-size:16px;}
+a{color:var(--blue);text-decoration:none;} a:hover{text-decoration:underline;}
+::selection{background:var(--orange);color:#0B1120;}
+.shell{display:flex;min-height:100vh;}
+.sidebar{width:270px;flex-shrink:0;background:var(--bg-2);border-right:1px solid var(--border);
+  position:sticky;top:0;height:100vh;overflow-y:auto;padding:24px 0 60px;}
+.sidebar-brand{padding:0 20px 20px;border-bottom:1px solid var(--border);margin-bottom:12px;}
+.sidebar-brand .tag{font-family:var(--mono);font-size:11px;color:var(--orange);letter-spacing:.12em;text-transform:uppercase;}
+.sidebar-brand h1{font-family:var(--display);font-size:17px;margin-top:6px;line-height:1.3;}
+.sidebar nav a{display:block;padding:8px 20px;font-size:13.5px;color:var(--text-dim);border-left:2px solid transparent;}
+.sidebar nav a:hover{color:var(--text);text-decoration:none;background:var(--card);}
+.sidebar nav a.active{color:var(--orange);border-left-color:var(--orange);background:var(--card);}
+.main{flex:1;min-width:0;}
+.container{max-width:900px;margin:0 auto;padding:56px 40px 120px;}
+.cover{background:linear-gradient(160deg,#131C2E 0%, #0B1120 70%);border:1px solid var(--border);border-radius:14px;
+  padding:44px 40px;margin-bottom:48px;position:relative;overflow:hidden;}
+.cover::before{content:"";position:absolute;top:-60px;right:-60px;width:260px;height:260px;
+  background:radial-gradient(circle,rgba(255,153,0,.18),transparent 70%);}
+.cover .eyebrow{font-family:var(--mono);color:var(--orange);font-size:12px;letter-spacing:.14em;text-transform:uppercase;}
+.cover h1{font-family:var(--display);font-size:34px;margin:12px 0 14px;max-width:640px;position:relative;}
+.cover p.lede{color:var(--text-dim);max-width:560px;font-size:15px;position:relative;}
+.cover-meta{display:flex;flex-wrap:wrap;gap:10px;margin-top:24px;position:relative;}
+.chip{background:var(--card);border:1px solid var(--border);border-radius:999px;padding:6px 14px;font-size:12.5px;color:var(--text-dim);font-family:var(--mono);}
+.chip b{color:var(--text);}
+h2.section-title{font-family:var(--display);font-size:24px;margin:56px 0 18px;padding-bottom:10px;border-bottom:1px solid var(--border);
+  display:flex;align-items:center;gap:10px;scroll-margin-top:24px;}
+h2.section-title .num{font-family:var(--mono);color:var(--orange-dim);font-size:15px;}
+h3{font-family:var(--display);font-size:18px;margin:26px 0 10px;color:var(--text);}
+h4{font-size:15px;margin:18px 0 8px;color:var(--orange);font-family:var(--mono);}
+p{margin-bottom:14px;color:#C7CEDB;}
+ul,ol{margin:0 0 14px 22px;color:#C7CEDB;} li{margin-bottom:6px;}
+strong{color:var(--text);}
+.card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:20px 22px;margin:16px 0;}
+.story-card{background:linear-gradient(135deg,#1A2333,#161E2C);border-left:3px solid var(--orange);border-radius:8px;padding:22px 24px;margin:16px 0;}
+.story-card p{color:#D7DCE8;font-style:italic;} .story-card p:last-child{margin-bottom:0;}
+.role-tag{display:inline-block;font-family:var(--mono);font-size:11px;color:var(--orange);background:rgba(255,153,0,.1);
+  border:1px solid rgba(255,153,0,.3);border-radius:5px;padding:2px 8px;margin-bottom:10px;letter-spacing:.05em;}
+.box{border-radius:8px;padding:16px 18px;margin:16px 0;border:1px solid;}
+.box.tip{background:rgba(0,168,225,.07);border-color:rgba(0,168,225,.35);}
+.box.warn{background:rgba(251,191,36,.07);border-color:rgba(251,191,36,.35);}
+.box.security{background:rgba(248,113,113,.07);border-color:rgba(248,113,113,.35);}
+.box.win{background:rgba(52,211,153,.07);border-color:rgba(52,211,153,.35);}
+.box .label{font-family:var(--mono);font-size:11px;text-transform:uppercase;letter-spacing:.1em;display:block;margin-bottom:6px;}
+.box.tip .label{color:var(--blue);} .box.warn .label{color:var(--warning);}
+.box.security .label{color:var(--error);} .box.win .label{color:var(--green);}
+.box p:last-child{margin-bottom:0;}
+table{width:100%;border-collapse:collapse;margin:16px 0;font-size:14px;}
+th{background:var(--card-2);color:var(--orange);text-align:left;padding:10px 12px;font-family:var(--mono);
+  font-size:12px;text-transform:uppercase;letter-spacing:.04em;border-bottom:1px solid var(--border);}
+td{padding:10px 12px;border-bottom:1px solid var(--border);color:#C7CEDB;vertical-align:top;}
+tr:last-child td{border-bottom:none;} tr:hover td{background:rgba(255,255,255,.02);}
+.code-wrap{position:relative;margin:16px 0;border-radius:8px;overflow:hidden;border:1px solid var(--border);}
+.code-head{background:var(--card-2);padding:8px 14px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border);}
+.code-head span{font-family:var(--mono);font-size:11.5px;color:var(--text-dim);}
+.copy-btn{background:transparent;border:1px solid var(--border);color:var(--text-dim);font-family:var(--mono);font-size:11px;
+  padding:4px 10px;border-radius:5px;cursor:pointer;}
+.copy-btn:hover{border-color:var(--orange);color:var(--orange);}
+pre{background:var(--code-bg);padding:16px 18px;overflow-x:auto;font-family:var(--mono);font-size:13px;line-height:1.6;color:var(--code-text);}
+code{font-family:var(--mono);}
+p code, li code{background:var(--card-2);padding:1px 6px;border-radius:4px;font-size:13px;color:#FFC876;}
+.comment{color:#5E7099;} .kw{color:var(--blue);} .str{color:var(--green);}
+.diagram{background:var(--code-bg);border:1px solid var(--border);border-radius:10px;padding:28px;margin:20px 0;overflow-x:auto;}
+.timeline{display:flex;justify-content:space-between;font-family:var(--mono);font-size:11.5px;position:relative;padding:20px 0;}
+.timeline::before{content:"";position:absolute;top:50%;left:0;right:0;height:2px;background:var(--border);}
+.tl-stop{background:var(--card);border:1px solid var(--orange-dim);border-radius:8px;padding:8px 12px;text-align:center;
+  position:relative;z-index:1;opacity:0;transform:translateY(8px);animation:reveal .5s ease forwards;min-width:100px;}
+.tl-stop small{display:block;color:var(--text-dim);margin-top:3px;}
+@keyframes reveal{to{opacity:1;transform:translateY(0);}}
+details{background:var(--card);border:1px solid var(--border);border-radius:8px;margin:10px 0;padding:0;}
+details summary{cursor:pointer;padding:14px 18px;font-family:var(--mono);font-size:13.5px;color:var(--orange);
+  list-style:none;display:flex;justify-content:space-between;align-items:center;}
+details summary::-webkit-details-marker{display:none;}
+details summary::after{content:"+";color:var(--text-dim);font-size:16px;}
+details[open] summary::after{content:"–";}
+details .inner{padding:0 18px 16px;border-top:1px solid var(--border);padding-top:12px;}
+details .inner p:last-child{margin-bottom:0;}
+.qa{margin:14px 0;padding:16px 18px;background:var(--card-2);border-radius:8px;border:1px solid var(--border);}
+.qa .q{font-family:var(--display);font-size:14.5px;color:var(--text);margin-bottom:8px;}
+.qa .q .qn{color:var(--orange);font-family:var(--mono);margin-right:6px;}
+.qa .follow{margin-top:10px;padding-top:10px;border-top:1px dashed var(--border);color:var(--text-dim);font-size:13px;}
+.qa .follow b{color:var(--blue);}
+.resume-list{list-style:none;margin:14px 0;}
+.resume-list li{padding:12px 16px;background:var(--card);border-left:3px solid var(--green);border-radius:0 6px 6px 0;
+  margin-bottom:8px;font-size:14px;color:#D7DCE8;}
+.criteria{list-style:none;margin:14px 0;}
+.criteria li{padding-left:28px;position:relative;margin-bottom:8px;color:#C7CEDB;}
+.criteria li::before{content:"✓";position:absolute;left:0;color:var(--green);font-family:var(--mono);}
+.progress-bar{height:6px;background:var(--card-2);border-radius:999px;overflow:hidden;margin:14px 0 4px;}
+.progress-bar-fill{height:100%;width:28%;background:linear-gradient(90deg,var(--orange),var(--blue));}
+.progress-label{font-family:var(--mono);font-size:11px;color:var(--text-dim);}
+footer{text-align:center;padding:40px;color:#4B5875;font-family:var(--mono);font-size:12px;border-top:1px solid var(--border);margin-top:60px;}
+.steps{list-style:none;margin:16px 0;counter-reset:step;}
+.steps li{position:relative;padding:14px 18px 14px 52px;margin-bottom:10px;background:var(--card);border:1px solid var(--border);
+  border-radius:8px;counter-increment:step;}
+.steps li::before{content:counter(step);position:absolute;left:16px;top:14px;width:24px;height:24px;border-radius:50%;
+  background:var(--orange);color:#0B1120;font-family:var(--mono);font-weight:700;font-size:12px;
+  display:flex;align-items:center;justify-content:center;}
+.steps li b{color:var(--text);}
+@media(max-width:860px){
+  .sidebar{position:fixed;left:-270px;transition:left .2s;z-index:50;box-shadow:20px 0 40px rgba(0,0,0,.4);}
+  .sidebar.open{left:0;} .container{padding:24px 18px 100px;}
+  .timeline{flex-direction:column;gap:10px;} .timeline::before{display:none;}
+  .mobile-toggle{position:fixed;bottom:20px;right:20px;z-index:60;background:var(--orange);color:#0B1120;border:none;
+    border-radius:50%;width:52px;height:52px;font-size:20px;cursor:pointer;box-shadow:0 6px 20px rgba(0,0,0,.4);}
+}
+@media(min-width:861px){.mobile-toggle{display:none;}}
+@media(prefers-reduced-motion:reduce){*{animation:none !important;transition:none !important;}}
+</style>
+</head>
+<body>
+<div class="shell">
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-brand">
+      <span class="tag">AWS Cloud Engineering</span>
+      <h1>Assignment 07<br>Intermediate Stage</h1>
+    </div>
+    <nav>
+      <a href="#story">Production Story</a>
+      <a href="#requirements">Requirements</a>
+      <a href="#architecture">Architecture</a>
+      <a href="#decisions">Architecture Decisions</a>
+      <a href="#console">Manual Console Steps</a>
+      <a href="#cli">AWS CLI</a>
+      <a href="#terraform">Terraform</a>
+      <a href="#validation">Validation &amp; Testing</a>
+      <a href="#monitoring">Monitoring</a>
+      <a href="#incident">Production Incident</a>
+      <a href="#troubleshooting">Troubleshooting Method</a>
+      <a href="#cost">Cost Awareness</a>
+      <a href="#review">Architecture Review</a>
+      <a href="#cleanup">Cleanup</a>
+      <a href="#acceptance">Acceptance Criteria</a>
+      <a href="#challenge">Practice Challenge</a>
+      <a href="#interview">Interview Prep</a>
+      <a href="#resume">Resume Points</a>
+      <a href="#next">Next Project</a>
+    </nav>
+  </aside>
+
+  <div class="main">
+    <div class="container">
+
+      <div class="cover">
+        <span class="eyebrow">Assignment 07 of 25 · Intermediate</span>
+        <h1>Implementing Auto Scaling and Production Health Checks</h1>
+        <p class="lede">The marketing campaign Priya warned about is three weeks out. Two fixed instances won't survive a 10x traffic spike, and nobody wants to be manually launching instances at 11 PM. Time to replace the manually-managed pair from Assignment 6 with a real Auto Scaling Group.</p>
+        <div class="cover-meta">
+          <span class="chip">Difficulty: <b>Intermediate</b></span>
+          <span class="chip">Domain: <b>Insurance</b></span>
+          <span class="chip">Services: <b>Auto Scaling Group · Target Tracking · Health Checks</b></span>
+          <span class="chip">IaC: <b>Console + CLI + Terraform</b></span>
+          <span class="chip">Est. lab time: <b>3–4 hrs</b></span>
+        </div>
+        <div class="progress-bar"><div class="progress-bar-fill"></div></div>
+        <span class="progress-label">Progress: Assignment 7 of 25</span>
+      </div>
+
+      <!-- STORY -->
+      <h2 class="section-title" id="story"><span class="num">01</span> Production Story</h2>
+      <div class="story-card">
+        <span class="role-tag">Infrastructure Manager — Priya Nandan</span>
+        <p>"Marketing just confirmed the campaign date. Historical data from similar campaigns at other companies suggests 8-10x normal traffic for about four hours, then it tapers off over the rest of the day. I need this to scale up automatically when it happens and scale back down afterward — I'm not paying for ten instances at 2 AM three days later because somebody forgot to scale back down manually."</p>
+      </div>
+      <div class="box tip">
+        <span class="label">Why this is Assignment 7</span>
+        <p>Assignment 6 ended by naming exactly this gap: a fixed <code>count = 2</code> can't respond to load on its own. An Auto Scaling Group takes over ownership of "how many instances should exist right now" from us entirely — it launches more when a scaling policy's metric crosses a threshold, terminates extras when load drops, and replaces any instance that fails its health check, all without a human in the loop. We reuse the exact Launch Template built in Assignment 6 — nothing about the instance definition itself changes, only who's managing how many of them exist.</p>
+      </div>
+
+      <!-- REQUIREMENTS -->
+      <h2 class="section-title" id="requirements"><span class="num">02</span> Business &amp; Technical Requirements</h2>
+      <table>
+        <tr><th>Type</th><th>Requirement</th></tr>
+        <tr><td>Business</td><td>Absorb an 8-10x traffic spike for several hours without manual intervention, then scale back down automatically afterward.</td></tr>
+        <tr><td>Technical</td><td>Minimum of 2 instances at all times (never below the AZ-redundancy floor established in Assignment 6); scale up to a defined maximum during the spike.</td></tr>
+        <tr><td>Technical</td><td>A failed instance must be detected and automatically replaced without any manual relaunch.</td></tr>
+        <tr><td>Performance</td><td>New instances must not receive live traffic until the application inside them is actually ready — not just until the EC2 instance itself is "running."</td></tr>
+        <tr><td>Cost</td><td>Scale-down must actually happen — capacity added for the spike must not linger afterward at ongoing cost.</td></tr>
+      </table>
+
+      <!-- ARCHITECTURE -->
+      <h2 class="section-title" id="architecture"><span class="num">03</span> Architecture Design</h2>
+      <p>The Auto Scaling Group (ASG) sits between the Launch Template and the target group, replacing the manual <code>count = 2</code> instance management from Assignment 6 entirely — it now owns instance count, placement across both AZs, health-check-driven replacement, and target group registration, none of which we manage by hand anymore.</p>
+
+      <div class="diagram">
+        <div class="timeline">
+          <div class="tl-stop" style="animation-delay:.05s">Normal load<small>2 instances (min)</small></div>
+          <div class="tl-stop" style="animation-delay:.25s">CPU/RequestCount rises<small>target tracking policy triggers</small></div>
+          <div class="tl-stop" style="animation-delay:.45s">Scale-out<small>new instances launched, both AZs</small></div>
+          <div class="tl-stop" style="animation-delay:.65s">Health check grace period<small>app boots before receiving traffic</small></div>
+          <div class="tl-stop" style="animation-delay:.85s">Load subsides<small>scale-in back toward 2 (min)</small></div>
+        </div>
+      </div>
+
+      <p>The ASG's own health check is configured as <code>ELB</code> type, not just <code>EC2</code> — meaning it defers to the target group's HTTP health check (built in Assignment 3) to decide whether an instance is truly healthy, not merely whether the underlying EC2 instance is running. This is the direct answer to "production health checks" in this assignment's title: an EC2 status check alone would happily call a instance "healthy" even if the app inside it crashed on boot.</p>
+
+      <!-- DECISIONS -->
+      <h2 class="section-title" id="decisions"><span class="num">04</span> Architecture Decision Making</h2>
+
+      <h3>Decision: Target Tracking vs. Step Scaling vs. Simple Scaling</h3>
+      <table>
+        <tr><th></th><th>Simple Scaling</th><th>Step Scaling</th><th>Target Tracking</th></tr>
+        <tr><td>How it decides</td><td>One alarm, one fixed adjustment, then a cooldown before it can act again</td><td>Multiple alarm thresholds, different adjustment sizes per threshold</td><td>You specify a target value (e.g. "keep average CPU at 50%"); AWS manages the alarms and adjustments itself</td></tr>
+        <tr><td>Fits an unpredictable 8-10x spike</td><td>Poorly — a single fixed step can't respond proportionally to a spike of unknown exact size</td><td>Better, but requires hand-tuning multiple thresholds in advance</td><td>Well — automatically adds/removes capacity proportional to how far off-target the metric actually is, without pre-guessing every threshold</td></tr>
+      </table>
+      <p><strong>Decision: Target Tracking</strong>, tracking average CPU utilization at 50%. It requires the least manual tuning and responds proportionally whether the spike turns out to be 5x or 12x, rather than being calibrated for one guessed number in advance — appropriate given marketing's own estimate is a range, not a precise figure.</p>
+
+      <h3>Decision: EC2 Health Check vs. ELB Health Check on the ASG</h3>
+      <p>ASG's default <code>EC2</code> health check only asks "is the instance's underlying hardware/hypervisor status OK" — it says nothing about whether the application inside actually started successfully. Setting <code>health_check_type = "ELB"</code> makes the ASG defer to the target group's own HTTP health check on <code>/health</code> instead — an instance where EC2 itself is fine but the Node process crashed on boot is correctly identified as unhealthy and replaced, exactly the gap an EC2-only check would miss.</p>
+
+      <!-- CONSOLE -->
+      <h2 class="section-title" id="console"><span class="num">05</span> AWS Console — Manual Steps</h2>
+      <ol class="steps">
+        <li><b>Deregister and terminate the manually-managed instances from Assignment 6.</b> Target Groups → deregister both. EC2 → terminate both — the ASG will launch its own replacements from the same Launch Template momentarily.</li>
+        <li><b>Create the Auto Scaling Group.</b> EC2 console → <em>Auto Scaling Groups → Create Auto Scaling group</em> → select the existing <code>quote-portal-app-lt</code> launch template → VPC <code>quote-portal-vpc</code>, subnets: both private subnets → attach to the existing target group <code>quote-portal-tg</code> (this is what registers new instances automatically going forward).</li>
+        <li><b>Configure health checks.</b> On the health check step: enable "Turn on Elastic Load Balancing health checks" (this is the ELB health check type described above) → health check grace period: 90 seconds (enough time for the app to boot and pass its first health check before the ASG considers a slow-starting instance a failure).</li>
+        <li><b>Set group size.</b> Minimum 2, Desired 2, Maximum 8 — the minimum of 2 preserves the AZ-redundancy floor from Assignment 6 even with zero scaling activity.</li>
+        <li><b>Add a target tracking scaling policy.</b> After creation → <em>Automatic scaling</em> tab → <em>Create dynamic scaling policy</em> → target tracking → metric: Average CPU Utilization → target value: 50.</li>
+        <li><b>Verify.</b> Confirm the ASG's instances list shows 2 running instances, both showing healthy in the target group, and both appearing in different AZs.</li>
+      </ol>
+
+      <!-- CLI -->
+      <h2 class="section-title" id="cli"><span class="num">06</span> AWS CLI</h2>
+      <div class="code-wrap">
+        <div class="code-head"><span>bash</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre><span class="comment"># Create the ASG referencing the existing launch template and target group</span>
+aws autoscaling create-auto-scaling-group \
+  --auto-scaling-group-name quote-portal-asg \
+  --launch-template LaunchTemplateName=quote-portal-app-lt,Version='$Latest' \
+  --min-size 2 --max-size 8 --desired-capacity 2 \
+  --vpc-zone-identifier "$PRIVATE_A_SUBNET_ID,$PRIVATE_B_SUBNET_ID" \
+  --target-group-arns $TG_ARN \
+  --health-check-type ELB --health-check-grace-period 90
+
+<span class="comment"># Attach a target tracking scaling policy targeting 50% average CPU</span>
+aws autoscaling put-scaling-policy \
+  --auto-scaling-group-name quote-portal-asg \
+  --policy-name cpu-target-tracking \
+  --policy-type TargetTrackingScaling \
+  --target-tracking-configuration '{
+    "PredefinedMetricSpecification": {"PredefinedMetricType": "ASGAverageCPUUtilization"},
+    "TargetValue": 50.0
+  }'</pre>
+      </div>
+      <table>
+        <tr><th>Flag</th><th>Meaning</th></tr>
+        <tr><td><code>--health-check-type ELB</code></td><td>Makes the ASG defer to the target group's own health check rather than only EC2 status — the key production-readiness distinction in this assignment</td></tr>
+        <tr><td><code>--health-check-grace-period 90</code></td><td>Suppresses health-check-driven termination for the first 90 seconds after launch, giving the app time to actually boot before being judged</td></tr>
+        <tr><td><code>TargetValue: 50.0</code></td><td>The ASG will add capacity when average CPU across the group exceeds ~50% and remove it when comfortably below, without any manually-defined step thresholds</td></tr>
+      </table>
+
+      <!-- TERRAFORM -->
+      <h2 class="section-title" id="terraform"><span class="num">07</span> Terraform Implementation</h2>
+
+      <h3>main.tf — Auto Scaling Group (replaces Assignment 6's count = 2 instances)</h3>
+      <div class="code-wrap">
+        <div class="code-head"><span>main.tf (part 1 of 2)</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre><span class="kw">resource</span> "aws_autoscaling_group" "app" {
+  name                = "quote-portal-asg"
+  vpc_zone_identifier = aws_subnet.private[*].id
+  target_group_arns   = [aws_lb_target_group.app.arn]
+  <span class="comment"># Attaching the SAME target group from Assignment 3 — the ALB's listener</span>
+  <span class="comment"># and routing rules need zero changes; only who's registered changes.</span>
+
+  min_size         = 2
+  max_size         = 8
+  desired_capacity = 2
+
+  health_check_type         = "ELB"
+  health_check_grace_period = 90
+
+  launch_template {
+    id      = aws_launch_template.app.id  <span class="comment"># from Assignment 6, unchanged</span>
+    version = "$Latest"
+  }
+
+  tag {
+    key                 = "Name"
+    value               = "quote-portal-app-asg"
+    propagate_at_launch = true
+    <span class="comment"># propagate_at_launch = true means every instance the ASG creates</span>
+    <span class="comment"># automatically inherits this tag — without it, instances would launch</span>
+    <span class="comment"># untagged and be harder to identify in the console/CLI.</span>
+  }
+
+  lifecycle {
+    ignore_changes = [desired_capacity]
+    <span class="comment"># Once scaling policies are managing desired_capacity dynamically, we</span>
+    <span class="comment"># don't want Terraform fighting the ASG by resetting it back to 2 on</span>
+    <span class="comment"># every apply — this tells Terraform "manage everything about this</span>
+    <span class="comment"># resource except this one field, which the scaling policy now owns."</span>
+  }
+}</pre>
+      </div>
+
+      <h3>main.tf — Target Tracking Scaling Policy</h3>
+      <div class="code-wrap">
+        <div class="code-head"><span>main.tf (part 2 of 2)</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre><span class="kw">resource</span> "aws_autoscaling_policy" "cpu_target_tracking" {
+  name                   = "cpu-target-tracking"
+  autoscaling_group_name = aws_autoscaling_group.app.name
+  policy_type            = "TargetTrackingScaling"
+
+  target_tracking_configuration {
+    predefined_metric_specification {
+      predefined_metric_type = "ASGAverageCPUUtilization"
+    }
+    target_value = 50.0
+    <span class="comment"># AWS manages the underlying CloudWatch alarms and step adjustments</span>
+    <span class="comment"># itself — we only declare the target, not the mechanics of reaching it.</span>
+  }
+}
+
+<span class="kw">resource</span> "aws_cloudwatch_metric_alarm" "asg_min_capacity" {
+  alarm_name          = "quote-portal-asg-at-minimum"
+  comparison_operator = "LessThanOrEqualToThreshold"
+  evaluation_periods  = 1
+  metric_name         = "GroupInServiceInstances"
+  namespace           = "AWS/AutoScaling"
+  period              = 300
+  statistic           = "Average"
+  threshold           = 2
+  dimensions          = { AutoScalingGroupName = aws_autoscaling_group.app.name }
+  alarm_description   = "Fires if in-service instance count drops to the redundancy floor — same signal as Assignment 6's HealthyHostCount alarm, now driven by the ASG"
+}</pre>
+      </div>
+
+      <!-- VALIDATION -->
+      <h2 class="section-title" id="validation"><span class="num">08</span> Validation &amp; Testing</h2>
+      <ul>
+        <li><strong>Baseline test:</strong> ASG shows 2 running instances across both AZs, both healthy in the target group.</li>
+        <li><strong>Scale-out test:</strong> generate synthetic CPU load on the instances (e.g. a simple stress test script) and confirm the ASG launches additional instances within a few minutes as average CPU crosses 50%.</li>
+        <li><strong>Grace period test:</strong> confirm a newly-launched instance is NOT terminated for failing health checks during its first 90 seconds, even if the app takes a beat to start — the grace period should visibly prevent premature termination.</li>
+        <li><strong>Self-healing test:</strong> manually terminate one instance from the console directly (not via the ASG) — confirm the ASG detects the reduced count and launches a replacement automatically, with zero manual relaunch.</li>
+        <li><strong>Scale-in test:</strong> stop the synthetic load and confirm the ASG gradually terminates excess instances back down toward the minimum of 2, not abruptly all at once.</li>
+      </ul>
+
+      <!-- MONITORING -->
+      <h2 class="section-title" id="monitoring"><span class="num">09</span> Monitoring &amp; Observability</h2>
+      <table>
+        <tr><th>Metric</th><th>Why it matters</th></tr>
+        <tr><td><code>GroupInServiceInstances</code></td><td>Real-time count of instances actually in service — the direct ASG-level view of current capacity</td></tr>
+        <tr><td><code>GroupDesiredCapacity</code> vs. actual</td><td>A persistent gap between desired and actual capacity signals launches are failing repeatedly — worth alerting on distinctly from a normal, brief in-progress scale-out</td></tr>
+        <tr><td>Scaling activity history (console/CLI)</td><td>Shows exactly when and why each scale-out/scale-in happened — essential for explaining a cost spike after the fact</td></tr>
+      </table>
+
+      <!-- INCIDENT -->
+      <h2 class="section-title" id="incident"><span class="num">10</span> Production Incident</h2>
+      <div class="story-card">
+        <span class="role-tag">Load test, three days before the campaign</span>
+        <p>During a scheduled load test simulating the expected campaign traffic, the ASG scales out as expected — but roughly a third of the new instances get terminated and relaunched repeatedly instead of settling into a healthy state, and CPU across the group stays elevated even as instance count climbs.</p>
+      </div>
+      <h4>Investigation</h4>
+      <div class="code-wrap">
+        <div class="code-head"><span>bash</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre>aws autoscaling describe-scaling-activities \
+  --auto-scaling-group-name quote-portal-asg \
+  --query "Activities[?contains(Cause,'health check')]" --output table
+
+<span class="comment"># On a freshly-launched, about-to-be-terminated instance, before it dies:</span>
+aws ssm start-session --target $NEW_INSTANCE_ID
+tail -f /var/log/cloud-init-output.log</pre>
+      </div>
+      <p>The scaling activity log shows a pattern of instances being terminated for failing ELB health checks right around the 90-second grace period boundary — not immediately, and not much later. On the instance itself, the app is still installing Node dependencies at the 90-second mark under the increased boot-time contention of many simultaneous launches sharing the same NAT Gateway bandwidth (from Assignment 2) for package downloads.</p>
+      <h4>Root Cause</h4>
+      <p>The 90-second grace period, tuned during calm single-instance testing in earlier assignments, doesn't hold up when many instances boot simultaneously and compete for the same outbound NAT bandwidth to download dependencies — a scale-dependent problem that never appeared until an actual load test exercised it.</p>
+      <h4>Immediate Fix</h4>
+      <p>Manually increased the ASG's desired capacity further to compensate for the churn during the remainder of the load test.</p>
+      <h4>Permanent Fix</h4>
+      <div class="code-wrap">
+        <div class="code-head"><span>Terraform change</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre>  health_check_grace_period = 180  <span class="comment"># was 90 — doubled to absorb simultaneous-boot contention</span></pre>
+      </div>
+      <p>Also flagged a longer-term fix: baking dependencies into a custom AMI at build time (Assignment 16's territory once containers/image-building is covered properly) rather than installing them fresh on every boot, which would remove this bottleneck at its root instead of just giving it more time.</p>
+      <h4>Validation</h4>
+      <p>Re-ran the load test with the increased grace period — zero premature terminations, all new instances reached healthy state on their first attempt.</p>
+      <h4>Lessons Learned</h4>
+      <ul>
+        <li>A grace period tuned under light, single-instance conditions can silently fail under the very load-testing conditions it exists to handle — always load test the actual scaling behavior, not just the steady state.</li>
+        <li>Shared infrastructure (like a NAT Gateway's bandwidth) that was invisible as a bottleneck at low scale can become one under simultaneous multi-instance boot — a reminder that HA and scaling decisions interact with earlier network decisions, not just compute ones.</li>
+      </ul>
+
+      <!-- TROUBLESHOOTING -->
+      <h2 class="section-title" id="troubleshooting"><span class="num">11</span> Troubleshooting Methodology</h2>
+      <table>
+        <tr><th>Symptom</th><th>Check First</th><th>Likely Cause</th></tr>
+        <tr><td>ASG stuck below desired capacity</td><td><code>describe-scaling-activities</code> for the specific failure cause</td><td>Launch failures (bad AMI, capacity limits in the AZ) or repeated health-check failures, as in the incident above</td></tr>
+        <tr><td>Scaling policy never triggers despite high load</td><td>Which metric the policy actually tracks vs. what's actually under load</td><td>Tracking CPU when the real bottleneck is elsewhere (e.g. memory or downstream API latency) — the policy is watching the wrong signal</td></tr>
+        <tr><td>Instances terminated immediately on launch, before grace period even matters</td><td>Launch Template validity — does the AMI/subnet/security group combination actually work at all</td><td>A fundamentally broken launch configuration, not a timing/grace-period issue</td></tr>
+        <tr><td>Scale-in terminates a healthy instance mid-request</td><td>Whether ALB connection draining / ASG instance termination lifecycle hooks are configured</td><td>Default termination doesn't wait for in-flight requests to finish — worth a lifecycle hook or deregistration delay for a smoother drain</td></tr>
+      </table>
+
+      <!-- COST -->
+      <h2 class="section-title" id="cost"><span class="num">12</span> Cost Optimization</h2>
+      <table>
+        <tr><th>Scenario</th><th>Cost Behavior</th></tr>
+        <tr><td>Normal traffic</td><td>Sits at minimum (2 instances) — same baseline cost as Assignment 6's fixed pair</td></tr>
+        <tr><td>Campaign spike</td><td>Scales up to whatever the target-tracking policy determines is needed, up to the max of 8 — pays for exactly the capacity the actual traffic demands, not a pre-guessed fixed number</td></tr>
+        <tr><td>After the spike</td><td>Scales back down toward the minimum automatically — directly answers Priya's "not paying for ten instances at 2 AM" requirement</td></tr>
+      </table>
+      <div class="box win">
+        <span class="label">This is the cost story from Assignment 6's review, resolved</span>
+        <p>Assignment 6's review flagged fixed-count redundancy as costing "two full-size instances around the clock" regardless of actual load. Target tracking directly fixes that: baseline cost is unchanged, but spike cost is now proportional to real demand and automatically reverts — the exact trade Assignment 6 said would need ASG to unlock.</p>
+      </div>
+
+      <!-- REVIEW -->
+      <h2 class="section-title" id="review"><span class="num">13</span> Solutions Architect Review</h2>
+      <table>
+        <tr><th>Lens</th><th>Assessment</th></tr>
+        <tr><td>Reliability</td><td>Self-healing (automatic replacement) closes the gap Assignment 6 explicitly left open; minimum-2 floor preserves AZ redundancy at all times</td></tr>
+        <tr><td>Performance</td><td>ELB health check type ensures only genuinely-ready instances receive traffic; grace period tuned against real load-test evidence, not a guess</td></tr>
+        <tr><td>Cost</td><td>Proportional to actual load instead of a fixed doubled baseline — directly resolves Assignment 6's flagged cost trade-off</td></tr>
+        <tr><td>Operations</td><td>Scaling activity history gives a clear audit trail of every capacity change and why it happened</td></tr>
+        <tr><td>Scalability</td><td>Now genuinely handles the stated 8-10x spike scenario, validated via an actual load test that also caught a real grace-period bug before the real campaign</td></tr>
+      </table>
+
+      <!-- CLEANUP -->
+      <h2 class="section-title" id="cleanup"><span class="num">14</span> Cleanup</h2>
+      <div class="code-wrap">
+        <div class="code-head"><span>bash</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre>terraform destroy
+<span class="comment"># Terraform first sets desired capacity to 0 (implicitly, as part of ASG</span>
+<span class="comment"># deletion) then deletes the ASG, scaling policy, and alarm. Instances</span>
+<span class="comment"># terminate as part of this — no separate manual instance cleanup needed,</span>
+<span class="comment"># unlike Assignment 6 where instances were managed as standalone resources.</span></pre>
+      </div>
+
+      <!-- ACCEPTANCE -->
+      <h2 class="section-title" id="acceptance"><span class="num">15</span> Acceptance Criteria</h2>
+      <ul class="criteria">
+        <li>Auto Scaling Group maintains a minimum of 2 instances across both AZs at all times</li>
+        <li>Target tracking policy scales out under load and scales back in once load subsides, verified via an actual load test</li>
+        <li>ASG uses ELB (not EC2-only) health checks, verified by an instance with a working EC2 status but failed app being correctly replaced</li>
+        <li>Health check grace period validated against real simultaneous-launch conditions, not just single-instance testing</li>
+        <li>Manually terminating an instance results in automatic replacement with zero manual relaunch</li>
+        <li>Terraform manages the ASG without fighting scaling-policy-driven capacity changes on subsequent applies</li>
+      </ul>
+
+      <!-- CHALLENGE -->
+      <h2 class="section-title" id="challenge"><span class="num">16</span> Practice Challenge</h2>
+      <div class="card">
+        <p><strong>Priya comes back:</strong> "The campaign goes live at a known time — 9 AM. Do we really need to wait for CPU to actually climb before we start scaling, or can we get ahead of it?"</p>
+        <p><strong>Requirement:</strong> Add a mechanism that proactively increases capacity ahead of a known, scheduled traffic event, rather than relying purely on reactive target tracking.</p>
+        <p><strong>Acceptance Criteria:</strong> Capacity increases before the campaign's known start time, not only after CPU crosses the target-tracking threshold. The reactive target tracking policy from this assignment should remain in place as a safety net for anything beyond the scheduled bump.</p>
+        <p><strong>Hints:</strong> Auto Scaling Groups support more than one kind of scaling action simultaneously.</p>
+      </div>
+      <details>
+        <summary>Challenge Solution</summary>
+        <div class="inner">
+          <p>Add an <strong>ASG scheduled action</strong> (<code>aws_autoscaling_schedule</code> in Terraform) that sets a higher minimum and desired capacity at a specific date/time shortly before 9 AM on the campaign day, and a second scheduled action later that evening reverting the minimum back to 2 once the campaign traffic has subsided. This runs alongside the existing target tracking policy, not instead of it — the scheduled action gets ahead of the known event by pre-warming capacity, while target tracking remains active as a safety net in case actual traffic exceeds what the scheduled bump anticipated. This is the standard pattern for "known event, unknown exact magnitude" — schedule for the known part, track for the unknown part.</p>
+        </div>
+      </details>
+
+      <!-- INTERVIEW -->
+      <h2 class="section-title" id="interview"><span class="num">17</span> Interview Preparation</h2>
+
+      <div class="qa">
+        <div class="q"><span class="qn">Q1 · Auto Scaling</span>What's the difference between an ASG's health check and a target group's health check, and why does it matter which type the ASG uses?</div>
+        <p>The target group's health check (HTTP <code>/health</code>) determines whether that specific target receives forwarded traffic. The ASG's own health check determines whether an instance should be terminated and replaced entirely. If the ASG is set to EC2-only health checks, it can consider an instance "healthy" (and never replace it) even while the target group has already marked it unhealthy and stopped sending it traffic — you'd end up with a permanently broken instance sitting idle instead of being cleaned up. Setting the ASG to ELB health check type makes it defer to the target group's judgment, closing that gap.</p>
+        <div class="follow"><b>Follow-up:</b> "Could an instance ever be EC2-healthy and ELB-unhealthy at the same time?" — Yes — that's exactly the load-test incident above: the EC2 instance itself was running fine, but the app inside hadn't finished starting, so the ELB health check correctly failed it while EC2 status checks would have shown it as fine.</div>
+      </div>
+
+      <div class="qa">
+        <div class="q"><span class="qn">Q2 · AWS Fundamentals</span>Why target CPU utilization specifically, and when would that be the wrong metric to scale on?</div>
+        <p>CPU is a reasonable default for a compute-bound workload where request handling genuinely consumes CPU proportionally to load. It's the wrong choice when the actual bottleneck is elsewhere — e.g. an application that's I/O-bound waiting on a slow downstream API, where CPU might stay low even as requests queue up and latency degrades. In that case, a custom metric like ALB <code>RequestCountPerTarget</code> or application-reported queue depth would better reflect real load.</p>
+        <div class="follow"><b>Follow-up:</b> "How would you know CPU was the wrong metric before it caused a problem in production?" — Load testing, exactly as done in this assignment's incident — observe which metric actually correlates with degraded response time or errors under realistic load, rather than assuming CPU is representative without checking.</div>
+      </div>
+
+      <div class="qa">
+        <div class="q"><span class="qn">Q3 · Production Scenario</span>An ASG shows desired capacity of 6 but only 4 instances are actually in service. How do you investigate?</div>
+        <p><code>describe-scaling-activities</code> is the first stop — it shows the specific cause of any failed or pending launch, whether that's a capacity limit, a launch template issue, or repeated health-check failures like the incident in this assignment. I'd distinguish "instances failing to launch at all" from "instances launching but then being terminated for failing health checks" — very different root causes requiring different fixes.</p>
+        <div class="follow"><b>Follow-up:</b> "What AWS-side limit could cause launches to fail even with a correct launch template?" — An EC2 service quota (vCPU limit) in that region/account, or insufficient capacity of that specific instance type in one of the target AZs at that moment — both are worth checking before assuming the problem is in your own configuration.</div>
+      </div>
+
+      <div class="qa">
+        <div class="q"><span class="qn">Q4 · Cost Optimization</span>How would you further reduce cost on top of what target tracking already provides?</div>
+        <p>Mixing Spot Instances into the ASG's capacity for the portion of load above the guaranteed minimum — Spot pricing is substantially cheaper, and losing a Spot instance mid-spike is tolerable precisely because the ASG replaces it automatically and the baseline 2-instance minimum can stay on On-Demand for guaranteed availability. This is worth introducing carefully, not blanket, since Spot capacity can be reclaimed by AWS with short notice.</p>
+        <div class="follow"><b>Follow-up:</b> "What would make Spot a bad fit here specifically?" — If the campaign traffic is genuinely business-critical revenue-generating capacity where even a brief Spot reclaim during peak minutes is unacceptable — in that case, keeping the whole group On-Demand and accepting the higher cost may be the right trade-off.</div>
+      </div>
+
+      <div class="qa">
+        <div class="q"><span class="qn">Q5 · Terraform</span>Why add lifecycle { ignore_changes = [desired_capacity] } to the ASG resource?</div>
+        <p>Once a target tracking policy is actively managing capacity, the real-world <code>desired_capacity</code> value changes outside of Terraform constantly, as traffic rises and falls. Without <code>ignore_changes</code>, every subsequent <code>terraform apply</code> would see that drift and try to reset it back to the hardcoded value in code — fighting the scaling policy and potentially undoing an in-progress scale-out. The <code>ignore_changes</code> block tells Terraform "this one field is legitimately owned by something else at runtime, don't treat its drift as something to correct."</p>
+        <div class="follow"><b>Follow-up:</b> "Is this a general pattern, or specific to Auto Scaling?" — General — any time something outside Terraform legitimately and continuously modifies a specific attribute of a resource Terraform otherwise manages, <code>ignore_changes</code> on that specific attribute is the right tool, rather than removing the whole resource from Terraform management.</div>
+      </div>
+
+      <div class="qa">
+        <div class="q"><span class="qn">Q6 · Manager Round</span>How would you present the load-test incident to leadership ahead of the real campaign — as a success or a failure?</div>
+        <p>As a success, and I'd frame it that way explicitly: the entire point of load testing three days before the real event was to find exactly this kind of problem somewhere other than in front of live customers. Finding and fixing a grace-period bug during a scheduled test, with time to spare, is the system working as intended — the failure mode we were actually trying to avoid was discovering this during the real campaign with real customer impact.</p>
+        <div class="follow"><b>Follow-up:</b> "What would you want in place before the next major traffic event, based on what you learned here?" — A standing practice of load testing any significant architecture or scaling change before it's needed for real, not just before this one known campaign — the value came from testing under realistic conditions ahead of time, and that should be a repeatable habit, not a one-off.</div>
+      </div>
+
+      <!-- RESUME -->
+      <h2 class="section-title" id="resume"><span class="num">18</span> Resume Points</h2>
+      <ul class="resume-list">
+        <li>Replaced manually-managed EC2 capacity with an AWS Auto Scaling Group implementing target-tracking scaling policies, enabling automatic response to an 8-10x traffic event</li>
+        <li>Configured ELB-type Auto Scaling health checks to ensure only application-ready instances receive production traffic, closing a gap left by default EC2-only health checking</li>
+        <li>Conducted a pre-production load test that identified and resolved a health-check grace-period failure under simultaneous multi-instance launch conditions before it affected a live business event</li>
+        <li>Implemented self-healing infrastructure verified via deliberate instance termination testing, eliminating manual on-call relaunch dependency</li>
+        <li>Reduced projected infrastructure cost for a scheduled high-traffic event by replacing fixed-capacity redundancy with load-proportional automatic scaling</li>
+      </ul>
+
+      <!-- NEXT -->
+      <h2 class="section-title" id="next"><span class="num">19</span> Next Project</h2>
+      <div class="box win">
+        <span class="label">When you're ready</span>
+        <p>Run the load test, verify self-healing, and say <strong>"Next Project"</strong> when ready. Assignment 8 finally puts a real database behind the quote portal — a managed relational database with its own Multi-AZ and backup story, since right now the application still has nowhere durable to actually store a quote.</p>
+      </div>
+
+    </div>
+    <footer>AWS Cloud Engineering Masterclass · Assignment 07 of 25 · Intermediate Stage</footer>
+  </div>
+</div>
+
+<button class="mobile-toggle" id="mobileToggle" aria-label="Toggle menu">☰</button>
+<script>
+const sections = document.querySelectorAll('h2.section-title[id]');
+const navLinks = document.querySelectorAll('.sidebar nav a');
+function onScroll(){
+  let current = '';
+  sections.forEach(s=>{ if(window.scrollY >= s.offsetTop - 80) current = s.id; });
+  navLinks.forEach(a=> a.classList.toggle('active', a.getAttribute('href') === '#'+current));
+}
+window.addEventListener('scroll', onScroll); onScroll();
+document.getElementById('mobileToggle').addEventListener('click', ()=> document.getElementById('sidebar').classList.toggle('open'));
+document.querySelectorAll('.sidebar nav a').forEach(a=> a.addEventListener('click', ()=> document.getElementById('sidebar').classList.remove('open')));
+function copyCode(btn){
+  const pre = btn.closest('.code-wrap').querySelector('pre');
+  navigator.clipboard.writeText(pre.innerText).then(()=>{
+    const orig = btn.textContent; btn.textContent = 'Copied!';
+    setTimeout(()=> btn.textContent = orig, 1500);
+  });
+}
+</script>
+</body>
+</html>

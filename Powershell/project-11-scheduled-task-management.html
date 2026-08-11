@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Project 11 — Scheduled Task Management | PowerShell Masterclass</title>
+<style>
+  :root{
+    --primary:#6D28D9; --secondary:#7C3AED; --light-purple:#EDE9FE; --xlight-purple:#F5F3FF;
+    --bg:#FFFFFF; --text:#1F2937; --muted:#6B7280; --border:#E5E1F5;
+    --success:#15803D; --warn:#B45309; --danger:#B91C1C;
+    --code-bg:#1E1B2E; --code-text:#E9E4FF;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0; font-family:"Segoe UI",Calibri,Roboto,Arial,sans-serif; background:var(--bg); color:var(--text); line-height:1.65;}
+  a{color:var(--primary);}
+  .layout{display:flex; max-width:1400px; margin:0 auto;}
+  nav.sidebar{width:270px; flex-shrink:0; position:sticky; top:0; height:100vh; overflow-y:auto; background:var(--xlight-purple); border-right:1px solid var(--border); padding:22px 16px;}
+  nav.sidebar h3{color:var(--primary); font-size:13px; text-transform:uppercase; letter-spacing:.06em; margin:18px 0 8px;}
+  nav.sidebar a{display:block; padding:7px 10px; border-radius:8px; color:var(--text); text-decoration:none; font-size:14px; margin-bottom:2px;}
+  nav.sidebar a:hover{background:var(--light-purple); color:var(--primary);}
+  #progressWrap{background:var(--light-purple); border-radius:10px; padding:10px; margin-bottom:8px;}
+  #progressBar{height:8px; background:var(--border); border-radius:6px; overflow:hidden;}
+  #progressFill{height:100%; width:0%; background:linear-gradient(90deg,var(--primary),var(--secondary)); transition:width .2s;}
+  #progressLabel{font-size:12px; color:var(--muted); margin-top:6px;}
+  main{flex:1; min-width:0; padding:0;}
+  .cover{background:linear-gradient(135deg,var(--primary),var(--secondary)); color:#fff; padding:60px 48px; position:relative; overflow:hidden;}
+  .cover::after{content:"";position:absolute;right:-80px;top:-80px;width:300px;height:300px;border-radius:50%;background:rgba(255,255,255,.08);}
+  .badge{display:inline-block; background:rgba(255,255,255,.18); padding:5px 14px; border-radius:20px; font-size:12px; letter-spacing:.05em; margin-right:8px; margin-bottom:14px;}
+  .cover h1{font-size:34px; margin:6px 0 10px; max-width:760px;}
+  .cover p.sub{font-size:16px; opacity:.92; max-width:640px;}
+  .cover-meta{display:flex; gap:28px; margin-top:26px; flex-wrap:wrap;}
+  .cover-meta div{background:rgba(255,255,255,.12); padding:12px 18px; border-radius:10px; min-width:140px;}
+  .cover-meta span{display:block; font-size:12px; opacity:.85;}
+  .cover-meta strong{font-size:16px;}
+  section{padding:34px 48px; border-bottom:1px solid var(--border);}
+  section h2{color:var(--primary); font-size:24px; border-left:5px solid var(--primary); padding-left:14px; margin-top:0;}
+  section h3{color:var(--secondary); font-size:18px; margin-top:26px;}
+  .story{background:var(--xlight-purple); border-left:5px solid var(--primary); padding:20px 24px; border-radius:0 10px 10px 0; font-size:15px;}
+  .story b{color:var(--primary);}
+  .callout{border-radius:10px; padding:16px 18px; margin:16px 0; font-size:14.5px;}
+  .callout.tip{background:#F0FDF4; border-left:5px solid var(--success);}
+  .callout.note{background:var(--xlight-purple); border-left:5px solid var(--secondary);}
+  .callout.warn{background:#FFFBEB; border-left:5px solid var(--warn);}
+  .callout.security{background:#FEF2F2; border-left:5px solid var(--danger);}
+  .callout .lbl{font-weight:700; display:block; margin-bottom:4px;}
+  table{width:100%; border-collapse:collapse; margin:16px 0; font-size:14px;}
+  th,td{border:1px solid var(--border); padding:9px 12px; text-align:left; vertical-align:top;}
+  th{background:var(--light-purple); color:var(--primary);}
+  tr:nth-child(even){background:var(--xlight-purple);}
+  .codewrap{position:relative; margin:16px 0;}
+  pre{background:var(--code-bg); color:var(--code-text); padding:18px 16px; border-radius:10px; overflow-x:auto; font-family:Consolas,"Cascadia Code",Menlo,monospace; font-size:13.5px; line-height:1.7;}
+  pre code{white-space:pre;}
+  .copybtn{position:absolute; top:10px; right:10px; background:var(--secondary); color:#fff; border:none; padding:6px 12px; border-radius:6px; font-size:12px; cursor:pointer;}
+  .copybtn:hover{background:var(--primary);}
+  .explain-list{list-style:none; padding:0; margin:14px 0;}
+  .explain-list li{background:var(--xlight-purple); border-radius:8px; padding:10px 14px; margin-bottom:6px; font-size:14.5px;}
+  .explain-list code{background:var(--light-purple); padding:2px 6px; border-radius:5px; color:var(--primary); font-weight:600;}
+  details{background:var(--xlight-purple); border-radius:10px; padding:12px 16px; margin:10px 0;}
+  details summary{cursor:pointer; font-weight:600; color:var(--primary);}
+  .diagram{background:var(--xlight-purple); border-radius:12px; padding:20px; margin:16px 0; overflow-x:auto;}
+  .flow{display:flex; flex-wrap:wrap; align-items:center; gap:10px; font-size:13.5px;}
+  .flow .box{background:#fff; border:2px solid var(--secondary); border-radius:8px; padding:8px 14px; font-weight:600; color:var(--primary);}
+  .flow .arrow{color:var(--secondary); font-size:18px;}
+  .steps{counter-reset:step;}
+  .steps .step{position:relative; padding-left:44px; margin-bottom:18px;}
+  .steps .step::before{counter-increment:step; content:counter(step); position:absolute; left:0; top:0; background:var(--primary); color:#fff; width:30px; height:30px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:700;}
+  .grid2{display:grid; grid-template-columns:1fr 1fr; gap:16px;}
+  @media(max-width:900px){.grid2{grid-template-columns:1fr;} nav.sidebar{display:none;} section{padding:26px 20px;} .cover{padding:36px 22px;}}
+  footer{padding:30px 48px; background:var(--xlight-purple); color:var(--muted); font-size:13px;}
+</style>
+</head>
+<body>
+
+<div class="layout">
+  <nav class="sidebar">
+    <div id="progressWrap">
+      <div id="progressLabel">Reading progress</div>
+      <div id="progressBar"><div id="progressFill"></div></div>
+    </div>
+    <h3>Project 11</h3>
+    <a href="#cover">Cover</a>
+    <a href="#recap1">Recap: Projects 1–10</a>
+    <a href="#story">The Story</a>
+    <a href="#concepts">Concepts First</a>
+    <a href="#lab">Hands-On Lab</a>
+    <a href="#script">Full Script</a>
+    <a href="#linebyline">Line-by-Line</a>
+    <a href="#architecture">Architecture</a>
+    <a href="#incident">Production Incident</a>
+    <a href="#troubleshoot">Troubleshooting</a>
+    <a href="#security">Security Notes</a>
+    <a href="#recap">Key Learnings</a>
+    <a href="#interview">Interview Prep</a>
+    <a href="#challenges">Coding Challenges</a>
+    <a href="#resume">Resume Points</a>
+    <a href="#assignment">Practice Assignment</a>
+    <a href="#next">Next Project</a>
+  </nav>
+
+  <main id="top">
+    <div class="cover" id="cover">
+      <span class="badge">PROJECT 11</span><span class="badge">INTERMEDIATE</span><span class="badge">BFSI TRACK</span>
+      <h1>Scheduled Task Management</h1>
+      <p class="sub">Stop running Repair-ServiceHealth.ps1 by hand. Build an idempotent, ShouldProcess-aware script that registers, verifies, and manages a Windows Scheduled Task.</p>
+      <div class="cover-meta">
+        <div><span>Difficulty</span><strong>Intermediate</strong></div>
+        <div><span>Estimated Lab Time</span><strong>75–90 min</strong></div>
+        <div><span>Concepts</span><strong>8 core concepts</strong></div>
+        <div><span>Track</span><strong>11 of 40</strong></div>
+      </div>
+    </div>
+
+    <section id="recap1">
+      <h2>Quick Recap of Projects 1–10</h2>
+      <p>Project 10 gave us <code>Repair-ServiceHealth.ps1</code> — a safe, idempotent, logged service-recovery
+      script. It's still only useful if a human remembers to run it. This project closes that gap: we'll schedule it
+      to run automatically using Windows Task Scheduler, managed entirely through PowerShell, using the same
+      <code>SupportsShouldProcess</code> and idempotency patterns from Project 10.</p>
+    </section>
+
+    <section id="story">
+      <h2>The Story — Why We're Building This</h2>
+      <div class="story">
+        Our manager is happy with the service recovery script, but points out the obvious gap:
+        <i>"This is great, but someone still has to remember to run it. I want it running automatically every hour,
+        and I want a way to check whether the scheduled task itself is healthy — because an automation that silently
+        stopped running is worse than not having automation at all, since everyone assumes it's still protecting us."</i>
+      </div>
+    </section>
+
+    <section id="concepts">
+      <h2>Concepts First — Before We Touch Code</h2>
+
+      <h3>1. The Three Building Blocks of a Scheduled Task</h3>
+      <div class="diagram">
+        <div class="flow">
+          <div class="box">Trigger (WHEN)</div><div class="arrow">+</div>
+          <div class="box">Action (WHAT)</div><div class="arrow">+</div>
+          <div class="box">Settings (HOW)</div><div class="arrow">=</div>
+          <div class="box">Registered Task</div>
+        </div>
+      </div>
+      <table>
+        <tr><th>Component</th><th>Cmdlet</th><th>Answers</th></tr>
+        <tr><td>Trigger</td><td><code>New-ScheduledTaskTrigger</code></td><td>When should this run? (daily, at logon, every N minutes)</td></tr>
+        <tr><td>Action</td><td><code>New-ScheduledTaskAction</code></td><td>What program/script should it execute?</td></tr>
+        <tr><td>Settings</td><td><code>New-ScheduledTaskSettingsSet</code></td><td>How should it behave? (retry on failure, run on battery, etc.)</td></tr>
+      </table>
+      <p>Each of these cmdlets builds one <b>piece</b> of the task as an object in memory — nothing is actually
+      scheduled yet until we combine them and register the result.</p>
+
+      <h3>2. Building Each Piece</h3>
+      <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code>$Action = New-ScheduledTaskAction `
+    -Execute "powershell.exe" `                                 # The program to run
+    -Argument "-NoProfile -ExecutionPolicy Bypass -File `"C:\PS-Masterclass\Project10\Repair-ServiceHealth.ps1`" -WhatIf:`$false"
+
+$Trigger = New-ScheduledTaskTrigger -Once -At (Get-Date) -RepetitionInterval (New-TimeSpan -Hours 1) -RepetitionDuration ([TimeSpan]::MaxValue)
+
+$Settings = New-ScheduledTaskSettingsSet -StartWhenAvailable -RestartCount 3 -RestartInterval (New-TimeSpan -Minutes 5)</code></pre></div>
+      <ul class="explain-list">
+        <li><code>-Execute "powershell.exe"</code> — scheduled tasks run a program, not a script directly; we point
+        it at PowerShell itself and pass our script as an argument.</li>
+        <li><code>-NoProfile</code> — skips loading the user's PowerShell profile, keeping scheduled runs fast and
+        predictable rather than depending on whatever customizations happen to be in someone's profile.</li>
+        <li><code>-Once -At (Get-Date) -RepetitionInterval (New-TimeSpan -Hours 1) -RepetitionDuration ([TimeSpan]::MaxValue)</code>
+        — a common idiom for "run every hour, forever": a one-time trigger that then repeats indefinitely, rather
+        than a literal daily/weekly schedule.</li>
+        <li><code>-StartWhenAvailable</code> — if the scheduled time was missed (server was off), run it as soon as
+        possible afterward instead of skipping that run entirely.</li>
+      </ul>
+
+      <h3>3. Register-ScheduledTask — Actually Creating It</h3>
+      <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code>Register-ScheduledTask -TaskName "ABCBank-ServiceRecovery" -Action $Action -Trigger $Trigger -Settings $Settings -RunLevel Highest -User "SYSTEM"</code></pre></div>
+      <ul class="explain-list">
+        <li><code>-RunLevel Highest</code> — runs the task with elevated (administrator) privileges, needed since
+        restarting services requires that level of access.</li>
+        <li><code>-User "SYSTEM"</code> — runs as the built-in SYSTEM account rather than a specific person's login,
+        so the task keeps working even if that person changes their password, leaves the team, or isn't logged in.</li>
+      </ul>
+
+      <h3>4. Idempotency, Again — Don't Register the Same Task Twice</h3>
+      <div class="callout warn"><span class="lbl">What goes wrong without this check</span>Running a registration
+      script twice without checking first would either error out (task name already exists) or, worse on some
+      systems, create confusing duplicate/overlapping schedules. Exactly the same idempotency principle from
+      Projects 6 and 10 — check current state, act only if a change is actually needed.</div>
+      <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code>$ExistingTask = Get-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue
+if ($ExistingTask) {
+    Write-Host "Task already exists - skipping registration" -ForegroundColor Yellow
+}
+else {
+    # register it
+}</code></pre></div>
+
+      <h3>5. Verifying Task Health with Get-ScheduledTaskInfo</h3>
+      <p>Registering a task once isn't the whole story — our manager specifically wants to know if it's
+      <i>still working</i>. <code>Get-ScheduledTaskInfo</code> reports the last time it ran and what happened.</p>
+      <table>
+        <tr><th>Property</th><th>Meaning</th></tr>
+        <tr><td><code>LastRunTime</code></td><td>When the task last executed</td></tr>
+        <tr><td><code>LastTaskResult</code></td><td>Exit code from the last run — <code>0</code> means success</td></tr>
+        <tr><td><code>NextRunTime</code></td><td>When it's scheduled to run next</td></tr>
+      </table>
+      <div class="callout note"><span class="lbl">Why LastTaskResult = 0 matters</span>This follows the same
+      convention as most command-line programs: an exit code of 0 means success, any non-zero value means something
+      went wrong. Checking this is how we detect "the task ran but the script inside it failed," not just "the task
+      exists."</div>
+    </section>
+
+    <section id="lab">
+      <h2>Hands-On Lab — Build It Yourself</h2>
+      <div class="steps">
+        <div class="step"><b>Make sure Project 10's folder and script still exist</b> at
+        <code>C:\PS-Masterclass\Project10\Repair-ServiceHealth.ps1</code> — this project schedules that exact file.</div>
+        <div class="step"><b>Create the project folder:</b>
+          <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code>New-Item -ItemType Directory -Path "C:\PS-Masterclass\Project11" -Force
+Set-Location "C:\PS-Masterclass\Project11"</code></pre></div>
+        </div>
+        <div class="step"><b>Open VS Code / your terminal as Administrator</b> — registering a SYSTEM-level scheduled
+        task requires elevated rights.</div>
+        <div class="step"><b>Create <code>Register-RecoveryTask.ps1</code></b> and paste the full script below.</div>
+        <div class="step"><b>Run it in preview mode first:</b>
+          <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code>.\Register-RecoveryTask.ps1</code></pre></div>
+        </div>
+        <div class="step"><b>Register it for real:</b>
+          <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code>.\Register-RecoveryTask.ps1 -WhatIf:$false</code></pre></div>
+        </div>
+        <div class="step"><b>Verify it in Task Scheduler</b> (search "Task Scheduler" in the Start menu) — you
+        should see "ABCBank-ServiceRecovery" listed. Right-click it and choose "Run" to trigger it manually, then
+        re-run our script to confirm it now reports a recent LastRunTime and a LastTaskResult of 0.</div>
+        <div class="step"><b>Run the script a second time</b> without changing anything — confirm it reports the
+        task already exists instead of erroring or duplicating it.</div>
+      </div>
+    </section>
+
+    <section id="script">
+      <h2>Full Script — Register-RecoveryTask.ps1</h2>
+      <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code># =====================================================================
+# Register-RecoveryTask.ps1
+# ABC Bank - Windows Infrastructure Automation Team
+# Purpose: Idempotently register and verify the hourly service recovery task
+# =====================================================================
+
+[CmdletBinding(SupportsShouldProcess)]      # Enables -WhatIf/-Confirm at the script level (Project 10 pattern)
+param(
+    [switch]$WhatIf = $true                   # Safe by default
+)
+
+$TaskName   = "ABCBank-ServiceRecovery"
+$ScriptPath = "C:\PS-Masterclass\Project10\Repair-ServiceHealth.ps1"   # The script this task will run
+
+Write-Host "`n=== SCHEDULED TASK MANAGEMENT: $TaskName ===" -ForegroundColor Magenta
+
+# ---------------------------------------------------------------
+# STEP 1: Idempotency check - does the task already exist?
+# ---------------------------------------------------------------
+$ExistingTask = Get-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue   # $null if not found
+
+if ($ExistingTask) {
+    Write-Host "Task '$TaskName' already exists (State: $($ExistingTask.State)) - skipping registration." -ForegroundColor Yellow
+}
+else {
+    # -----------------------------------------------------------
+    # STEP 2: Build the three components - nothing is scheduled yet
+    # -----------------------------------------------------------
+    $Action = New-ScheduledTaskAction `                                     # WHAT to run
+        -Execute "powershell.exe" `
+        -Argument "-NoProfile -ExecutionPolicy Bypass -File `"$ScriptPath`" -WhatIf:`$false"
+
+    $Trigger = New-ScheduledTaskTrigger `                                    # WHEN to run - every hour, indefinitely
+        -Once -At (Get-Date) `
+        -RepetitionInterval (New-TimeSpan -Hours 1) `
+        -RepetitionDuration ([TimeSpan]::MaxValue)
+
+    $Settings = New-ScheduledTaskSettingsSet `                                # HOW it should behave
+        -StartWhenAvailable `                                                   # Catch up if a run was missed
+        -RestartCount 3 `                                                        # Retry the TASK itself up to 3 times if it fails
+        -RestartInterval (New-TimeSpan -Minutes 5)
+
+    # -----------------------------------------------------------
+    # STEP 3: Register the task - respects -WhatIf automatically
+    # -----------------------------------------------------------
+    if ($PSCmdlet.ShouldProcess($TaskName, "Register Scheduled Task")) {        # Same ShouldProcess pattern from Project 10
+
+        Register-ScheduledTask `
+            -TaskName $TaskName `
+            -Action $Action `
+            -Trigger $Trigger `
+            -Settings $Settings `
+            -RunLevel Highest `                                                    # Needed to restart services
+            -User "SYSTEM" `                                                        # Runs independent of any one person's login
+            -Description "ABC Bank - Hourly automated service recovery check (Project 10 script)" | Out-Null
+
+        Write-Host "Task '$TaskName' registered successfully." -ForegroundColor Green
+    }
+    else {
+        Write-Host "PREVIEW: Would register task '$TaskName' to run hourly." -ForegroundColor Yellow
+    }
+}
+
+# ---------------------------------------------------------------
+# STEP 4: Verify current task health, regardless of whether we just created it
+# ---------------------------------------------------------------
+$TaskInfo = Get-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue
+
+if ($TaskInfo) {
+    $Info = Get-ScheduledTaskInfo -TaskName $TaskName    # Pulls run history/results for the task
+
+    Write-Host "`n--- TASK HEALTH ---" -ForegroundColor Cyan
+    Write-Host "State:          $($TaskInfo.State)"
+    Write-Host "Last Run Time:  $($Info.LastRunTime)"
+    Write-Host "Last Result:    $($Info.LastTaskResult)  $(if ($Info.LastTaskResult -eq 0) {'(SUCCESS)'} elseif ($null -eq $Info.LastRunTime) {'(NEVER RUN YET)'} else {'(NON-ZERO - CHECK LOGS)'})"
+    Write-Host "Next Run Time:  $($Info.NextRunTime)"
+}
+else {
+    Write-Host "`nTask does not exist yet (preview mode, or registration was skipped)." -ForegroundColor Yellow
+}
+</code></pre></div>
+      </div>
+    </section>
+
+    <section id="linebyline">
+      <h2>Line-by-Line Explanation</h2>
+
+      <h3><code>-Argument "-NoProfile -ExecutionPolicy Bypass -File `"$ScriptPath`" -WhatIf:`$false"</code></h3>
+      <ul class="explain-list">
+        <li><code>-ExecutionPolicy Bypass</code> — scheduled tasks run non-interactively, so there's no user present
+        to approve an execution policy prompt; Bypass avoids the task silently failing due to policy restrictions,
+        scoped only to this one launch of PowerShell (same safe, narrow-scope idea as Project 1's
+        <code>-Scope Process</code>).</li>
+        <li>The backtick before each embedded double-quote (<code>`"</code>) and before <code>$false</code>
+        (<code>`$false</code>) are <b>escape sequences</b> — since this whole argument is itself inside a
+        double-quoted string, we need to escape the inner quotes so PowerShell doesn't think the string ends early,
+        and escape the dollar sign so <code>$false</code> is passed through literally as text for
+        <code>powershell.exe</code> to interpret later, rather than PowerShell trying to substitute a variable named
+        <code>$false</code> right now.</li>
+      </ul>
+
+      <h3><code>New-ScheduledTaskTrigger -Once -At (Get-Date) -RepetitionInterval (New-TimeSpan -Hours 1) -RepetitionDuration ([TimeSpan]::MaxValue)</code></h3>
+      <ul class="explain-list">
+        <li><code>New-TimeSpan -Hours 1</code> — builds a <code>TimeSpan</code> object representing a duration (1
+        hour), the same underlying .NET type we've been producing since Project 1's uptime calculation, just built
+        directly this time instead of by subtracting two dates.</li>
+        <li><code>[TimeSpan]::MaxValue</code> — a static property (not a method this time, no parentheses needed)
+        on the TimeSpan type representing the largest possible duration — used here as a practical stand-in for
+        "repeat forever."</li>
+      </ul>
+
+      <h3><code>$ExistingTask = Get-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue</code></h3>
+      <ul class="explain-list">
+        <li>When no task with that name exists, this returns <code>$null</code> rather than throwing — so
+        <code>if ($ExistingTask)</code> naturally evaluates to <code>$false</code> for "not found" without needing a
+        try/catch here, a simpler pattern than Project 4's service check because a missing scheduled task is a fully
+        expected, first-run scenario rather than something we need detailed error information about.</li>
+      </ul>
+
+      <h3><code>"$(if ($Info.LastTaskResult -eq 0) {'(SUCCESS)'} elseif (...) {...} else {...})"</code></h3>
+      <ul class="explain-list">
+        <li>Another use of the subexpression operator <code>$( )</code> from Project 5, here wrapping an entire
+        <code>if/elseif/else</code> chain so its result can be embedded directly inside a larger interpolated
+        string — a compact way to add conditional text to a single <code>Write-Host</code> line without extra
+        variables.</li>
+      </ul>
+    </section>
+
+    <section id="architecture">
+      <h2>Architecture &amp; Task Scheduler Internals</h2>
+      <div class="diagram">
+        <div class="flow">
+          <div class="box">PowerShell</div><div class="arrow">→</div>
+          <div class="box">ScheduledTasks Module</div><div class="arrow">→</div>
+          <div class="box">Task Scheduler Service</div><div class="arrow">→</div>
+          <div class="box">Task Definition (XML) Stored</div><div class="arrow">→</div>
+          <div class="box">Triggered at Scheduled Time</div><div class="arrow">→</div>
+          <div class="box">Launches powershell.exe → Our Script</div>
+        </div>
+      </div>
+      <p>Windows' <b>Task Scheduler service</b> is the OS component actually responsible for watching the clock and
+      launching tasks — our PowerShell commands are just a convenient interface to define and query what it manages.
+      Under the hood, each registered task is stored as an XML definition, though we never need to touch that
+      directly thanks to the ScheduledTasks module's cmdlets.</p>
+    </section>
+
+    <section id="incident">
+      <h2>Production Incident Walkthrough</h2>
+      <div class="story">
+        Two months later, someone reorganizes folders on WINAPP22 and accidentally deletes the
+        <code>Repair-ServiceHealth.ps1</code> file the scheduled task points to. The task still "exists" and still
+        fires every hour — but <code>LastTaskResult</code> starts showing a non-zero error code every single run,
+        completely invisible unless someone specifically checks.
+      </div>
+      <ul class="explain-list">
+        <li><b>Why is "the task exists" not enough to trust the automation is working?</b> A task can be present,
+        enabled, and firing on schedule while the thing it's supposed to run is broken, missing, or erroring every
+        time — exactly why we built the health-verification step (Step 4) as a separate concern from registration.</li>
+        <li><b>How would you catch this kind of silent failure going forward?</b> Run this same verification script
+        (or the health-check portion of it) as its own periodic check — a script that checks whether another
+        automation is still healthy is a legitimate and common pattern, sometimes called a "watchdog."</li>
+      </ul>
+    </section>
+
+    <section id="troubleshoot">
+      <h2>Troubleshooting Cheat Sheet</h2>
+      <table>
+        <tr><th>Symptom</th><th>Likely Root Cause</th><th>Fix</th></tr>
+        <tr><td>"Access is denied" registering the task</td><td>Terminal not running as Administrator</td><td>Re-open your terminal/VS Code with "Run as Administrator"</td></tr>
+        <tr><td>LastTaskResult shows a large non-zero number after manually running the task</td><td>The scheduled task's script path is wrong, or Project 10's script/folder was moved</td><td>Confirm <code>$ScriptPath</code> matches the real, current location of Repair-ServiceHealth.ps1</td></tr>
+        <tr><td>Task shows "Never Run Yet" even after waiting over an hour</td><td>Trigger's start time (Get-Date at registration) was in the past relative to when you expected the first repetition</td><td>Right-click the task in Task Scheduler and choose "Run" to trigger it immediately for testing, rather than waiting for the schedule</td></tr>
+        <tr><td>Script reports the task already exists, but Task Scheduler shows nothing</td><td>Checked/created under a different user context than expected (e.g. a per-user task vs a SYSTEM task)</td><td>In Task Scheduler, check "Task Scheduler Library" root, not a per-user folder, since this task was registered under SYSTEM</td></tr>
+      </table>
+    </section>
+
+    <section id="security">
+      <h2>Security &amp; Best Practices</h2>
+      <div class="callout security"><span class="lbl">Why SYSTEM instead of a personal account</span>Running
+      automation under an individual's credentials means the task breaks the moment that person's password changes,
+      their account is disabled, or they leave the company — using the built-in SYSTEM account (or, in a real
+      enterprise environment, a dedicated service account with only the permissions it needs) keeps automation
+      stable and independent of any one person.</div>
+      <div class="callout tip"><span class="lbl">Best practice reinforced here</span><code>-ExecutionPolicy Bypass</code>
+      is scoped to just this one launch of PowerShell inside the scheduled task's action, not applied system-wide —
+      the same narrow-scope principle as every execution policy change we've made since Project 1.</div>
+    </section>
+
+    <section id="recap">
+      <h2>Key Learnings &amp; Recap</h2>
+      <div class="grid2">
+        <div>
+          <h3>Commands/Syntax Learned</h3>
+          <ul class="explain-list">
+            <li><code>New-ScheduledTaskAction</code> / <code>-Trigger</code> / <code>-SettingsSet</code></li>
+            <li><code>Register-ScheduledTask</code></li>
+            <li><code>Get-ScheduledTask</code> / <code>Get-ScheduledTaskInfo</code></li>
+            <li><code>New-TimeSpan</code>, <code>[TimeSpan]::MaxValue</code></li>
+            <li>Escape sequences inside nested quoted arguments</li>
+          </ul>
+        </div>
+        <div>
+          <h3>Concepts Learned</h3>
+          <ul class="explain-list">
+            <li>Trigger + Action + Settings as the three building blocks of a task</li>
+            <li>Idempotent task registration (check-before-create)</li>
+            <li>"Exists" vs "healthy" — verifying a scheduled automation is actually working</li>
+            <li>Running automation as SYSTEM instead of a personal account</li>
+          </ul>
+        </div>
+      </div>
+      <h3>Common Mistakes to Avoid</h3>
+      <ul class="explain-list">
+        <li>Registering a task without checking whether it already exists, risking duplicates.</li>
+        <li>Assuming a task that "exists" is automatically working correctly.</li>
+        <li>Scheduling automation under a personal user account instead of SYSTEM or a service account.</li>
+        <li>Forgetting <code>-ExecutionPolicy Bypass</code>, causing silent failures with no interactive prompt to reveal why.</li>
+      </ul>
+    </section>
+
+    <section id="interview">
+      <h2>Interview Preparation</h2>
+      <details><summary>Q1. What are the three components you need to define before registering a scheduled task, and what does each control?</summary>
+        <p><b>Answer:</b> A Trigger (when it runs), an Action (what it runs), and Settings (how it behaves — retry
+        behavior, whether to catch up on missed runs, etc). All three are built as separate objects first, then
+        combined during <code>Register-ScheduledTask</code>.</p>
+        <p><b>Follow-up:</b> "Can one task have multiple triggers or multiple actions?" — Answer: yes — both
+        <code>-Trigger</code> and <code>-Action</code> accept arrays, so a single task can run multiple times per
+        day via different triggers, or perform multiple actions in sequence.</p>
+      </details>
+      <details><summary>Q2. Why check Get-ScheduledTask before calling Register-ScheduledTask instead of just always registering?</summary>
+        <p><b>Answer:</b> Registering a task with a name that already exists either errors out or can create
+        confusing duplicate scheduling — the same idempotency principle applied throughout this course: check current
+        state, only change what actually needs to change.</p>
+        <p><b>Follow-up:</b> "What if you wanted to update an existing task's settings instead of leaving it alone?"
+        — Answer: use <code>Set-ScheduledTask</code> to modify an existing task in place, rather than
+        unregistering and re-registering it — worth branching to explicitly rather than treating "exists" as
+        always meaning "skip."</p>
+      </details>
+      <details><summary>Q3. Why is checking LastTaskResult important, beyond just confirming the task exists and is enabled?</summary>
+        <p><b>Answer:</b> A task can be correctly registered, enabled, and firing on schedule while the script it
+        runs is failing every single time — LastTaskResult reveals whether the actual work succeeded, not just
+        whether the scheduling mechanism itself is intact.</p>
+        <p><b>Follow-up:</b> "How would you turn this health check into an actual alert instead of just console output?"
+        — Answer: wrap the LastTaskResult check in a condition that writes to the same audit log from Project 10,
+        or exits with a non-zero code itself if unhealthy, so it can be monitored by another layer of automation or
+        alerting.</p>
+      </details>
+    </section>
+
+    <section id="challenges">
+      <h2>Coding Challenges</h2>
+      <details><summary>Challenge 1: Add a -Remove switch that unregisters the task instead of creating it, still respecting -WhatIf</summary>
+        <details><summary>Show answer</summary>
+        <pre><code>param([switch]$WhatIf = $true, [switch]$Remove)
+if ($Remove) {
+    if ($PSCmdlet.ShouldProcess($TaskName, "Unregister Scheduled Task")) {
+        Unregister-ScheduledTask -TaskName $TaskName -Confirm:$false
+    }
+}</code></pre>
+        </details>
+      </details>
+      <details><summary>Challenge 2: Change the trigger to run daily at 6 AM instead of hourly</summary>
+        <details><summary>Show answer</summary>
+        <pre><code>$Trigger = New-ScheduledTaskTrigger -Daily -At "6:00 AM"   # Simpler daily trigger, no repetition needed</code></pre>
+        </details>
+      </details>
+      <details><summary>Challenge 3: List all scheduled tasks whose name starts with "ABCBank-" and show their LastTaskResult</summary>
+        <details><summary>Show answer</summary>
+        <pre><code>Get-ScheduledTask | Where-Object { $_.TaskName -like "ABCBank-*" } | ForEach-Object {
+    $Info = Get-ScheduledTaskInfo -TaskName $_.TaskName
+    [PSCustomObject]@{ TaskName = $_.TaskName; LastResult = $Info.LastTaskResult; LastRun = $Info.LastRunTime }
+}</code></pre>
+        </details>
+      </details>
+    </section>
+
+    <section id="resume">
+      <h2>Resume Points</h2>
+      <ul class="explain-list">
+        <li>Automated deployment of a PowerShell service-recovery script via idempotent, ShouldProcess-aware Windows Scheduled Task registration.</li>
+        <li>Implemented scheduled automation health verification using Get-ScheduledTaskInfo to detect silent failures.</li>
+        <li>Configured resilient task scheduling (SYSTEM context, catch-up on missed runs, task-level retry) for enterprise reliability.</li>
+      </ul>
+    </section>
+
+    <section id="assignment">
+      <h2>Practice Assignment</h2>
+      <div class="callout note">
+        Right-click the "ABCBank-ServiceRecovery" task in Task Scheduler and select "Run." Wait about 10 seconds,
+        then re-run <code>Register-RecoveryTask.ps1</code> and confirm LastRunTime updated and LastTaskResult shows
+        0. Then check <code>C:\PS-Masterclass\Project10\logs\ServiceRecovery.log</code> to confirm the scheduled run
+        actually logged its activity, proving the full chain works end to end.
+      </div>
+    </section>
+
+    <section id="next">
+      <h2>Next Project Prerequisites</h2>
+      <p>Project 12 (Windows Event Log Reporting) returns to event logs from Project 7, this time building a proper
+      recurring reporting script — a natural pairing with the scheduling skills you just learned, since you'll likely
+      want to schedule it too. Be comfortable with Trigger/Action/Settings and idempotent registration before moving
+      on. When ready, say <b>"Next Project."</b></p>
+    </section>
+
+    <footer>
+      PowerShell Masterclass — ABC Bank Automation Track · Project 11 of 40 · Generated for offline, self-contained use.
+    </footer>
+  </main>
+</div>
+
+<script>
+function copyCode(btn){
+  const code = btn.parentElement.querySelector('pre').innerText;
+  navigator.clipboard.writeText(code).then(()=>{
+    const old = btn.innerText; btn.innerText = "Copied!";
+    setTimeout(()=>btn.innerText = old, 1200);
+  });
+}
+window.addEventListener('scroll', ()=>{
+  const h = document.documentElement;
+  const pct = (h.scrollTop) / (h.scrollHeight - h.clientHeight) * 100;
+  document.getElementById('progressFill').style.width = pct + '%';
+  document.getElementById('progressLabel').innerText = 'Reading progress: ' + Math.round(pct) + '%';
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Project 14 — MTU Black-Hole Troubleshooting</title>
+<style>
+:root{
+  --blue:#60A5FA; --blue-bg:#132238;
+  --purple:#C4B5FD; --purple-bg:#241B3D;
+  --teal:#5EEAD4; --teal-bg:#0F2C2A;
+  --green:#86EFAC; --green-bg:#132B1C;
+  --orange:#FDBA74; --orange-bg:#3A230F;
+  --red:#FCA5A5; --red-bg:#331515;
+  --bg:#0B1120; --panel:#111827; --text:#E5E7EB; --muted:#9CA3AF;
+  --border:#1F2937; --sidebar-w:280px;
+}
+*{box-sizing:border-box;}
+body{margin:0;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--text);line-height:1.65;}
+a{color:var(--blue);text-decoration:none;}
+a:hover{text-decoration:underline;}
+code{font-family:"SFMono-Regular",Consolas,"Liberation Mono",Menlo,monospace;}
+
+.cover{padding:60px 24px 40px;background:linear-gradient(135deg,#101B33,#1E1533);border-bottom:1px solid var(--border);}
+.cover-inner{max-width:900px;margin:0 auto;}
+.badge-row{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:18px;}
+.badge{font-size:12.5px;font-weight:600;padding:5px 12px;border-radius:20px;letter-spacing:.02em;}
+.badge.blue{background:#1D4ED8;color:#fff;}
+.badge.purple{background:#6D28D9;color:#fff;}
+.badge.teal{background:#0F766E;color:#fff;}
+.badge.orange{background:#C2410C;color:#fff;}
+.cover h1{font-size:2.1rem;margin:0 0 8px;color:#F9FAFB;}
+.cover .subtitle{font-size:1.05rem;color:var(--muted);margin-bottom:26px;}
+.cover-meta{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;}
+.meta-card{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:12px 14px;}
+.meta-card .label{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:700;}
+.meta-card .value{font-size:14.5px;font-weight:600;margin-top:2px;color:#F3F4F6;}
+
+.layout{display:flex;max-width:1400px;margin:0 auto;}
+.sidebar{width:var(--sidebar-w);flex-shrink:0;position:sticky;top:0;align-self:flex-start;height:100vh;overflow-y:auto;border-right:1px solid var(--border);padding:22px 14px;background:var(--bg);}
+.sidebar h4{font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin:18px 0 6px 10px;}
+.sidebar h4:first-child{margin-top:0;}
+.sidebar a{display:block;padding:7px 10px;border-radius:8px;font-size:13.5px;color:#CBD5E1;margin-bottom:1px;}
+.sidebar a:hover{background:var(--blue-bg);text-decoration:none;color:var(--blue);}
+.progress-wrap{margin:10px 10px 4px;}
+.progress-bar{height:6px;background:var(--border);border-radius:4px;overflow:hidden;}
+.progress-fill{height:100%;width:0%;background:linear-gradient(90deg,var(--blue),var(--purple));transition:width .2s;}
+.progress-label{font-size:11px;color:var(--muted);margin-top:4px;}
+
+.content{flex:1;min-width:0;padding:34px 40px 100px;}
+section{margin-bottom:48px;scroll-margin-top:20px;}
+h2.sec-title{font-size:1.5rem;border-bottom:2px solid var(--border);padding-bottom:10px;margin-bottom:18px;display:flex;align-items:center;gap:10px;color:#F9FAFB;}
+h2.sec-title .num{background:#1D4ED8;color:#fff;width:30px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;}
+h3{font-size:1.15rem;margin-top:28px;color:#F3F4F6;}
+
+.box{border-radius:10px;padding:16px 18px;margin:16px 0;border:1px solid transparent;}
+.box .box-title{font-weight:700;font-size:13px;text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px;display:flex;align-items:center;gap:6px;}
+.box.concept{background:var(--blue-bg);border-color:#1E3A5F;}
+.box.concept .box-title{color:var(--blue);}
+.box.architecture{background:var(--purple-bg);border-color:#3B2E63;}
+.box.architecture .box-title{color:var(--purple);}
+.box.success{background:var(--green-bg);border-color:#1E4B2E;}
+.box.success .box-title{color:var(--green);}
+.box.warning{background:var(--orange-bg);border-color:#5A3618;}
+.box.warning .box-title{color:var(--orange);}
+.box.failure{background:var(--red-bg);border-color:#5C2323;}
+.box.failure .box-title{color:var(--red);}
+.box.bestpractice{background:var(--teal-bg);border-color:#134E4A;}
+.box.bestpractice .box-title{color:var(--teal);}
+.box.story{background:#141B2E;border-color:var(--border);border-left:4px solid var(--purple);}
+
+.story p{margin:0 0 10px;color:#D1D5DB;}
+.story .quote{font-style:italic;color:#CBD5E1;border-left:3px solid var(--purple);padding-left:12px;margin:10px 0;}
+
+.term{background:#050810;color:#E2E8F0;border-radius:10px;margin:14px 0;overflow:hidden;border:1px solid #1E293B;}
+.term-header{display:flex;justify-content:space-between;align-items:center;background:#141B2E;padding:8px 14px;font-size:12px;color:#94A3B8;}
+.copy-btn{background:#243049;color:#E2E8F0;border:none;border-radius:6px;padding:4px 10px;font-size:11.5px;cursor:pointer;}
+.copy-btn:hover{background:#334155;}
+.term pre{margin:0;padding:14px 16px;overflow-x:auto;font-size:13.5px;line-height:1.7;}
+.term .cmdno{color:#64748B;margin-right:8px;}
+.term .cmd{color:#93C5FD;}
+.term .out{color:#CBD5E1;}
+.term .out-err{color:#FCA5A5;}
+.term .out-ok{color:#86EFAC;}
+.term .comment{color:#64748B;}
+
+table.breakdown{width:100%;border-collapse:collapse;margin:12px 0 20px;font-size:14px;}
+table.breakdown th{background:#141B2E;text-align:left;padding:8px 10px;font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);}
+table.breakdown td{padding:9px 10px;border-top:1px solid var(--border);vertical-align:top;color:#D1D5DB;}
+table.breakdown td.token{font-family:monospace;color:var(--blue);font-weight:700;white-space:nowrap;}
+
+details.collapse{border:1px solid var(--border);border-radius:10px;margin:14px 0;overflow:hidden;}
+details.collapse summary{cursor:pointer;padding:12px 16px;font-weight:600;background:#141B2E;list-style:none;display:flex;align-items:center;gap:8px;color:#E5E7EB;}
+details.collapse summary::-webkit-details-marker{display:none;}
+details.collapse summary:before{content:"▶";font-size:11px;color:var(--muted);transition:transform .15s;}
+details.collapse[open] summary:before{transform:rotate(90deg);}
+details.collapse .collapse-body{padding:4px 16px 16px;}
+
+.diagram-frame{background:#0D1420;border:1px solid var(--border);border-radius:12px;padding:18px;margin:16px 0;overflow-x:auto;}
+.diagram-caption{font-size:12.5px;color:var(--muted);text-align:center;margin-top:8px;}
+
+table.ref{width:100%;border-collapse:collapse;font-size:14px;margin:14px 0;}
+table.ref th{background:#141B2E;padding:8px 10px;text-align:left;font-size:12.5px;color:#E5E7EB;}
+table.ref td{padding:8px 10px;border-top:1px solid var(--border);color:#D1D5DB;}
+
+.dtree{list-style:none;padding-left:0;font-size:14px;}
+.dtree li{padding:8px 12px;margin-bottom:6px;border-radius:8px;border:1px solid var(--border);position:relative;color:#D1D5DB;}
+.dtree li.q{background:var(--blue-bg);}
+.dtree li.ok{background:var(--green-bg);}
+.dtree li.bad{background:var(--red-bg);}
+.dtree .arrow{text-align:center;color:var(--muted);font-size:12px;margin:2px 0;}
+
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin:16px 0;}
+.card{border:1px solid var(--border);border-radius:10px;padding:14px 16px;background:#0F1626;}
+.card h4{margin:0 0 6px;font-size:14.5px;color:#F3F4F6;}
+.card p{margin:0;font-size:13.5px;color:var(--muted);}
+
+.qa{border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin:12px 0;background:#0F1626;}
+.qa .q{font-weight:700;color:#F3F4F6;margin-bottom:6px;}
+.qa .q .qtag{background:#6D28D9;color:#fff;font-size:10.5px;padding:2px 8px;border-radius:10px;margin-right:8px;text-transform:uppercase;}
+.qa .followup{margin-top:8px;padding-top:8px;border-top:1px dashed var(--border);font-size:13.5px;color:var(--muted);}
+.qa p{color:#D1D5DB;}
+
+.top-link{position:fixed;bottom:22px;right:22px;background:#1D4ED8;color:#fff;width:42px;height:42px;border-radius:50%;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(0,0,0,.4);font-size:18px;}
+.top-link:hover{text-decoration:none;background:#2563EB;}
+
+p{color:#D1D5DB;}
+
+@media (max-width:900px){
+  .sidebar{display:none;}
+  .content{padding:22px 18px 80px;}
+}
+</style>
+</head>
+<body>
+
+<div class="cover">
+  <div class="cover-inner">
+    <div class="badge-row">
+      <span class="badge blue">Project 14 of ~38</span>
+      <span class="badge purple">Linux Networking Masterclass</span>
+      <span class="badge teal">Domain: DevOps / Cloud VPN</span>
+      <span class="badge orange">Difficulty: Advanced</span>
+    </div>
+    <h1>MTU Black-Hole Troubleshooting</h1>
+    <div class="subtitle">On-prem to cloud VPN link build panniten — ping sari-a work aagudhu, chinna API calls um sari. Aana periya payload (large POST body, TLS cert bundle) anுppினா, connection silent-a hang aagudhu. Classic MTU black hole, ippo namba deep-a poi paakalam.</div>
+    <div class="cover-meta">
+      <div class="meta-card"><div class="label">Estimated Lab Time</div><div class="value">3 hours</div></div>
+      <div class="meta-card"><div class="label">Prerequisites</div><div class="value">Projects 5, 7, 8 completed</div></div>
+      <div class="meta-card"><div class="label">Lab Environment</div><div class="value">3 namespaces — client, "VPN gateway" with reduced MTU, server</div></div>
+      <div class="meta-card"><div class="label">Concepts Learned</div><div class="value">MTU, DF bit, Path MTU Discovery, ICMP fragmentation-needed, MSS clamping</div></div>
+    </div>
+  </div>
+</div>
+
+<div class="layout">
+  <nav class="sidebar" id="sidebar">
+    <div class="progress-wrap">
+      <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+      <div class="progress-label" id="progressLabel">0% through Project 14</div>
+    </div>
+    <h4>Orientation</h4>
+    <a href="#story">1. The Incident</a>
+    <a href="#foundation">2. MTU Foundation</a>
+    <a href="#architecture">3. How a Black Hole Forms</a>
+    <a href="#methodology">4. Troubleshooting Method</a>
+    <h4>Hands-On Lab</h4>
+    <a href="#labsetup">5. Lab Setup (Simulated VPN Link)</a>
+    <a href="#verify">6. Verify Baseline</a>
+    <h4>Break / Fix (3 Incidents)</h4>
+    <a href="#break1">7. The Black Hole (ICMP Blocked)</a>
+    <a href="#break2">8. Same MTU Drop, but PMTUD Works</a>
+    <a href="#break3">9. The Real Fix — TCP MSS Clamping</a>
+    <h4>Wrap-Up</h4>
+    <a href="#bestpractices">10. Best Practices</a>
+    <a href="#cheatsheet">11. Cheat Sheet</a>
+    <a href="#interview">12. Interview Prep</a>
+    <a href="#practice">13. Practice Tasks</a>
+    <a href="#resume">14. Resume Points</a>
+    <a href="#next">15. Next Project</a>
+  </nav>
+
+  <main class="content">
+
+  <section id="story">
+    <h2 class="sec-title"><span class="num">1</span>The Incident</h2>
+    <div class="box story">
+      <p>DevOps team on-prem data center-a cloud VPC-oda site-to-site VPN link vachu connect pannirukanga. Basic connectivity ellame sari — ping works, chinna API calls work, TCP handshake um clean-a complete aagudhu.</p>
+      <p class="quote">"Health check endpoint sari-a work aagudhu, chinna JSON response varudhu. Aana file upload API-a call panna, ya periya certificate bundle download panna, connection just... hang aayidudhu. No error, no reset, adhu forever wait pannikittu irukku."</p>
+      <p>Ithu dhaan classic "works with small packets, hangs with big ones" symptom — namba innum paakadha oru layer: <b>MTU</b> (Maximum Transmission Unit) — oru link-la evlo periya packet pogalam nu limit. Chinna packet ellam MTU-ku kaeezha irukும், easy-a pogும். Periya packet MTU-a cross panna, oru "fragmentation needed" process trigger aaganum — adhu correctly nadakalana, packet silent-a drop aagi, "black hole" nu solranga.</p>
+    </div>
+    <div class="box concept">
+      <div class="box-title">🔵 Ithu yean important</div>
+      <p>VPN tunnels (IPsec, GRE, WireGuard), cloud overlay networks, ellame extra headers add pannும், adhunala effective MTU kammi aagும். Ithு romba common production issue — "small stuff works, big stuff hangs" nu kettaudhane, MTU black hole-a suspect pannanும். Firewall/ICMP filtering konjo aggressive-a irundha, ithு especially frequent-a varum.</p>
+    </div>
+  </section>
+
+  <section id="foundation">
+    <h2 class="sec-title"><span class="num">2</span>MTU Foundation</h2>
+
+    <h3>2.1 MTU — oru link-la max packet size</h3>
+    <div class="box concept">
+      <div class="box-title">🔵 Concept</div>
+      <p>Ethernet-la default MTU 1500 bytes — idhukku mela oru packet periya-a irundha, adha anுppுra munnaadi, konjo pannanும். VPN tunnels-la, IPsec/GRE headers add aagுறதுனால், "effective" MTU kammi-a irukும் (like 1400 or 1436) — ஆனா client-ku ithு theriyாdhு, adhu still 1500 nu nenaikும், unless namba explicit-a solli vaikும்.</p>
+    </div>
+
+    <h3>2.2 DF bit — "Don't Fragment"</h3>
+    <div class="box concept">
+      <div class="box-title">🔵 Concept</div>
+      <p>Modern TCP stacks, packet anுppுறாppo, DF (Don't Fragment) bit-a set pannும் — idhu router-ku solllுறthu, "indha packet-a fragment pannாதே; fit aagலைனா, drop pannிடு, aana enakku solllu." Ithு efficiency-ku nalladhு (fragmentation romba expensive), aana correctly work aaganும்na, router "fragmentation needed" message thirumba anுppanும்.</p>
+    </div>
+
+    <h3>2.3 Path MTU Discovery (PMTUD) — automatic-a correct size kandupidikுறathு</h3>
+    <div class="box concept">
+      <div class="box-title">🔵 Concept</div>
+      <p>Sender oru periya, DF-set panna packet anுppுறாru. Path-la edho router-ku அது periyaனு fit aagலைனа, adhு packet-a drop pannிடும், aana ஒரு <b>ICMP "Fragmentation Needed" (Type 3, Code 4)</b> message thirும்ப anுppuvarnும், "indha size mattum dhaan support pannுறேன்" nu solli. Sender indha ICMP message vaangி, adhுkku match aagும் padி, chinna packets anுppத் தொடங்குறாரு. Idhே PMTUD — automatic, self-correcting mechanism.</p>
+    </div>
+
+    <h3>2.4 Black hole — PMTUD-oda ICMP reply, path-la evlo blocked</h3>
+    <div class="box concept">
+      <div class="box-title">🔵 Concept — indha project-oda main villain</div>
+      <p>Konjo firewalls, "security"-ku nu, ellaa ICMP-a um block pannும் — including indha crucial "Fragmentation Needed" message. Adhu blocked aana, sender-ku ஒருபோதும் theriyாதू, "chinna packet anுppणும்" nu. Adhு periya packet-a repeat repeat-a anுppிக்கிட்டே irukும், every time silent-a drop aagும், no error, no ICMP, connection just hangs forever. Idhுdhaan "MTU black hole" — namba incident exact-a idhு dhaan.</p>
+    </div>
+  </section>
+
+  <section id="architecture">
+    <h2 class="sec-title"><span class="num">3</span>How a Black Hole Forms</h2>
+    <div class="diagram-frame">
+<svg viewBox="0 0 900 260" xmlns="http://www.w3.org/2000/svg" width="100%">
+<style>.lbl{font:600 12px sans-serif;fill:#F3F4F6;} .sub{font:10.5px sans-serif;fill:#9CA3AF;} .box{fill:#132238;stroke:#60A5FA;stroke-width:1.5;rx:8;} .box2{fill:#241B3D;stroke:#C4B5FD;stroke-width:1.5;rx:8;} .box3{fill:#331515;stroke:#FCA5A5;stroke-width:1.5;rx:8;}</style>
+<rect x="10" y="90" width="160" height="60" class="box"/><text x="90" y="115" text-anchor="middle" class="lbl">On-prem client</text><text x="90" y="133" text-anchor="middle" class="sub">MTU 1500, DF=1</text>
+
+<rect x="330" y="90" width="220" height="80" class="box3"/><text x="440" y="115" text-anchor="middle" class="lbl">VPN tunnel gateway</text><text x="440" y="133" text-anchor="middle" class="sub">effective MTU 1400</text><text x="440" y="151" text-anchor="middle" class="sub">ICMP "frag needed" — BLOCKED by firewall</text>
+
+<rect x="720" y="90" width="160" height="60" class="box"/><text x="800" y="115" text-anchor="middle" class="lbl">Cloud server</text><text x="800" y="133" text-anchor="middle" class="sub">never receives the big packet</text>
+
+<line x1="170" y1="120" x2="328" y2="120" stroke="#374151" stroke-width="1.6"/>
+<line x1="550" y1="120" x2="718" y2="120" stroke="#374151" stroke-width="1.6" stroke-dasharray="4,4"/>
+<text x="634" y="110" text-anchor="middle" class="sub" fill="#FCA5A5">large packet dropped here</text>
+</svg>
+    </div>
+    <div class="diagram-caption">Figure 1 — Large packet reaches the tunnel gateway, doesn't fit, gets dropped — and because ICMP is blocked, the client NEVER finds out. It just keeps sending the same size, forever.</div>
+  </section>
+
+  <section id="methodology">
+    <h2 class="sec-title"><span class="num">4</span>Troubleshooting Method</h2>
+    <ul class="dtree">
+      <li class="q">1. Confirm the "small works, big hangs" pattern — chinna curl request test pannu, periya payload test pannu</li>
+      <div class="arrow">↓</div>
+      <li class="q">2. ping -M do -s &lt;size&gt; vachu, binary search pannிடி, evlo size varaikkும் DF-set packet pogुthu nu kandுpudi</li>
+      <div class="arrow">↓</div>
+      <li class="q">3. tracepath vachu, automatic-a path MTU discover pannு try pannு</li>
+      <div class="arrow">↓</div>
+      <li class="q">4. tcpdump-la, ICMP type 3 code 4 (frag needed) messages varuthaa nu paaru — varadhu-na, black hole confirm</li>
+      <div class="arrow">↓</div>
+      <li class="ok">Fix — MTU adjust pannலாm, illa TCP MSS clamping (ICMP-a depend pannாma) use pannலாம்</li>
+    </ul>
+    <div class="box warning"><div class="box-title">🟠 Warning</div><p>Plain ping (DF bit illama) always success aagும், even MTU problem irundhalும் — because default ping packets chinna-a irukும். Always <code>-M do -s &lt;size&gt;</code> vachu explicit-a periya, DF-set packet test pannu.</p></div>
+  </section>
+
+  <section id="labsetup">
+    <h2 class="sec-title"><span class="num">5</span>Lab Setup — Simulated VPN Link</h2>
+    <div class="term">
+      <div class="term-header"><span>bash — root/sudo vachu run pannu</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button></div>
+      <pre><span class="cmdno">1</span><span class="cmd">sudo ip netns add ns-onprem       </span><span class="comment"># on-prem client namespace</span>
+<span class="cmdno">2</span><span class="cmd">sudo ip netns add ns-vpn-gw       </span><span class="comment"># "VPN gateway" namespace — idhu middle-la sit pannும், reduced MTU vachu</span>
+<span class="cmdno">3</span><span class="cmd">sudo ip netns add ns-cloud-server </span><span class="comment"># cloud-side server namespace</span>
+<span class="cmdno">4</span><span class="cmd">sudo ip link add veth-onprem type veth peer name gw-onprem-in   </span><span class="comment"># link 1: onprem &lt;-&gt; gateway</span>
+<span class="cmdno">5</span><span class="cmd">sudo ip link add veth-cloud type veth peer name gw-cloud-in     </span><span class="comment"># link 2: gateway &lt;-&gt; cloud server</span>
+<span class="cmdno">6</span><span class="cmd">sudo ip link set veth-onprem netns ns-onprem</span>
+<span class="cmdno">7</span><span class="cmd">sudo ip link set gw-onprem-in netns ns-vpn-gw</span>
+<span class="cmdno">8</span><span class="cmd">sudo ip link set veth-cloud netns ns-cloud-server</span>
+<span class="cmdno">9</span><span class="cmd">sudo ip link set gw-cloud-in netns ns-vpn-gw</span>
+<span class="cmdno">10</span><span class="cmd">sudo ip netns exec ns-onprem ip addr add 10.100.1.10/24 dev veth-onprem</span>
+<span class="cmdno">11</span><span class="cmd">sudo ip netns exec ns-vpn-gw ip addr add 10.100.1.1/24 dev gw-onprem-in</span>
+<span class="cmdno">12</span><span class="cmd">sudo ip netns exec ns-vpn-gw ip addr add 10.100.2.1/24 dev gw-cloud-in</span>
+<span class="cmdno">13</span><span class="cmd">sudo ip netns exec ns-cloud-server ip addr add 10.100.2.10/24 dev veth-cloud</span>
+<span class="cmdno">14</span><span class="cmd">sudo ip netns exec ns-onprem ip route add default via 10.100.1.1   </span><span class="comment"># onprem-oda default route, gateway vazhiya</span>
+<span class="cmdno">15</span><span class="cmd">sudo ip netns exec ns-cloud-server ip route add default via 10.100.2.1   </span><span class="comment"># cloud server-oda default route, gateway vazhiya</span>
+<span class="cmdno">16</span><span class="cmd">sudo ip netns exec ns-vpn-gw sysctl -w net.ipv4.ip_forward=1   </span><span class="comment"># gateway namespace-a router mode-la vekkanum</span>
+<span class="cmdno">17</span><span class="cmd">for ns in ns-onprem ns-vpn-gw ns-cloud-server; do sudo ip netns exec $ns ip link set lo up; done</span>
+<span class="cmdno">18</span><span class="cmd">sudo ip netns exec ns-onprem ip link set veth-onprem up</span>
+<span class="cmdno">19</span><span class="cmd">sudo ip netns exec ns-cloud-server ip link set veth-cloud up</span>
+<span class="cmdno">20</span><span class="cmd">sudo ip netns exec ns-vpn-gw bash -c "ip link set gw-onprem-in up; ip link set gw-cloud-in up"</span>
+<span class="cmdno">21</span><span class="comment"># THE KEY STEP — cloud side link-a, VPN tunnel overhead-a simulate panna, MTU-a kammi pannுறோம்</span>
+<span class="cmdno">22</span><span class="cmd">sudo ip netns exec ns-vpn-gw ip link set gw-cloud-in mtu 1400   </span><span class="comment"># idhু dhaan namba "VPN tunnel" — 1400 mattum dhaan MTU, 1500 illa</span>
+<span class="cmdno">23</span><span class="cmd">sudo ip netns exec ns-cloud-server ip link set veth-cloud mtu 1400   </span><span class="comment"># server side um matching MTU vekanum</span>
+<span class="cmdno">24</span><span class="cmd">sudo ip netns exec ns-cloud-server python3 -m http.server 8080 --bind 10.100.2.10 &amp;</span></pre>
+    </div>
+    <div class="box concept"><div class="box-title">🔵 Note pannu</div><p>on-prem client (ns-onprem) still 1500 MTU-la irukku, adhukku theriyaathu, cloud side segment 1400-ku kammi-nu. Idhu real VPN scenario-a exactly-a match pannுthu — client-oda own interface MTU, tunnel-oda actual capacity vida periya-a irukும்.</p></div>
+  </section>
+
+  <section id="verify">
+    <h2 class="sec-title"><span class="num">6</span>Verify Baseline</h2>
+    <div class="term">
+      <div class="term-header"><span>bash — chinna request test pannu, sari-a work aagும்</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button></div>
+      <pre><span class="cmdno">1</span><span class="cmd">sudo ip netns exec ns-onprem curl -s -o /dev/null -w "%{http_code}\n" http://10.100.2.10:8080/   </span><span class="comment"># chinna GET request, response um chinna-a irukும் — problem varadhu</span>
+<span class="out-ok">    200</span>
+<span class="cmdno">1</span><span class="cmd">sudo ip netns exec ns-onprem ping -c 2 10.100.2.10   </span><span class="comment"># normal ping, DF bit illama — always work aagும், even MTU problem irundhalும்</span>
+<span class="out-ok">    2 received, 0% packet loss</span></pre>
+    </div>
+    <div class="box success"><div class="box-title">🟢 Baseline confirm</div><p>Chinna traffic ellame sari-a work aagுthu — exact-a namba incident report sonna maadhiri. Ippo periya payload test pannலாm.</p></div>
+  </section>
+
+  <!-- BREAK 1 -->
+  <section id="break1">
+    <h2 class="sec-title"><span class="num">7</span>Break-Fix #1 — The Black Hole (ICMP Blocked)</h2>
+    <div class="box failure"><div class="box-title">🔴 Break Pannalam</div><p>Gateway-la, ICMP "fragmentation needed" message-a block pannுவோம் — romba common "security hardening" mistake, real production firewalls-la.</p></div>
+    <div class="term">
+      <div class="term-header"><span>bash — on ns-vpn-gw</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button></div>
+      <pre><span class="cmdno">1</span><span class="cmd">sudo ip netns exec ns-vpn-gw iptables -A FORWARD -p icmp --icmp-type fragmentation-needed -j DROP   </span><span class="comment"># exact-a idhே message-a mattum block pannுறom, PMTUD-a break panna</span></pre>
+    </div>
+    <h3>Paathukalaam</h3>
+    <div class="term">
+      <div class="term-header"><span>bash — on ns-onprem, periya, DF-set packet anுppி paaru</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button></div>
+      <pre><span class="cmdno">1</span><span class="cmd">sudo ip netns exec ns-onprem ping -M do -s 1472 -c 3 10.100.2.10   </span><span class="comment"># -M do = DF bit set pannு; -s 1472 = 1472 bytes payload (+28 bytes header = 1500 total, exact-a on-prem MTU limit)</span>
+<span class="out-err">    100% packet loss   (no ICMP reply, no error — simple-a silent-a drop aagுthu)</span>
+<span class="cmdno">2</span><span class="cmd">sudo ip netns exec ns-onprem timeout 8 curl http://10.100.2.10:8080/bigfile.bin   </span><span class="comment"># periya file download try pannு (namba oru bigfile create pannanum, next command)</span>
+<span class="out-err">    (hangs, no error, no data — exact-a incident-la sonna symptom)</span></pre>
+    </div>
+    <div class="term">
+      <div class="term-header"><span>bash — capture vachu confirm pannலாm</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button></div>
+      <pre><span class="cmdno">1</span><span class="cmd">sudo ip netns exec ns-vpn-gw tcpdump -i gw-onprem-in -nn 'icmp or (tcp and greater 1400)' -c 5   </span><span class="comment"># ICMP packets or periya TCP segments mattum capture pannு</span>
+<span class="out">    (periya packets client-ilருந்து varுthu, aana ஒரே ஒரு ICMP reply-um kaanadhu)</span></pre>
+    </div>
+    <div class="box concept"><div class="box-title">🔵 Reading the symptom</div><p>Ithு dhaan black hole — periya, DF-set packet anுppினா, silent-a drop aaguthu, ICMP reply illa. Client-ku ஒருபோதும் theriyாthு "chinna packet anுppणும்" nu, adhு same periya size-a repeat repeat-a try pannிக்கிட்டே irukும், every time silent-a fail aagும். No error message, no reset, connection just hangs — classic MTU black hole signature.</p></div>
+    <div class="box failure"><div class="box-title">🔴 Root Cause</div><p>VPN tunnel segment-oda MTU (1400), on-prem client-oda MTU (1500) vida chinna-a irundhadhு, adhு periya problem illa — real problem, PMTUD-ku thevaiaana ICMP "fragmentation needed" message-a gateway firewall block pannிருந்தது, adhுனால் client-ku correct size-a ஒருபோதும் theriyாmal poaduthu.</p></div>
+    <div class="term">
+      <div class="term-header"><span>bash — cleanup, next break-la ICMP allow pannலாm</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button></div>
+      <pre><span class="cmdno">1</span><span class="cmd">sudo ip netns exec ns-vpn-gw iptables -D FORWARD -p icmp --icmp-type fragmentation-needed -j DROP   </span><span class="comment"># block remove pannிடலாம்</span></pre>
+    </div>
+  </section>
+
+  <!-- BREAK 2 -->
+  <section id="break2">
+    <h2 class="sec-title"><span class="num">8</span>Break-Fix #2 — Same MTU Drop, but PMTUD Works Properly</h2>
+    <div class="box warning"><div class="box-title">🟠 Compare Pannலாம்</div><p>Ippo, same MTU mismatch (1400 vs 1500) irukும், aana ICMP block pannாma — PMTUD sari-a work pannும்னா enna aagும் nu paakalam.</p></div>
+    <h3>Test pannலாm</h3>
+    <div class="term">
+      <div class="term-header"><span>bash — on ns-onprem, same periya packet test</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button></div>
+      <pre><span class="cmdno">1</span><span class="cmd">sudo ip netns exec ns-onprem ping -M do -s 1472 -c 3 10.100.2.10   </span><span class="comment"># same test, ICMP இப்போ block illa</span>
+<span class="out-err">    ping: local error: Message too long, mtu=1400   (ippo IMMEDIATE-a error varுthu — hang aagலைii)</span>
+<span class="cmdno">2</span><span class="cmd">sudo ip netns exec ns-onprem tracepath 10.100.2.10   </span><span class="comment"># tracepath — automatic-a path MTU discover pannும் tool</span>
+<span class="out-ok">    1:  10.100.1.1     0.123ms
+    1:  10.100.1.1     0.045ms pmtu 1500
+    2:  10.100.2.10     0.089ms
+        Resume: pmtu 1400   (tracepath correctly kandupudichuruchu, path MTU 1400 nu)</span></pre>
+    </div>
+    <div class="box concept"><div class="box-title">🔵 Reading the difference</div><p>Ippo enna maariduchunu paaru — ping IMMEDIATE-a "Message too long, mtu=1400" nu solllுthu, hang aagலை. Yean-na, gateway correctly ICMP "fragmentation needed" reply anுppuchu, on-prem client-oda kernel adha vaangி, path MTU cache pannிக்கிட்டு, appuram automatic-a chinna packets anுppத் தொடங்குறாrudhu. tracepath um exact-a same information-a kaattுdhu — path MTU 1400 nu clean-a confirm pannuthu, no hang, no mystery.</p></div>
+    <div class="box success"><div class="box-title">🟢 Ithu dhaan "correct" behavior</div><p>MTU mismatch irundhalும், ICMP path clear-a irundha, PMTUD automatic-a self-heal pannிடும். Namba Break #1-la paatha problem, MTU mismatch-oda problem illa — ICMP blocking-oda problem.</p></div>
+    <div class="box bestpractice"><div class="box-title">🟦 Best Practice</div><p>Firewall rules design pannுறாppo, ICMP type 3 (destination unreachable) — especially code 4 (fragmentation needed) — ellame block pannாதீங்க. "ICMP block pannுறathு security-ku nalladhு" nu blanket rule vachा, ithு maadhiri silent black holes create aagும்.</p></div>
+  </section>
+
+  <!-- BREAK 3 -->
+  <section id="break3">
+    <h2 class="sec-title"><span class="num">9</span>Break-Fix #3 — The Real Production Fix: TCP MSS Clamping</h2>
+    <div class="box warning"><div class="box-title">🟠 Scenario</div><p>Reality-la, namba control pannாthа networks (partner links, public internet path) la, ICMP evlo devices block pannும்னு namba control panna mudியாthு. Adhுனால், ICMP-a depend pannாmal, direct-a MSS (Maximum Segment Size)-a clamp pannுறathு standard production fix.</p></div>
+    <div class="term">
+      <div class="term-header"><span>bash — on ns-vpn-gw, ICMP thirumba block pannி, MSS clamping mattum vachu paakalam</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button></div>
+      <pre><span class="cmdno">1</span><span class="cmd">sudo ip netns exec ns-vpn-gw iptables -A FORWARD -p icmp --icmp-type fragmentation-needed -j DROP   </span><span class="comment"># ICMP thirumba block pannுறom, worst-case simulate panna</span>
+<span class="cmdno">2</span><span class="cmd">sudo ip netns exec ns-vpn-gw iptables -t mangle -A FORWARD -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu   </span><span class="comment"># TCP handshake-oda SYN packet-la, MSS value-a automatic-a correct-a rewrite pannும்</span></pre>
+    </div>
+    <table class="breakdown">
+      <tr><th>Token</th><th>Meaning</th></tr>
+      <tr><td class="token">-t mangle -A FORWARD</td><td>mangle table — packet contents modify panna (headers rewrite panna) use pannும். FORWARD chain, idhு pass-through traffic-ku, namba gateway scenario exact-a idhே.</td></tr>
+      <tr><td class="token">--tcp-flags SYN,RST SYN</td><td>SYN packets mattum match pannும் (TCP handshake-oda first packet) — MSS value idhே packet-la dhaan negotiate aagும், so idhே dhaan correct place to intercept.</td></tr>
+      <tr><td class="token">TCPMSS --clamp-mss-to-pmtu</td><td>MSS value-a automatic-a, indha gateway-oda outgoing interface MTU-ku match aagும் padி, rewrite pannும் — ICMP, PMTUD, edhுவும் thevai illa. Handshake stage-la dhaan correct segment size negotiate aagிடும்.</td></tr>
+    </table>
+    <h3>Test pannலாm</h3>
+    <div class="term">
+      <div class="term-header"><span>bash — on ns-onprem, periya file download try pannு, ippo ICMP blocked-um</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button></div>
+      <pre><span class="cmdno">1</span><span class="cmd">sudo ip netns exec ns-cloud-server bash -c "head -c 5M /dev/urandom > /tmp/bigfile.bin"   </span><span class="comment"># 5MB test file create pannு</span>
+<span class="cmdno">2</span><span class="cmd">sudo ip netns exec ns-cloud-server python3 -m http.server 8080 --bind 10.100.2.10 --directory /tmp &amp;   </span><span class="comment"># idha serve panna</span>
+<span class="cmdno">3</span><span class="cmd">sudo ip netns exec ns-onprem curl -s -o /dev/null -w "downloaded in %{time_total}s\n" http://10.100.2.10:8080/bigfile.bin   </span><span class="comment"># ippo periya file download pannு, MSS clamping active-a irukும் state-la</span>
+<span class="out-ok">    downloaded in 0.412s   (successfully complete aayiduchu — ICMP blocked irundhalும்!)</span></pre>
+    </div>
+    <div class="box concept"><div class="box-title">🔵 Reading the fix</div><p>ICMP இப்போவும் blocked-a dhaan irukு, aana connection ippo work aaguthu — yean-na TCP handshake time-lae, MSS value correct-a negotiate aayiduchu (mangle table rule vachu). Adhukku appuram, client never even TRIES to send an oversized packet — so PMTUD, ICMP, edhுவும் thevai illa. Idhு dhaan production VPN gateways-la, MSS clamping ivvalavு commonly use pannுறathுku reason — ICMP filtering evlo unpredictable-a irundhalும், idhு reliable-a work pannும்.</p></div>
+    <div class="box success"><div class="box-title">🟢 Validate</div><p>Curl download clean-a complete aagிடுchu, no hang, ICMP thevai இல்லாம்லேயே. Ithு dhaan real production-la recommend pannுற fix.</p></div>
+  </section>
+
+  <section id="bestpractices">
+    <h2 class="sec-title"><span class="num">10</span>Production Best Practices</h2>
+    <div class="cards">
+      <div class="card"><h4>🟦 ICMP fragmentation-needed-a block pannாthீங்க</h4><p>Ithு PMTUD-oda backbone — block pannினா, silent black holes create aagும்.</p></div>
+      <div class="card"><h4>🟦 VPN/tunnel gateways-la MSS clamping use pannு</h4><p>ICMP-a depend pannாma, handshake-lae correct segment size force pannும் — reliable fix.</p></div>
+      <div class="card"><h4>🟦 "Small works, big hangs" = MTU suspect pannு</h4><p>Idhு classic signature — ping -M do -s vachu confirm pannு.</p></div>
+      <div class="card"><h4>🟦 tracepath — quick diagnostic</h4><p>Automatic-a path MTU discover pannும், manual binary search vida fast-a.</p></div>
+    </div>
+  </section>
+
+  <section id="cheatsheet">
+    <h2 class="sec-title"><span class="num">11</span>Troubleshooting Cheat Sheet</h2>
+    <table class="ref">
+      <tr><th>Symptom</th><th>Likely Cause</th><th>Command</th></tr>
+      <tr><td>Chinna requests sari, periya ones silent-a hang</td><td>MTU black hole (ICMP blocked)</td><td><code>ping -M do -s &lt;size&gt;</code>, <code>tracepath</code></td></tr>
+      <tr><td>ping immediate-a "Message too long" error kudukும்</td><td>MTU mismatch, aana PMTUD sari-a work aagுthu</td><td>Normal, self-healing — no fix thevai illa</td></tr>
+      <tr><td>Fix — reliable-a, ICMP depend pannாma</td><td>TCP MSS Clamping</td><td><code>iptables -t mangle ... TCPMSS --clamp-mss-to-pmtu</code></td></tr>
+    </table>
+  </section>
+
+  <section id="interview">
+    <h2 class="sec-title"><span class="num">12</span>Interview Preparation</h2>
+
+    <div class="qa"><div class="q"><span class="qtag">Scenario</span>Chinna API calls work aagுthu, periya file uploads silent-a hang aaguthu. Enna check pannுவீங்க?</div>
+    <p>MTU black hole-a suspect pannுவேன் — ping -M do -s vachu, periya, DF-set packet test pannுவேன், path-la evlo drop aaguthu nu paakala. Adhு silent-a fail aana (no ICMP error), ICMP "fragmentation needed" messages block aagுறдு-nu confirm pannுவேன், tcpdump vachु.</p>
+    <div class="followup">Follow-up: "Fix eppadi pannuveenga, namakku ICMP path-a control panna mudியாthுna?" — Answer: TCP MSS clamping — gateway-la iptables mangle table rule vachu, SYN packets-la MSS value-a correct-a rewrite pannுவேன், ICMP depend pannாma.</div>
+    </div>
+
+    <div class="qa"><div class="q"><span class="qtag">Concept</span>Path MTU Discovery eppadi work aagுthु, adhு eppadi fail aagும்?</div>
+    <p>Sender periya, DF-bit-set packet anுppுவாரு. Path-la fit aagாma-na, router adha drop pannிடு, ICMP "fragmentation needed" message anுppுவாru, correct size solli. Sender adha vaangி, chinna packets anுppத் தொடங்குவாரு. Ithு fail aaguradhu, path-la edho firewall indha ICMP message-a block pannினா — sender-ku ஒருபோதும் theriyாmal, same periya size repeat pannிக்கிட்டே irukும்.</p>
+    </div>
+
+    <div class="qa"><div class="q"><span class="qtag">Production</span>TCP MSS clamping enna, yean use pannுறோம்?</div>
+    <p>Gateway-la, TCP handshake-oda SYN packet-la, MSS (Maximum Segment Size) value-a automatic-a, actual outgoing link MTU-ku match aagும் padி rewrite pannும் technique. ICMP-a depend pannாma work aagுறाதுனால், unreliable/filtered ICMP paths-la (VPN tunnels, public internet) romba reliable fix.</p>
+    </div>
+  </section>
+
+  <section id="practice">
+    <h2 class="sec-title"><span class="num">13</span>Practice Tasks</h2>
+    <div class="box warning">
+      <div class="box-title">🟠 Practice Pannு</div>
+      <ol>
+        <li>Lab-a memory-la irundhு rebuild pannு.</li>
+        <li>3 scenarios reproduce pannு — black hole (ICMP blocked), self-healing (ICMP allowed), MSS clamping fix.</li>
+        <li>Different MTU values vachु try pannு (1300, 1450), evlo overhead different VPN types-ku (IPsec, GRE, WireGuard) typical-a irukும்நு research pannு.</li>
+      </ol>
+    </div>
+  </section>
+
+  <section id="resume">
+    <h2 class="sec-title"><span class="num">14</span>Resume Points</h2>
+    <div class="box bestpractice">
+      <div class="box-title">🟦 Resume bullet points</div>
+      <ul>
+        <li>Diagnosed an MTU black-hole incident on a simulated VPN link where large payloads hung indefinitely due to blocked ICMP fragmentation-needed messages breaking Path MTU Discovery.</li>
+        <li>Implemented TCP MSS clamping (iptables mangle/TCPMSS) on a gateway as a reliable, ICMP-independent fix for MTU mismatches on tunnel links.</li>
+        <li>Established a diagnostic method using ping with the DF bit and tracepath to distinguish self-healing MTU mismatches from true black-hole conditions.</li>
+      </ul>
+    </div>
+    <div class="box concept">
+      <div class="box-title">🔵 Spoken interview answer</div>
+      <p>"I simulated a VPN gateway scenario where one segment had a smaller MTU than the client expected, and reproduced the classic symptom of small requests working fine while large payloads hung forever. I traced it to blocked ICMP fragmentation-needed messages breaking Path MTU Discovery — the client kept resending the same oversized packet with no way to learn it needed to shrink it. I compared that against the same MTU mismatch with ICMP allowed, where the connection self-healed immediately, and then implemented the production-standard fix, TCP MSS clamping on the gateway, which corrects the segment size during the handshake itself without depending on ICMP at all."</p>
+    </div>
+  </section>
+
+  <section id="next">
+    <h2 class="sec-title"><span class="num">15</span>Next Project</h2>
+    <div class="box architecture">
+      <div class="box-title">🟣 Coming up in Project 15 — Linux Load Balancer Troubleshooting</div>
+      <p>Ippo namba Linux-a oru simple load balancer maadhiri vachu, health check failures, uneven traffic distribution, ellame troubleshoot pannுவோம்.</p>
+      <p>Ready aana <b>"Next Project"</b> nu sollு.</p>
+    </div>
+  </section>
+
+  </main>
+</div>
+
+<a href="#" class="top-link" title="Back to top">↑</a>
+
+<script>
+function copyBlock(btn){
+  const pre = btn.closest('.term').querySelector('pre');
+  const text = pre.innerText;
+  navigator.clipboard.writeText(text).then(()=>{
+    const old = btn.textContent;
+    btn.textContent = "Copied!";
+    setTimeout(()=>btn.textContent = old, 1400);
+  });
+}
+window.addEventListener('scroll', function(){
+  const sections = document.querySelectorAll('section');
+  const total = document.body.scrollHeight - window.innerHeight;
+  const pct = Math.min(100, Math.round((window.scrollY/total)*100));
+  document.getElementById('progressFill').style.width = pct + '%';
+  document.getElementById('progressLabel').textContent = pct + '% through Project 14';
+
+  let current = '';
+  sections.forEach(sec=>{
+    const rect = sec.getBoundingClientRect();
+    if(rect.top <= 120) current = sec.id;
+  });
+  document.querySelectorAll('.sidebar a').forEach(a=>{
+    a.style.background = '';
+    a.style.color = '';
+    a.style.fontWeight = '';
+    if(a.getAttribute('href') === '#'+current){
+      a.style.background = 'var(--blue-bg)';
+      a.style.color = 'var(--blue)';
+      a.style.fontWeight = '700';
+    }
+  });
+});
+</script>
+</body>
+</html>

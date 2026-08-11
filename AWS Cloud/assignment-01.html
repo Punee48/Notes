@@ -1,0 +1,897 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Assignment 01 — Basic AWS Workload &amp; Operational Lifecycle</title>
+<style>
+:root{
+  --bg:#0B1120;
+  --bg-2:#111827;
+  --card:#17202F;
+  --card-2:#1C2536;
+  --border:#26314A;
+  --orange:#FF9900;
+  --orange-dim:#B96E00;
+  --blue:#00A8E1;
+  --green:#34D399;
+  --warning:#FBBF24;
+  --error:#F87171;
+  --text:#E5E9F0;
+  --text-dim:#94A3B8;
+  --code-bg:#0A0E17;
+  --code-text:#D1D9E6;
+  --mono:'JetBrains Mono','Fira Code',ui-monospace,monospace;
+  --sans:'Inter',-apple-system,sans-serif;
+  --display:'Space Grotesk','Inter',sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html{scroll-behavior:smooth;}
+body{
+  background:var(--bg);
+  color:var(--text);
+  font-family:var(--sans);
+  line-height:1.65;
+  font-size:16px;
+}
+a{color:var(--blue);text-decoration:none;}
+a:hover{text-decoration:underline;}
+::selection{background:var(--orange);color:#0B1120;}
+
+/* ===== LAYOUT ===== */
+.shell{display:flex;min-height:100vh;}
+.sidebar{
+  width:270px;flex-shrink:0;
+  background:var(--bg-2);
+  border-right:1px solid var(--border);
+  position:sticky;top:0;height:100vh;overflow-y:auto;
+  padding:24px 0 60px;
+}
+.sidebar-brand{padding:0 20px 20px;border-bottom:1px solid var(--border);margin-bottom:12px;}
+.sidebar-brand .tag{font-family:var(--mono);font-size:11px;color:var(--orange);letter-spacing:.12em;text-transform:uppercase;}
+.sidebar-brand h1{font-family:var(--display);font-size:17px;margin-top:6px;line-height:1.3;}
+.sidebar nav a{
+  display:block;padding:8px 20px;font-size:13.5px;color:var(--text-dim);
+  border-left:2px solid transparent;
+}
+.sidebar nav a:hover{color:var(--text);text-decoration:none;background:var(--card);}
+.sidebar nav a.active{color:var(--orange);border-left-color:var(--orange);background:var(--card);}
+.sidebar nav .group-label{
+  padding:16px 20px 6px;font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;
+  color:#4B5875;font-family:var(--mono);
+}
+.main{flex:1;min-width:0;}
+.container{max-width:900px;margin:0 auto;padding:56px 40px 120px;}
+
+/* ===== COVER ===== */
+.cover{
+  background:linear-gradient(160deg,#131C2E 0%, #0B1120 70%);
+  border:1px solid var(--border);
+  border-radius:14px;
+  padding:44px 40px;
+  margin-bottom:48px;
+  position:relative;
+  overflow:hidden;
+}
+.cover::before{
+  content:"";position:absolute;top:-60px;right:-60px;width:260px;height:260px;
+  background:radial-gradient(circle,rgba(255,153,0,.18),transparent 70%);
+}
+.cover .eyebrow{font-family:var(--mono);color:var(--orange);font-size:12px;letter-spacing:.14em;text-transform:uppercase;}
+.cover h1{font-family:var(--display);font-size:34px;margin:12px 0 14px;max-width:640px;position:relative;}
+.cover p.lede{color:var(--text-dim);max-width:560px;font-size:15px;position:relative;}
+.cover-meta{display:flex;flex-wrap:wrap;gap:10px;margin-top:24px;position:relative;}
+.chip{
+  background:var(--card);border:1px solid var(--border);border-radius:999px;
+  padding:6px 14px;font-size:12.5px;color:var(--text-dim);font-family:var(--mono);
+}
+.chip b{color:var(--text);}
+
+/* ===== TYPOGRAPHY ===== */
+h2.section-title{
+  font-family:var(--display);font-size:24px;margin:56px 0 18px;
+  padding-bottom:10px;border-bottom:1px solid var(--border);
+  display:flex;align-items:center;gap:10px;
+  scroll-margin-top:24px;
+}
+h2.section-title .num{font-family:var(--mono);color:var(--orange-dim);font-size:15px;}
+h3{font-family:var(--display);font-size:18px;margin:26px 0 10px;color:var(--text);}
+h4{font-size:15px;margin:18px 0 8px;color:var(--orange);font-family:var(--mono);}
+p{margin-bottom:14px;color:#C7CEDB;}
+ul,ol{margin:0 0 14px 22px;color:#C7CEDB;}
+li{margin-bottom:6px;}
+strong{color:var(--text);}
+
+/* ===== CARDS / BOXES ===== */
+.card{
+  background:var(--card);border:1px solid var(--border);border-radius:10px;
+  padding:20px 22px;margin:16px 0;
+}
+.story-card{
+  background:linear-gradient(135deg,#1A2333,#161E2C);
+  border-left:3px solid var(--orange);
+  border-radius:8px;padding:22px 24px;margin:16px 0;
+}
+.story-card p{color:#D7DCE8;font-style:italic;}
+.story-card p:last-child{margin-bottom:0;}
+.role-tag{display:inline-block;font-family:var(--mono);font-size:11px;color:var(--orange);
+  background:rgba(255,153,0,.1);border:1px solid rgba(255,153,0,.3);border-radius:5px;
+  padding:2px 8px;margin-bottom:10px;letter-spacing:.05em;}
+
+.box{border-radius:8px;padding:16px 18px;margin:16px 0;border:1px solid;}
+.box.tip{background:rgba(0,168,225,.07);border-color:rgba(0,168,225,.35);}
+.box.warn{background:rgba(251,191,36,.07);border-color:rgba(251,191,36,.35);}
+.box.security{background:rgba(248,113,113,.07);border-color:rgba(248,113,113,.35);}
+.box.win{background:rgba(52,211,153,.07);border-color:rgba(52,211,153,.35);}
+.box .label{font-family:var(--mono);font-size:11px;text-transform:uppercase;letter-spacing:.1em;display:block;margin-bottom:6px;}
+.box.tip .label{color:var(--blue);}
+.box.warn .label{color:var(--warning);}
+.box.security .label{color:var(--error);}
+.box.win .label{color:var(--green);}
+.box p:last-child{margin-bottom:0;}
+
+/* ===== TABLES ===== */
+table{width:100%;border-collapse:collapse;margin:16px 0;font-size:14px;}
+th{background:var(--card-2);color:var(--orange);text-align:left;padding:10px 12px;
+  font-family:var(--mono);font-size:12px;text-transform:uppercase;letter-spacing:.04em;
+  border-bottom:1px solid var(--border);}
+td{padding:10px 12px;border-bottom:1px solid var(--border);color:#C7CEDB;vertical-align:top;}
+tr:last-child td{border-bottom:none;}
+tr:hover td{background:rgba(255,255,255,.02);}
+
+/* ===== CODE ===== */
+.code-wrap{position:relative;margin:16px 0;border-radius:8px;overflow:hidden;border:1px solid var(--border);}
+.code-head{
+  background:var(--card-2);padding:8px 14px;display:flex;justify-content:space-between;align-items:center;
+  border-bottom:1px solid var(--border);
+}
+.code-head span{font-family:var(--mono);font-size:11.5px;color:var(--text-dim);}
+.copy-btn{
+  background:transparent;border:1px solid var(--border);color:var(--text-dim);
+  font-family:var(--mono);font-size:11px;padding:4px 10px;border-radius:5px;cursor:pointer;
+}
+.copy-btn:hover{border-color:var(--orange);color:var(--orange);}
+pre{
+  background:var(--code-bg);padding:16px 18px;overflow-x:auto;
+  font-family:var(--mono);font-size:13px;line-height:1.6;color:var(--code-text);
+}
+code{font-family:var(--mono);}
+p code, li code{background:var(--card-2);padding:1px 6px;border-radius:4px;font-size:13px;color:#FFC876;}
+.comment{color:#5E7099;}
+.kw{color:var(--blue);}
+.str{color:var(--green);}
+
+/* ===== DIAGRAM ===== */
+.diagram{
+  background:var(--code-bg);border:1px solid var(--border);border-radius:10px;
+  padding:28px;margin:20px 0;overflow-x:auto;
+}
+.flow{display:flex;flex-direction:column;align-items:center;gap:0;font-family:var(--mono);font-size:13px;}
+.flow-box{
+  background:var(--card);border:1px solid var(--orange-dim);border-radius:8px;
+  padding:12px 22px;min-width:220px;text-align:center;color:var(--text);
+  opacity:0;transform:translateY(8px);
+  animation:reveal .5s ease forwards;
+}
+.flow-box.public{border-color:var(--blue);}
+.flow-box.private{border-color:var(--green);}
+.flow-arrow{color:#4B5875;font-size:18px;padding:6px 0;opacity:0;animation:reveal .5s ease forwards;}
+@keyframes reveal{to{opacity:1;transform:translateY(0);}}
+.flow-box small, .flow-arrow small{display:block;color:var(--text-dim);font-size:10.5px;margin-top:3px;}
+
+/* ===== INTERVIEW / CHALLENGE ===== */
+details{
+  background:var(--card);border:1px solid var(--border);border-radius:8px;
+  margin:10px 0;padding:0;
+}
+details summary{
+  cursor:pointer;padding:14px 18px;font-family:var(--mono);font-size:13.5px;color:var(--orange);
+  list-style:none;display:flex;justify-content:space-between;align-items:center;
+}
+details summary::-webkit-details-marker{display:none;}
+details summary::after{content:"+";color:var(--text-dim);font-size:16px;}
+details[open] summary::after{content:"–";}
+details .inner{padding:0 18px 16px;border-top:1px solid var(--border);padding-top:12px;}
+details .inner p:last-child{margin-bottom:0;}
+
+.qa{margin:14px 0;padding:16px 18px;background:var(--card-2);border-radius:8px;border:1px solid var(--border);}
+.qa .q{font-family:var(--display);font-size:14.5px;color:var(--text);margin-bottom:8px;}
+.qa .q .qn{color:var(--orange);font-family:var(--mono);margin-right:6px;}
+.qa .follow{margin-top:10px;padding-top:10px;border-top:1px dashed var(--border);color:var(--text-dim);font-size:13px;}
+.qa .follow b{color:var(--blue);}
+
+.resume-list{list-style:none;margin:14px 0;}
+.resume-list li{
+  padding:12px 16px;background:var(--card);border-left:3px solid var(--green);
+  border-radius:0 6px 6px 0;margin-bottom:8px;font-size:14px;color:#D7DCE8;
+}
+
+.criteria{list-style:none;margin:14px 0;}
+.criteria li{padding-left:28px;position:relative;margin-bottom:8px;color:#C7CEDB;}
+.criteria li::before{content:"✓";position:absolute;left:0;color:var(--green);font-family:var(--mono);}
+
+.folder{font-family:var(--mono);font-size:13px;color:var(--code-text);white-space:pre;line-height:1.7;}
+.folder .comment{color:#5E7099;}
+
+.progress-bar{height:6px;background:var(--card-2);border-radius:999px;overflow:hidden;margin:14px 0 4px;}
+.progress-bar-fill{height:100%;width:4%;background:linear-gradient(90deg,var(--orange),var(--blue));}
+.progress-label{font-family:var(--mono);font-size:11px;color:var(--text-dim);}
+
+footer{
+  text-align:center;padding:40px;color:#4B5875;font-family:var(--mono);font-size:12px;
+  border-top:1px solid var(--border);margin-top:60px;
+}
+
+@media(max-width:860px){
+  .sidebar{position:fixed;left:-270px;transition:left .2s;z-index:50;box-shadow:20px 0 40px rgba(0,0,0,.4);}
+  .sidebar.open{left:0;}
+  .container{padding:24px 18px 100px;}
+  .mobile-toggle{
+    position:fixed;bottom:20px;right:20px;z-index:60;
+    background:var(--orange);color:#0B1120;border:none;border-radius:50%;
+    width:52px;height:52px;font-size:20px;cursor:pointer;box-shadow:0 6px 20px rgba(0,0,0,.4);
+  }
+}
+@media(min-width:861px){.mobile-toggle{display:none;}}
+@media(prefers-reduced-motion:reduce){*{animation:none !important;transition:none !important;}}
+</style>
+</head>
+<body>
+
+<div class="shell">
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-brand">
+      <span class="tag">AWS Cloud Engineering</span>
+      <h1>Assignment 01<br>Foundation Stage</h1>
+    </div>
+    <nav>
+      <a href="#story">Production Story</a>
+      <a href="#requirements">Requirements</a>
+      <a href="#architecture">Architecture</a>
+      <a href="#decisions">Architecture Decisions</a>
+      <a href="#implementation">Implementation</a>
+      <a href="#terraform">Terraform</a>
+      <a href="#cli">AWS CLI</a>
+      <a href="#validation">Validation &amp; Testing</a>
+      <a href="#monitoring">Monitoring</a>
+      <a href="#incident">Production Incident</a>
+      <a href="#troubleshooting">Troubleshooting Method</a>
+      <a href="#cost">Cost Awareness</a>
+      <a href="#review">Architecture Review</a>
+      <a href="#cleanup">Cleanup</a>
+      <a href="#acceptance">Acceptance Criteria</a>
+      <a href="#challenge">Practice Challenge</a>
+      <a href="#interview">Interview Prep</a>
+      <a href="#resume">Resume Points</a>
+      <a href="#next">Next Project</a>
+    </nav>
+  </aside>
+
+  <div class="main">
+    <div class="container">
+
+      <div class="cover">
+        <span class="eyebrow">Assignment 01 of 25 · Foundation</span>
+        <h1>Deploying a Basic AWS Workload and Understanding Its Operational Lifecycle</h1>
+        <p class="lede">Our first assignment as the newly-formed Cloud Engineering function inside a mid-size retail company: get one internal application off a laptop and into AWS, the right way — with an IAM role instead of hardcoded keys, a security group instead of "allow all," and CloudWatch watching it instead of nobody.</p>
+        <div class="cover-meta">
+          <span class="chip">Difficulty: <b>Foundation</b></span>
+          <span class="chip">Domain: <b>Retail / Internal Tools</b></span>
+          <span class="chip">Services: <b>EC2 · IAM · S3 · CloudWatch · Default VPC</b></span>
+          <span class="chip">IaC: <b>Terraform (intro)</b></span>
+          <span class="chip">Est. lab time: <b>2–3 hrs</b></span>
+        </div>
+        <div class="progress-bar"><div class="progress-bar-fill"></div></div>
+        <span class="progress-label">Progress: Assignment 1 of 25</span>
+      </div>
+
+      <!-- ============ STORY ============ -->
+      <h2 class="section-title" id="story"><span class="num">01</span> Production Story</h2>
+
+      <div class="story-card">
+        <span class="role-tag">Infrastructure Manager — Priya Nandan</span>
+        <p>"We just hired our first Cloud Engineer — that's you. Our Merchandising team has been running an internal inventory-reconciliation script on Raj's personal laptop for the last eight months. Every night he runs a Python job by hand that pulls a CSV export, reconciles stock counts, and writes a report. Last week he was on leave for two days and nobody ran it. The warehouse team made reorder decisions off stale numbers and we over-ordered by about 4,000 units of a seasonal SKU.</p>
+        <p>I don't want a laptop to be a single point of failure for a business process again. I want this running on AWS: always available, not tied to one person's machine, and something the rest of the team can see and operate — not a black box only Raj understands. Security has one hard requirement already: no long-lived AWS access keys sitting in a script. Can you take this and come back with something we can actually run in production?"</p>
+      </div>
+
+      <div class="box tip">
+        <span class="label">Why this is Assignment 1</span>
+        <p>Every AWS journey has to start somewhere concrete. Rather than opening with "what is EC2," we're going to hit the wall that makes EC2, IAM roles, and basic monitoring necessary in the first place — a real workload that needs to leave someone's laptop. Every service introduced below is introduced because this story requires it, not because it's next on a syllabus.</p>
+      </div>
+
+      <h3>Existing Environment</h3>
+      <ul>
+        <li>Script runs manually on an employee laptop via <code>cron</code>-like scheduling that only fires when the laptop is on and logged in.</li>
+        <li>AWS access keys for S3 (where the CSV export lands) are hardcoded in the script.</li>
+        <li>No monitoring — if the job fails silently, nobody finds out until someone downstream notices bad numbers.</li>
+        <li>No version control, no documented runbook, no backup engineer who can run it.</li>
+      </ul>
+
+      <h3>Current Problems With This Approach</h3>
+      <table>
+        <tr><th>Problem</th><th>Business Impact</th></tr>
+        <tr><td>Single point of failure (one laptop, one person)</td><td>Process didn't run for 2 days → 4,000-unit over-order</td></tr>
+        <tr><td>Hardcoded AWS credentials in a script</td><td>If the laptop is lost or the script is shared, the whole AWS account is exposed</td></tr>
+        <tr><td>No monitoring or alerting</td><td>Failures are discovered downstream, days later, by someone else</td></tr>
+        <tr><td>No operational visibility</td><td>Nobody besides Raj can troubleshoot or hand this off</td></tr>
+      </table>
+
+      <!-- ============ REQUIREMENTS ============ -->
+      <h2 class="section-title" id="requirements"><span class="num">02</span> Business &amp; Technical Requirements</h2>
+
+      <table>
+        <tr><th>Type</th><th>Requirement</th></tr>
+        <tr><td>Business</td><td>The reconciliation job must run every night regardless of whether any specific employee is available.</td></tr>
+        <tr><td>Technical</td><td>Job must run on AWS compute, pull the CSV from S3, write a report back to S3.</td></tr>
+        <tr><td>Security</td><td>No long-lived AWS access keys anywhere in code or on disk. Access to S3 must be scoped to only the buckets/prefixes this job needs.</td></tr>
+        <tr><td>Availability</td><td>None required yet — this is a single nightly batch job, not a live service. (We'll revisit this in later assignments once the business asks for a real-time version.)</td></tr>
+        <tr><td>Scalability</td><td>Not a concern at this stage — one file, once a night. Explicitly out of scope; don't over-engineer.</td></tr>
+        <tr><td>Performance</td><td>Job should complete well within the nightly maintenance window (no formal SLA yet).</td></tr>
+        <tr><td>Compliance</td><td>None specific to this internal tool, but the "no hardcoded credentials" rule is a hard security-team requirement, not a suggestion.</td></tr>
+        <tr><td>Cost</td><td>This is an internal batch job for one team — Priya expects it to cost close to nothing. Free-tier-eligible where possible.</td></tr>
+      </table>
+
+      <div class="box warn">
+        <span class="label">Constraint</span>
+        <p>Priya was explicit: don't build a 10-service platform for a job that runs once a night and takes two minutes. Foundation assignments are about doing the small thing <em>correctly</em> — not about using every AWS service you know.</p>
+      </div>
+
+      <!-- ============ ARCHITECTURE ============ -->
+      <h2 class="section-title" id="architecture"><span class="num">03</span> Architecture Design</h2>
+
+      <h3>High-Level Architecture</h3>
+      <p>At this stage we're intentionally simple: one EC2 instance, running in the account's default VPC, with an IAM role attached (not access keys), reading and writing to two S3 locations, with CloudWatch watching basic health. No load balancer, no auto scaling, no multi-AZ — none of that is justified yet by the requirements above, and adding it now would be solving a problem the business doesn't have.</p>
+
+      <div class="diagram">
+        <div class="flow">
+          <div class="flow-box public" style="animation-delay:.05s">EventBridge Scheduler<small>triggers job nightly at 01:00</small></div>
+          <div class="flow-arrow" style="animation-delay:.25s">↓</div>
+          <div class="flow-box" style="animation-delay:.35s">EC2 Instance (t3.micro)<small>runs reconciliation script</small></div>
+          <div class="flow-arrow" style="animation-delay:.55s">↓ assumes</div>
+          <div class="flow-box private" style="animation-delay:.65s">IAM Instance Role<small>scoped S3 read/write policy — no access keys</small></div>
+          <div class="flow-arrow" style="animation-delay:.85s">↓ reads / writes</div>
+          <div class="flow-box private" style="animation-delay:.95s">S3 Bucket<small>/inbound (raw CSV) · /reports (output)</small></div>
+          <div class="flow-arrow" style="animation-delay:1.15s">↓ emits metrics/logs</div>
+          <div class="flow-box" style="animation-delay:1.25s">CloudWatch<small>Logs + Alarm on job failure</small></div>
+        </div>
+      </div>
+
+      <p>Note there's no Internet Gateway path drawn for inbound traffic — nothing calls this instance from the internet. It only reaches out to AWS APIs (S3, CloudWatch) over the default VPC's route to the internet, or better, via a VPC endpoint (we introduce endpoints properly in Assignment 11 — for now, outbound-only internet access through the default VPC is acceptable for a foundation lab).</p>
+
+      <h3>Security Architecture</h3>
+      <ul>
+        <li><strong>No inbound access</strong> from the internet at all — this instance doesn't serve traffic, so there is no reason to open any inbound port except SSH, and even that is scoped to a specific IP for lab purposes.</li>
+        <li><strong>IAM instance role</strong>, not IAM user access keys — the instance assumes a role and gets short-lived, automatically-rotated credentials via the EC2 metadata service.</li>
+        <li><strong>Least privilege S3 policy</strong> — the role can only <code>GetObject</code>/<code>ListBucket</code> on the inbound prefix and <code>PutObject</code> on the reports prefix. It cannot delete objects, touch other buckets, or call unrelated AWS APIs.</li>
+      </ul>
+
+      <!-- ============ DECISIONS ============ -->
+      <h2 class="section-title" id="decisions"><span class="num">04</span> Architecture Decision Making</h2>
+
+      <h3>Decision: IAM Instance Role vs. Access Keys</h3>
+      <p>We could generate an IAM user, create an access key/secret pair, and store it in the script or an environment variable. This is the fastest thing to set up and it's exactly what got Raj's laptop into trouble — a credential that lives forever, that can be copied, committed to a repo, or left on a laptop that gets stolen.</p>
+      <p>An <strong>IAM instance role</strong> is attached to the EC2 instance itself. AWS automatically supplies temporary credentials to anything running on that instance via the instance metadata service, and those credentials rotate automatically roughly every 6 hours. There is no secret to leak, because there's no long-lived secret at all.</p>
+      <p><strong>Decision: IAM instance role.</strong> This directly satisfies Security's hard requirement and costs nothing extra to implement.</p>
+
+      <h3>Decision: EC2 vs. Lambda for This Job</h3>
+      <table>
+        <tr><th></th><th>EC2 (t3.micro, scheduled)</th><th>Lambda</th></tr>
+        <tr><td>Fits the job</td><td>Yes, but it's a running server for a 2-minute job</td><td>Yes — this is a short, stateless, event-triggered batch job</td></tr>
+        <tr><td>Cost</td><td>Instance runs (or must be started/stopped) even though it's idle 23h58m/day</td><td>Pay only for the ~2 minutes of execution per night — effectively free tier forever</td></tr>
+        <tr><td>Operational overhead</td><td>Patch the OS, manage the instance lifecycle</td><td>No OS to patch, no instance to manage</td></tr>
+      </table>
+      <div class="box warn">
+        <span class="label">Why we're still choosing EC2 here</span>
+        <p>Lambda is genuinely the better production answer for this exact workload, and we'll build the Lambda version of a scheduled job in a later assignment once serverless concepts (execution role, layers, timeouts, packaging) have been introduced properly. For <em>this</em> foundation assignment, the learning objective is EC2 fundamentals and the instance lifecycle — so we're deliberately using EC2 even though Lambda would be the better real-world choice for a 2-minute nightly script. Priya, as our stakeholder, is fine with this because the point right now is "get it off the laptop and into AWS safely" — we'll optimize architecture in later assignments (see Assignment 18: serverless).</p>
+      </div>
+
+      <!-- ============ IMPLEMENTATION ============ -->
+      <h2 class="section-title" id="implementation"><span class="num">05</span> Hands-On Implementation</h2>
+
+      <h3>Prerequisites</h3>
+      <ul>
+        <li>An AWS account with console + programmatic access for your own IAM user (not root)</li>
+        <li>AWS CLI v2 installed and configured (<code>aws configure</code>) with your personal IAM user credentials — this is fine for <em>you</em> as the engineer; the workload itself must not use long-lived keys</li>
+        <li>Terraform installed (v1.6+)</li>
+        <li>A default VPC in your target region (every new AWS account has one unless it was deliberately removed)</li>
+      </ul>
+
+      <h3>Folder Structure</h3>
+      <div class="card">
+<div class="folder">aws-foundation-lab/
+├── main.tf              <span class="comment"># root module — instance, IAM role, S3, CloudWatch</span>
+├── variables.tf         <span class="comment"># input variables (region, instance type, bucket name)</span>
+├── outputs.tf           <span class="comment"># instance ID, bucket name, role ARN</span>
+├── user_data.sh         <span class="comment"># bootstrap script that installs deps + registers the cron job</span>
+└── scripts/
+    └── reconcile.py     <span class="comment"># the actual reconciliation script (Merchandising team's logic)</span></div>
+      </div>
+      <p>This is intentionally flat. We introduce the <code>environments/</code> + <code>modules/</code> structure from the master brief starting in Assignment 12, once we actually have more than one environment and more than one reusable component to justify it. A folder structure should match the complexity you actually have, not the complexity you'll eventually have.</p>
+
+      <!-- ============ TERRAFORM ============ -->
+      <h2 class="section-title" id="terraform"><span class="num">06</span> Terraform Implementation</h2>
+
+      <p>We're introducing Terraform starting now, even for something this small, because the habit of describing infrastructure as code — rather than clicking it into existence — is worth building from day one. Every resource below is explained argument by argument.</p>
+
+      <h3>variables.tf</h3>
+      <div class="code-wrap">
+        <div class="code-head"><span>variables.tf</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre><span class="kw">variable</span> "region" {
+  <span class="comment"># The AWS region we deploy into. Declaring it as a variable (instead of</span>
+  <span class="comment"># hardcoding it in every resource) means the same code can target another</span>
+  <span class="comment"># region just by overriding this one value.</span>
+  description = <span class="str">"AWS region to deploy the reconciliation workload into"</span>
+  type        = string
+  default     = <span class="str">"ap-south-1"</span>
+}
+
+<span class="kw">variable</span> "instance_type" {
+  description = <span class="str">"EC2 instance type for the batch job"</span>
+  type        = string
+  default     = <span class="str">"t3.micro"</span>
+  <span class="comment"># t3.micro is free-tier eligible and far more than this 2-minute script needs.</span>
+}
+
+<span class="kw">variable</span> "bucket_name" {
+  description = <span class="str">"S3 bucket for inbound CSV exports and outbound reports"</span>
+  type        = string
+  <span class="comment"># No default — S3 bucket names are globally unique across ALL AWS accounts,</span>
+  <span class="comment"># so we force the caller to supply one rather than risk a collision.</span>
+}
+
+<span class="kw">variable</span> "allowed_ssh_cidr" {
+  description = <span class="str">"CIDR block allowed to SSH into the instance (your IP /32, not 0.0.0.0/0)"</span>
+  type        = string
+}</pre>
+      </div>
+
+      <h3>main.tf — Networking &amp; Security Group</h3>
+      <div class="code-wrap">
+        <div class="code-head"><span>main.tf (part 1 of 3)</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre><span class="kw">provider</span> "aws" {
+  region = var.region
+  <span class="comment"># Tells the AWS provider which region's API endpoint to talk to for every</span>
+  <span class="comment"># resource below that doesn't explicitly override it.</span>
+}
+
+<span class="kw">data</span> "aws_vpc" "default" {
+  default = true
+  <span class="comment"># A data source READS existing infrastructure instead of creating it.</span>
+  <span class="comment"># We're deliberately using the account's default VPC for this foundation</span>
+  <span class="comment"># lab rather than building a custom VPC — that's Assignment 2's job.</span>
+}
+
+<span class="kw">data</span> "aws_subnets" "default" {
+  filter {
+    name   = <span class="str">"vpc-id"</span>
+    values = [data.aws_vpc.default.id]
+  }
+  <span class="comment"># Fetches every subnet ID that belongs to the default VPC so we can pick one.</span>
+}
+
+<span class="kw">resource</span> "aws_security_group" "reconcile_sg" {
+  name        = <span class="str">"reconcile-job-sg"</span>
+  description = <span class="str">"Security group for the nightly reconciliation instance"</span>
+  vpc_id      = data.aws_vpc.default.id
+
+  <span class="comment"># INBOUND: only SSH, only from the engineer's own IP. Nothing else needs to</span>
+  <span class="comment"># reach this box — it doesn't serve any traffic.</span>
+  ingress {
+    description = <span class="str">"SSH from engineer workstation only"</span>
+    from_port   = 22
+    to_port     = 22
+    protocol    = <span class="str">"tcp"</span>
+    cidr_blocks = [var.allowed_ssh_cidr]
+  }
+
+  <span class="comment"># OUTBOUND: allow all. The instance needs to reach S3 and CloudWatch APIs</span>
+  <span class="comment"># over HTTPS; restricting egress further is a hardening step we revisit</span>
+  <span class="comment"># once we introduce VPC endpoints (Assignment 11).</span>
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = <span class="str">"-1"</span>
+    cidr_blocks = [<span class="str">"0.0.0.0/0"</span>]
+  }
+
+  tags = {
+    Name    = <span class="str">"reconcile-job-sg"</span>
+    Project = <span class="str">"inventory-reconciliation"</span>
+  }
+}</pre>
+      </div>
+
+      <h3>main.tf — IAM Role (no access keys)</h3>
+      <div class="code-wrap">
+        <div class="code-head"><span>main.tf (part 2 of 3)</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre><span class="kw">resource</span> "aws_iam_role" "reconcile_role" {
+  name = <span class="str">"reconcile-job-role"</span>
+
+  <span class="comment"># The assume_role_policy is the TRUST policy — it defines WHO/WHAT is</span>
+  <span class="comment"># allowed to assume this role. Here, only the EC2 service itself may.</span>
+  assume_role_policy = jsonencode({
+    Version = <span class="str">"2012-10-17"</span>
+    Statement = [{
+      Action    = <span class="str">"sts:AssumeRole"</span>
+      Effect    = <span class="str">"Allow"</span>
+      Principal = { Service = <span class="str">"ec2.amazonaws.com"</span> }
+    }]
+  })
+}
+
+<span class="kw">resource</span> "aws_iam_role_policy" "reconcile_s3_policy" {
+  name = <span class="str">"reconcile-s3-access"</span>
+  role = aws_iam_role.reconcile_role.id
+
+  <span class="comment"># This is the PERMISSIONS policy — what the role can actually DO once</span>
+  <span class="comment"># assumed. Scoped to exactly the two prefixes this job touches, and only</span>
+  <span class="comment"># the specific S3 actions it needs. No s3:DeleteObject, no wildcard "s3:*".</span>
+  policy = jsonencode({
+    Version = <span class="str">"2012-10-17"</span>
+    Statement = [
+      {
+        Sid      = <span class="str">"ReadInboundCSV"</span>
+        Effect   = <span class="str">"Allow"</span>
+        Action   = [<span class="str">"s3:GetObject"</span>, <span class="str">"s3:ListBucket"</span>]
+        Resource = [
+          "${aws_s3_bucket.reconcile_bucket.arn}",
+          "${aws_s3_bucket.reconcile_bucket.arn}/inbound/*"
+        ]
+      },
+      {
+        Sid      = <span class="str">"WriteReports"</span>
+        Effect   = <span class="str">"Allow"</span>
+        Action   = [<span class="str">"s3:PutObject"</span>]
+        Resource = ["${aws_s3_bucket.reconcile_bucket.arn}/reports/*"]
+      }
+    ]
+  })
+}
+
+<span class="kw">resource</span> "aws_iam_instance_profile" "reconcile_profile" {
+  name = <span class="str">"reconcile-job-profile"</span>
+  role = aws_iam_role.reconcile_role.name
+  <span class="comment"># An instance profile is the container that actually attaches an IAM role</span>
+  <span class="comment"># to an EC2 instance — you can't attach a role to an instance directly,</span>
+  <span class="comment"># it has to go through this profile resource.</span>
+}</pre>
+      </div>
+
+      <h3>main.tf — S3, EC2, CloudWatch</h3>
+      <div class="code-wrap">
+        <div class="code-head"><span>main.tf (part 3 of 3)</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre><span class="kw">resource</span> "aws_s3_bucket" "reconcile_bucket" {
+  bucket = var.bucket_name
+  <span class="comment"># Bucket names are global, hence the required variable with no default.</span>
+}
+
+<span class="kw">resource</span> "aws_s3_bucket_versioning" "reconcile_bucket_versioning" {
+  bucket = aws_s3_bucket.reconcile_bucket.id
+  versioning_configuration { status = <span class="str">"Enabled"</span> }
+  <span class="comment"># If the job ever overwrites a report with bad data, versioning lets us</span>
+  <span class="comment"># recover the previous good object instead of losing it permanently.</span>
+}
+
+<span class="kw">resource</span> "aws_instance" "reconcile_instance" {
+  ami                    = <span class="str">"ami-0f5ee92e2d63afc18"</span> <span class="comment"># Amazon Linux 2023, ap-south-1</span>
+  instance_type          = var.instance_type
+  subnet_id              = data.aws_subnets.default.ids[0]
+  vpc_security_group_ids = [aws_security_group.reconcile_sg.id]
+  iam_instance_profile   = aws_iam_instance_profile.reconcile_profile.name
+  <span class="comment"># ↑ THIS is what gives the instance temporary, auto-rotating credentials</span>
+  <span class="comment"># instead of a hardcoded access key — the whole point of this design.</span>
+
+  user_data = file("${path.module}/user_data.sh")
+  <span class="comment"># Runs once, on first boot, as root — installs Python deps and registers</span>
+  <span class="comment"># the nightly cron job that calls reconcile.py.</span>
+
+  tags = {
+    Name    = <span class="str">"reconcile-job-instance"</span>
+    Project = <span class="str">"inventory-reconciliation"</span>
+  }
+}
+
+<span class="kw">resource</span> "aws_cloudwatch_log_group" "reconcile_logs" {
+  name              = <span class="str">"/reconcile-job/execution"</span>
+  retention_in_days = 30
+  <span class="comment"># Without an explicit retention period, CloudWatch Logs keeps everything</span>
+  <span class="comment"># forever, which quietly costs money. 30 days is enough to debug a failed</span>
+  <span class="comment"># run without paying to store logs from six months ago.</span>
+}
+
+<span class="kw">resource</span> "aws_cloudwatch_metric_alarm" "instance_status_check" {
+  alarm_name          = <span class="str">"reconcile-instance-status-check-failed"</span>
+  comparison_operator = <span class="str">"GreaterThanThreshold"</span>
+  evaluation_periods   = 1
+  metric_name         = <span class="str">"StatusCheckFailed"</span>
+  namespace           = <span class="str">"AWS/EC2"</span>
+  period              = 300
+  statistic           = <span class="str">"Maximum"</span>
+  threshold           = 0
+  dimensions          = { InstanceId = aws_instance.reconcile_instance.id }
+  alarm_description   = <span class="str">"Fires if the reconciliation instance fails an EC2 status check"</span>
+  <span class="comment"># A StatusCheckFailed > 0 means AWS itself has detected the instance is</span>
+  <span class="comment"># unreachable or has an underlying hardware/software problem.</span>
+}</pre>
+      </div>
+
+      <div class="box tip">
+        <span class="label">terraform plan → apply, what happens internally</span>
+        <p><code>terraform init</code> downloads the AWS provider plugin and sets up the local (or remote) state backend. <code>terraform plan</code> reads your current <code>.tf</code> files, compares them against the last known state, and calls AWS's <em>describe</em>-type APIs to see what already exists — producing a diff of what it intends to create/change/destroy, without touching anything yet. <code>terraform apply</code> re-runs that plan and, after your confirmation, calls the actual create/update AWS APIs in dependency order (the IAM role before the instance profile before the EC2 instance, because Terraform builds a dependency graph from the resource references you wrote, like <code>aws_iam_role.reconcile_role.name</code>).</p>
+      </div>
+
+      <!-- ============ CLI ============ -->
+      <h2 class="section-title" id="cli"><span class="num">07</span> AWS CLI — Verifying What Terraform Built</h2>
+
+      <div class="code-wrap">
+        <div class="code-head"><span>bash</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre>aws ec2 describe-instances \
+  --filters "Name=tag:Project,Values=inventory-reconciliation" \
+  --query "Reservations[].Instances[].[InstanceId,State.Name,IamInstanceProfile.Arn]" \
+  --output table</pre>
+      </div>
+      <table>
+        <tr><th>Part</th><th>Meaning</th></tr>
+        <tr><td><code>describe-instances</code></td><td>Read-only subcommand — lists EC2 instances. Safe to run any time; changes nothing.</td></tr>
+        <tr><td><code>--filters</code></td><td>Narrows results server-side to instances tagged for this project, instead of returning every instance in the account.</td></tr>
+        <tr><td><code>--query</code></td><td>A JMESPath expression that trims the (very verbose) raw JSON response down to just the fields we care about.</td></tr>
+        <tr><td><code>--output table</code></td><td>Formats the result as a human-readable table instead of raw JSON — useful when eyeballing results interactively; use <code>--output json</code> when piping into scripts.</td></tr>
+      </table>
+      <p><strong>Expected output:</strong> one row showing the instance ID, state (<code>running</code>), and the IAM instance profile ARN — confirming the role attached correctly and there's no access key involved.</p>
+
+      <div class="code-wrap">
+        <div class="code-head"><span>bash</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre>aws sts get-caller-identity \
+  --endpoint-url <span class="comment"># (run this FROM INSIDE the instance via SSM/SSH, not your laptop)</span></pre>
+      </div>
+      <p>Run from inside the instance, this confirms the instance is authenticating as the <code>reconcile-job-role</code> — not as your personal IAM user — proving the role-based credential chain works end to end. This command is read-only and safe; reversing it isn't applicable since it changes nothing.</p>
+
+      <!-- ============ VALIDATION ============ -->
+      <h2 class="section-title" id="validation"><span class="num">08</span> Validation &amp; Testing</h2>
+      <ul>
+        <li><strong>Infrastructure test:</strong> <code>terraform plan</code> shows zero pending changes after apply — confirms actual AWS state matches code (no drift).</li>
+        <li><strong>Security test:</strong> attempt to SSH into the instance from an IP other than <code>allowed_ssh_cidr</code> — connection must time out, confirming the security group is doing its job.</li>
+        <li><strong>IAM test:</strong> from inside the instance, attempt <code>aws s3 ls s3://some-other-random-bucket</code> — must fail with <code>AccessDenied</code>, confirming least privilege (the role can't touch buckets outside its policy).</li>
+        <li><strong>Application test:</strong> manually trigger <code>reconcile.py</code> once via SSH and confirm a report object lands under <code>s3://&lt;bucket&gt;/reports/</code>.</li>
+        <li><strong>Failure test:</strong> stop the instance manually and confirm the CloudWatch alarm transitions to <code>ALARM</code> state within one evaluation period.</li>
+      </ul>
+
+      <!-- ============ MONITORING ============ -->
+      <h2 class="section-title" id="monitoring"><span class="num">09</span> Monitoring &amp; Observability</h2>
+      <p>At this stage, "monitoring" is intentionally minimal — one log group capturing the script's stdout/stderr, and one alarm on EC2 status checks. We are not yet building dashboards or multi-metric alarms; that's introduced properly in Assignment 9 once we have more than one moving part worth correlating.</p>
+      <table>
+        <tr><th>What</th><th>Why</th></tr>
+        <tr><td>CloudWatch Log Group <code>/reconcile-job/execution</code></td><td>So a failed run leaves a trail someone can actually read, instead of disappearing when the cron job exits</td></tr>
+        <tr><td>CloudWatch Alarm on <code>StatusCheckFailed</code></td><td>Catches the case where the whole instance is unhealthy — the most basic thing that can go wrong</td></tr>
+      </table>
+
+      <!-- ============ INCIDENT ============ -->
+      <h2 class="section-title" id="incident"><span class="num">10</span> Production Incident</h2>
+
+      <div class="story-card">
+        <span class="role-tag">02:15 AM — On-call phone</span>
+        <p>The reconciliation report never landed in S3 last night. Merchandising notices at 8 AM standup because the dashboard they built off it is empty. Nobody paged anyone — there's no alarm yet for "the job ran but produced nothing," only for "the whole instance is unreachable." The instance itself shows as <code>running</code> and healthy in the console.</p>
+      </div>
+
+      <h4>Investigation</h4>
+      <div class="code-wrap">
+        <div class="code-head"><span>bash — from the instance via SSH</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre>tail -n 100 /var/log/cloud-init-output.log
+crontab -l
+sudo cat /var/log/reconcile-job.log</pre>
+      </div>
+      <p>The crontab entry is present and correct. The log shows the script started at 01:00 as scheduled, but exited after 2 seconds with a Python traceback:</p>
+      <div class="code-wrap">
+        <div class="code-head"><span>reconcile-job.log</span></div>
+        <pre>botocore.exceptions.ClientError: An error occurred (AccessDenied) when calling
+the GetObject operation: User: arn:aws:sts::...:assumed-role/reconcile-job-role/i-0abc...
+is not authorized to perform: s3:GetObject on resource:
+"arn:aws:s3:::retail-reconcile-prod/inbound/2026-08-07/stock_export.csv"</pre>
+      </div>
+
+      <h4>Root Cause</h4>
+      <p>The Merchandising team's export tool writes the daily CSV to a date-partitioned path — <code>inbound/2026-08-07/...</code> — but our IAM policy above only grants access to <code>inbound/*</code> at one level, and the bucket's actual object key has an extra path segment the policy's wildcard doesn't match the way we assumed, combined with the fact that the export landed under a slightly different prefix than what was scoped in review. In short: <strong>the IAM policy's resource ARN pattern and the application's actual S3 key layout were never verified against each other before go-live.</strong></p>
+
+      <h4>Immediate Fix</h4>
+      <p>Manually run <code>aws s3 cp</code> using an engineer's own (properly scoped, temporary) credentials to move last night's file into the reconciliation flow so Merchandising can get an up-to-date report the same morning.</p>
+
+      <h4>Permanent Fix</h4>
+      <div class="code-wrap">
+        <div class="code-head"><span>Corrected IAM policy resource</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre>Resource = [
+  "${aws_s3_bucket.reconcile_bucket.arn}",
+  "${aws_s3_bucket.reconcile_bucket.arn}/inbound/*"   <span class="comment"># /* already matches all nested prefixes/keys —</span>
+]                                                       <span class="comment"># the real bug was a stale bucket policy from a</span>
+                                                          <span class="comment"># prior manual test that explicitly DENIED this path</span>
+                                                          <span class="comment"># and was never cleaned up. Removed the conflicting</span>
+                                                          <span class="comment"># bucket policy statement; IAM Deny always overrides Allow.</span></pre>
+      </div>
+
+      <h4>Validation</h4>
+      <p>Re-ran the script manually the next night against a test object placed at the same date-partitioned path; confirmed successful <code>GetObject</code> and a report written to <code>reports/</code>.</p>
+
+      <h4>Monitoring Improvement</h4>
+      <p>Added a second CloudWatch alarm based on a custom metric the script now publishes on completion (<code>ReconcileJobSuccess = 1</code>), so "the job ran but failed" is now detectable — not just "the instance is down."</p>
+
+      <h4>Prevention / Lessons Learned</h4>
+      <ul>
+        <li>Always check for <em>both</em> IAM identity-based policies and any resource-based bucket policy — an explicit Deny anywhere in the evaluation always wins over an Allow.</li>
+        <li>Test the actual IAM policy against a real object key before go-live, not just against the "shape" of the path.</li>
+        <li>"The instance is running" is not the same as "the job succeeded" — status checks alone are insufficient monitoring for a batch job.</li>
+      </ul>
+
+      <!-- ============ TROUBLESHOOTING ============ -->
+      <h2 class="section-title" id="troubleshooting"><span class="num">11</span> Troubleshooting Methodology</h2>
+      <p>The instinct under pressure is to jump straight to "let's just widen the IAM policy." Resist that. The senior-engineer path is always: symptom → evidence → recent changes → metrics/logs → narrow down → root cause → fix → validate → prevent recurrence. Widening a policy without understanding why access was denied just trades one incident for a future security incident.</p>
+      <table>
+        <tr><th>Symptom</th><th>Check First</th><th>Likely Cause</th></tr>
+        <tr><td>S3 <code>AccessDenied</code> from an EC2 role</td><td>Both the role's IAM policy <em>and</em> the bucket policy/ACL</td><td>Explicit Deny somewhere, or resource ARN pattern mismatch</td></tr>
+        <tr><td>Instance unreachable via SSH</td><td>Security group inbound rules, then NACL, then route table</td><td>Security group scoped to wrong/changed IP</td></tr>
+        <tr><td>Instance can't reach S3 at all</td><td>Route table has a route to an Internet Gateway (default VPC should already have one)</td><td>Route table misconfigured or subnet has no IGW route</td></tr>
+        <tr><td>Terraform apply fails with "already exists"</td><td><code>terraform state list</code> — was this resource created outside Terraform?</td><td>Resource created manually in console, causing state drift</td></tr>
+      </table>
+
+      <!-- ============ COST ============ -->
+      <h2 class="section-title" id="cost"><span class="num">12</span> Cost Optimization</h2>
+      <table>
+        <tr><th>Resource</th><th>Cost Driver</th><th>Note</th></tr>
+        <tr><td>EC2 t3.micro</td><td>Runs 24/7 in this lab</td><td>Free-tier eligible (750 hrs/month) for a new account; beyond free tier, ~$7–8/month On-Demand in ap-south-1</td></tr>
+        <tr><td>S3 storage</td><td>Object storage + requests</td><td>Negligible for a nightly CSV + report; Standard storage class is fine at this volume</td></tr>
+        <tr><td>CloudWatch Logs</td><td>Ingestion + storage</td><td>Kept to 30-day retention specifically to avoid unbounded log storage cost</td></tr>
+      </table>
+      <div class="box warn">
+        <span class="label">Cost vs. Operational Simplicity</span>
+        <p>Running EC2 24/7 for a job that executes for two minutes a night is not cost-efficient — this is exactly the trade-off flagged in the EC2-vs-Lambda decision above. We're accepting the (small) cost inefficiency here in exchange for a simpler learning path in Assignment 1; a cost-optimized version of this exact workload is one of the practice challenges below, and the "correct" production answer is revisited with Lambda later in the course.</p>
+      </div>
+
+      <!-- ============ REVIEW ============ -->
+      <h2 class="section-title" id="review"><span class="num">13</span> Solutions Architect Review</h2>
+      <table>
+        <tr><th>Lens</th><th>Assessment</th></tr>
+        <tr><td>Reliability</td><td>Single EC2 instance is itself a single point of failure — acceptable for a nightly batch job with no real-time SLA, not acceptable if this becomes business-critical.</td></tr>
+        <tr><td>Security</td><td>No inbound exposure beyond scoped SSH; no long-lived credentials; least-privilege S3 access. Good foundation.</td></tr>
+        <tr><td>Performance</td><td>t3.micro is more than sufficient for a 2-minute script; no performance concerns at this scale.</td></tr>
+        <tr><td>Cost</td><td>Not cost-optimal (idle EC2 vs. event-driven Lambda) — a known, documented trade-off, not an oversight.</td></tr>
+        <tr><td>Operations</td><td>Logs and one alarm exist; the incident above shows a real gap (couldn't detect "ran but failed") that's now closed.</td></tr>
+        <tr><td>Scalability</td><td>Not designed to scale, and doesn't need to be — one file, once a night.</td></tr>
+        <tr><td>Maintainability</td><td>Fully described in Terraform; another engineer can read <code>main.tf</code> and understand the whole system in minutes.</td></tr>
+      </table>
+
+      <!-- ============ CLEANUP ============ -->
+      <h2 class="section-title" id="cleanup"><span class="num">14</span> Cleanup</h2>
+      <div class="code-wrap">
+        <div class="code-head"><span>bash</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre><span class="comment"># Empty the bucket first — Terraform won't delete a non-empty S3 bucket by default</span>
+aws s3 rm s3://&lt;your-bucket-name&gt; --recursive
+
+terraform destroy</pre>
+      </div>
+      <p><code>terraform destroy</code> reads the current state file and calls the corresponding delete API for every resource it tracks, in reverse dependency order (instance before instance profile before role, etc.).</p>
+
+      <!-- ============ ACCEPTANCE ============ -->
+      <h2 class="section-title" id="acceptance"><span class="num">15</span> Acceptance Criteria</h2>
+      <ul class="criteria">
+        <li>EC2 instance runs the reconciliation script on a nightly schedule with no human involvement</li>
+        <li>Instance authenticates to AWS via an IAM instance role — zero hardcoded access keys anywhere</li>
+        <li>S3 access is scoped to only the required bucket/prefixes (verified by a failed cross-bucket access attempt)</li>
+        <li>Security group allows inbound SSH only from the engineer's own IP</li>
+        <li>CloudWatch captures execution logs and alarms on both instance failure and job failure</li>
+        <li>Entire environment is created and destroyed cleanly via Terraform</li>
+      </ul>
+
+      <!-- ============ CHALLENGE ============ -->
+      <h2 class="section-title" id="challenge"><span class="num">16</span> Practice Challenge</h2>
+      <div class="card">
+        <p><strong>Priya comes back:</strong> "Finance asked why we're paying for a server that's idle 99.9% of the time. Can you make this cost-efficient without losing the security properties we just built?"</p>
+        <p><strong>Requirement:</strong> Redesign the compute layer so nothing runs (and nothing is billed) except during the ~2 minutes the job actually executes, while keeping the no-access-keys, least-privilege security posture.</p>
+        <p><strong>Acceptance Criteria:</strong> No compute resource is billed while idle; the IAM role's trust policy and permissions policy pattern still apply; the job still triggers automatically on a nightly schedule.</p>
+        <p><strong>Hints:</strong> What AWS compute service bills only for execution time? What triggers it on a schedule without a permanently-running server?</p>
+      </div>
+      <details>
+        <summary>Challenge Solution</summary>
+        <div class="inner">
+          <p>Replace the EC2 instance + user_data cron job with an <strong>AWS Lambda function</strong> containing the same <code>reconcile.py</code> logic, triggered by an <strong>Amazon EventBridge scheduled rule</strong> (cron expression, e.g. <code>cron(0 1 * * ? *)</code> for 01:00 daily). The Lambda gets its own <strong>execution role</strong> (conceptually identical to the EC2 instance role — a trust policy allowing <code>lambda.amazonaws.com</code> to assume it, and the same scoped S3 permissions policy). No server exists between invocations, so there is nothing to bill while idle, and no SSH/security-group surface at all since nothing is ever "up" waiting for a connection. This is exactly the architecture we'll build properly, with full serverless concepts, in the Serverless assignment later in the course.</p>
+        </div>
+      </details>
+
+      <!-- ============ INTERVIEW ============ -->
+      <h2 class="section-title" id="interview"><span class="num">17</span> Interview Preparation</h2>
+
+      <div class="qa">
+        <div class="q"><span class="qn">Q1 · AWS Fundamentals</span>Why use an IAM role instead of an IAM user with access keys for a workload running on EC2?</div>
+        <p>An IAM role attached via an instance profile provides temporary, automatically-rotating credentials through the instance metadata service — there's no long-lived secret to leak, rotate manually, or accidentally commit to source control. Access keys are static until manually rotated and are a common source of credential leaks in real incidents.</p>
+        <div class="follow"><b>Follow-up:</b> "How does the instance actually retrieve those credentials?" — Via the EC2 Instance Metadata Service (IMDS) at <code>169.254.169.254</code>; the AWS SDK/CLI checks this automatically as part of its default credential provider chain.</div>
+      </div>
+
+      <div class="qa">
+        <div class="q"><span class="qn">Q2 · Security</span>If a bucket policy explicitly denies an action and an IAM policy explicitly allows it, what happens?</div>
+        <p>Deny always wins. AWS evaluates all applicable policies — identity-based and resource-based — and if any statement explicitly denies an action, that overrides any allow, regardless of where the allow came from.</p>
+        <div class="follow"><b>Follow-up:</b> "How would you debug an unexpected AccessDenied?" — Check the IAM policy attached to the role/user, any resource-based policy (bucket policy), any SCPs at the Organization level, and any permission boundaries — in that order of likelihood for a single-account setup.</div>
+      </div>
+
+      <div class="qa">
+        <div class="q"><span class="qn">Q3 · Production Scenario</span>A nightly batch job's EC2 instance shows healthy in the console, but the expected output never appeared. Walk me through your triage.</div>
+        <p>Start with evidence, not assumptions: check the application-level logs (not just instance health) since "instance healthy" only confirms EC2/OS-level status checks, not application success. Pull CloudWatch Logs or SSH in and check the script's own log file for exceptions, confirm the schedule actually fired, and check IAM/network access from the instance's perspective before assuming the code itself is broken.</p>
+        <div class="follow"><b>Follow-up:</b> "What would you add to catch this earlier next time?" — A custom CloudWatch metric published by the application itself on success/failure, with an alarm on that metric — instance-level health checks alone can't tell you whether the job logic succeeded.</div>
+      </div>
+
+      <div class="qa">
+        <div class="q"><span class="qn">Q4 · Cost Optimization</span>When would you choose EC2 over Lambda for a scheduled job, given Lambda is usually cheaper for short workloads?</div>
+        <p>When the job's runtime, memory, or dependency footprint exceeds Lambda's limits (15-minute max execution, package size limits), when it needs a persistent local filesystem/state between invocations, or when the workload is genuinely long-running rather than short and bursty. For a 2-minute CSV job, Lambda is the better default — EC2 only makes sense if there's a concrete reason it doesn't fit Lambda's model.</p>
+        <div class="follow"><b>Follow-up:</b> "What if the job occasionally runs 20+ minutes during peak season?" — That crosses Lambda's timeout ceiling, which would push the decision toward Fargate (serverless containers with no timeout limit) rather than falling back to a full EC2 instance.</div>
+      </div>
+
+      <div class="qa">
+        <div class="q"><span class="qn">Q5 · Terraform</span>What's the difference between terraform plan and terraform apply, and why run plan first?</div>
+        <p><code>plan</code> computes and displays the diff between desired state (your code) and actual state (what's really in AWS, tracked via the state file) without changing anything. <code>apply</code> executes that diff. Running plan first — ideally reviewed by a second engineer — is how you catch an unintended destroy/replace (like a change that forces resource recreation) before it happens in a real environment.</p>
+        <div class="follow"><b>Follow-up:</b> "What's a change that would force resource replacement rather than an in-place update?" — Changing an EC2 instance's AMI ID, for example — Terraform will show that as destroy-then-create, not update-in-place, because AMI isn't a mutable attribute of a running instance.</div>
+      </div>
+
+      <div class="qa">
+        <div class="q"><span class="qn">Q6 · Manager Round</span>How do you decide how much infrastructure to build for a small internal tool versus over-engineering it?</div>
+        <p>I map the architecture to the actual stated requirements, not to what I know how to build. In this assignment, the business need was "always available, secure, off one laptop" — that's satisfied by one instance, one IAM role, basic monitoring. Adding auto scaling, multi-AZ, or a load balancer wouldn't address any requirement Priya actually raised, and would add operational and cost overhead without business justification. I'd rather ship the right-sized solution and revisit it explicitly when requirements change than build for a scale that isn't there yet.</p>
+        <div class="follow"><b>Follow-up:</b> "What would make you reconsider that decision?" — If the job's output became business-critical in real time rather than a nightly batch, or if the business explicitly asked for higher availability guarantees — at that point the added complexity would be justified by a real requirement.</div>
+      </div>
+
+      <!-- ============ RESUME ============ -->
+      <h2 class="section-title" id="resume"><span class="num">18</span> Resume Points</h2>
+      <ul class="resume-list">
+        <li>Migrated a manually-run, laptop-dependent business process to AWS EC2 with Terraform-managed infrastructure, eliminating a single-point-of-failure operational risk</li>
+        <li>Designed and implemented an IAM instance-role-based access pattern for a batch workload, eliminating long-lived AWS access keys from application code</li>
+        <li>Authored least-privilege IAM and S3 bucket policies scoped to specific prefixes and actions, following defense-in-depth security practice</li>
+        <li>Diagnosed and resolved an IAM/S3 access-denial production incident by isolating a conflicting explicit-deny bucket policy from a stale manual test</li>
+        <li>Built Terraform modules for compute, IAM, storage, and CloudWatch monitoring resources with full plan/apply/destroy lifecycle management</li>
+      </ul>
+
+      <!-- ============ NEXT ============ -->
+      <h2 class="section-title" id="next"><span class="num">19</span> Next Project</h2>
+      <div class="box win">
+        <span class="label">When you're ready</span>
+        <p>Implement this assignment, work through the practice challenge, and when you want to move on, just say <strong>"Next Project."</strong> Assignment 2 builds directly on this: we'll stop leaning on the account's default VPC and design a proper secure VPC with public and private subnets — because the very next thing Priya is going to ask for is a public-facing application, and the Security Team is going to insist the database behind it isn't reachable from the internet.</p>
+      </div>
+
+    </div>
+
+    <footer>AWS Cloud Engineering Masterclass · Assignment 01 of 25 · Foundation Stage</footer>
+  </div>
+</div>
+
+<button class="mobile-toggle" id="mobileToggle" aria-label="Toggle menu">☰</button>
+
+<script>
+// Sidebar active-link highlight on scroll
+const sections = document.querySelectorAll('h2.section-title[id]');
+const navLinks = document.querySelectorAll('.sidebar nav a');
+function onScroll(){
+  let current = '';
+  sections.forEach(s=>{
+    if(window.scrollY >= s.offsetTop - 80) current = s.id;
+  });
+  navLinks.forEach(a=>{
+    a.classList.toggle('active', a.getAttribute('href') === '#'+current);
+  });
+}
+window.addEventListener('scroll', onScroll);
+onScroll();
+
+// Mobile sidebar toggle
+document.getElementById('mobileToggle').addEventListener('click', ()=>{
+  document.getElementById('sidebar').classList.toggle('open');
+});
+document.querySelectorAll('.sidebar nav a').forEach(a=>{
+  a.addEventListener('click', ()=> document.getElementById('sidebar').classList.remove('open'));
+});
+
+// Copy-to-clipboard
+function copyCode(btn){
+  const pre = btn.closest('.code-wrap').querySelector('pre');
+  const text = pre.innerText;
+  navigator.clipboard.writeText(text).then(()=>{
+    const orig = btn.textContent;
+    btn.textContent = 'Copied!';
+    setTimeout(()=> btn.textContent = orig, 1500);
+  });
+}
+</script>
+</body>
+</html>

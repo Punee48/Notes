@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Project 13 — Production TCP Retransmission Incident</title>
+<style>
+:root{
+  --blue:#60A5FA; --blue-bg:#132238;
+  --purple:#C4B5FD; --purple-bg:#241B3D;
+  --teal:#5EEAD4; --teal-bg:#0F2C2A;
+  --green:#86EFAC; --green-bg:#132B1C;
+  --orange:#FDBA74; --orange-bg:#3A230F;
+  --red:#FCA5A5; --red-bg:#331515;
+  --bg:#0B1120; --panel:#111827; --text:#E5E7EB; --muted:#9CA3AF;
+  --border:#1F2937; --sidebar-w:280px;
+}
+*{box-sizing:border-box;}
+body{margin:0;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--text);line-height:1.65;}
+a{color:var(--blue);text-decoration:none;}
+a:hover{text-decoration:underline;}
+code{font-family:"SFMono-Regular",Consolas,"Liberation Mono",Menlo,monospace;}
+
+.cover{padding:60px 24px 40px;background:linear-gradient(135deg,#101B33,#1E1533);border-bottom:1px solid var(--border);}
+.cover-inner{max-width:900px;margin:0 auto;}
+.badge-row{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:18px;}
+.badge{font-size:12.5px;font-weight:600;padding:5px 12px;border-radius:20px;letter-spacing:.02em;}
+.badge.blue{background:#1D4ED8;color:#fff;}
+.badge.purple{background:#6D28D9;color:#fff;}
+.badge.teal{background:#0F766E;color:#fff;}
+.badge.orange{background:#C2410C;color:#fff;}
+.cover h1{font-size:2.1rem;margin:0 0 8px;color:#F9FAFB;}
+.cover .subtitle{font-size:1.05rem;color:var(--muted);margin-bottom:26px;}
+.cover-meta{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;}
+.meta-card{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:12px 14px;}
+.meta-card .label{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:700;}
+.meta-card .value{font-size:14.5px;font-weight:600;margin-top:2px;color:#F3F4F6;}
+
+.layout{display:flex;max-width:1400px;margin:0 auto;}
+.sidebar{width:var(--sidebar-w);flex-shrink:0;position:sticky;top:0;align-self:flex-start;height:100vh;overflow-y:auto;border-right:1px solid var(--border);padding:22px 14px;background:var(--bg);}
+.sidebar h4{font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin:18px 0 6px 10px;}
+.sidebar h4:first-child{margin-top:0;}
+.sidebar a{display:block;padding:7px 10px;border-radius:8px;font-size:13.5px;color:#CBD5E1;margin-bottom:1px;}
+.sidebar a:hover{background:var(--blue-bg);text-decoration:none;color:var(--blue);}
+.progress-wrap{margin:10px 10px 4px;}
+.progress-bar{height:6px;background:var(--border);border-radius:4px;overflow:hidden;}
+.progress-fill{height:100%;width:0%;background:linear-gradient(90deg,var(--blue),var(--purple));transition:width .2s;}
+.progress-label{font-size:11px;color:var(--muted);margin-top:4px;}
+
+.content{flex:1;min-width:0;padding:34px 40px 100px;}
+section{margin-bottom:48px;scroll-margin-top:20px;}
+h2.sec-title{font-size:1.5rem;border-bottom:2px solid var(--border);padding-bottom:10px;margin-bottom:18px;display:flex;align-items:center;gap:10px;color:#F9FAFB;}
+h2.sec-title .num{background:#1D4ED8;color:#fff;width:30px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;}
+h3{font-size:1.15rem;margin-top:28px;color:#F3F4F6;}
+
+.box{border-radius:10px;padding:16px 18px;margin:16px 0;border:1px solid transparent;}
+.box .box-title{font-weight:700;font-size:13px;text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px;display:flex;align-items:center;gap:6px;}
+.box.concept{background:var(--blue-bg);border-color:#1E3A5F;}
+.box.concept .box-title{color:var(--blue);}
+.box.architecture{background:var(--purple-bg);border-color:#3B2E63;}
+.box.architecture .box-title{color:var(--purple);}
+.box.success{background:var(--green-bg);border-color:#1E4B2E;}
+.box.success .box-title{color:var(--green);}
+.box.warning{background:var(--orange-bg);border-color:#5A3618;}
+.box.warning .box-title{color:var(--orange);}
+.box.failure{background:var(--red-bg);border-color:#5C2323;}
+.box.failure .box-title{color:var(--red);}
+.box.bestpractice{background:var(--teal-bg);border-color:#134E4A;}
+.box.bestpractice .box-title{color:var(--teal);}
+.box.story{background:#141B2E;border-color:var(--border);border-left:4px solid var(--purple);}
+
+.story p{margin:0 0 10px;color:#D1D5DB;}
+.story .quote{font-style:italic;color:#CBD5E1;border-left:3px solid var(--purple);padding-left:12px;margin:10px 0;}
+
+.term{background:#050810;color:#E2E8F0;border-radius:10px;margin:14px 0;overflow:hidden;border:1px solid #1E293B;}
+.term-header{display:flex;justify-content:space-between;align-items:center;background:#141B2E;padding:8px 14px;font-size:12px;color:#94A3B8;}
+.copy-btn{background:#243049;color:#E2E8F0;border:none;border-radius:6px;padding:4px 10px;font-size:11.5px;cursor:pointer;}
+.copy-btn:hover{background:#334155;}
+.term pre{margin:0;padding:14px 16px;overflow-x:auto;font-size:13.5px;line-height:1.7;}
+.term .cmdno{color:#64748B;margin-right:8px;}
+.term .cmd{color:#93C5FD;}
+.term .out{color:#CBD5E1;}
+.term .out-err{color:#FCA5A5;}
+.term .out-ok{color:#86EFAC;}
+.term .comment{color:#64748B;}
+
+table.breakdown{width:100%;border-collapse:collapse;margin:12px 0 20px;font-size:14px;}
+table.breakdown th{background:#141B2E;text-align:left;padding:8px 10px;font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);}
+table.breakdown td{padding:9px 10px;border-top:1px solid var(--border);vertical-align:top;color:#D1D5DB;}
+table.breakdown td.token{font-family:monospace;color:var(--blue);font-weight:700;white-space:nowrap;}
+
+details.collapse{border:1px solid var(--border);border-radius:10px;margin:14px 0;overflow:hidden;}
+details.collapse summary{cursor:pointer;padding:12px 16px;font-weight:600;background:#141B2E;list-style:none;display:flex;align-items:center;gap:8px;color:#E5E7EB;}
+details.collapse summary::-webkit-details-marker{display:none;}
+details.collapse summary:before{content:"▶";font-size:11px;color:var(--muted);transition:transform .15s;}
+details.collapse[open] summary:before{transform:rotate(90deg);}
+details.collapse .collapse-body{padding:4px 16px 16px;}
+
+.diagram-frame{background:#0D1420;border:1px solid var(--border);border-radius:12px;padding:18px;margin:16px 0;overflow-x:auto;}
+.diagram-caption{font-size:12.5px;color:var(--muted);text-align:center;margin-top:8px;}
+
+table.ref{width:100%;border-collapse:collapse;font-size:14px;margin:14px 0;}
+table.ref th{background:#141B2E;padding:8px 10px;text-align:left;font-size:12.5px;color:#E5E7EB;}
+table.ref td{padding:8px 10px;border-top:1px solid var(--border);color:#D1D5DB;}
+
+.dtree{list-style:none;padding-left:0;font-size:14px;}
+.dtree li{padding:8px 12px;margin-bottom:6px;border-radius:8px;border:1px solid var(--border);position:relative;color:#D1D5DB;}
+.dtree li.q{background:var(--blue-bg);}
+.dtree li.ok{background:var(--green-bg);}
+.dtree li.bad{background:var(--red-bg);}
+.dtree .arrow{text-align:center;color:var(--muted);font-size:12px;margin:2px 0;}
+
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin:16px 0;}
+.card{border:1px solid var(--border);border-radius:10px;padding:14px 16px;background:#0F1626;}
+.card h4{margin:0 0 6px;font-size:14.5px;color:#F3F4F6;}
+.card p{margin:0;font-size:13.5px;color:var(--muted);}
+
+.qa{border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin:12px 0;background:#0F1626;}
+.qa .q{font-weight:700;color:#F3F4F6;margin-bottom:6px;}
+.qa .q .qtag{background:#6D28D9;color:#fff;font-size:10.5px;padding:2px 8px;border-radius:10px;margin-right:8px;text-transform:uppercase;}
+.qa .followup{margin-top:8px;padding-top:8px;border-top:1px dashed var(--border);font-size:13.5px;color:var(--muted);}
+.qa p{color:#D1D5DB;}
+
+.timeline{border-collapse:collapse;width:100%;font-size:13.5px;margin:16px 0;}
+.timeline th{background:#141B2E;padding:8px 10px;text-align:left;color:#E5E7EB;font-size:12px;}
+.timeline td{padding:9px 10px;border-top:1px solid var(--border);color:#D1D5DB;vertical-align:top;}
+.timeline td.t{font-family:monospace;color:var(--orange);white-space:nowrap;font-weight:700;}
+
+.top-link{position:fixed;bottom:22px;right:22px;background:#1D4ED8;color:#fff;width:42px;height:42px;border-radius:50%;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(0,0,0,.4);font-size:18px;}
+.top-link:hover{text-decoration:none;background:#2563EB;}
+
+p{color:#D1D5DB;}
+
+@media (max-width:900px){
+  .sidebar{display:none;}
+  .content{padding:22px 18px 80px;}
+}
+</style>
+</head>
+<body>
+
+<div class="cover">
+  <div class="cover-inner">
+    <div class="badge-row">
+      <span class="badge blue">Project 13 of ~38</span>
+      <span class="badge purple">Linux Networking Masterclass</span>
+      <span class="badge teal">Domain: Telecom / OSS Billing</span>
+      <span class="badge orange">Difficulty: Advanced</span>
+    </div>
+    <h1>Production TCP Retransmission Incident</h1>
+    <div class="subtitle">Peak hour-la, billing system-oda SLA breach aagudhu. Ippo namba full incident timeline vachu, retransmission internals-a deep-a poi paakalam — RTO, exponential backoff, congestion window, Nagle's algorithm ellame serndhu enna panradhu nu.</div>
+    <div class="cover-meta">
+      <div class="meta-card"><div class="label">Estimated Lab Time</div><div class="value">3.5 hours</div></div>
+      <div class="meta-card"><div class="label">Prerequisites</div><div class="value">Projects 4, 5, 12 completed</div></div>
+      <div class="meta-card"><div class="label">Lab Environment</div><div class="value">2 namespaces, netem, tcpdump</div></div>
+      <div class="meta-card"><div class="label">Concepts Learned</div><div class="value">RTO backoff, congestion window collapse, Nagle + delayed ACK interaction</div></div>
+    </div>
+  </div>
+</div>
+
+<div class="layout">
+  <nav class="sidebar" id="sidebar">
+    <div class="progress-wrap">
+      <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+      <div class="progress-label" id="progressLabel">0% through Project 13</div>
+    </div>
+    <h4>Orientation</h4>
+    <a href="#story">1. The Incident Timeline</a>
+    <a href="#foundation">2. Retransmission Internals</a>
+    <a href="#architecture">3. RTO Backoff, Visualized</a>
+    <a href="#methodology">4. Incident Response Method</a>
+    <h4>Hands-On Lab</h4>
+    <a href="#labsetup">5. Lab Setup</a>
+    <a href="#verify">6. Verify Baseline</a>
+    <h4>Break / Fix (3 Incidents)</h4>
+    <a href="#break1">7. RTO Exponential Backoff, Live</a>
+    <a href="#break2">8. Congestion Window Collapse</a>
+    <a href="#break3">9. Nagle + Delayed ACK Stall</a>
+    <h4>Wrap-Up</h4>
+    <a href="#bestpractices">10. Best Practices</a>
+    <a href="#cheatsheet">11. Cheat Sheet</a>
+    <a href="#interview">12. Interview Prep</a>
+    <a href="#practice">13. Practice Tasks</a>
+    <a href="#resume">14. Resume Points</a>
+    <a href="#next">15. Next Project</a>
+  </nav>
+
+  <main class="content">
+
+  <section id="story">
+    <h2 class="sec-title"><span class="num">1</span>The Incident Timeline</h2>
+    <div class="box story">
+      <p>Telecom company-oda billing/OSS system, peak recharge hours-la (evening 6-9 PM) slow aayi, konjo requests timeout aayidum nu alert vandhudhu. Idhu oru "single command-la fix aagura" issue illa — real incident maadhiri, namba step by step, evidence vachu poganum.</p>
+      <table class="timeline">
+        <tr><th>Time</th><th>Event</th></tr>
+        <tr><td class="t">18:42</td><td>Monitoring alert: billing-api P99 latency spike, 200ms → 4.2s</td></tr>
+        <tr><td class="t">18:45</td><td>On-call engineer confirms — checkout, routing, DNS, firewall ellame sari nu already ruled out (Projects 1-3 method)</td></tr>
+        <tr><td class="t">18:50</td><td>ss -tn state established shows connections "stuck," Recv-Q not draining fast</td></tr>
+        <tr><td class="t">18:55</td><td>tcpdump capture start pannaranga — retransmissions, duplicate SYNs kaanudhu</td></tr>
+        <tr><td class="t">19:05</td><td>Root cause narrow pannaranga — network segment-la intermittent loss, TCP-oda own recovery behavior (backoff + congestion control) dhaan latency spike-a amplify pannudhu</td></tr>
+      </table>
+      <p class="quote">"Loss romba kammi dhaan — maybe 2-3%. Aana latency spike romba periya-a irukku. Ithu yeppadi nadakkudhu nu puriyala."</p>
+      <p>Ithu dhaan indha project-oda main point — chinna packet loss %, TCP-oda own reaction mechanism (RTO backoff, congestion window collapse) vachu, romba periya latency-a maarudhu. Loss itself problem illa, TCP eppadi respond pannudhu nu puriyanum.</p>
+    </div>
+    <div class="box concept">
+      <div class="box-title">🔵 Ithu yean important</div>
+      <p>Production-la "2% packet loss, ana latency 10x aayidichu" nu maadhiri incidents romba common — especially telecom/OSS, banking core systems-la. Ithu puriyama, "network is fine, only 2% loss" nu wrong conclusion vandhurum. RTO backoff and congestion window internals theriyama, indha maadhiri incident-a explain panna mudiyadhu.</p>
+    </div>
+  </section>
+
+  <section id="foundation">
+    <h2 class="sec-title"><span class="num">2</span>Retransmission Internals</h2>
+
+    <h3>2.1 RTO — Retransmission Timeout</h3>
+    <div class="box concept">
+      <div class="box-title">🔵 Concept</div>
+      <p>TCP oru packet anuppitu, adhukku ACK vara evlo time wait pannanum nu, dynamic-a calculate pannum — idhுdhaan RTO (Retransmission Timeout). Ithu fixed value illa — connection-oda measured RTT (round trip time) vachu, kernel continuously adjust pannikittu irukkum. RTT evlo consistent-a irukka, adhu vachu RTO tight-a irukkum; RTT fluctuate aana, RTO safety margin-oda periya-a irukkum.</p>
+    </div>
+
+    <h3>2.2 Exponential backoff — retry ஒவ்வொரு time-um wait double aagum</h3>
+    <div class="box concept">
+      <div class="box-title">🔵 Concept</div>
+      <p>Oru packet lost aayi, RTO expire aagi, TCP retransmit pannuchu-nu vachukalam. Adhே packet AGAIN lost aana, next retry-ku wait time DOUBLE aagum (1s → 2s → 4s → 8s...). Ithு "exponential backoff" — network already stressed-a irundha, konjo konjo-a retry pannuradhu, network-a innum overload pannama irukka. Ithu dhaan namba incident-la "sometimes connections randomly hang for several seconds" nu symptom kaattudhu.</p>
+    </div>
+
+    <h3>2.3 Congestion window (cwnd) — loss aana, TCP "brake" podum</h3>
+    <div class="box concept">
+      <div class="box-title">🔵 Concept</div>
+      <p>TCP-oda congestion control, evlo data "in flight" (sent but not yet acknowledged) irukkalam nu track pannum — ithே congestion window (cwnd). Loss detect aana (retransmission via duplicate ACKs or timeout), TCP assume pannum "network congested-a irukku" nu, cwnd-a DRASTIC-a kammi pannidum — sometimes half-a, sometimes almost zero-ku (timeout case-la). Appuram, "slow start" mode-la, konjo konjo-a cwnd-a thirumba build pannum. Idhु exact-a namba incident symptom — chinna loss, periya throughput drop, slow recovery.</p>
+    </div>
+
+    <h3>2.4 Nagle's algorithm + Delayed ACK — rendு nalla features, serndha problem</h3>
+    <div class="box concept">
+      <div class="box-title">🔵 Concept</div>
+      <p>Nagle's algorithm — chinna packets-a individual-a anuppama, batch pannitu anுppுவது (efficiency-ku). Delayed ACK — receiver side-la, ACK immediate-a anுppாமல், konjo wait pannitu (piggyback pannitu) anுppுவது. Rendும individually nalla optimization dhaan — aana rendும serndhu vandha, sender Nagle-vachu wait pannுtu irukkும், receiver delayed ACK-vachu wait pannுtu irukkும், rendுperum wait pannுtu classic ~40ms stall varum. Ithு loss illa — pure timing interaction problem.</p>
+    </div>
+  </section>
+
+  <section id="architecture">
+    <h2 class="sec-title"><span class="num">3</span>RTO Backoff, Visualized</h2>
+    <div class="diagram-frame">
+<svg viewBox="0 0 820 260" xmlns="http://www.w3.org/2000/svg" width="100%">
+<style>.lbl{font:600 12px sans-serif;fill:#F3F4F6;} .sub{font:10.5px sans-serif;fill:#9CA3AF;} .bar{fill:#1D4ED8;} .bar2{fill:#C2410C;}</style>
+<text x="20" y="30" class="lbl">Retry attempts, wait time doubling each time (seconds)</text>
+<rect x="40" y="180" width="30" height="40" class="bar"/><text x="55" y="235" text-anchor="middle" class="sub">1s</text>
+<rect x="120" y="140" width="30" height="80" class="bar"/><text x="135" y="235" text-anchor="middle" class="sub">2s</text>
+<rect x="200" y="90" width="30" height="130" class="bar2"/><text x="215" y="235" text-anchor="middle" class="sub">4s</text>
+<rect x="280" y="20" width="30" height="200" class="bar2"/><text x="295" y="235" text-anchor="middle" class="sub">8s</text>
+<text x="480" y="70" class="sub" fill="#FCA5A5">By attempt 3-4, a single stuck connection is already costing several seconds —</text>
+<text x="480" y="90" class="sub" fill="#FCA5A5">exactly what "randomly hangs for a few seconds" looks like from the app side.</text>
+</svg>
+    </div>
+    <div class="diagram-caption">Figure 1 — Ovvoru retry-um double aagudhu. Konjo consecutive losses vandha, wait time fast-a periya-a aagidum.</div>
+  </section>
+
+  <section id="methodology">
+    <h2 class="sec-title"><span class="num">4</span>Incident Response Method</h2>
+    <ul class="dtree">
+      <li class="q">1. Rule out earlier layers first — routing, firewall, DNS (Projects 1-3 method) — already sari-nu confirm pannu</li>
+      <div class="arrow">↓</div>
+      <li class="q">2. ss -tn vachu, connections-oda state and Recv-Q/Send-Q paaru — stuck-a irukka nu confirm pannu</li>
+      <div class="arrow">↓</div>
+      <li class="q">3. tcpdump capture pannu, retransmissions/duplicate ACKs irukka nu paaru (Project 5/6 method)</li>
+      <div class="arrow">↓</div>
+      <li class="q">4. Loss % measure pannu (ping, or capture-la count pannu) — chinna % um periya latency impact panna mudiyும் nu ninaikanum</li>
+      <div class="arrow">↓</div>
+      <li class="q">5. Root cause narrow pannu — pure loss-a, illa TCP-oda own recovery mechanism (backoff/cwnd) amplify pannudha</li>
+      <div class="arrow">↓</div>
+      <li class="ok">Fix pannu (network-level loss address pannanum, illa app-level tuning), validate pannu, RCA document pannu</li>
+    </ul>
+    <div class="box warning"><div class="box-title">🟠 Warning</div><p>"Only 2% loss dhaan, adhu periya problem-a irukkadhu" nu assume pannadha — TCP-oda backoff and congestion control mechanism, chinna loss-a periya latency-a amplify pannும். Always measure the actual application-level impact, not just the raw loss %.</p></div>
+  </section>
+
+  <section id="labsetup">
+    <h2 class="sec-title"><span class="num">5</span>Lab Setup</h2>
+    <div class="term">
+      <div class="term-header"><span>bash — root/sudo vachu run pannu</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button></div>
+      <pre><span class="cmdno">1</span><span class="cmd">sudo ip netns add ns-billing-api      </span><span class="comment"># "server" namespace — billing API service</span>
+<span class="cmdno">2</span><span class="cmd">sudo ip netns add ns-recharge-client  </span><span class="comment"># "client" namespace — recharge system calling billing API</span>
+<span class="cmdno">3</span><span class="cmd">sudo ip link add veth-client type veth peer name veth-server   </span><span class="comment"># virtual cable rendு end</span>
+<span class="cmdno">4</span><span class="cmd">sudo ip link set veth-client netns ns-recharge-client   </span><span class="comment"># client end move pannu</span>
+<span class="cmdno">5</span><span class="cmd">sudo ip link set veth-server netns ns-billing-api        </span><span class="comment"># server end move pannu</span>
+<span class="cmdno">6</span><span class="cmd">sudo ip netns exec ns-recharge-client ip addr add 10.95.1.10/24 dev veth-client   </span><span class="comment"># client IP</span>
+<span class="cmdno">7</span><span class="cmd">sudo ip netns exec ns-billing-api ip addr add 10.95.1.20/24 dev veth-server       </span><span class="comment"># server IP</span>
+<span class="cmdno">8</span><span class="cmd">sudo ip netns exec ns-recharge-client ip link set veth-client up   </span><span class="comment"># interface up pannu</span>
+<span class="cmdno">9</span><span class="cmd">sudo ip netns exec ns-billing-api ip link set veth-server up       </span><span class="comment"># idhuvum up pannu</span>
+<span class="cmdno">10</span><span class="cmd">for ns in ns-recharge-client ns-billing-api; do sudo ip netns exec $ns ip link set lo up; done   </span><span class="comment"># loopback up, rendு namespace-kkum</span>
+<span class="cmdno">11</span><span class="cmd">sudo ip netns exec ns-billing-api python3 -m http.server 8080 --bind 10.95.1.20 &amp;   </span><span class="comment"># billing API-a simulate panna simple HTTP server</span></pre>
+    </div>
+  </section>
+
+  <section id="verify">
+    <h2 class="sec-title"><span class="num">6</span>Verify Baseline</h2>
+    <div class="term">
+      <div class="term-header"><span>bash</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button></div>
+      <pre><span class="cmdno">1</span><span class="cmd">sudo ip netns exec ns-recharge-client curl -s -o /dev/null -w "time: %{time_total}s\n" http://10.95.1.20:8080/   </span><span class="comment"># request time measure pannu — namba healthy baseline</span>
+<span class="out-ok">    time: 0.008s   (super fast, no loss, no problem)</span></pre>
+    </div>
+    <div class="box success"><div class="box-title">🟢 Baseline ready</div><p>Loss illa-na, request fast-a complete aagudhu. Ippo namba step by step, loss introduce pannitu, evlo latency-a affect pannudhu nu paakalam.</p></div>
+  </section>
+
+  <!-- BREAK 1 -->
+  <section id="break1">
+    <h2 class="sec-title"><span class="num">7</span>Break-Fix #1 — RTO Exponential Backoff, Live</h2>
+    <div class="box failure"><div class="box-title">🔴 Break Pannalam</div><p>Server-a completely unreachable pannuvom (firewall drop) — SYN retries-oda backoff-a live-a paakalam.</p></div>
+    <div class="term">
+      <div class="term-header"><span>bash — on ns-billing-api</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button></div>
+      <pre><span class="cmdno">1</span><span class="cmd">sudo ip netns exec ns-billing-api iptables -A INPUT -p tcp --dport 8080 -j DROP   </span><span class="comment"># SYN packet silent-a drop pannidum, no reply varadhu</span></pre>
+    </div>
+    <h3>Paathukalaam</h3>
+    <div class="term">
+      <div class="term-header"><span>bash — on ns-recharge-client, capture pannitu, connection try pannu</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button></div>
+      <pre><span class="cmdno">1</span><span class="cmd">sudo ip netns exec ns-recharge-client tcpdump -i veth-client -nn 'tcp port 8080' -c 6 &amp;   </span><span class="comment"># first 6 packets mattum capture pannu — namba retries-a paakanum</span>
+<span class="cmdno">2</span><span class="cmd">sudo ip netns exec ns-recharge-client timeout 20 curl http://10.95.1.20:8080/   </span><span class="comment"># 20 seconds wait pannitu give up pannu</span>
+<span class="out">    14:00:00.000  SYN   (attempt 1)
+    14:00:01.000  SYN   (retry — ~1s wait, RTO #1)
+    14:00:03.000  SYN   (retry — ~2s wait, RTO #2, doubled)
+    14:00:07.000  SYN   (retry — ~4s wait, RTO #3, doubled again)</span></pre>
+    </div>
+    <div class="box concept"><div class="box-title">🔵 Reading the symptom</div><p>Namba Section 3-la paatha diagram, ippo real capture-la kaanudhu — ovvoru retry-kum wait time double aagudhu (1s, 2s, 4s...). Application side-la, ithu "connection just hangs for a while" nu feel aagum, aana underneath, TCP systematically, predictable-a retry pannikittu irukku, network-a overload pannama.</p></div>
+    <div class="box failure"><div class="box-title">🔴 Root Cause</div><p>Server unreachable-a irundhadhunala, TCP exponential backoff mode-la retry pannikittu irundhudhu — expected behavior dhaan, aana application timeout config romba periya-a irundha, user-ku romba naala wait pannanum nu varum.</p></div>
+    <div class="term">
+      <div class="term-header"><span>bash — fix</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button></div>
+      <pre><span class="cmdno">1</span><span class="cmd">sudo ip netns exec ns-billing-api iptables -D INPUT -p tcp --dport 8080 -j DROP   </span><span class="comment"># block remove pannidalam</span></pre>
+    </div>
+    <div class="box bestpractice"><div class="box-title">🟦 Best Practice</div><p>Application-level connection timeout, evlo naala TCP retry pannum nu accept pannalam nu, deliberate-a set pannanum — default OS-level retry behavior-ku wait pannama, app-level-la reasonable short timeout vachu, fast-fail pannaradhu nalla practice.</p></div>
+  </section>
+
+  <!-- BREAK 2 -->
+  <section id="break2">
+    <h2 class="sec-title"><span class="num">8</span>Break-Fix #2 — Congestion Window Collapse</h2>
+    <div class="box failure"><div class="box-title">🔴 Break Pannalam</div><p>Chinna % packet loss introduce pannuvom (namba incident-la irundha 2-3% maadhiri) — periya bulk transfer-la evlo throughput drop aagudhu nu paakalam.</p></div>
+    <div class="term">
+      <div class="term-header"><span>bash — on ns-recharge-client</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button></div>
+      <pre><span class="cmdno">1</span><span class="cmd">sudo ip netns exec ns-recharge-client tc qdisc add dev veth-client root netem loss 3%   </span><span class="comment"># realistic-a chinna 3% loss simulate pannுdhu, namba incident maadhiri</span></pre>
+    </div>
+    <h3>Paathukalaam</h3>
+    <div class="term">
+      <div class="term-header"><span>bash — periya file transfer download pannu, size measure pannu</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button></div>
+      <pre><span class="cmdno">1</span><span class="cmd">sudo ip netns exec ns-billing-api bash -c "head -c 20M /dev/urandom > /tmp/bigfile.bin"   </span><span class="comment"># 20MB test file create pannu</span>
+<span class="cmdno">2</span><span class="cmd">sudo ip netns exec ns-billing-api python3 -m http.server 8080 --bind 10.95.1.20 --directory /tmp &amp;   </span><span class="comment"># idha serve panna, restart the server pointing at /tmp</span>
+<span class="cmdno">3</span><span class="cmd">sudo ip netns exec ns-recharge-client bash -c "time curl -s -o /dev/null http://10.95.1.20:8080/bigfile.bin"   </span><span class="comment"># download time measure pannu, 3% loss vachu</span>
+<span class="out-err">    real   0m8.412s   (namba baseline-la, loss illama, ithu konjo seconds mattum dhaan aaganum)</span></pre>
+    </div>
+    <div class="box concept"><div class="box-title">🔵 Reading the symptom</div><p>3% packet loss dhaan — chinna number maadhiri thonum. Aana result — download time DRAMATICALLA periya aayidhudhu. Yean-na, ovvoru loss detect aana, TCP cwnd-a drastic-a kammi pannidum, appuram slow-start mode-la konjo konjo-a mattum thirumba build pannும். Sustained loss irundha, cwnd never fully recover aagadhu, throughput permanently kammi-a irukkum. Idhு dhaan namba incident-oda "chinna loss, periya latency impact" mystery-oda answer.</p></div>
+    <div class="box failure"><div class="box-title">🔴 Root Cause</div><p>Sustained, chinna % packet loss, TCP-oda congestion control mechanism-a repeatedly trigger pannuchu — cwnd baaru baaru collapse aagi, slow-start-la mattum recover aaganum-nu irundhadhunala, achievable throughput permanently kammi-a irundhudhu.</p></div>
+    <div class="term">
+      <div class="term-header"><span>bash — fix (lab cleanup; real fix — network path-la loss address pannanum)</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button></div>
+      <pre><span class="cmdno">1</span><span class="cmd">sudo ip netns exec ns-recharge-client tc qdisc del dev veth-client root netem   </span><span class="comment"># loss simulation remove pannidalam</span></pre>
+    </div>
+    <div class="box bestpractice"><div class="box-title">🟦 Best Practice</div><p>"Only X% loss" nu dismiss pannadha — sustained loss, TCP-oda congestion control vachu, romba periya throughput impact create pannும். Real fix — network path-la (cable, switch, driver, wireless link) actual loss source-a kandupudichu fix pannanum, app-level workaround mattum podradhu illa.</p></div>
+  </section>
+
+  <!-- BREAK 3 -->
+  <section id="break3">
+    <h2 class="sec-title"><span class="num">9</span>Break-Fix #3 — Nagle + Delayed ACK Stall</h2>
+    <div class="box failure"><div class="box-title">🔴 Break Pannalam</div><p>Loss illa indha case-la — pure timing interaction problem. Chinna, chinna messages rapid-a anுppுra client script vachu simulate pannுவோம்.</p></div>
+    <div class="term">
+      <div class="term-header"><span>bash — on ns-recharge-client, small-write client (Nagle's algorithm default-a ON irukkum)</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button></div>
+      <pre><span class="cmdno">1</span><span class="cmd">sudo ip netns exec ns-recharge-client bash -c "cat > /tmp/small_writes.py" &lt;&lt;'EOF'
+import socket, time
+s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+s.connect(('10.95.1.20', 8080))
+start = time.time()
+for i in range(5):
+    s.send(b"x")          # ஒரே ஒரு byte anuppுறோம் — Nagle algorithm ithை wait pannitu batch pannும் try pannும்
+    data = s.recv(100)    # reply-ku wait pannுறோம்
+print("total time:", time.time() - start)
+EOF</span>
+<span class="cmdno">2</span><span class="cmd">sudo ip netns exec ns-recharge-client python3 /tmp/small_writes.py   </span><span class="comment"># run pannu, total time-a paaru</span>
+<span class="out-err">    total time: 0.203s   (5 chinna sends-ku, ithu expect panradhை vida romba periya-a irukku)</span></pre>
+    </div>
+    <div class="box concept"><div class="box-title">🔵 Reading the symptom</div><p>~40ms per round trip maadhiri delay kaanum, total-a serndhu 200ms+ aagidhudhu — ellame chinna byte anுppுறதுக்கு. Ithு classic Nagle + delayed ACK interaction — sender chinna packet-a batch pannanum-nu wait pannுறாரு, receiver ACK-a delay pannுறாரு, rendும் perum wait pannுறாரு, ஒருவர் oruvara timeout pannும் varaikkும். Loss illa, retransmission illa — pure protocol-level timing mismatch.</p></div>
+    <div class="box failure"><div class="box-title">🔴 Root Cause</div><p>Application chinna, chinna writes pannுtu irundhadhunala (batch pannாமல்), Nagle's algorithm (sender side) and delayed ACK (receiver side) rendும் serndhு, ovvoru round-trip-kum artificial delay create pannுchu.</p></div>
+    <div class="term">
+      <div class="term-header"><span>bash — fix: TCP_NODELAY vachu Nagle-a disable pannu, indha connection-ku</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button></div>
+      <pre><span class="cmdno">1</span><span class="cmd">sudo ip netns exec ns-recharge-client bash -c "cat > /tmp/nodelay_writes.py" &lt;&lt;'EOF'
+import socket, time
+s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+s.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)  # Nagle's algorithm-a OFF pannுறோம் இந்த socket-ku
+s.connect(('10.95.1.20', 8080))
+start = time.time()
+for i in range(5):
+    s.send(b"x")
+    data = s.recv(100)
+print("total time:", time.time() - start)
+EOF</span>
+<span class="cmdno">2</span><span class="cmd">sudo ip netns exec ns-recharge-client python3 /tmp/nodelay_writes.py</span>
+<span class="out-ok">    total time: 0.012s   (romba fast-a aayidhudhu, TCP_NODELAY vachu)</span></pre>
+    </div>
+    <table class="breakdown">
+      <tr><th>Token</th><th>Meaning</th></tr>
+      <tr><td class="token">socket.TCP_NODELAY, 1</td><td>Idhu Nagle's algorithm-a off pannும் socket option — ovvoru send() um immediate-a wire-ku pogum, batch pannும் wait pannாmal. Latency-sensitive, chinna-message protocols (like this billing API's request/response pattern) ku ithு very commonly recommended.</td></tr>
+    </table>
+    <div class="box bestpractice"><div class="box-title">🟦 Best Practice</div><p>Request/response, chat-style, ya real-time protocols (romba chinna messages, frequent-a) ku, TCP_NODELAY set pannுவது common practice. Aana bulk data transfer (large file, streaming) ku Nagle's algorithm nalladhu-dhaan — efficiency kudukும். Idhு "one size fits all" fix illa, workload pattern-a base panni decide pannanும்.</p></div>
+  </section>
+
+  <section id="bestpractices">
+    <h2 class="sec-title"><span class="num">10</span>Production Best Practices</h2>
+    <div class="cards">
+      <div class="card"><h4>🟦 Chinna loss %-a underestimate pannadha</h4><p>Sustained loss, TCP congestion control vachu, periya throughput impact create pannும்.</p></div>
+      <div class="card"><h4>🟦 Backoff pattern-a recognize pannu</h4><p>1s, 2s, 4s, 8s doubling — capture-la ithை paartha, immediate-a RTO/backoff-a suspect pannu.</p></div>
+      <div class="card"><h4>🟦 Nagle vs TCP_NODELAY, workload-a base pannி</h4><p>Chinna, frequent messages-ku NODELAY; bulk transfer-ku default Nagle nalladhu.</p></div>
+      <div class="card"><h4>🟦 App-level timeout deliberate-a set pannु</h4><p>OS-level retry/backoff-ku exposed-a irundha, user experience-a badly affect pannும்.</p></div>
+    </div>
+  </section>
+
+  <section id="cheatsheet">
+    <h2 class="sec-title"><span class="num">11</span>Troubleshooting Cheat Sheet</h2>
+    <table class="ref">
+      <tr><th>Symptom</th><th>Likely Cause</th><th>Command</th></tr>
+      <tr><td>Connection "hangs" for a few seconds, then works or fails</td><td>RTO exponential backoff (SYN retries)</td><td><code>tcpdump</code> — look for doubling gaps between SYNs</td></tr>
+      <tr><td>Chinna packet loss %, periya throughput drop</td><td>Congestion window collapse + slow recovery</td><td>iperf3/curl timing before vs after loss</td></tr>
+      <tr><td>No loss, but ~40ms stalls on small requests</td><td>Nagle + delayed ACK interaction</td><td>Check app's write pattern; try TCP_NODELAY</td></tr>
+    </table>
+  </section>
+
+  <section id="interview">
+    <h2 class="sec-title"><span class="num">12</span>Interview Preparation</h2>
+
+    <div class="qa"><div class="q"><span class="qtag">Scenario</span>Only 2-3% packet loss dhaan irukku, aana latency 10x aayidhuchu — eppadi explain pannுவீங்க?</div>
+    <p>TCP-oda congestion control mechanism vachu explain pannுவேன் — loss detect aana, TCP assume pannும் network congested-nu, cwnd-a drastic-a kammi pannிடும், appuram slow-start mode-la konjo konjo-a mattum recover aagும். Sustained loss irundha, cwnd never fully recover aagadhu, achievable throughput permanently kammi-a irukும். Chinna loss %, periya application-level impact create pannும், TCP-oda own protective behavior vachu.</p>
+    <div class="followup">Follow-up: "Ithை fix panna enna pannuveenga?" — Answer: real fix, network path-la actual loss source-a kandupudichu fix pannuradhu (cable, switch, driver) — app-level tuning konjo help pannும், aana root cause network layer-la dhaan irukும்.</div>
+    </div>
+
+    <div class="qa"><div class="q"><span class="qtag">Concept</span>Nagle's algorithm and delayed ACK enna, rendும் serndha enna aagும்?</div>
+    <p>Nagle's algorithm, sender side-la chinna packets-a batch pannும், efficiency-ku. Delayed ACK, receiver side-la, ACK-a immediate-a anுppாமல், konjo wait pannும். Rendும் serndhு vandha, ovvoru side-um marra side wait pannுtu irukும், classic ~40ms stall create aagும். Fix — latency-sensitive workload-ku TCP_NODELAY vachu Nagle-a disable pannுவது.</p>
+    </div>
+
+    <div class="qa"><div class="q"><span class="qtag">Troubleshooting</span>Capture-la, SYN retries oru particular pattern-la (1s, 2s, 4s gaps) kaanudhu — enna nadakுdhu?</div>
+    <p>Idhு TCP-oda exponential backoff — ovvoru failed retry-kum, next attempt wait time double aagும். Idhு indicate pannுdhu, server unreachable-a irukku (firewall drop, ya server down) — network-a overload pannாமல், TCP systematically retry pannுtu irukும்.</p>
+    </div>
+  </section>
+
+  <section id="practice">
+    <h2 class="sec-title"><span class="num">13</span>Practice Tasks</h2>
+    <div class="box warning">
+      <div class="box-title">🟠 Practice Pannு</div>
+      <ol>
+        <li>Lab-a memory-la irundhu rebuild pannு.</li>
+        <li>3 break-fix scenarios reproduce pannு, ovvondrukum, "loss-a, backoff-a, Nagle interaction-a" nu classify pannு before checking this file.</li>
+        <li>Different loss %-la (1%, 5%, 10%) bigfile download time measure pannு, evlo non-linear-a throughput drop aagும் nu paaru.</li>
+      </ol>
+    </div>
+  </section>
+
+  <section id="resume">
+    <h2 class="sec-title"><span class="num">14</span>Resume Points</h2>
+    <div class="box bestpractice">
+      <div class="box-title">🟦 Resume bullet points</div>
+      <ul>
+        <li>Diagnosed a production-style TCP performance incident where minor sustained packet loss caused disproportionate latency, tracing the amplification to TCP congestion window collapse and slow-start recovery.</li>
+        <li>Identified TCP RTO exponential backoff patterns in packet captures to distinguish unreachable-server incidents from application-layer slowness.</li>
+        <li>Diagnosed and resolved a Nagle's-algorithm/delayed-ACK interaction causing ~40ms per-request stalls, applying TCP_NODELAY for a latency-sensitive request/response workload.</li>
+      </ul>
+    </div>
+    <div class="box concept">
+      <div class="box-title">🔵 Spoken interview answer</div>
+      <p>"I walked through a simulated production incident where a billing system had a big latency spike during peak hours, even though the underlying packet loss was small — around 2 to 3 percent. I traced it to TCP's own congestion control behavior — the congestion window collapses aggressively on loss and only recovers slowly through slow-start, so small sustained loss creates a much bigger throughput drop than the raw loss percentage suggests. I also practiced recognizing exponential backoff patterns in packet captures for unreachable connections, and separately reproduced a Nagle's-algorithm-plus-delayed-ACK stall that had nothing to do with packet loss at all, fixing it with TCP_NODELAY for that specific request/response workload."</p>
+    </div>
+  </section>
+
+  <section id="next">
+    <h2 class="sec-title"><span class="num">15</span>Next Project</h2>
+    <div class="box architecture">
+      <div class="box-title">🟣 Coming up in Project 14 — MTU Black-Hole Troubleshooting</div>
+      <p>Ippo namba MTU mismatch problem paakalam — connection establish aagும், aana periya packets silent-a drop aagும், "works with small requests, hangs with large ones" nu classic symptom.</p>
+      <p>Ready aana <b>"Next Project"</b> nu sollு.</p>
+    </div>
+  </section>
+
+  </main>
+</div>
+
+<a href="#" class="top-link" title="Back to top">↑</a>
+
+<script>
+function copyBlock(btn){
+  const pre = btn.closest('.term').querySelector('pre');
+  const text = pre.innerText;
+  navigator.clipboard.writeText(text).then(()=>{
+    const old = btn.textContent;
+    btn.textContent = "Copied!";
+    setTimeout(()=>btn.textContent = old, 1400);
+  });
+}
+window.addEventListener('scroll', function(){
+  const sections = document.querySelectorAll('section');
+  const total = document.body.scrollHeight - window.innerHeight;
+  const pct = Math.min(100, Math.round((window.scrollY/total)*100));
+  document.getElementById('progressFill').style.width = pct + '%';
+  document.getElementById('progressLabel').textContent = pct + '% through Project 13';
+
+  let current = '';
+  sections.forEach(sec=>{
+    const rect = sec.getBoundingClientRect();
+    if(rect.top <= 120) current = sec.id;
+  });
+  document.querySelectorAll('.sidebar a').forEach(a=>{
+    a.style.background = '';
+    a.style.color = '';
+    a.style.fontWeight = '';
+    if(a.getAttribute('href') === '#'+current){
+      a.style.background = 'var(--blue-bg)';
+      a.style.color = 'var(--blue)';
+      a.style.fontWeight = '700';
+    }
+  });
+});
+</script>
+</body>
+</html>

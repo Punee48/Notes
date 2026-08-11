@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Modules 13-20 — From Playbook to Production Pipeline</title>
+<style>
+:root{
+  --blue:#1D4ED8; --blue-light:#DBEAFE; --blue-vlight:#EFF6FF;
+  --ink:#1F2937; --muted:#4B5563; --line:#E5E7EB; --ok:#047857; --warn:#B45309; --bad:#B91C1C;
+  --code-bg:#0F172A; --code-ink:#E2E8F0;
+}
+*{box-sizing:border-box}
+body{margin:0;font-family:Segoe UI, Arial, sans-serif;color:var(--ink);background:#fff;line-height:1.65;font-size:16px;}
+.layout{display:flex;min-height:100vh;}
+nav{width:280px;flex-shrink:0;background:var(--blue-vlight);border-right:1px solid var(--line);padding:24px 16px;position:sticky;top:0;height:100vh;overflow-y:auto;}
+nav h2{font-size:14px;text-transform:uppercase;letter-spacing:.05em;color:var(--blue);margin:0 0 12px;}
+nav a{display:block;padding:7px 10px;border-radius:6px;color:var(--ink);text-decoration:none;font-size:14px;margin-bottom:2px;}
+nav a:hover{background:var(--blue-light);}
+main{flex:1;padding:40px 60px;max-width:980px;}
+.badge{display:inline-block;background:var(--blue);color:#fff;font-size:12px;font-weight:600;padding:4px 10px;border-radius:999px;letter-spacing:.03em;}
+h1{font-size:30px;margin:14px 0 6px;color:var(--blue);}
+.subtitle{color:var(--muted);font-size:16px;margin-bottom:32px;}
+h2{font-size:22px;margin-top:48px;border-bottom:2px solid var(--blue-light);padding-bottom:8px;color:#111827;}
+h3{font-size:18px;margin-top:24px;color:#111827;}
+p{margin:12px 0;}
+.story{background:var(--blue-vlight);border-left:4px solid var(--blue);padding:16px 20px;border-radius:6px;margin:16px 0;}
+.why{background:#FFFBEB;border-left:4px solid var(--warn);padding:14px 20px;border-radius:6px;margin:14px 0;}
+.prod{background:#ECFDF5;border-left:4px solid var(--ok);padding:14px 20px;border-radius:6px;margin:14px 0;}
+.flow{background:#F9FAFB;border:1px solid var(--line);border-radius:8px;padding:18px 20px;margin:16px 0;font-family:Consolas,monospace;font-size:14px;white-space:pre;overflow-x:auto;color:#111827;}
+table{width:100%;border-collapse:collapse;margin:16px 0;font-size:14px;}
+th{background:var(--blue);color:#fff;text-align:left;padding:9px 11px;}
+td{padding:9px 11px;border-bottom:1px solid var(--line);vertical-align:top;}
+tr:nth-child(even) td{background:#F9FAFB;}
+details{border:1px solid var(--line);border-radius:8px;margin:14px 0;padding:0;}
+summary{cursor:pointer;padding:12px 16px;font-weight:600;background:#F9FAFB;border-radius:8px;}
+details[open] summary{border-bottom:1px solid var(--line);border-radius:8px 8px 0 0;}
+details .inner{padding:14px 18px;}
+.task{background:#ECFDF5;border:1px solid #A7F3D0;border-radius:8px;padding:18px 22px;margin:24px 0;}
+.task h3{margin-top:0;color:var(--ok);}
+.next{background:#111827;color:#fff;border-radius:8px;padding:20px 24px;margin-top:30px;}
+code{background:#F1F5F9;padding:1px 6px;border-radius:4px;font-size:13.5px;}
+pre{background:var(--code-bg);color:var(--code-ink);padding:16px 18px;border-radius:8px;overflow-x:auto;font-size:13.5px;margin:14px 0;}
+.line-note{font-size:14px;color:var(--muted);margin:4px 0 4px 18px;}
+footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);color:var(--muted);font-size:13px;}
+</style>
+</head>
+<body>
+<div class="layout">
+<nav>
+  <h2>Masterclass</h2>
+  <a href="#m13">13. Common Multi-Cloud Playbook</a>
+  <a href="#m14">14. AAP Configuration</a>
+  <a href="#m15">15. AAP Survey</a>
+  <a href="#m16">16. AAP Workflow Template</a>
+  <a href="#m17">17. Post-Provisioning</a>
+  <a href="#m18">18. Security</a>
+  <a href="#m19">19. Idempotency</a>
+  <a href="#m20">20. Error Handling</a>
+  <a href="#next">What Comes Next</a>
+</nav>
+<main>
+  <span class="badge">MODULES 13 – 20</span>
+  <h1>From One Playbook to a Full Production Pipeline</h1>
+  <p class="subtitle">Tying AWS, Azure, and OpenShift together inside AAP, and making it safe for production</p>
+  <div class="story">
+    <p>Puneeth, this file covers eight modules in one go, so read it a little slower than usual and use the sidebar to jump around rather than reading top to bottom in one sitting. By the end of this file, our three separate platform roles from Modules 10–12 become one real, click-by-click AAP pipeline that a requester can actually use.</p>
+  </div>
+
+  <h2 id="m13">Module 13 — The Common Multi-Cloud Playbook</h2>
+  <p>Right now we have three separate roles: <code>aws_provision</code>, <code>azure_provision</code>, <code>openshift_provision</code>. We need one single entry point that AAP's Job Template actually launches, which picks the correct role automatically.</p>
+  <pre>---
+# playbooks/provision_server.yml
+
+- name: Enterprise Multi-Cloud Server Provisioning
+  hosts: localhost
+  gather_facts: false
+
+  pre_tasks:
+    - name: Run input validation before anything else
+      ansible.builtin.include_role:
+        name: validate_request
+
+  tasks:
+    - name: Dynamically run the correct platform role
+      ansible.builtin.include_role:
+        name: "{{ cloud_platform }}_provision"
+
+    - name: Run post-provisioning configuration
+      ansible.builtin.include_role:
+        name: linux_baseline
+      when: os_type is search('rhel')
+
+    - name: Validate the provisioned server
+      ansible.builtin.include_role:
+        name: validation
+
+    - name: Send notification and update CMDB
+      ansible.builtin.include_role:
+        name: notification</pre>
+  <p class="line-note"><code>hosts: localhost</code> — this whole play runs on the AAP execution node itself, not on any managed server, because at this point in the flow there is no server yet to connect to — everything is API/cloud-SDK calls; we explain this fully in Module 14's Inventory section.</p>
+  <p class="line-note"><code>include_role: name: "{{ cloud_platform }}_provision"</code> — this is the single most important line in the whole masterclass: because <code>cloud_platform</code> is a variable (<code>aws</code>, <code>azure</code>, or <code>openshift</code>), Ansible builds the role name dynamically at runtime — the string <code>"aws_provision"</code>, <code>"azure_provision"</code>, or <code>"openshift_provision"</code> is only known once the variable is resolved.</p>
+  <div class="why"><strong><code>include_role</code> vs <code>import_role</code>:</strong> <code>import_role</code> is resolved statically, at playbook-parsing time, before any variables from a Survey are even applied — so it cannot use a variable to pick which role to run. <code>include_role</code> is resolved dynamically, at actual execution time, task by task — which is exactly what lets us plug in the correct cloud role based on what the requester chose. This is a very common, very fair interview question: "why did you use include_role instead of import_role here?"</div>
+  <p class="line-note"><code>when: os_type is search('rhel')</code> — a simple example of conditionally skipping a step; we don't want to run our RHEL-specific baseline role against a Windows server.</p>
+
+  <h2 id="m14">Module 14 — Configuring This Project Inside AAP</h2>
+  <table>
+    <tr><th>AAP Object</th><th>What we configure</th><th>Why</th></tr>
+    <tr><td>Organization</td><td>One Organization, e.g. "ABC Bank Infrastructure"</td><td>The top-level container everything else (Teams, Projects, Credentials) belongs to</td></tr>
+    <tr><td>Team</td><td>"Multi-Cloud-Provisioning-Engineers" Team, mapped to an LDAP/AD group</td><td>Groups people, so RBAC is assigned once to the Team, not per individual</td></tr>
+    <tr><td>Project</td><td>SCM URL pointing to our Git repo, SCM credential (deploy key), branch <code>main</code>, "Update Revision on Launch" enabled</td><td>Keeps AAP always running the latest reviewed code straight from Git, never a manually uploaded copy</td></tr>
+    <tr><td>Credentials</td><td>One Credential object each for AWS, Azure, OpenShift, Git, and Vault</td><td>Each Credential type securely stores exactly the fields that platform's authentication (Module 3) needs, encrypted inside AAP's database</td></tr>
+    <tr><td>Inventory</td><td>A minimal Inventory containing just <code>localhost</code></td><td>Explained below — cloud API provisioning doesn't target managed hosts the normal way</td></tr>
+    <tr><td>Execution Environment</td><td>Our custom EE from Module 6, pinned to an exact tag</td><td>Guarantees every job run uses the exact collections/SDKs we tested with</td></tr>
+    <tr><td>Job Template</td><td>"MULTI-CLOUD-SERVER-PROVISIONING", pointing at <code>playbooks/provision_server.yml</code></td><td>The actual object a requester or Workflow launches</td></tr>
+  </table>
+  <details open>
+    <summary>Why localhost, not a managed-host inventory?</summary>
+    <div class="inner"><p>A normal Ansible inventory lists real servers Ansible will SSH/WinRM into. But when we're <em>creating</em> a new AWS/Azure/OpenShift resource, there is no server yet to connect to — the "target" of the play is really the cloud provider's API, reached over HTTPS from wherever the playbook runs. So we point <code>hosts:</code> at <code>localhost</code> (meaning "the AAP execution node itself") and let the cloud collection modules make the outbound API calls. Only later, in Module 17, once the server actually exists, does a real managed-host connection (SSH/WinRM) come into play, via the <code>add_host</code> pattern from Modules 10–12.</p></div>
+  </details>
+  <p><strong>Key Job Template settings to know:</strong> <em>Privilege Escalation</em> should be off for this template (it runs against localhost/APIs, not systems needing sudo yet); <em>Ask Variables on Launch</em> is disabled once the Survey is built, since the Survey supplies the variables instead; <em>Concurrent Jobs</em> is normally left disabled here, so two provisioning requests for the exact same server name can't race each other.</p>
+
+  <h2 id="m15">Module 15 — The AAP Survey</h2>
+  <p>The Survey is the actual form the requester fills in — it replaces the email from Module 1's story with structured, validated input.</p>
+  <table>
+    <tr><th>Question</th><th>Variable Name</th><th>Type</th><th>Required</th><th>Default</th><th>Allowed Values</th></tr>
+    <tr><td>Cloud Platform</td><td><code>cloud_platform</code></td><td>Multiple Choice</td><td>Yes</td><td>—</td><td>aws, azure, openshift</td></tr>
+    <tr><td>Environment</td><td><code>environment</code></td><td>Multiple Choice</td><td>Yes</td><td>dev</td><td>dev, qa, uat, prod</td></tr>
+    <tr><td>Application Name</td><td><code>application</code></td><td>Text</td><td>Yes</td><td>—</td><td>—</td></tr>
+    <tr><td>VM Name</td><td><code>vm_name</code></td><td>Text</td><td>Yes</td><td>—</td><td>Pattern-checked later by <code>validate_request</code></td></tr>
+    <tr><td>Operating System</td><td><code>os_type</code></td><td>Multiple Choice</td><td>Yes</td><td>rhel9</td><td>rhel9, rhel8, windows2022</td></tr>
+    <tr><td>CPU</td><td><code>cpu</code></td><td>Integer</td><td>Yes</td><td>4</td><td>Min 1, Max 16</td></tr>
+    <tr><td>Memory (GB)</td><td><code>memory</code></td><td>Integer</td><td>Yes</td><td>16</td><td>Min 2, Max 64</td></tr>
+    <tr><td>Disk (GB)</td><td><code>disk_size</code></td><td>Integer</td><td>Yes</td><td>100</td><td>Min 20, Max 500</td></tr>
+    <tr><td>Additional Disk (GB)</td><td><code>extra_disk_size</code></td><td>Integer</td><td>No</td><td>0</td><td>Min 0, Max 500</td></tr>
+    <tr><td>Network</td><td><code>subnet_id</code></td><td>Text</td><td>Yes</td><td>—</td><td>—</td></tr>
+    <tr><td>Security Group / NSG</td><td><code>security_group_id</code></td><td>Text</td><td>Yes</td><td>—</td><td>—</td></tr>
+    <tr><td>Owner</td><td><code>owner</code></td><td>Text</td><td>Yes</td><td>—</td><td>—</td></tr>
+    <tr><td>Cost Center</td><td><code>cost_center</code></td><td>Text</td><td>Yes</td><td>—</td><td>—</td></tr>
+    <tr><td>Change Number</td><td><code>change_number</code></td><td>Text</td><td>Yes</td><td>—</td><td>Format like <code>CHG0012345</code></td></tr>
+  </table>
+  <div class="why"><strong>How Survey answers become <code>extra_vars</code>:</strong> When a requester submits the Survey, AAP takes every question's <code>variable_name</code> and its submitted value, and passes them into the job exactly as if you had typed <code>--extra-vars "cloud_platform=aws environment=dev ..."</code> on a command line. Because <code>extra_vars</code> sits at the very top of the precedence order from Module 8, whatever the requester picks always wins over any role default.</div>
+
+  <h2 id="m16">Module 16 — The AAP Workflow Template</h2>
+  <div class="flow">Request Submitted
+        |
+        v
+Validate Input  (Job Template: provisioning playbook's validate_request role)
+        |
+        v
+Approval Node  (human sign-off, timeout after N hours)
+        |
+   On Approve
+        |
+        v
+MULTI-CLOUD-SERVER-PROVISIONING  (creates the server + runs baseline)
+        |
+   +----On Success----+----On Failure----+
+   |                                     |
+   v                                     v
+Security Hardening Job Template     Failure Notification Node
+   |
+   v
+Validation Job Template
+   |
+   v
+CMDB Update Job Template
+   |
+   v
+Success Notification Node  (always path also fires here)</div>
+  <table>
+    <tr><th>Concept</th><th>Meaning</th></tr>
+    <tr><td>On Success path</td><td>The next node only runs if the previous node's job finished with no failures</td></tr>
+    <tr><td>On Failure path</td><td>The next node only runs if the previous node's job actually failed — used here to branch straight to a failure notification</td></tr>
+    <tr><td>Always path</td><td>Runs regardless of success or failure — useful for a final "job finished" logging step</td></tr>
+    <tr><td>Approval Node</td><td>Pauses the Workflow and waits for a human with the right RBAC permission to click Approve or Deny, with an optional timeout</td></tr>
+    <tr><td>Convergence</td><td>When two earlier branches must both finish before a later node runs — not used heavily in our linear flow, but common in more complex Workflows</td></tr>
+    <tr><td>Workflow Variables</td><td>Extra_vars set once at the Workflow level, passed down into every node's job, so we don't have to re-enter <code>cost_center</code> for every single node</td></tr>
+    <tr><td><code>set_stats</code> as Artifacts</td><td>The data we wrote with <code>set_stats</code> in Modules 10–12 (instance_id, private_ip) automatically becomes available as a variable to every later node in the same Workflow — this is exactly how the CMDB Update node knows the new server's IP without re-querying the cloud API</td></tr>
+  </table>
+
+  <h2 id="m17">Module 17 — Post-Provisioning Configuration</h2>
+  <p>Once the server actually exists (Modules 10–12 handled that), a second, very different phase begins: configuring the server itself over SSH/WinRM.</p>
+  <div class="flow">localhost / Cloud API automation   (Modules 10-12)
+        |
+        v
+  add_host  adds the new server's real IP into
+  Ansible's in-memory inventory, group "newly_provisioned"
+        |
+        v
+Newly Provisioned Server Configuration  (this module)
+   - Wait for connectivity (wait_for port 22/5986)
+   - Configure hostname
+   - Configure DNS registration
+   - Configure NTP
+   - Configure proxy settings
+   - Mount and format additional disks
+   - Create application users
+   - SSH hardening (disable root login, disable password auth)
+   - Install baseline packages
+   - Install monitoring agent
+   - Install logging/log-shipping agent
+   - Install EDR/antivirus agent
+   - Install backup agent
+   - Register with the patch management system</div>
+  <div class="why"><strong>Why <code>add_host</code> is the hinge of the whole design:</strong> Every task before <code>add_host</code> ran against <code>localhost</code>, talking to a cloud API. Every task after it runs against a real managed host, over SSH or WinRM, using ordinary Ansible modules like <code>ansible.builtin.user</code> or <code>ansible.posix.mount</code>. <code>add_host</code> is what lets a single playbook run smoothly transition from "create infrastructure" to "configure the operating system" without needing two completely separate playbook runs or a static inventory file prepared in advance.</div>
+
+  <h2 id="m18">Module 18 — Security Best Practices</h2>
+  <table>
+    <tr><th>✅ Do this</th><th>❌ Never this</th></tr>
+    <tr><td>Store all secrets as AAP Credential objects, encrypted at rest in AAP's database</td><td>Hardcode a password or key inside a playbook or <code>vars/*.yml</code> file committed to Git</td></tr>
+    <tr><td>Use IAM Roles / Managed Identity / Service Accounts (Module 3) for short-lived access</td><td>Use a personal AWS/Azure login or a permanent shared password for automation</td></tr>
+    <tr><td>Pull dynamic secrets from Vault/CyberArk at job runtime</td><td>Email or Slack a password to a teammate "just this once"</td></tr>
+    <tr><td>Scope every Role/RBAC assignment to the minimum needed (least privilege)</td><td>Grant Contributor/Admin/ClusterRole broadly "to save time"</td></tr>
+    <tr><td>Rotate credentials on a schedule, and immediately after any suspected leak</td><td>Leave the same Access Key active for years with no rotation</td></tr>
+    <tr><td>Inject SSH keys via cloud-init/Vault, never a shared static key pair</td><td>Reuse one SSH private key across every server in the company</td></tr>
+    <tr><td>Enable AAP job logging/auditing and review it periodically</td><td>Run automation with logging disabled "for performance"</td></tr>
+  </table>
+  <div class="why"><strong>Why the "bad" examples are genuinely dangerous:</strong> A hardcoded key in Git doesn't just risk one server — Git history keeps every old commit, so even deleting the line later doesn't remove it from history unless the whole repo is scrubbed; and a broadly-scoped ClusterRole or Contributor role means one compromised token can affect far more than the one application it was meant for.</div>
+
+  <h2 id="m19">Module 19 — Idempotency, Formalized</h2>
+  <p>You already saw the check-then-create pattern in each platform's playbook (Modules 10–12); this module simply names the pattern clearly so you can explain it confidently in an interview.</p>
+  <div class="flow">Run the same provisioning job a second time
+        |
+        v
+   Check: does a resource with this exact name already exist?
+        |
+   +----+----+
+   |         |
+  Yes        No
+   |         |
+ Skip      Create
+   |         |
+   +----+----+
+        |
+        v
+Either way, report back the same final state
+(instance ID, IP) so downstream steps behave identically</div>
+  <table>
+    <tr><th>Platform</th><th>How we check "does it already exist"</th></tr>
+    <tr><td>AWS</td><td><code>ec2_instance_info</code> filtered by the <code>Name</code> tag (Module 10)</td></tr>
+    <tr><td>Azure</td><td><code>azure_rm_virtualmachine_info</code> by resource group + name (Module 11)</td></tr>
+    <tr><td>OpenShift</td><td><code>k8s_info</code> for a <code>VirtualMachine</code> with that exact name in that namespace (Module 12)</td></tr>
+  </table>
+  <div class="why"><strong>Interview framing:</strong> <em>"Our playbooks are idempotent because every provisioning role checks for an existing resource by name before creating anything, and skips creation if it's already there — so accidentally launching the same Job Template twice never creates duplicate, orphaned infrastructure."</em></div>
+
+  <h2 id="m20">Module 20 — Error Handling</h2>
+  <pre>- name: Attempt EC2 provisioning with safe error handling
+  block:
+    - name: Provision the EC2 instance
+      amazon.aws.ec2_instance:
+        name: "{{ vm_name }}"
+        # ... same parameters as Module 10
+      register: ec2_result
+
+    - name: Wait for SSH, fail clearly if it never comes up
+      ansible.builtin.wait_for:
+        host: "{{ ec2_result.instances[0].private_ip_address }}"
+        port: 22
+        timeout: 300
+      register: ssh_check
+      failed_when: ssh_check is failed
+
+  rescue:
+    - name: Log the failure clearly
+      ansible.builtin.debug:
+        msg: "Provisioning failed for {{ vm_name }}: {{ ansible_failed_result.msg | default('unknown error') }}"
+
+    - name: Attempt a safe rollback (terminate the half-created instance)
+      amazon.aws.ec2_instance:
+        instance_ids: "{{ ec2_result.instances[0].instance_id }}"
+        state: absent
+      when: ec2_result is defined and ec2_result.instances is defined
+
+    - name: Re-raise the failure so the AAP job clearly shows Failed
+      ansible.builtin.fail:
+        msg: "Provisioning of {{ vm_name }} failed and was rolled back — see log above"
+
+  always:
+    - name: Always record that a provisioning attempt was made
+      ansible.builtin.set_stats:
+        data:
+          last_attempt_vm: "{{ vm_name }}"
+          last_attempt_time: "{{ ansible_date_time.iso8601 }}"</pre>
+  <p class="line-note"><code>block:</code> — groups the "happy path" tasks together, so a single <code>rescue:</code> can catch a failure from any task inside it, instead of adding error handling to each task individually.</p>
+  <p class="line-note"><code>failed_when: ssh_check is failed</code> — explicitly controls what counts as failure for this task, useful when you want failure logic to be based on something more specific than the module's own default success/fail behavior.</p>
+  <p class="line-note"><code>rescue:</code> — only runs if something inside <code>block:</code> failed; this is where we log the problem, and importantly, attempt to <strong>roll back</strong> the half-created instance rather than leaving an orphaned, un-tracked EC2 instance running and costing money.</p>
+  <p class="line-note"><code>ansible_failed_result.msg</code> — a special variable Ansible populates inside a <code>rescue</code> block, holding the actual error message from whichever task failed — useful for a clear log message without guessing which task broke.</p>
+  <p class="line-note"><code>ansible.builtin.fail</code> inside <code>rescue</code> — without this, a successful rescue would make the whole play report as "successful" even though the original provisioning failed; explicitly failing again ensures the AAP Job Template still shows red/Failed, which is important so nobody thinks the server was created when it wasn't.</p>
+  <p class="line-note"><code>always:</code> — runs no matter what happened in <code>block</code> or <code>rescue</code> — here just used to record that an attempt happened at all, useful for audit trails even on total failure.</p>
+  <div class="why"><strong>Why <code>ignore_errors: true</code> is dangerous if overused:</strong> it silently marks a failed task as "changed" or "ok" and lets the play continue as if nothing went wrong — perfectly fine for a truly optional step (like a best-effort cleanup task), but if used on a core provisioning task, it can let a play report success in AAP even though the server was never actually created, which is a very hard bug to trust or debug later. Prefer <code>block/rescue</code> or a precise <code>failed_when</code> instead, and reserve <code>ignore_errors</code> for genuinely non-critical steps only.</div>
+  <p><strong>Other tools worth knowing:</strong> <code>changed_when</code> lets you control when a task is reported as "changed" versus "ok" (useful for command/shell tasks that don't naturally know); <code>until</code>/<code>retries</code>/<code>delay</code> (seen already in Module 12's phase-polling) retries a task a set number of times with a pause in between, useful for anything that might need a moment to become ready rather than truly failing.</p>
+
+  <div class="task" id="task">
+    <h3>Hands-On Task (covers Modules 13-20)</h3>
+    <ol>
+      <li>Write the one-line change you'd make to <code>provision_server.yml</code> if a fourth cloud platform, say <code>gcp</code>, were added — and explain why <code>include_role</code> makes this a one-line change instead of a rewrite.</li>
+      <li>Fill in one more Survey row for a <code>backup_required</code> Yes/No question, following the table format from Module 15.</li>
+      <li>In your own words, explain why the rollback task in Module 20's <code>rescue</code> block matters for cost control, not just for cleanliness.</li>
+    </ol>
+  </div>
+
+  <div class="next" id="next">
+    <strong>What comes next — Modules 21-22: Rollback Strategy and Logging/Auditing.</strong>
+    <p style="margin-bottom:0">We go deeper into rollback decision-making (delete vs preserve vs raise an incident) and build the full audit trail — who requested, who approved, which Git commit ran, which job ID — tying together everything from this file. Reply "next" whenever you're ready.</p>
+  </div>
+
+  <footer>Enterprise Multi-Cloud Server Provisioning Masterclass — Modules 13-20 of 30</footer>
+</main>
+</div>
+</body>
+</html>

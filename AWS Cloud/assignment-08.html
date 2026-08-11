@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Assignment 08 — Managed Relational Database Architecture</title>
+<style>
+:root{
+  --bg:#0B1120; --bg-2:#111827; --card:#17202F; --card-2:#1C2536; --border:#26314A;
+  --orange:#FF9900; --orange-dim:#B96E00; --blue:#00A8E1; --green:#34D399;
+  --warning:#FBBF24; --error:#F87171; --text:#E5E9F0; --text-dim:#94A3B8;
+  --code-bg:#0A0E17; --code-text:#D1D9E6;
+  --mono:'JetBrains Mono','Fira Code',ui-monospace,monospace;
+  --sans:'Inter',-apple-system,sans-serif; --display:'Space Grotesk','Inter',sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html{scroll-behavior:smooth;}
+body{background:var(--bg);color:var(--text);font-family:var(--sans);line-height:1.65;font-size:16px;}
+a{color:var(--blue);text-decoration:none;} a:hover{text-decoration:underline;}
+::selection{background:var(--orange);color:#0B1120;}
+.shell{display:flex;min-height:100vh;}
+.sidebar{width:270px;flex-shrink:0;background:var(--bg-2);border-right:1px solid var(--border);
+  position:sticky;top:0;height:100vh;overflow-y:auto;padding:24px 0 60px;}
+.sidebar-brand{padding:0 20px 20px;border-bottom:1px solid var(--border);margin-bottom:12px;}
+.sidebar-brand .tag{font-family:var(--mono);font-size:11px;color:var(--orange);letter-spacing:.12em;text-transform:uppercase;}
+.sidebar-brand h1{font-family:var(--display);font-size:17px;margin-top:6px;line-height:1.3;}
+.sidebar nav a{display:block;padding:8px 20px;font-size:13.5px;color:var(--text-dim);border-left:2px solid transparent;}
+.sidebar nav a:hover{color:var(--text);text-decoration:none;background:var(--card);}
+.sidebar nav a.active{color:var(--orange);border-left-color:var(--orange);background:var(--card);}
+.main{flex:1;min-width:0;}
+.container{max-width:900px;margin:0 auto;padding:56px 40px 120px;}
+.cover{background:linear-gradient(160deg,#131C2E 0%, #0B1120 70%);border:1px solid var(--border);border-radius:14px;
+  padding:44px 40px;margin-bottom:48px;position:relative;overflow:hidden;}
+.cover::before{content:"";position:absolute;top:-60px;right:-60px;width:260px;height:260px;
+  background:radial-gradient(circle,rgba(255,153,0,.18),transparent 70%);}
+.cover .eyebrow{font-family:var(--mono);color:var(--orange);font-size:12px;letter-spacing:.14em;text-transform:uppercase;}
+.cover h1{font-family:var(--display);font-size:34px;margin:12px 0 14px;max-width:640px;position:relative;}
+.cover p.lede{color:var(--text-dim);max-width:560px;font-size:15px;position:relative;}
+.cover-meta{display:flex;flex-wrap:wrap;gap:10px;margin-top:24px;position:relative;}
+.chip{background:var(--card);border:1px solid var(--border);border-radius:999px;padding:6px 14px;font-size:12.5px;color:var(--text-dim);font-family:var(--mono);}
+.chip b{color:var(--text);}
+h2.section-title{font-family:var(--display);font-size:24px;margin:56px 0 18px;padding-bottom:10px;border-bottom:1px solid var(--border);
+  display:flex;align-items:center;gap:10px;scroll-margin-top:24px;}
+h2.section-title .num{font-family:var(--mono);color:var(--orange-dim);font-size:15px;}
+h3{font-family:var(--display);font-size:18px;margin:26px 0 10px;color:var(--text);}
+h4{font-size:15px;margin:18px 0 8px;color:var(--orange);font-family:var(--mono);}
+p{margin-bottom:14px;color:#C7CEDB;}
+ul,ol{margin:0 0 14px 22px;color:#C7CEDB;} li{margin-bottom:6px;}
+strong{color:var(--text);}
+.card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:20px 22px;margin:16px 0;}
+.story-card{background:linear-gradient(135deg,#1A2333,#161E2C);border-left:3px solid var(--orange);border-radius:8px;padding:22px 24px;margin:16px 0;}
+.story-card p{color:#D7DCE8;font-style:italic;} .story-card p:last-child{margin-bottom:0;}
+.role-tag{display:inline-block;font-family:var(--mono);font-size:11px;color:var(--orange);background:rgba(255,153,0,.1);
+  border:1px solid rgba(255,153,0,.3);border-radius:5px;padding:2px 8px;margin-bottom:10px;letter-spacing:.05em;}
+.box{border-radius:8px;padding:16px 18px;margin:16px 0;border:1px solid;}
+.box.tip{background:rgba(0,168,225,.07);border-color:rgba(0,168,225,.35);}
+.box.warn{background:rgba(251,191,36,.07);border-color:rgba(251,191,36,.35);}
+.box.security{background:rgba(248,113,113,.07);border-color:rgba(248,113,113,.35);}
+.box.win{background:rgba(52,211,153,.07);border-color:rgba(52,211,153,.35);}
+.box .label{font-family:var(--mono);font-size:11px;text-transform:uppercase;letter-spacing:.1em;display:block;margin-bottom:6px;}
+.box.tip .label{color:var(--blue);} .box.warn .label{color:var(--warning);}
+.box.security .label{color:var(--error);} .box.win .label{color:var(--green);}
+.box p:last-child{margin-bottom:0;}
+table{width:100%;border-collapse:collapse;margin:16px 0;font-size:14px;}
+th{background:var(--card-2);color:var(--orange);text-align:left;padding:10px 12px;font-family:var(--mono);
+  font-size:12px;text-transform:uppercase;letter-spacing:.04em;border-bottom:1px solid var(--border);}
+td{padding:10px 12px;border-bottom:1px solid var(--border);color:#C7CEDB;vertical-align:top;}
+tr:last-child td{border-bottom:none;} tr:hover td{background:rgba(255,255,255,.02);}
+.code-wrap{position:relative;margin:16px 0;border-radius:8px;overflow:hidden;border:1px solid var(--border);}
+.code-head{background:var(--card-2);padding:8px 14px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border);}
+.code-head span{font-family:var(--mono);font-size:11.5px;color:var(--text-dim);}
+.copy-btn{background:transparent;border:1px solid var(--border);color:var(--text-dim);font-family:var(--mono);font-size:11px;
+  padding:4px 10px;border-radius:5px;cursor:pointer;}
+.copy-btn:hover{border-color:var(--orange);color:var(--orange);}
+pre{background:var(--code-bg);padding:16px 18px;overflow-x:auto;font-family:var(--mono);font-size:13px;line-height:1.6;color:var(--code-text);}
+code{font-family:var(--mono);}
+p code, li code{background:var(--card-2);padding:1px 6px;border-radius:4px;font-size:13px;color:#FFC876;}
+.comment{color:#5E7099;} .kw{color:var(--blue);} .str{color:var(--green);}
+.diagram{background:var(--code-bg);border:1px solid var(--border);border-radius:10px;padding:28px;margin:20px 0;overflow-x:auto;}
+.flow{display:flex;flex-direction:column;align-items:center;gap:0;font-family:var(--mono);font-size:13px;}
+.flow-box{background:var(--card);border:1px solid var(--orange-dim);border-radius:8px;padding:12px 22px;min-width:260px;
+  text-align:center;color:var(--text);opacity:0;transform:translateY(8px);animation:reveal .5s ease forwards;}
+.flow-box.public{border-color:var(--blue);} .flow-box.private{border-color:var(--green);} .flow-box.data{border-color:#C084FC;}
+.flow-arrow{color:#4B5875;font-size:18px;padding:6px 0;opacity:0;animation:reveal .5s ease forwards;}
+@keyframes reveal{to{opacity:1;transform:translateY(0);}}
+.flow-box small, .flow-arrow small{display:block;color:var(--text-dim);font-size:10.5px;margin-top:3px;}
+details{background:var(--card);border:1px solid var(--border);border-radius:8px;margin:10px 0;padding:0;}
+details summary{cursor:pointer;padding:14px 18px;font-family:var(--mono);font-size:13.5px;color:var(--orange);
+  list-style:none;display:flex;justify-content:space-between;align-items:center;}
+details summary::-webkit-details-marker{display:none;}
+details summary::after{content:"+";color:var(--text-dim);font-size:16px;}
+details[open] summary::after{content:"–";}
+details .inner{padding:0 18px 16px;border-top:1px solid var(--border);padding-top:12px;}
+details .inner p:last-child{margin-bottom:0;}
+.qa{margin:14px 0;padding:16px 18px;background:var(--card-2);border-radius:8px;border:1px solid var(--border);}
+.qa .q{font-family:var(--display);font-size:14.5px;color:var(--text);margin-bottom:8px;}
+.qa .q .qn{color:var(--orange);font-family:var(--mono);margin-right:6px;}
+.qa .follow{margin-top:10px;padding-top:10px;border-top:1px dashed var(--border);color:var(--text-dim);font-size:13px;}
+.qa .follow b{color:var(--blue);}
+.resume-list{list-style:none;margin:14px 0;}
+.resume-list li{padding:12px 16px;background:var(--card);border-left:3px solid var(--green);border-radius:0 6px 6px 0;
+  margin-bottom:8px;font-size:14px;color:#D7DCE8;}
+.criteria{list-style:none;margin:14px 0;}
+.criteria li{padding-left:28px;position:relative;margin-bottom:8px;color:#C7CEDB;}
+.criteria li::before{content:"✓";position:absolute;left:0;color:var(--green);font-family:var(--mono);}
+.progress-bar{height:6px;background:var(--card-2);border-radius:999px;overflow:hidden;margin:14px 0 4px;}
+.progress-bar-fill{height:100%;width:32%;background:linear-gradient(90deg,var(--orange),var(--blue));}
+.progress-label{font-family:var(--mono);font-size:11px;color:var(--text-dim);}
+footer{text-align:center;padding:40px;color:#4B5875;font-family:var(--mono);font-size:12px;border-top:1px solid var(--border);margin-top:60px;}
+.steps{list-style:none;margin:16px 0;counter-reset:step;}
+.steps li{position:relative;padding:14px 18px 14px 52px;margin-bottom:10px;background:var(--card);border:1px solid var(--border);
+  border-radius:8px;counter-increment:step;}
+.steps li::before{content:counter(step);position:absolute;left:16px;top:14px;width:24px;height:24px;border-radius:50%;
+  background:var(--orange);color:#0B1120;font-family:var(--mono);font-weight:700;font-size:12px;
+  display:flex;align-items:center;justify-content:center;}
+.steps li b{color:var(--text);}
+@media(max-width:860px){
+  .sidebar{position:fixed;left:-270px;transition:left .2s;z-index:50;box-shadow:20px 0 40px rgba(0,0,0,.4);}
+  .sidebar.open{left:0;} .container{padding:24px 18px 100px;}
+  .mobile-toggle{position:fixed;bottom:20px;right:20px;z-index:60;background:var(--orange);color:#0B1120;border:none;
+    border-radius:50%;width:52px;height:52px;font-size:20px;cursor:pointer;box-shadow:0 6px 20px rgba(0,0,0,.4);}
+}
+@media(min-width:861px){.mobile-toggle{display:none;}}
+@media(prefers-reduced-motion:reduce){*{animation:none !important;transition:none !important;}}
+</style>
+</head>
+<body>
+<div class="shell">
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-brand">
+      <span class="tag">AWS Cloud Engineering</span>
+      <h1>Assignment 08<br>Intermediate Stage</h1>
+    </div>
+    <nav>
+      <a href="#story">Production Story</a>
+      <a href="#requirements">Requirements</a>
+      <a href="#architecture">Architecture</a>
+      <a href="#decisions">Architecture Decisions</a>
+      <a href="#console">Manual Console Steps</a>
+      <a href="#cli">AWS CLI</a>
+      <a href="#terraform">Terraform</a>
+      <a href="#validation">Validation &amp; Testing</a>
+      <a href="#monitoring">Monitoring</a>
+      <a href="#incident">Production Incident</a>
+      <a href="#troubleshooting">Troubleshooting Method</a>
+      <a href="#cost">Cost Awareness</a>
+      <a href="#review">Architecture Review</a>
+      <a href="#cleanup">Cleanup</a>
+      <a href="#acceptance">Acceptance Criteria</a>
+      <a href="#challenge">Practice Challenge</a>
+      <a href="#interview">Interview Prep</a>
+      <a href="#resume">Resume Points</a>
+      <a href="#next">Next Project</a>
+    </nav>
+  </aside>
+
+  <div class="main">
+    <div class="container">
+
+      <div class="cover">
+        <span class="eyebrow">Assignment 08 of 25 · Intermediate</span>
+        <h1>Designing and Operating a Managed Relational Database Architecture</h1>
+        <p class="lede">Every quote the portal generates today disappears the moment the request finishes — there's nowhere durable to store it. Karthik needs real persistence, and this time the requirement everyone anticipated back in Assignment 2 finally arrives: a database tier that must never be reachable from the internet, and must survive an AZ failure exactly like the app tier now does.</p>
+        <div class="cover-meta">
+          <span class="chip">Difficulty: <b>Intermediate</b></span>
+          <span class="chip">Domain: <b>Insurance</b></span>
+          <span class="chip">Services: <b>RDS PostgreSQL · Multi-AZ · Read Replica</b></span>
+          <span class="chip">IaC: <b>Console + CLI + Terraform</b></span>
+          <span class="chip">Est. lab time: <b>3–4 hrs</b></span>
+        </div>
+        <div class="progress-bar"><div class="progress-bar-fill"></div></div>
+        <span class="progress-label">Progress: Assignment 8 of 25</span>
+      </div>
+
+      <!-- STORY -->
+      <h2 class="section-title" id="story"><span class="num">01</span> Production Story</h2>
+      <div class="story-card">
+        <span class="role-tag">Application Team — Karthik Iyer</span>
+        <p>"We've been demoing with an in-memory placeholder this whole time — every quote vanishes the second the process restarts, which the ASG now does automatically whenever it scales in. We need a real database. Customers, policies, generated quotes — needs to persist, needs to survive a database failure, and per Ananya's original rule from Assignment 2, it absolutely cannot be reachable from anywhere except our app tier."</p>
+      </div>
+      <div class="box tip">
+        <span class="label">Why this is Assignment 8</span>
+        <p>Remember Assignment 2's CIDR planning note — "leaving headroom for a future tier without re-addressing anything that exists"? This is that future tier. We're adding a dedicated, even-more-isolated <strong>data subnet</strong> pair to the existing VPC, separate from the app tier's private subnets, so the database sits behind a second network boundary even relative to the app servers that talk to it — not just behind the internet-facing boundary from Assignment 2.</p>
+      </div>
+
+      <!-- REQUIREMENTS -->
+      <h2 class="section-title" id="requirements"><span class="num">02</span> Business &amp; Technical Requirements</h2>
+      <table>
+        <tr><th>Type</th><th>Requirement</th></tr>
+        <tr><td>Business</td><td>Quote and policy data must persist durably and survive an instance restart, an ASG scale-in event, and a full database failure.</td></tr>
+        <tr><td>Security</td><td>Database reachable only from the app tier's security group — not from the public subnets, not from the internet, not from any other resource in the account.</td></tr>
+        <tr><td>Security</td><td>Database credentials stored in Secrets Manager, never in application config files or environment variables set at launch.</td></tr>
+        <tr><td>Availability</td><td>Database must survive an AZ failure with automatic failover — no manual intervention to bring the database back online.</td></tr>
+        <tr><td>Technical</td><td>Automated backups with point-in-time recovery, consistent with the recovery posture established for other data in Assignment 4.</td></tr>
+      </table>
+
+      <!-- ARCHITECTURE -->
+      <h2 class="section-title" id="architecture"><span class="num">03</span> Architecture Design</h2>
+      <div class="diagram">
+        <div class="flow">
+          <div class="flow-box private" style="animation-delay:.05s">App Instance (ASG, sg-app)<small>from Assignment 7</small></div>
+          <div class="flow-arrow" style="animation-delay:.25s">↓ TCP 5432, only from sg-app</div>
+          <div class="flow-box data" style="animation-delay:.35s">RDS PostgreSQL — Primary<small>data-a subnet · Multi-AZ enabled</small></div>
+          <div class="flow-arrow" style="animation-delay:.55s">⇄ synchronous replication</div>
+          <div class="flow-box data" style="animation-delay:.65s">RDS Standby<small>data-b subnet · same instance class, not directly reachable</small></div>
+        </div>
+      </div>
+      <p>Two new <strong>data subnets</strong> — <code>10.20.21.0/24</code> and <code>10.20.22.0/24</code> — join the VPC from Assignment 2, one per AZ, using CIDR ranges Assignment 2 deliberately left free. A <strong>DB Subnet Group</strong> spans both, which is what lets RDS Multi-AZ place the standby in the second AZ automatically. Neither data subnet has a route to an Internet Gateway or a NAT Gateway at all — the database tier doesn't need outbound internet access the way the app tier does, so it gets none, tightening the boundary even further than the app tier's own private subnets.</p>
+
+      <!-- DECISIONS -->
+      <h2 class="section-title" id="decisions"><span class="num">04</span> Architecture Decision Making</h2>
+
+      <h3>Decision: RDS Multi-AZ vs. RDS Read Replica — Not the Same Thing</h3>
+      <table>
+        <tr><th></th><th>Multi-AZ (standby)</th><th>Read Replica</th></tr>
+        <tr><td>Replication</td><td>Synchronous — standby is always an exact, up-to-the-transaction copy</td><td>Asynchronous — can lag behind the primary by a small amount</td></tr>
+        <tr><td>Purpose</td><td>Automatic failover for availability — standby is not queryable directly during normal operation</td><td>Read scaling — offload read-heavy queries (e.g. reporting) from the primary; can itself be promoted to standalone in a DR scenario, but that's a manual/DR action, not automatic failover</td></tr>
+        <tr><td>Fits this requirement</td><td>Yes — this assignment's explicit requirement is automatic AZ failover</td><td>Not this assignment's requirement, though flagged as a near-term need once reporting queries start competing with live application traffic</td></tr>
+      </table>
+      <p><strong>Decision: enable Multi-AZ</strong> for the primary requirement. A read replica is noted as a likely Assignment-level addition later once reporting/analytics queries are a real, named requirement — adding one prematurely would be solving a problem that doesn't exist yet, echoing the "don't over-engineer" principle from Assignment 1.</p>
+
+      <h3>Decision: RDS vs. Self-Managed PostgreSQL on EC2</h3>
+      <p>Self-managed PostgreSQL on EC2 would require us to own patching, backup scripting, failover orchestration, and monitoring entirely by hand — essentially rebuilding, worse, everything RDS Multi-AZ provides natively. Given this is a mainstream relational workload with no unusual extension or version requirement RDS can't satisfy, <strong>RDS is the clear choice</strong> — the operational overhead of self-managing a database has no offsetting benefit here.</p>
+
+      <!-- CONSOLE -->
+      <h2 class="section-title" id="console"><span class="num">05</span> AWS Console — Manual Steps</h2>
+      <ol class="steps">
+        <li><b>Create the two data subnets.</b> VPC console → <em>Subnets → Create subnet</em>, in <code>quote-portal-vpc</code>: <code>data-a</code> (10.20.21.0/24, ap-south-1a), <code>data-b</code> (10.20.22.0/24, ap-south-1b). Neither is associated with any route table that has an IGW or NAT route — leave them on the VPC's default (no-internet) main route table, or an explicitly local-only route table.</li>
+        <li><b>Create the DB security group.</b> EC2 console → <em>Security Groups → Create</em> → name <code>sg-db</code> → inbound: PostgreSQL (5432) from source <code>sg-app</code> only — the same security-group-chaining pattern from Assignment 3, now applied one tier deeper.</li>
+        <li><b>Create the DB Subnet Group.</b> RDS console → <em>Subnet groups → Create DB subnet group</em> → VPC <code>quote-portal-vpc</code> → add both <code>data-a</code> and <code>data-b</code>. RDS Multi-AZ requires the subnet group to span at least two AZs to know where it's allowed to place the standby.</li>
+        <li><b>Store the master credentials in Secrets Manager first.</b> Secrets Manager console → <em>Store a new secret</em> → "Credentials for RDS database" type → generate a strong random password → name <code>quote-portal/db-credentials</code>. Doing this before creating the RDS instance lets us reference the secret directly during creation rather than setting a password by hand and rotating it in afterward.</li>
+        <li><b>Create the RDS instance.</b> RDS console → <em>Create database</em> → Engine: PostgreSQL → Templates: Production → enable Multi-AZ deployment → DB subnet group from step 3 → VPC security group: <code>sg-db</code> only → Public access: <strong>No</strong> → credentials: "Manage master credentials in Secrets Manager" pointing at the secret from step 4 → enable automated backups with a defined retention window and point-in-time recovery.</li>
+        <li><b>Grant the app role read access to the DB secret.</b> IAM console → the app role from Assignment 5 → add an inline policy for <code>secretsmanager:GetSecretValue</code> scoped to this new secret's ARN specifically, alongside (not replacing) its existing rating-API-key permission.</li>
+        <li><b>Verify connectivity from an app instance.</b> SSM into a running app instance → <code>psql</code> against the RDS endpoint using credentials fetched at runtime from Secrets Manager → confirm connection succeeds.</li>
+      </ol>
+
+      <!-- CLI -->
+      <h2 class="section-title" id="cli"><span class="num">06</span> AWS CLI</h2>
+      <div class="code-wrap">
+        <div class="code-head"><span>bash</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre><span class="comment"># Create the DB subnet group spanning both AZs</span>
+aws rds create-db-subnet-group \
+  --db-subnet-group-name quote-portal-db-subnets \
+  --db-subnet-group-description "Data tier subnets" \
+  --subnet-ids $DATA_A_SUBNET_ID $DATA_B_SUBNET_ID
+
+<span class="comment"># Create the Multi-AZ RDS instance, credentials auto-managed in Secrets Manager</span>
+aws rds create-db-instance \
+  --db-instance-identifier quote-portal-db \
+  --engine postgres --engine-version 16.3 \
+  --db-instance-class db.t3.medium \
+  --allocated-storage 50 \
+  --multi-az \
+  --db-subnet-group-name quote-portal-db-subnets \
+  --vpc-security-group-ids $SG_DB_ID \
+  --no-publicly-accessible \
+  --manage-master-user-password \
+  --backup-retention-period 7</pre>
+      </div>
+      <table>
+        <tr><th>Flag</th><th>Meaning</th></tr>
+        <tr><td><code>--multi-az</code></td><td>Provisions the synchronous standby in the second AZ automatically and enables automatic failover</td></tr>
+        <tr><td><code>--no-publicly-accessible</code></td><td>Ensures RDS never assigns a public endpoint, regardless of what the security group allows — a second, independent control alongside the security group itself</td></tr>
+        <tr><td><code>--manage-master-user-password</code></td><td>Delegates credential generation and storage entirely to Secrets Manager — no plaintext password is ever specified in this command or visible in CLI history</td></tr>
+        <tr><td><code>--backup-retention-period 7</code></td><td>Enables automated daily backups retained for 7 days, with point-in-time recovery available to any second within that window</td></tr>
+      </table>
+
+      <!-- TERRAFORM -->
+      <h2 class="section-title" id="terraform"><span class="num">07</span> Terraform Implementation</h2>
+
+      <h3>main.tf — Data Subnets &amp; DB Security Group</h3>
+      <div class="code-wrap">
+        <div class="code-head"><span>main.tf (part 1 of 3)</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre><span class="kw">variable</span> "data_subnet_cidrs" {
+  type    = list(string)
+  default = ["10.20.21.0/24", "10.20.22.0/24"]
+  <span class="comment"># The exact headroom Assignment 2 deliberately reserved by starting</span>
+  <span class="comment"># private subnets at .11 instead of .3 — no re-addressing needed anywhere.</span>
+}
+
+<span class="kw">resource</span> "aws_subnet" "data" {
+  count             = length(var.data_subnet_cidrs)
+  vpc_id            = aws_vpc.main.id
+  cidr_block        = var.data_subnet_cidrs[count.index]
+  availability_zone = var.azs[count.index]
+  <span class="comment"># No map_public_ip_on_launch, and — critically — NOT associated with any</span>
+  <span class="comment"># route table that has an IGW or NAT route. RDS instances here have no</span>
+  <span class="comment"># path to or from the internet at all, tighter than the app tier's private</span>
+  <span class="comment"># subnets which at least have outbound-via-NAT.</span>
+  tags = { Name = "data-${var.azs[count.index]}", Tier = "data" }
+}
+
+<span class="kw">resource</span> "aws_security_group" "db" {
+  name   = "sg-db"
+  vpc_id = aws_vpc.main.id
+
+  ingress {
+    description     = "PostgreSQL, app tier only"
+    from_port       = 5432
+    to_port         = 5432
+    protocol        = "tcp"
+    security_groups = [aws_security_group.app.id]
+    <span class="comment"># Same security-group-chaining pattern as Assignment 3's sg-app rule,</span>
+    <span class="comment"># now one tier deeper — the DB will never accept a connection from</span>
+    <span class="comment"># anything that isn't a member of sg-app, regardless of subnet or IP.</span>
+  }
+  egress {
+    from_port = 0; to_port = 0; protocol = "-1"; cidr_blocks = ["0.0.0.0/0"]
+  }
+  tags = { Name = "sg-db" }
+}
+
+<span class="kw">resource</span> "aws_db_subnet_group" "main" {
+  name       = "quote-portal-db-subnets"
+  subnet_ids = aws_subnet.data[*].id
+}</pre>
+      </div>
+
+      <h3>main.tf — RDS Instance</h3>
+      <div class="code-wrap">
+        <div class="code-head"><span>main.tf (part 2 of 3)</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre><span class="kw">resource</span> "aws_db_instance" "main" {
+  identifier     = "quote-portal-db"
+  engine         = "postgres"
+  engine_version = "16.3"
+  instance_class = "db.t3.medium"
+  allocated_storage = 50
+  storage_encrypted = true
+  <span class="comment"># Encryption at rest, consistent with the S3 encryption posture from</span>
+  <span class="comment"># Assignment 4 — no reason for the database to be the one unencrypted</span>
+  <span class="comment"># store of sensitive customer/policy data in the whole architecture.</span>
+
+  multi_az               = true
+  db_subnet_group_name   = aws_db_subnet_group.main.name
+  vpc_security_group_ids = [aws_security_group.db.id]
+  publicly_accessible    = false
+
+  manage_master_user_password = true
+  <span class="comment"># Terraform provisions the secret in Secrets Manager on our behalf and</span>
+  <span class="comment"># wires it to the instance — we never see or set a plaintext password</span>
+  <span class="comment"># anywhere in this configuration.</span>
+
+  backup_retention_period = 7
+  backup_window           = "17:00-17:30"   <span class="comment"># UTC — chosen to land in the lowest-traffic window</span>
+  deletion_protection     = true
+  <span class="comment"># deletion_protection = true means `terraform destroy` will FAIL against</span>
+  <span class="comment"># this specific resource until explicitly disabled — a deliberate guard</span>
+  <span class="comment"># rail against a database being destroyed by an ordinary destroy run.</span>
+
+  skip_final_snapshot = false
+  final_snapshot_identifier = "quote-portal-db-final"
+  <span class="comment"># Even when deletion IS intentional, a final snapshot is taken first —</span>
+  <span class="comment"># belt-and-suspenders alongside deletion_protection above.</span>
+}
+
+<span class="kw">output</span> "db_secret_arn" {
+  value = aws_db_instance.main.master_user_secret[0].secret_arn
+  <span class="comment"># Exposes the auto-generated secret's ARN so it can be referenced by the</span>
+  <span class="comment"># app role's IAM policy below without hardcoding anything.</span>
+}</pre>
+      </div>
+
+      <h3>main.tf — App Role Access to DB Secret</h3>
+      <div class="code-wrap">
+        <div class="code-head"><span>main.tf (part 3 of 3)</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre><span class="kw">resource</span> "aws_iam_role_policy" "app_db_secret_access" {
+  name = "read-db-credentials-only"
+  role = aws_iam_role.quote_portal_app.id  <span class="comment"># same role from Assignment 5, extended — not a new role</span>
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect   = "Allow"
+      Action   = "secretsmanager:GetSecretValue"
+      Resource = aws_db_instance.main.master_user_secret[0].secret_arn
+      <span class="comment"># Scoped to exactly this one secret — the app role now holds TWO narrow,</span>
+      <span class="comment"># separately-scoped secret permissions (rating API key + DB credentials),</span>
+      <span class="comment"># each least-privilege on its own, rather than one broad grant covering</span>
+      <span class="comment"># "all secrets" which would violate the least-privilege posture from</span>
+      <span class="comment"># Assignment 5.</span>
+    }]
+  })
+}</pre>
+      </div>
+
+      <!-- VALIDATION -->
+      <h2 class="section-title" id="validation"><span class="num">08</span> Validation &amp; Testing</h2>
+      <ul>
+        <li><strong>Connectivity test:</strong> from an app instance, connect using credentials fetched from Secrets Manager at runtime — confirm success.</li>
+        <li><strong>Isolation test:</strong> attempt the same connection from an unrelated instance not in <code>sg-app</code> — must fail, and confirm the RDS instance has no public endpoint at all via <code>describe-db-instances</code>.</li>
+        <li><strong>Failover test:</strong> trigger a manual failover (<code>aws rds reboot-db-instance --force-failover</code>) and measure application-observed downtime — should be brief (typically under a couple of minutes) and self-recovering, with no manual DNS or connection-string change required, since the endpoint hostname stays the same across failover.</li>
+        <li><strong>Backup/restore test:</strong> perform a point-in-time restore to a new, temporary DB instance and confirm the restored data matches expectations — an untested backup is an assumption, same principle as Assignment 4's EBS snapshot test.</li>
+        <li><strong>Encryption test:</strong> confirm <code>StorageEncrypted: true</code> via <code>describe-db-instances</code>.</li>
+      </ul>
+
+      <!-- MONITORING -->
+      <h2 class="section-title" id="monitoring"><span class="num">09</span> Monitoring &amp; Observability</h2>
+      <table>
+        <tr><th>Metric</th><th>Why it matters</th></tr>
+        <tr><td><code>DatabaseConnections</code></td><td>Rising toward the instance class's connection limit is an early warning before the app starts seeing connection errors</td></tr>
+        <tr><td><code>FreeStorageSpace</code></td><td>RDS doesn't auto-expand storage by default at every tier — running out is a hard failure mode worth alerting on well before it happens</td></tr>
+        <tr><td><code>ReplicaLag</code> (n/a for Multi-AZ standby, relevant once a read replica exists)</td><td>Flagged now so it's on the radar for when the read-replica decision above is revisited</td></tr>
+        <tr><td>RDS Event Subscriptions (failover events specifically)</td><td>Notifies the team the moment an automatic failover occurs — visibility into exactly the event the failover test above simulates deliberately</td></tr>
+      </table>
+
+      <!-- INCIDENT -->
+      <h2 class="section-title" id="incident"><span class="num">10</span> Production Incident</h2>
+      <div class="story-card">
+        <span class="role-tag">During the failover test itself</span>
+        <p>The manual failover test triggers as expected — but the application logs show a burst of connection errors lasting nearly four minutes, longer than the "typically under a couple of minutes" expectation, and the ASG's scale-out (still armed from Assignment 7's target tracking) fires unnecessarily in response to the resulting error-driven CPU spike from retry storms.</p>
+      </div>
+      <h4>Investigation</h4>
+      <div class="code-wrap">
+        <div class="code-head"><span>bash — application logs</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre>grep "connection refused\|timeout" /var/log/quote-portal/app.log | wc -l
+<span class="comment"># Large count clustered in a tight time window right after failover began</span></pre>
+      </div>
+      <p>The application's database client library is using default connection settings with no retry backoff and a long TCP timeout — each request that hit the old (now-standby) endpoint during the failover window hung for its full timeout duration before failing, rather than failing fast and retrying, and simultaneous requests were making the problem compound rather than recovering gracefully.</p>
+      <h4>Root Cause</h4>
+      <p>Not an RDS problem — Multi-AZ failover itself worked as designed. The gap was entirely in the application's connection handling: no short connection timeout, no exponential backoff retry logic, so a brief infrastructure-level failover turned into an extended application-level error storm.</p>
+      <h4>Immediate Fix</h4>
+      <p>None needed for RDS itself — failover completed successfully. Flagged the connection-handling gap to Karthik's team as the actual fix required.</p>
+      <h4>Permanent Fix</h4>
+      <p>Application team implemented a short (2-3 second) connection timeout with exponential backoff retry, so a brief failover now results in a handful of fast-failing, fast-retrying requests instead of a pile of long-hanging ones.</p>
+      <h4>Validation</h4>
+      <p>Re-ran the failover test after the application fix — observed downtime dropped to under 30 seconds, and the ASG's CPU-based scaling policy no longer misfired in response.</p>
+      <h4>Lessons Learned</h4>
+      <ul>
+        <li>RDS Multi-AZ handles the infrastructure side of failover correctly — but the application's connection-handling behavior determines whether that translates into a brief blip or an extended outage from the user's perspective.</li>
+        <li>An infrastructure event (DB failover) can trigger a seemingly unrelated symptom elsewhere (unnecessary ASG scale-out) — worth checking cross-system effects, not just the directly-affected component, when investigating.</li>
+      </ul>
+
+      <!-- TROUBLESHOOTING -->
+      <h2 class="section-title" id="troubleshooting"><span class="num">11</span> Troubleshooting Methodology</h2>
+      <table>
+        <tr><th>Symptom</th><th>Check First</th><th>Likely Cause</th></tr>
+        <tr><td>App can't connect to RDS at all (not just during failover)</td><td>Security group source, then whether the app is even in the same VPC's routing path to the data subnets</td><td>sg-db not referencing sg-app correctly, or a subnet/routing misconfiguration</td></tr>
+        <tr><td>Connections work but time out under load</td><td><code>DatabaseConnections</code> metric against the instance class's max connection limit</td><td>Connection pool exhaustion — often needs a connection pooler (e.g. RDS Proxy) rather than a bigger instance</td></tr>
+        <tr><td>Failover takes noticeably longer than expected</td><td>Application-side connection timeout/retry behavior, as in the incident above, before assuming RDS itself is slow</td><td>Application hanging on long timeouts rather than failing fast, exactly as diagnosed above</td></tr>
+        <tr><td>terraform destroy fails on the RDS resource</td><td>Whether <code>deletion_protection</code> is still enabled</td><td>Working as designed — must be explicitly disabled first, a deliberate guard rail</td></tr>
+      </table>
+
+      <!-- COST -->
+      <h2 class="section-title" id="cost"><span class="num">12</span> Cost Optimization</h2>
+      <table>
+        <tr><th>Resource</th><th>Cost Driver</th><th>Note</th></tr>
+        <tr><td>Multi-AZ db.t3.medium</td><td>Roughly double a single-AZ instance of the same class — you're paying for the synchronous standby too</td><td>Direct, deliberate cost of the automatic-failover requirement — the same "cost vs. availability" pattern as Assignments 2 and 6</td></tr>
+        <tr><td>Automated backups (7-day retention)</td><td>Storage cost for backup data beyond the first free amount equal to allocated storage</td><td>Modest at this data volume</td></tr>
+      </table>
+      <div class="box tip">
+        <span class="label">Where a read replica would add cost without this requirement</span>
+        <p>Adding a read replica now, before there's a real reporting/analytics workload to justify it, would add a third instance's worth of cost for a problem that doesn't exist yet — consistent with why that decision was explicitly deferred above rather than bundled in preemptively.</p>
+      </div>
+
+      <!-- REVIEW -->
+      <h2 class="section-title" id="review"><span class="num">13</span> Solutions Architect Review</h2>
+      <table>
+        <tr><th>Lens</th><th>Assessment</th></tr>
+        <tr><td>Reliability</td><td>Multi-AZ automatic failover verified by an actual induced failover test, which also caught a real application-layer gap</td></tr>
+        <tr><td>Security</td><td>Data tier has no internet route at all (tighter than the app tier), security-group-chained to the app tier only, encrypted at rest, credentials fully in Secrets Manager</td></tr>
+        <tr><td>Cost</td><td>Multi-AZ roughly doubles DB cost — an explicit, justified trade-off; read replica cost deliberately deferred until actually needed</td></tr>
+        <tr><td>Operations</td><td>Point-in-time recovery tested, not assumed; RDS event subscriptions give failover visibility</td></tr>
+        <tr><td>Maintainability</td><td><code>deletion_protection</code> and a mandatory final snapshot guard against an accidental destructive Terraform run against production data</td></tr>
+      </table>
+
+      <!-- CLEANUP -->
+      <h2 class="section-title" id="cleanup"><span class="num">14</span> Cleanup</h2>
+      <div class="code-wrap">
+        <div class="code-head"><span>bash</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre><span class="comment"># deletion_protection blocks destroy until explicitly disabled — deliberate</span>
+terraform apply -var="db_deletion_protection=false"
+terraform destroy
+<span class="comment"># A final snapshot named quote-portal-db-final is still created even now,</span>
+<span class="comment"># per skip_final_snapshot = false — clean it up separately if this is a</span>
+<span class="comment"># genuine throwaway lab environment.</span></pre>
+      </div>
+
+      <!-- ACCEPTANCE -->
+      <h2 class="section-title" id="acceptance"><span class="num">15</span> Acceptance Criteria</h2>
+      <ul class="criteria">
+        <li>RDS instance is Multi-AZ, in dedicated data subnets with no internet route</li>
+        <li>Database reachable only from the app tier's security group, verified by a negative test</li>
+        <li>Master credentials fully managed via Secrets Manager — never set or seen as plaintext</li>
+        <li>Storage encrypted at rest, verified via <code>describe-db-instances</code></li>
+        <li>A manual failover completes with application-observed downtime under 30 seconds (post application-side fix)</li>
+        <li>A point-in-time restore to a new instance has been successfully performed and validated</li>
+        <li><code>deletion_protection</code> enabled and a final snapshot policy in place</li>
+      </ul>
+
+      <!-- CHALLENGE -->
+      <h2 class="section-title" id="challenge"><span class="num">16</span> Practice Challenge</h2>
+      <div class="card">
+        <p><strong>Karthik comes back:</strong> "The finance team wants a daily report querying quote volume and conversion rates — running that against the primary database during business hours is exactly the kind of thing you flagged as a future need. Is now the time?"</p>
+        <p><strong>Requirement:</strong> Add reporting query capacity without letting reporting workload compete with live application traffic on the primary database.</p>
+        <p><strong>Acceptance Criteria:</strong> Reporting queries run against a separate database endpoint. The primary database's performance for live application traffic is unaffected by reporting query load.</p>
+        <p><strong>Hints:</strong> This is precisely the scenario the Multi-AZ vs. Read Replica comparison earlier flagged as the trigger for revisiting that decision.</p>
+      </div>
+      <details>
+        <summary>Challenge Solution</summary>
+        <div class="inner">
+          <p>Add an <strong>RDS Read Replica</strong> (<code>aws_db_instance</code> with <code>replicate_source_db</code> pointing at the primary) — a separate instance receiving asynchronously-replicated data, with its own distinct endpoint. Finance's reporting queries point at the replica's endpoint instead of the primary's; because replication is asynchronous, there's a small, generally acceptable lag for reporting purposes, but zero query-level contention with live application traffic on the primary. This is exactly the "not this assignment's requirement, but flagged for later" item from the architecture decision section — now the actual, named business need (Finance's daily report) is what justifies adding it, rather than adding it speculatively.</p>
+        </div>
+      </details>
+
+      <!-- INTERVIEW -->
+      <h2 class="section-title" id="interview"><span class="num">17</span> Interview Preparation</h2>
+
+      <div class="qa">
+        <div class="q"><span class="qn">Q1 · Databases</span>Walk through exactly what happens, mechanically, during an RDS Multi-AZ failover.</div>
+        <p>The synchronous standby in the second AZ is already an up-to-date, continuously replicated copy of the primary. On failover — whether triggered by an actual failure or manually for testing — RDS promotes the standby to primary and updates the DNS record behind the instance's existing endpoint hostname to point at it. Applications don't need any endpoint or connection-string change; they simply need to handle the brief window where the old connection is no longer valid and DNS is propagating, which is exactly the gap this assignment's incident exposed in the application's connection handling.</p>
+        <div class="follow"><b>Follow-up:</b> "Why didn't the application just automatically reconnect cleanly?" — Because its database client was using long timeouts with no retry/backoff logic — it hung on the stale connection rather than failing fast and attempting a fresh connection against the (already-updated) DNS record.</div>
+      </div>
+
+      <div class="qa">
+        <div class="q"><span class="qn">Q2 · Networking</span>Why give the data subnets no internet route at all, when the app tier's private subnets at least have outbound-via-NAT?</div>
+        <p>The app tier genuinely needs outbound access for things like the third-party rating API and OS patching. The database tier has no equivalent legitimate need to reach the internet — RDS handles its own patching internally as a managed service. Removing even the outbound path entirely is a "why would this ever need it" security posture, not a functional requirement compromise, and it reduces the theoretical blast radius if the database tier were ever compromised through some other vector.</p>
+        <div class="follow"><b>Follow-up:</b> "What if the database needed to call an external service for some reason, like a compliance webhook?" — That would be a deliberate, reviewed exception requiring a NAT Gateway route added specifically for that data subnet — not a default, and worth questioning whether that logic actually belongs at the application tier instead.</div>
+      </div>
+
+      <div class="qa">
+        <div class="q"><span class="qn">Q3 · Production Scenario</span>An induced failover test takes far longer than expected. How do you determine whether the problem is RDS itself or something else?</div>
+        <p>Check RDS event history first — it will show exactly when the failover started and completed at the infrastructure level. If that duration looks normal (RDS Multi-AZ failovers are typically well under a couple of minutes) but application-observed downtime is much longer, the gap is almost certainly application-side connection handling, as diagnosed in this assignment — not an RDS problem to escalate to AWS support.</p>
+        <div class="follow"><b>Follow-up:</b> "What application-level fix specifically closes that gap?" — Short connection timeouts paired with exponential backoff retry logic, so the application fails fast on a stale connection and retries quickly against the now-updated endpoint, rather than hanging on a long default timeout.</div>
+      </div>
+
+      <div class="qa">
+        <div class="q"><span class="qn">Q4 · Cost Optimization</span>Is Multi-AZ always worth the roughly doubled database cost?</div>
+        <p>Only when automatic failover with minimal downtime is a genuine business requirement — for this customer-facing insurance portal, yes, given the earlier app-tier outage story already established what an unplanned outage costs the business. For a genuinely non-critical internal tool with tolerance for a longer manual-recovery window, single-AZ RDS with reliable automated backups (and accepting a restore-from-backup RTO instead of near-instant failover) could be the right, cheaper call — the decision should follow the actual availability requirement, same pattern as every prior cost-vs-availability decision in this course.</p>
+        <div class="follow"><b>Follow-up:</b> "What's the RTO/RPO difference between Multi-AZ failover and restoring from an automated backup?" — Multi-AZ failover: RTO typically under a couple of minutes, RPO near-zero (synchronous replication). Backup restore: RTO could be tens of minutes to hours depending on data volume, RPO bounded by how recently a backup/transaction log was taken — a materially different guarantee.</div>
+      </div>
+
+      <div class="qa">
+        <div class="q"><span class="qn">Q5 · Terraform</span>Why does deletion_protection matter for a resource already managed carefully through Terraform code review?</div>
+        <p>Code review catches intentional, reviewed changes — it doesn't protect against a mistaken <code>terraform destroy</code> run against the wrong workspace, a bad merge that accidentally removes the resource block, or a CI pipeline misconfiguration that applies against production instead of a dev environment. <code>deletion_protection</code> is a runtime guard rail independent of anything in the code review process — it requires an explicit, separate, deliberate action to disable before deletion can proceed at all, which is exactly the kind of extra friction you want on your one stateful, hard-to-recover resource.</p>
+        <div class="follow"><b>Follow-up:</b> "Would you apply deletion_protection to every RDS instance, including dev/test?" — Generally not with the same rigidity — dev/test databases are expected to be disposable, and unnecessary friction there just slows down legitimate teardown/rebuild cycles; the protection should scale with how costly losing that specific database would actually be.</div>
+      </div>
+
+      <div class="qa">
+        <div class="q"><span class="qn">Q6 · Manager Round</span>Finance wants read access to production data for reporting. How do you evaluate that request?</div>
+        <p>I wouldn't grant direct query access to the primary database — that risks exactly the contention problem this assignment's practice challenge describes, and it's also a security-scope question (does Finance's tooling need the same access level as the application itself?). I'd propose the read-replica pattern from the challenge: a separate, appropriately-scoped endpoint and credential set for reporting, isolated from live application traffic and load-tested independently, so a heavy or poorly-written report query can never degrade the customer-facing application.</p>
+        <div class="follow"><b>Follow-up:</b> "What if Finance's reporting needs grow well beyond simple queries against a replica?" — That's the point to evaluate a dedicated data warehouse or analytics pipeline (covered later in the course's data-processing/reporting territory) rather than continuing to scale a transactional database's read replica for an increasingly analytical workload — different tools for different access patterns.</div>
+      </div>
+
+      <!-- RESUME -->
+      <h2 class="section-title" id="resume"><span class="num">18</span> Resume Points</h2>
+      <ul class="resume-list">
+        <li>Designed and provisioned a Multi-AZ Amazon RDS PostgreSQL architecture with automatic failover, dedicated no-internet-route data subnets, and full encryption at rest</li>
+        <li>Implemented security-group-chained database access restricted exclusively to the application tier, extending the same least-privilege network pattern used at the load-balancer boundary</li>
+        <li>Migrated database credential management fully to AWS Secrets Manager with auto-generated, never-plaintext master passwords</li>
+        <li>Diagnosed and resolved an application-layer connection-handling gap exposed by deliberate RDS failover testing, reducing observed failover downtime from ~4 minutes to under 30 seconds</li>
+        <li>Validated point-in-time database recovery through an actual restore-to-new-instance test rather than assuming backup integrity</li>
+      </ul>
+
+      <!-- NEXT -->
+      <h2 class="section-title" id="next"><span class="num">19</span> Next Project</h2>
+      <div class="box win">
+        <span class="label">When you're ready</span>
+        <p>Run the failover and restore tests, and say <strong>"Next Project"</strong> when ready. Assignment 9 steps back from any single service to build proper monitoring, logging, auditing, and alerting across everything we've built so far — the observability layer that ties Assignments 1 through 8 together into something a real operations team could actually run.</p>
+      </div>
+
+    </div>
+    <footer>AWS Cloud Engineering Masterclass · Assignment 08 of 25 · Intermediate Stage</footer>
+  </div>
+</div>
+
+<button class="mobile-toggle" id="mobileToggle" aria-label="Toggle menu">☰</button>
+<script>
+const sections = document.querySelectorAll('h2.section-title[id]');
+const navLinks = document.querySelectorAll('.sidebar nav a');
+function onScroll(){
+  let current = '';
+  sections.forEach(s=>{ if(window.scrollY >= s.offsetTop - 80) current = s.id; });
+  navLinks.forEach(a=> a.classList.toggle('active', a.getAttribute('href') === '#'+current));
+}
+window.addEventListener('scroll', onScroll); onScroll();
+document.getElementById('mobileToggle').addEventListener('click', ()=> document.getElementById('sidebar').classList.toggle('open'));
+document.querySelectorAll('.sidebar nav a').forEach(a=> a.addEventListener('click', ()=> document.getElementById('sidebar').classList.remove('open')));
+function copyCode(btn){
+  const pre = btn.closest('.code-wrap').querySelector('pre');
+  navigator.clipboard.writeText(pre.innerText).then(()=>{
+    const orig = btn.textContent; btn.textContent = 'Copied!';
+    setTimeout(()=> btn.textContent = orig, 1500);
+  });
+}
+</script>
+</body>
+</html>

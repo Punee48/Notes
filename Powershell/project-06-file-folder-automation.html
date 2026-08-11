@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Project 06 — File and Folder Automation | PowerShell Masterclass</title>
+<style>
+  :root{
+    --primary:#6D28D9; --secondary:#7C3AED; --light-purple:#EDE9FE; --xlight-purple:#F5F3FF;
+    --bg:#FFFFFF; --text:#1F2937; --muted:#6B7280; --border:#E5E1F5;
+    --success:#15803D; --warn:#B45309; --danger:#B91C1C;
+    --code-bg:#1E1B2E; --code-text:#E9E4FF;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0; font-family:"Segoe UI",Calibri,Roboto,Arial,sans-serif; background:var(--bg); color:var(--text); line-height:1.65;}
+  a{color:var(--primary);}
+  .layout{display:flex; max-width:1400px; margin:0 auto;}
+  nav.sidebar{width:270px; flex-shrink:0; position:sticky; top:0; height:100vh; overflow-y:auto; background:var(--xlight-purple); border-right:1px solid var(--border); padding:22px 16px;}
+  nav.sidebar h3{color:var(--primary); font-size:13px; text-transform:uppercase; letter-spacing:.06em; margin:18px 0 8px;}
+  nav.sidebar a{display:block; padding:7px 10px; border-radius:8px; color:var(--text); text-decoration:none; font-size:14px; margin-bottom:2px;}
+  nav.sidebar a:hover{background:var(--light-purple); color:var(--primary);}
+  #progressWrap{background:var(--light-purple); border-radius:10px; padding:10px; margin-bottom:8px;}
+  #progressBar{height:8px; background:var(--border); border-radius:6px; overflow:hidden;}
+  #progressFill{height:100%; width:0%; background:linear-gradient(90deg,var(--primary),var(--secondary)); transition:width .2s;}
+  #progressLabel{font-size:12px; color:var(--muted); margin-top:6px;}
+  main{flex:1; min-width:0; padding:0;}
+  .cover{background:linear-gradient(135deg,var(--primary),var(--secondary)); color:#fff; padding:60px 48px; position:relative; overflow:hidden;}
+  .cover::after{content:"";position:absolute;right:-80px;top:-80px;width:300px;height:300px;border-radius:50%;background:rgba(255,255,255,.08);}
+  .badge{display:inline-block; background:rgba(255,255,255,.18); padding:5px 14px; border-radius:20px; font-size:12px; letter-spacing:.05em; margin-right:8px; margin-bottom:14px;}
+  .cover h1{font-size:34px; margin:6px 0 10px; max-width:760px;}
+  .cover p.sub{font-size:16px; opacity:.92; max-width:640px;}
+  .cover-meta{display:flex; gap:28px; margin-top:26px; flex-wrap:wrap;}
+  .cover-meta div{background:rgba(255,255,255,.12); padding:12px 18px; border-radius:10px; min-width:140px;}
+  .cover-meta span{display:block; font-size:12px; opacity:.85;}
+  .cover-meta strong{font-size:16px;}
+  section{padding:34px 48px; border-bottom:1px solid var(--border);}
+  section h2{color:var(--primary); font-size:24px; border-left:5px solid var(--primary); padding-left:14px; margin-top:0;}
+  section h3{color:var(--secondary); font-size:18px; margin-top:26px;}
+  .story{background:var(--xlight-purple); border-left:5px solid var(--primary); padding:20px 24px; border-radius:0 10px 10px 0; font-size:15px;}
+  .story b{color:var(--primary);}
+  .callout{border-radius:10px; padding:16px 18px; margin:16px 0; font-size:14.5px;}
+  .callout.tip{background:#F0FDF4; border-left:5px solid var(--success);}
+  .callout.note{background:var(--xlight-purple); border-left:5px solid var(--secondary);}
+  .callout.warn{background:#FFFBEB; border-left:5px solid var(--warn);}
+  .callout.security{background:#FEF2F2; border-left:5px solid var(--danger);}
+  .callout .lbl{font-weight:700; display:block; margin-bottom:4px;}
+  table{width:100%; border-collapse:collapse; margin:16px 0; font-size:14px;}
+  th,td{border:1px solid var(--border); padding:9px 12px; text-align:left; vertical-align:top;}
+  th{background:var(--light-purple); color:var(--primary);}
+  tr:nth-child(even){background:var(--xlight-purple);}
+  .codewrap{position:relative; margin:16px 0;}
+  pre{background:var(--code-bg); color:var(--code-text); padding:18px 16px; border-radius:10px; overflow-x:auto; font-family:Consolas,"Cascadia Code",Menlo,monospace; font-size:13.5px; line-height:1.7;}
+  pre code{white-space:pre;}
+  .copybtn{position:absolute; top:10px; right:10px; background:var(--secondary); color:#fff; border:none; padding:6px 12px; border-radius:6px; font-size:12px; cursor:pointer;}
+  .copybtn:hover{background:var(--primary);}
+  .explain-list{list-style:none; padding:0; margin:14px 0;}
+  .explain-list li{background:var(--xlight-purple); border-radius:8px; padding:10px 14px; margin-bottom:6px; font-size:14.5px;}
+  .explain-list code{background:var(--light-purple); padding:2px 6px; border-radius:5px; color:var(--primary); font-weight:600;}
+  details{background:var(--xlight-purple); border-radius:10px; padding:12px 16px; margin:10px 0;}
+  details summary{cursor:pointer; font-weight:600; color:var(--primary);}
+  .diagram{background:var(--xlight-purple); border-radius:12px; padding:20px; margin:16px 0; overflow-x:auto;}
+  .flow{display:flex; flex-wrap:wrap; align-items:center; gap:10px; font-size:13.5px;}
+  .flow .box{background:#fff; border:2px solid var(--secondary); border-radius:8px; padding:8px 14px; font-weight:600; color:var(--primary);}
+  .flow .arrow{color:var(--secondary); font-size:18px;}
+  .steps{counter-reset:step;}
+  .steps .step{position:relative; padding-left:44px; margin-bottom:18px;}
+  .steps .step::before{counter-increment:step; content:counter(step); position:absolute; left:0; top:0; background:var(--primary); color:#fff; width:30px; height:30px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:700;}
+  .grid2{display:grid; grid-template-columns:1fr 1fr; gap:16px;}
+  @media(max-width:900px){.grid2{grid-template-columns:1fr;} nav.sidebar{display:none;} section{padding:26px 20px;} .cover{padding:36px 22px;}}
+  footer{padding:30px 48px; background:var(--xlight-purple); color:var(--muted); font-size:13px;}
+</style>
+</head>
+<body>
+
+<div class="layout">
+  <nav class="sidebar">
+    <div id="progressWrap">
+      <div id="progressLabel">Reading progress</div>
+      <div id="progressBar"><div id="progressFill"></div></div>
+    </div>
+    <h3>Project 06</h3>
+    <a href="#cover">Cover</a>
+    <a href="#recap1">Recap: Projects 1–5</a>
+    <a href="#story">The Story</a>
+    <a href="#concepts">Concepts First</a>
+    <a href="#lab">Hands-On Lab</a>
+    <a href="#script">Full Script</a>
+    <a href="#linebyline">Line-by-Line</a>
+    <a href="#architecture">Architecture</a>
+    <a href="#incident">Production Incident</a>
+    <a href="#troubleshoot">Troubleshooting</a>
+    <a href="#security">Security Notes</a>
+    <a href="#recap">Key Learnings</a>
+    <a href="#interview">Interview Prep</a>
+    <a href="#challenges">Coding Challenges</a>
+    <a href="#resume">Resume Points</a>
+    <a href="#assignment">Practice Assignment</a>
+    <a href="#next">Next Project</a>
+  </nav>
+
+  <main id="top">
+    <div class="cover" id="cover">
+      <span class="badge">PROJECT 06</span><span class="badge">BEGINNER</span><span class="badge">BFSI TRACK</span>
+      <h1>File and Folder Automation — Safe Log Cleanup</h1>
+      <p class="sub">Find old log files by age and pattern, preview exactly what would be deleted with -WhatIf, then archive and clean up safely — the way production scripts must.</p>
+      <div class="cover-meta">
+        <div><span>Difficulty</span><strong>Beginner</strong></div>
+        <div><span>Estimated Lab Time</span><strong>60–80 min</strong></div>
+        <div><span>Concepts</span><strong>9 core concepts</strong></div>
+        <div><span>Track</span><strong>6 of 40</strong></div>
+      </div>
+    </div>
+
+    <section id="recap1">
+      <h2>Quick Recap of Projects 1–5</h2>
+      <p>We've collected system data, classified it, sampled it over time, checked named lists with error handling,
+      and ranked/grouped running processes. This project moves to the <b>file system</b> — and for the first time,
+      we'll write a script that can actually <b>delete things</b>, which means safety mechanisms matter more than
+      ever.</p>
+    </section>
+
+    <section id="story">
+      <h2>The Story — Why We're Building This</h2>
+      <div class="story">
+        Remember WINAPP07 running out of disk space (Project 2)? Our manager just got the root-cause report: <b>60GB
+        of application log files</b>, some over two years old, had never been cleaned up. Nobody wanted to manually
+        delete files on a Production banking server without being absolutely sure what they were removing.<br><br>
+        Our task: build a script that finds log files older than a configurable number of days, <b>shows exactly
+        what would be deleted before deleting anything</b>, archives them to a separate folder first, and only then
+        removes the originals. Nothing gets deleted blind.
+      </div>
+    </section>
+
+    <section id="concepts">
+      <h2>Concepts First — Before We Touch Code</h2>
+
+      <h3>1. Get-ChildItem — Listing Files and Folders</h3>
+      <table>
+        <tr><th>Parameter</th><th>Purpose</th></tr>
+        <tr><td><code>-Path</code></td><td>Where to start looking</td></tr>
+        <tr><td><code>-Recurse</code></td><td>Also search every subfolder, not just the top level</td></tr>
+        <tr><td><code>-File</code></td><td>Return only files, skip folders</td></tr>
+        <tr><td><code>-Filter</code></td><td>A fast, simple wildcard filter applied while enumerating (e.g. <code>*.log</code>)</td></tr>
+      </table>
+
+      <h3>2. LastWriteTime and Date Arithmetic</h3>
+      <p>Every file object has a <code>LastWriteTime</code> property (a DateTime). To find "files older than 30
+      days," we compare it against a cutoff date we calculate ourselves.</p>
+      <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code>$CutoffDate = (Get-Date).AddDays(-30)   # Today's date, minus 30 days</code></pre></div>
+      <ul class="explain-list">
+        <li><code>.AddDays(-30)</code> — a <b>method</b> on the DateTime object returned by <code>Get-Date</code>.
+        Passing a negative number subtracts days instead of adding them.</li>
+      </ul>
+
+      <h3>3. Basic Regular Expressions with -match</h3>
+      <p>A <b>regular expression</b> (regex) is a pattern language for matching text. <code>-match</code> tests
+      whether a string matches a regex pattern and returns <code>$true</code>/<code>$false</code>.</p>
+      <table>
+        <tr><th>Pattern</th><th>Meaning</th></tr>
+        <tr><td><code>\.log$</code></td><td>Ends with literally ".log"</td></tr>
+        <tr><td><code>^app_</code></td><td>Starts with "app_"</td></tr>
+        <tr><td><code>\d{4}</code></td><td>Exactly 4 digits somewhere in the string (e.g. a year)</td></tr>
+      </table>
+      <div class="callout note"><span class="lbl">-like vs -match</span><code>-like</code> (Project 4) uses simple
+      wildcards (<code>*</code>, <code>?</code>) — good enough for most filename matching. <code>-match</code> uses
+      full regular expressions — far more powerful, but also easier to get subtly wrong. We introduce it here on
+      filenames specifically because it's a safe, low-stakes place to practice before we need it for harder parsing
+      later in the course.</div>
+
+      <h3>4. Why -WhatIf Matters Before Any Destructive Command</h3>
+      <div class="callout warn"><span class="lbl">This is the most important concept in this project</span>Many
+      built-in cmdlets that change or remove something support a <code>-WhatIf</code> switch: instead of actually
+      performing the action, they print what <i>would</i> happen. Running a cleanup script with <code>-WhatIf</code>
+      first — every single time, as a habit — is one of the most important safety practices in enterprise
+      automation, especially before anything that deletes files, stops services, or modifies production systems.</div>
+      <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code>Remove-Item -Path "C:\Logs\old.log" -WhatIf   # Shows what WOULD be deleted, without deleting it</code></pre></div>
+      <p>We'll go much deeper into building our <i>own</i> functions that support <code>-WhatIf</code> in the
+      Advanced stage (<code>SupportsShouldProcess</code>). For now, we lean on the built-in support that
+      <code>Remove-Item</code> and <code>Move-Item</code> already provide.</p>
+
+      <h3>5. Archive-Then-Delete, Not Just Delete</h3>
+      <p>Instead of removing old logs outright, we'll <code>Move-Item</code> them into a dated archive folder first.
+      This gives Operations a safety net — if something turns out to matter, it's still recoverable for a while
+      rather than gone the instant the script runs.</p>
+
+      <h3>6. Measuring Folder Size</h3>
+      <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code>(Get-ChildItem -Path $Folder -Recurse -File | Measure-Object -Property Length -Sum).Sum</code></pre></div>
+      <p>Same <code>Measure-Object -Sum</code> pattern from Project 5, this time summing the <code>Length</code>
+      property (file size in bytes) across every file found.</p>
+    </section>
+
+    <section id="lab">
+      <h2>Hands-On Lab — Build It Yourself</h2>
+      <div class="steps">
+        <div class="step"><b>Create the project folder and a fake "logs" folder to clean up:</b>
+          <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code>New-Item -ItemType Directory -Path "C:\PS-Masterclass\Project06\logs" -Force
+New-Item -ItemType Directory -Path "C:\PS-Masterclass\Project06\archive" -Force
+New-Item -ItemType Directory -Path "C:\PS-Masterclass\Project06\reports" -Force
+Set-Location "C:\PS-Masterclass\Project06"</code></pre></div>
+        </div>
+        <div class="step"><b>Create some fake old log files to test against</b> (we'll backdate their LastWriteTime
+        so we have something older than 30 days to find):
+          <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code>1..5 | ForEach-Object {
+    $File = New-Item -ItemType File -Path ".\logs\app_$_.log" -Force
+    $File.LastWriteTime = (Get-Date).AddDays(-45)   # Backdates the file so it looks old for testing
+}
+"recent activity" | Out-File ".\logs\app_recent.log"   # A genuinely new file that should NOT be touched</code></pre></div>
+        </div>
+        <div class="step"><b>Create <code>Invoke-LogCleanup.ps1</code></b> in VS Code and paste the full script below.</div>
+        <div class="step"><b>Run it in preview mode first (the default) and read the WhatIf output carefully.</b>
+          <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code>.\Invoke-LogCleanup.ps1</code></pre></div>
+        </div>
+        <div class="step"><b>Only after confirming the preview looks correct</b>, run it for real:
+          <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code>.\Invoke-LogCleanup.ps1 -Confirm:$false -WhatIf:$false</code></pre></div>
+        </div>
+        <div class="step"><b>Validate:</b> the 5 old files should be moved into <code>.\archive\</code>, and
+        <code>app_recent.log</code> should still be in <code>.\logs\</code> untouched.</div>
+      </div>
+    </section>
+
+    <section id="script">
+      <h2>Full Script — Invoke-LogCleanup.ps1</h2>
+      <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code># =====================================================================
+# Invoke-LogCleanup.ps1
+# ABC Bank - Windows Infrastructure Automation Team
+# Purpose: Safely find, archive, and clean up old log files
+# =====================================================================
+
+param(
+    [switch]$WhatIf = $true,      # Defaults to PREVIEW MODE - must be explicitly turned off to actually delete/move
+    [switch]$Confirm              # Optional extra confirmation prompt per file
+)
+
+$LogFolder     = ".\logs"          # Where log files live
+$ArchiveFolder = ".\archive"        # Where old logs get moved to before cleanup
+$ReportFolder  = ".\reports"         # Where our CSV summary is saved
+$RetentionDays = 30                   # Files older than this many days are considered "old"
+$FilePattern   = "\.log$"              # Regex: filename must end with ".log"
+
+Write-Host "`n=== LOG CLEANUP: $LogFolder ===" -ForegroundColor Magenta
+if ($WhatIf) {
+    Write-Host "Running in PREVIEW MODE - nothing will actually be moved or deleted.`n" -ForegroundColor Yellow
+}
+
+# ---------------------------------------------------------------
+# STEP 1: Calculate the cutoff date - anything older gets archived
+# ---------------------------------------------------------------
+$CutoffDate = (Get-Date).AddDays(-$RetentionDays)   # e.g. today minus 30 days
+
+# ---------------------------------------------------------------
+# STEP 2: Find candidate files - matching pattern AND older than cutoff
+# ---------------------------------------------------------------
+$OldLogFiles = Get-ChildItem -Path $LogFolder -File -Recurse |   # Lists every file, including subfolders
+    Where-Object {
+        $_.Name -match $FilePattern -and                            # Filename must match our regex pattern
+        $_.LastWriteTime -lt $CutoffDate                             # AND must be older than the cutoff date
+    }
+
+Write-Host "Found $($OldLogFiles.Count) log file(s) older than $RetentionDays days.`n" -ForegroundColor Cyan
+
+# ---------------------------------------------------------------
+# STEP 3: Report what was found, with age in days for context
+# ---------------------------------------------------------------
+$Results = @()   # Will hold one record per file processed
+
+foreach ($File in $OldLogFiles) {                                # Loops through each old file found
+
+    $AgeDays = [math]::Round(((Get-Date) - $File.LastWriteTime).TotalDays, 0)   # How many days old this file is
+    $SizeKB  = [math]::Round($File.Length / 1KB, 1)                              # File size in KB
+
+    Write-Host "  $($File.Name)  -  $AgeDays days old, $SizeKB KB" -ForegroundColor Gray
+
+    # ---------------------------------------------------------------
+    # STEP 4: Move to archive (respects -WhatIf automatically)
+    # ---------------------------------------------------------------
+    $Destination = Join-Path $ArchiveFolder $File.Name    # Builds the full destination path safely
+
+    Move-Item -Path $File.FullName -Destination $Destination -WhatIf:$WhatIf -Confirm:$Confirm   # Built-in safety switches
+
+    $Results += [PSCustomObject]@{                         # Records what happened for this file
+        FileName    = $File.Name
+        AgeDays     = $AgeDays
+        SizeKB      = $SizeKB
+        Action      = if ($WhatIf) { "PREVIEWED (not moved)" } else { "MOVED TO ARCHIVE" }
+        ArchivePath = $Destination
+    }
+}
+
+# ---------------------------------------------------------------
+# STEP 5: Export results and summarize space that would be reclaimed
+# ---------------------------------------------------------------
+if (-not (Test-Path $ReportFolder)) {
+    New-Item -ItemType Directory -Path $ReportFolder | Out-Null
+}
+$Timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
+$Results | Export-Csv -Path "$ReportFolder\LogCleanup_$Timestamp.csv" -NoTypeInformation
+
+$TotalKB = [math]::Round((($Results.SizeKB | Measure-Object -Sum).Sum), 1)   # Total size of all processed files
+Write-Host "`nTotal space involved: $TotalKB KB across $($Results.Count) file(s)." -ForegroundColor Cyan
+Write-Host "Report saved to $ReportFolder\" -ForegroundColor Green
+
+if ($WhatIf) {
+    Write-Host "`nThis was a PREVIEW. Re-run with -WhatIf:`$false to actually move these files." -ForegroundColor Yellow
+}
+</code></pre></div>
+      </div>
+    </section>
+
+    <section id="linebyline">
+      <h2>Line-by-Line Explanation</h2>
+
+      <h3><code>param( [switch]$WhatIf = $true, [switch]$Confirm )</code></h3>
+      <ul class="explain-list">
+        <li><code>[switch]</code> — a parameter type that's either present or not, true or false — like a checkbox,
+        not a value you type text into.</li>
+        <li>Defaulting <code>$WhatIf</code> to <code>$true</code> is a deliberate safety choice: running this script
+        with no arguments at all is <b>safe by default</b>. You have to consciously override it to make real
+        changes — this is often called a "safe by default" design and is standard practice for anything destructive.</li>
+      </ul>
+
+      <h3><code>Where-Object { $_.Name -match $FilePattern -and $_.LastWriteTime -lt $CutoffDate }</code></h3>
+      <ul class="explain-list">
+        <li><code>-match $FilePattern</code> — tests the filename against our regex string
+        <code>"\.log$"</code>. Inside that pattern, the backslash before the dot means "a literal dot character"
+        (an unescaped dot in regex normally means "any character"), and <code>$</code> at the end anchors the match
+        to the very end of the string, so "app.log" matches but "app.log.bak" does not.</li>
+      </ul>
+
+      <h3><code>$AgeDays = [math]::Round(((Get-Date) - $File.LastWriteTime).TotalDays, 0)</code></h3>
+      <ul class="explain-list">
+        <li>Same DateTime-subtraction-produces-a-TimeSpan idea from Project 3's uptime calculation, here applied to
+        file age instead of system uptime — <code>.TotalDays</code> gives us that duration expressed as a decimal
+        number of days.</li>
+      </ul>
+
+      <h3><code>$Destination = Join-Path $ArchiveFolder $File.Name</code></h3>
+      <ul class="explain-list">
+        <li><code>Join-Path</code> — safely combines a folder path and a filename into one valid path, correctly
+        handling whether or not the folder path already ends with a backslash. Always prefer this over manually
+        concatenating strings with <code>+</code> or interpolation, which can produce malformed paths like double
+        backslashes or missing separators.</li>
+      </ul>
+
+      <h3><code>Move-Item -Path $File.FullName -Destination $Destination -WhatIf:$WhatIf -Confirm:$Confirm</code></h3>
+      <ul class="explain-list">
+        <li><code>-WhatIf:$WhatIf</code> — this syntax passes the <i>value</i> of our own <code>$WhatIf</code>
+        variable into the cmdlet's built-in <code>-WhatIf</code> switch parameter. Without the colon and variable,
+        just writing <code>-WhatIf</code> would always turn it on; this form lets us control it dynamically based on
+        what the caller specified.</li>
+        <li><code>$File.FullName</code> — the complete path to the source file, as opposed to <code>$File.Name</code>
+        which is just the filename by itself.</li>
+      </ul>
+
+      <h3><code>Action = if ($WhatIf) { "PREVIEWED (not moved)" } else { "MOVED TO ARCHIVE" }</code></h3>
+      <ul class="explain-list">
+        <li>Another example (like Challenge 3 in Project 3) of an <code>if/else</code> producing a value directly,
+        assigned straight into a property — no separate variable or extra lines needed.</li>
+      </ul>
+    </section>
+
+    <section id="architecture">
+      <h2>Architecture &amp; Safety Flow</h2>
+      <div class="diagram">
+        <div class="flow">
+          <div class="box">Get-ChildItem -Recurse</div><div class="arrow">→</div>
+          <div class="box">Where-Object (pattern + age)</div><div class="arrow">→</div>
+          <div class="box">Candidate Files</div>
+        </div>
+        <div class="flow" style="margin-top:12px;">
+          <div class="box">Candidate Files</div><div class="arrow">→</div>
+          <div class="box">Move-Item -WhatIf</div><div class="arrow">→</div>
+          <div class="box">Preview Output (default)</div>
+        </div>
+        <div class="flow" style="margin-top:12px;">
+          <div class="box">Explicit -WhatIf:$false</div><div class="arrow">→</div>
+          <div class="box">Move-Item (real)</div><div class="arrow">→</div>
+          <div class="box">Archive Folder + CSV Report</div>
+        </div>
+      </div>
+      <p>The key architectural decision here is that <b>the same code path</b> handles both preview and real
+      execution — we're not maintaining two separate scripts. This guarantees the preview accurately reflects what
+      the real run would do, because it's literally the same <code>Move-Item</code> call, just toggled.</p>
+    </section>
+
+    <section id="incident">
+      <h2>Production Incident Walkthrough</h2>
+      <div class="story">
+        Imagine an earlier, less careful version of this script ran directly with <code>Remove-Item</code> and no
+        <code>-WhatIf</code> default, against a folder path that had a typo pointing one level too high. It would
+        have deleted far more than intended, with no preview step to catch the mistake beforehand.
+      </div>
+      <ul class="explain-list">
+        <li><b>Why default to WhatIf = $true instead of $false?</b> If a script is ever run accidentally — a
+        misclick, a copy-paste into the wrong terminal, a scheduled task triggered against the wrong config — a
+        safe default means the worst case is "nothing happened, review the output," not "production logs are gone."</li>
+        <li><b>Why archive instead of deleting outright?</b> Archiving buys a recovery window. A later project (log
+        rotation / retention policy) will handle actually purging the archive folder itself, on a separate, even
+        more deliberate schedule.</li>
+      </ul>
+    </section>
+
+    <section id="troubleshoot">
+      <h2>Troubleshooting Cheat Sheet</h2>
+      <table>
+        <tr><th>Symptom</th><th>Likely Root Cause</th><th>Fix</th></tr>
+        <tr><td>Script reports 0 files found, even though old files exist</td><td>LastWriteTime wasn't actually backdated, or RetentionDays is too high</td><td>Confirm the test file's LastWriteTime with <code>Get-Item .\logs\app_1.log | Select LastWriteTime</code></td></tr>
+        <tr><td>Real files get moved even without the confirmation step</td><td>Ran with <code>-WhatIf:$false</code> without first reviewing the preview output</td><td>Always review the default (preview) run before adding <code>-WhatIf:$false</code></td></tr>
+        <tr><td>"Cannot find path" error on Move-Item</td><td>Archive folder doesn't exist yet</td><td>Confirm Step 1 of the lab created the <code>.\archive</code> folder</td></tr>
+        <tr><td>app_recent.log gets flagged incorrectly</td><td>RetentionDays or the system clock isn't what you expect</td><td>Print <code>$CutoffDate</code> and compare manually against the file's LastWriteTime</td></tr>
+      </table>
+    </section>
+
+    <section id="security">
+      <h2>Security &amp; Best Practices</h2>
+      <div class="callout security"><span class="lbl">Safe-by-default parameters</span>Defaulting a destructive
+      script's mode to "preview only" is a security and reliability practice, not just a testing convenience — carry
+      this pattern forward into every script this course builds from here on that can modify or delete anything.</div>
+      <div class="callout tip"><span class="lbl">Best practice reinforced here</span>We used <code>Join-Path</code>
+      instead of manual string concatenation for file paths — a small habit that prevents a whole category of subtle
+      path-related bugs, especially once scripts run across different servers with different folder structures.</div>
+    </section>
+
+    <section id="recap">
+      <h2>Key Learnings &amp; Recap</h2>
+      <div class="grid2">
+        <div>
+          <h3>Commands/Syntax Learned</h3>
+          <ul class="explain-list">
+            <li><code>Get-ChildItem -Recurse -File</code></li>
+            <li><code>-match</code> and basic regex (<code>\.</code>, <code>$</code>, <code>^</code>, <code>\d</code>)</li>
+            <li><code>-WhatIf</code> / <code>-Confirm</code></li>
+            <li><code>Move-Item</code>, <code>Join-Path</code></li>
+            <li><code>[switch]</code> parameter type</li>
+            <li><code>(Get-Date).AddDays()</code></li>
+          </ul>
+        </div>
+        <div>
+          <h3>Concepts Learned</h3>
+          <ul class="explain-list">
+            <li>Safe-by-default script design</li>
+            <li>Preview-before-destroy as a non-negotiable habit</li>
+            <li>Archive-then-delete instead of direct deletion</li>
+            <li>-like vs -match, when to reach for each</li>
+          </ul>
+        </div>
+      </div>
+      <h3>Common Mistakes to Avoid</h3>
+      <ul class="explain-list">
+        <li>Writing destructive scripts that default to "just do it" instead of "preview first."</li>
+        <li>Manually concatenating file paths with string interpolation instead of <code>Join-Path</code>.</li>
+        <li>Deleting old files immediately instead of archiving them with a recovery window.</li>
+      </ul>
+    </section>
+
+    <section id="interview">
+      <h2>Interview Preparation</h2>
+      <details><summary>Q1. Why default a cleanup script's -WhatIf parameter to $true instead of $false?</summary>
+        <p><b>Answer:</b> It makes the safe outcome the accidental outcome — if the script runs unintentionally,
+        nothing destructive happens; the person running it must consciously opt into real changes.</p>
+        <p><b>Follow-up:</b> "Isn't that inconvenient for someone who runs this script daily on purpose?" — Answer:
+        yes, which is why in later projects we'll show scheduled/automated runs explicitly passing
+        <code>-WhatIf:$false</code> in their configuration, rather than relying on an interactive user to remember
+        each time — the safe default protects against mistakes, not against deliberate, documented automation.</p>
+      </details>
+      <details><summary>Q2. What's the difference between -like and -match?</summary>
+        <p><b>Answer:</b> <code>-like</code> uses simple wildcard matching (<code>*</code>, <code>?</code>) and is
+        easier to read for basic filename patterns. <code>-match</code> uses full .NET regular expressions, which
+        can express far more complex patterns (anchors, character classes, repetition) but require more care to get
+        exactly right.</p>
+        <p><b>Follow-up:</b> "When would -like not be powerful enough?" — Answer: matching something like "exactly 4
+        digits followed by a dash," which wildcards can't express precisely but a regex like <code>\d{4}-</code> can.</p>
+      </details>
+      <details><summary>Q3. Why move files to an archive folder instead of deleting them directly?</summary>
+        <p><b>Answer:</b> It creates a recovery window — if a file turns out to still be needed, it's still
+        available in archive rather than permanently gone the moment the cleanup script ran.</p>
+        <p><b>Follow-up:</b> "How would you eventually clean up the archive folder itself?" — Answer: with a
+        separate, longer-retention cleanup policy (e.g. purge archive files older than 180 days), run on its own
+        deliberate schedule — separating "move out of the way" from "actually delete" into two distinct, independently
+        controlled steps.</p>
+      </details>
+    </section>
+
+    <section id="challenges">
+      <h2>Coding Challenges</h2>
+      <details><summary>Challenge 1: Also match files ending in .log.bak using the regex pattern</summary>
+        <details><summary>Show answer</summary>
+        <pre><code>$FilePattern = "\.log(\.bak)?$"   # (...)? makes the .bak part optional</code></pre>
+        </details>
+      </details>
+      <details><summary>Challenge 2: Skip any file smaller than 1KB (probably empty/junk, not worth archiving)</summary>
+        <details><summary>Show answer</summary>
+        <pre><code>Where-Object {
+    $_.Name -match $FilePattern -and
+    $_.LastWriteTime -lt $CutoffDate -and
+    $_.Length -gt 1KB
+}</code></pre>
+        </details>
+      </details>
+      <details><summary>Challenge 3: Group archived files by the month they were last written, for a cleaner report</summary>
+        <details><summary>Show answer</summary>
+        <pre><code>$OldLogFiles | Group-Object { $_.LastWriteTime.ToString("yyyy-MM") } |
+    Select-Object Name, Count | Sort-Object Name</code></pre>
+        </details>
+      </details>
+    </section>
+
+    <section id="resume">
+      <h2>Resume Points</h2>
+      <ul class="explain-list">
+        <li>Built a safe-by-default PowerShell log cleanup script using -WhatIf preview mode before any destructive file operation.</li>
+        <li>Implemented age- and pattern-based file filtering with regular expressions and LastWriteTime comparisons.</li>
+        <li>Designed an archive-before-delete workflow to protect against accidental data loss during automated cleanup.</li>
+      </ul>
+    </section>
+
+    <section id="assignment">
+      <h2>Practice Assignment</h2>
+      <div class="callout note">
+        Add a new parameter <code>$RetentionDays</code> to the <code>param()</code> block (instead of a hardcoded
+        variable) so it can be set from the command line like
+        <code>.\Invoke-LogCleanup.ps1 -RetentionDays 60</code>. Test it with a couple of different values and confirm
+        the file count found changes accordingly.
+      </div>
+    </section>
+
+    <section id="next">
+      <h2>Next Project Prerequisites</h2>
+      <p>Project 07 (Event Log Analysis) will apply the same age/pattern-filtering mindset to Windows Event Logs
+      instead of files — including searching for specific error IDs across a time window. Be comfortable with
+      -WhatIf and regex matching before moving on. When ready, say <b>"Next Project."</b></p>
+    </section>
+
+    <footer>
+      PowerShell Masterclass — ABC Bank Automation Track · Project 06 of 40 · Generated for offline, self-contained use.
+    </footer>
+  </main>
+</div>
+
+<script>
+function copyCode(btn){
+  const code = btn.parentElement.querySelector('pre').innerText;
+  navigator.clipboard.writeText(code).then(()=>{
+    const old = btn.innerText; btn.innerText = "Copied!";
+    setTimeout(()=>btn.innerText = old, 1200);
+  });
+}
+window.addEventListener('scroll', ()=>{
+  const h = document.documentElement;
+  const pct = (h.scrollTop) / (h.scrollHeight - h.clientHeight) * 100;
+  document.getElementById('progressFill').style.width = pct + '%';
+  document.getElementById('progressLabel').innerText = 'Reading progress: ' + Math.round(pct) + '%';
+});
+</script>
+</body>
+</html>

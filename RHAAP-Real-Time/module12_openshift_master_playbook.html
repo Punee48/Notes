@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Module 12 — The OpenShift Virtualization Master Playbook</title>
+<style>
+:root{
+  --blue:#1D4ED8; --blue-light:#DBEAFE; --blue-vlight:#EFF6FF;
+  --ink:#1F2937; --muted:#4B5563; --line:#E5E7EB; --ok:#047857; --warn:#B45309; --bad:#B91C1C;
+  --code-bg:#0F172A; --code-ink:#E2E8F0;
+}
+*{box-sizing:border-box}
+body{margin:0;font-family:Segoe UI, Arial, sans-serif;color:var(--ink);background:#fff;line-height:1.65;font-size:16px;}
+.layout{display:flex;min-height:100vh;}
+nav{width:280px;flex-shrink:0;background:var(--blue-vlight);border-right:1px solid var(--line);padding:24px 16px;position:sticky;top:0;height:100vh;overflow-y:auto;}
+nav h2{font-size:14px;text-transform:uppercase;letter-spacing:.05em;color:var(--blue);margin:0 0 12px;}
+nav a{display:block;padding:7px 10px;border-radius:6px;color:var(--ink);text-decoration:none;font-size:14px;margin-bottom:2px;}
+nav a:hover{background:var(--blue-light);}
+main{flex:1;padding:40px 60px;max-width:980px;}
+.badge{display:inline-block;background:var(--blue);color:#fff;font-size:12px;font-weight:600;padding:4px 10px;border-radius:999px;letter-spacing:.03em;}
+h1{font-size:30px;margin:14px 0 6px;color:var(--blue);}
+.subtitle{color:var(--muted);font-size:16px;margin-bottom:32px;}
+h2{font-size:22px;margin-top:48px;border-bottom:2px solid var(--blue-light);padding-bottom:8px;color:#111827;}
+h3{font-size:18px;margin-top:24px;color:#111827;}
+p{margin:12px 0;}
+.story{background:var(--blue-vlight);border-left:4px solid var(--blue);padding:16px 20px;border-radius:6px;margin:16px 0;}
+.why{background:#FFFBEB;border-left:4px solid var(--warn);padding:14px 20px;border-radius:6px;margin:14px 0;}
+.prod{background:#ECFDF5;border-left:4px solid var(--ok);padding:14px 20px;border-radius:6px;margin:14px 0;}
+.flow{background:#F9FAFB;border:1px solid var(--line);border-radius:8px;padding:18px 20px;margin:16px 0;font-family:Consolas,monospace;font-size:14px;white-space:pre;overflow-x:auto;color:#111827;}
+table{width:100%;border-collapse:collapse;margin:16px 0;font-size:14px;}
+th{background:var(--blue);color:#fff;text-align:left;padding:9px 11px;}
+td{padding:9px 11px;border-bottom:1px solid var(--line);vertical-align:top;}
+tr:nth-child(even) td{background:#F9FAFB;}
+details{border:1px solid var(--line);border-radius:8px;margin:14px 0;padding:0;}
+summary{cursor:pointer;padding:12px 16px;font-weight:600;background:#F9FAFB;border-radius:8px;}
+details[open] summary{border-bottom:1px solid var(--line);border-radius:8px 8px 0 0;}
+details .inner{padding:14px 18px;}
+.task{background:#ECFDF5;border:1px solid #A7F3D0;border-radius:8px;padding:18px 22px;margin:24px 0;}
+.task h3{margin-top:0;color:var(--ok);}
+.next{background:#111827;color:#fff;border-radius:8px;padding:20px 24px;margin-top:30px;}
+code{background:#F1F5F9;padding:1px 6px;border-radius:4px;font-size:13.5px;}
+pre{background:var(--code-bg);color:var(--code-ink);padding:16px 18px;border-radius:8px;overflow-x:auto;font-size:13.5px;margin:14px 0;}
+.line-note{font-size:14px;color:var(--muted);margin:4px 0 4px 18px;}
+footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);color:var(--muted);font-size:13px;}
+</style>
+</head>
+<body>
+<div class="layout">
+<nav>
+  <h2>Masterclass</h2>
+  <a href="#recap">1. A Different Kind of API</a>
+  <a href="#playbook">2. The Full Role</a>
+  <a href="#manifest">3. The VirtualMachine Manifest, Field by Field</a>
+  <a href="#tasklinebyline">4. The Ansible Tasks, Line by Line</a>
+  <a href="#compare">5. Three-Way Comparison</a>
+  <a href="#task">6. Hands-On Task</a>
+  <a href="#next">7. What Comes Next</a>
+</nav>
+<main>
+  <span class="badge">MODULE 12</span>
+  <h1>The OpenShift Virtualization Master Playbook</h1>
+  <p class="subtitle">Provisioning the same Payment Gateway servers as KubeVirt VirtualMachines</p>
+
+  <h2 id="recap">1. A Different Kind of API</h2>
+  <div class="story">
+    <p>Puneeth, this module feels different from Modules 10 and 11, and that's intentional. AWS and Azure both give you a dedicated "create a VM" API call. OpenShift instead asks you to <strong>describe</strong> the VM you want, as a structured YAML document (a "manifest"), and hand that description to the Kubernetes API — the actual work of creating the VM is then done by the KubeVirt operator watching for that description, not by Ansible itself. This is the "declarative" style Kubernetes is famous for, and it's a genuinely different mental model worth sitting with.</p>
+  </div>
+
+  <h2 id="playbook">2. The Full Role</h2>
+  <pre>---
+# roles/openshift_provision/tasks/main.yml
+
+- name: Check whether this VM already exists (idempotency)
+  kubernetes.core.k8s_info:
+    api_version: kubevirt.io/v1
+    kind: VirtualMachine
+    namespace: "{{ namespace }}"
+    name: "{{ vm_name }}"
+  register: existing_vm
+
+- name: Render the cloud-init configuration
+  ansible.builtin.set_fact:
+    cloud_init_data: "{{ lookup('template', 'cloud-init.yml.j2') }}"
+
+- name: Create the VirtualMachine
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: kubevirt.io/v1
+      kind: VirtualMachine
+      metadata:
+        name: "{{ vm_name }}"
+        namespace: "{{ namespace }}"
+        labels:
+          app: "{{ application }}"
+          environment: "{{ environment }}"
+        annotations:
+          owner: "{{ owner }}"
+          cost-center: "{{ cost_center }}"
+      spec:
+        running: true
+        template:
+          metadata:
+            labels:
+              app: "{{ application }}"
+          spec:
+            domain:
+              cpu:
+                cores: "{{ cpu }}"
+              resources:
+                requests:
+                  memory: "{{ memory }}Gi"
+              devices:
+                disks:
+                  - name: rootdisk
+                    disk:
+                      bus: virtio
+                  - name: cloudinitdisk
+                    disk:
+                      bus: virtio
+                interfaces:
+                  - name: paymentnet
+                    bridge: {}
+            networks:
+              - name: paymentnet
+                multus:
+                  networkName: "{{ network_attachment_definition }}"
+            volumes:
+              - name: rootdisk
+                dataVolume:
+                  name: "{{ vm_name }}-rootdisk"
+              - name: cloudinitdisk
+                cloudInitNoCloud:
+                  userData: "{{ cloud_init_data }}"
+  register: vm_result
+  when: existing_vm.resources | length == 0
+
+- name: Create the DataVolume (boot disk cloned from golden image)
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: cdi.kubevirt.io/v1beta1
+      kind: DataVolume
+      metadata:
+        name: "{{ vm_name }}-rootdisk"
+        namespace: "{{ namespace }}"
+      spec:
+        source:
+          sourceRef:
+            kind: DataSource
+            name: "{{ golden_image_datasource }}"
+            namespace: golden-images
+        storage:
+          resources:
+            requests:
+              storage: "{{ disk_size }}Gi"
+          storageClassName: "{{ storage_class }}"
+  when: existing_vm.resources | length == 0
+
+- name: Wait for the VM to report Running
+  kubernetes.core.k8s_info:
+    api_version: kubevirt.io/v1
+    kind: VirtualMachineInstance
+    namespace: "{{ namespace }}"
+    name: "{{ vm_name }}"
+  register: vmi_status
+  until: vmi_status.resources[0].status.phase | default('') == "Running"
+  retries: 30
+  delay: 10
+
+- name: Add the new VM to in-memory inventory for post-config
+  ansible.builtin.add_host:
+    name: "{{ vm_name }}"
+    groups: newly_provisioned
+    ansible_host: "{{ vmi_status.resources[0].status.interfaces[0].ipAddress }}"
+
+- name: Produce the provisioning report
+  ansible.builtin.set_stats:
+    data:
+      vm_name: "{{ vm_name }}"
+      cloud_platform: openshift
+      status: "{{ 'created' if vm_result is changed else 'already_existed' }}"</pre>
+
+  <h2 id="manifest">3. The VirtualMachine Manifest, Field by Field</h2>
+  <p class="line-note"><code>apiVersion: kubevirt.io/v1</code> — tells the Kubernetes API which API group and version understands this object type; without KubeVirt installed on the cluster, this <code>apiVersion</code> simply wouldn't exist and the request would be rejected.</p>
+  <p class="line-note"><code>kind: VirtualMachine</code> — the object type — note this is the "desired state" wrapper object. It is not the running VM itself; it's the durable record that says "a VM by this name should exist and be running," similar in spirit to how a Kubernetes <code>Deployment</code> is not the same object as the Pods it creates.</p>
+  <p class="line-note"><code>metadata.labels</code> — Kubernetes' native tagging mechanism, used for selecting/filtering objects (for example, "show me every VM with <code>app: payment</code>") — the functional equivalent of AWS/Azure tags.</p>
+  <p class="line-note"><code>metadata.annotations</code> — similar to labels but not meant for selection/filtering, just attached metadata for humans or tooling to read — a good place for our CostCenter/Owner values, which we don't need to query against.</p>
+  <p class="line-note"><code>spec.running: true</code> — explicitly tells KubeVirt "keep this VM powered on"; setting it to <code>false</code> would create the VM definition but leave it shut down — useful for pre-staging a VM without starting it yet.</p>
+  <p class="line-note"><code>spec.template</code> — describes the actual VM instance that gets launched, in the same nested way a Kubernetes <code>Deployment</code>'s <code>spec.template</code> describes the Pods it creates.</p>
+  <p class="line-note"><code>domain.cpu.cores</code> and <code>domain.resources.requests.memory</code> — the direct CPU/memory sizing, straight from our Module 1 checklist values — no separate "instance type" name to map to, since KubeVirt lets you request raw CPU/memory directly (though real enterprises often still standardize using named InstanceTypes, mentioned in Module 2).</p>
+  <p class="line-note"><code>devices.disks</code> — lists the virtual disks attached to the VM and which bus type connects them (<code>virtio</code> is the standard high-performance para-virtualized driver); note there are two disks here — the actual OS disk, and a second disk purely for delivering cloud-init configuration.</p>
+  <p class="line-note"><code>devices.interfaces</code> and top-level <code>networks</code> — these two sections must always be paired by matching <code>name</code>; <code>interfaces</code> describes how the VM's virtual NIC connects (<code>bridge: {}</code>), while <code>networks</code> describes what that name actually points to outside the VM.</p>
+  <p class="line-note"><code>networks[].multus.networkName</code> — this is the connection to <strong>Multus</strong>, a Kubernetes networking add-on that allows a Pod/VM to have more than one network interface. Instead of using only the cluster's default internal network, this line attaches our VM to a specific <code>NetworkAttachmentDefinition</code> object (created ahead of time by the Network team) representing our real corporate VLAN.</p>
+  <p class="line-note"><code>volumes[].dataVolume.name</code> — connects the <code>rootdisk</code> disk device to an actual DataVolume object (created separately below) that holds the real disk data, cloned from our golden RHEL 9 image.</p>
+  <p class="line-note"><code>volumes[].cloudInitNoCloud.userData</code> — injects our rendered cloud-init YAML directly as the VM's first-boot configuration, the same mechanism EC2 and Azure VMs also support, letting us set hostname, users, and SSH keys consistently across all three platforms.</p>
+
+  <h2 id="tasklinebyline">4. The Ansible Tasks, Line by Line</h2>
+  <p class="line-note"><code>kubernetes.core.k8s_info</code> — the read-only lookup module, used first purely for our idempotency check, mirroring the <code>_info</code> pattern from both Module 10 and Module 11.</p>
+  <p class="line-note"><code>kubernetes.core.k8s</code> with <code>state: present</code> — the single, universal module used to create <em>any</em> Kubernetes/OpenShift object; unlike AWS and Azure, which have a different module per resource type, Kubernetes automation typically uses this one module and simply changes the <code>definition:</code> YAML block passed to it — the object's <code>kind</code> field is what tells Kubernetes what to actually create.</p>
+  <p class="line-note"><code>kind: DataVolume</code>, <code>spec.source.sourceRef</code> — a second, separate object that actually performs the disk cloning; it references a pre-published <code>DataSource</code> (our golden image, published once by the Platform team) rather than embedding a raw image URL, keeping golden-image management centralized.</p>
+  <p class="line-note"><code>storage.storageClassName</code> — tells Kubernetes which underlying storage backend (SAN, NFS, Ceph) to actually allocate the disk from, matching the value gathered from the Storage team back in Module 2.</p>
+  <p class="line-note"><code>until / retries / delay</code> on the <code>VirtualMachineInstance</code> lookup — this is Ansible's built-in retry loop; it re-checks the VM's live status every 10 seconds, up to 30 times (5 minutes total), until the <code>phase</code> field actually reports <code>"Running"</code> — this distinguishes "the object was accepted by the API" from "the VM has actually finished booting," a distinction that doesn't really exist the same way in the AWS/Azure modules, which handle the equivalent wait internally via <code>wait: true</code>.</p>
+  <p class="line-note"><code>vmi_status.resources[0].status.interfaces[0].ipAddress</code> — this is how we discover the VM's IP address after boot: KubeVirt reports it back on the running <code>VirtualMachineInstance</code> object once the guest agent inside the VM reports in, which is why we needed to wait for "Running" first — the IP simply isn't known before that.</p>
+
+  <h2 id="compare">5. Three-Way Comparison — Same Idea, Three Implementations</h2>
+  <table>
+    <tr><th>Concept</th><th>AWS</th><th>Azure</th><th>OpenShift Virtualization</th></tr>
+    <tr><td>How you ask for a VM</td><td>Direct API call (imperative)</td><td>Direct API call (imperative)</td><td>Submit a YAML description (declarative)</td></tr>
+    <tr><td>Who actually creates it</td><td>The EC2 service itself</td><td>Azure Resource Manager</td><td>The separate KubeVirt operator, watching the object you submitted</td></tr>
+    <tr><td>Boot disk</td><td>EBS volume, defined inline</td><td>Managed Disk, defined inline</td><td>Separate DataVolume object, cloned from a DataSource</td></tr>
+    <tr><td>First-boot config</td><td>User data (cloud-init)</td><td>SSH key injection</td><td>cloud-init via a second virtual disk</td></tr>
+    <tr><td>IP discovery</td><td>Immediately available after <code>wait: true</code></td><td>Immediately available after creation</td><td>Only available after the VM reports Running, via a separate poll</td></tr>
+  </table>
+
+  <div class="task" id="task">
+    <h3>6. Hands-On Task</h3>
+    <p>Explain, in two or three sentences and in your own words, why OpenShift Virtualization needs a separate "wait until phase is Running" polling loop, when the AWS and Azure playbooks in Modules 10 and 11 did not need one written explicitly.</p>
+  </div>
+
+  <div class="next" id="next">
+    <strong>What comes next — Module 13: The Common Multi-Cloud Playbook.</strong>
+    <p style="margin-bottom:0">Now we tie all three platform roles together into one entry-point playbook, <code>provision_server.yml</code>, that dynamically includes the correct role based on <code>cloud_platform</code> — and we unpack exactly how and why <code>include_role</code> makes this possible.</p>
+  </div>
+
+  <footer>Enterprise Multi-Cloud Server Provisioning Masterclass — Module 12 of 30</footer>
+</main>
+</div>
+</body>
+</html>

@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Assignment 11 — VPC Endpoints &amp; Controlled Egress</title>
+<style>
+:root{
+  --bg:#0B1120; --bg-2:#111827; --card:#17202F; --card-2:#1C2536; --border:#26314A;
+  --orange:#FF9900; --orange-dim:#B96E00; --blue:#00A8E1; --green:#34D399;
+  --warning:#FBBF24; --error:#F87171; --text:#E5E9F0; --text-dim:#94A3B8;
+  --code-bg:#0A0E17; --code-text:#D1D9E6;
+  --mono:'JetBrains Mono','Fira Code',ui-monospace,monospace;
+  --sans:'Inter',-apple-system,sans-serif; --display:'Space Grotesk','Inter',sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html{scroll-behavior:smooth;}
+body{background:var(--bg);color:var(--text);font-family:var(--sans);line-height:1.65;font-size:16px;}
+a{color:var(--blue);text-decoration:none;} a:hover{text-decoration:underline;}
+::selection{background:var(--orange);color:#0B1120;}
+.shell{display:flex;min-height:100vh;}
+.sidebar{width:270px;flex-shrink:0;background:var(--bg-2);border-right:1px solid var(--border);
+  position:sticky;top:0;height:100vh;overflow-y:auto;padding:24px 0 60px;}
+.sidebar-brand{padding:0 20px 20px;border-bottom:1px solid var(--border);margin-bottom:12px;}
+.sidebar-brand .tag{font-family:var(--mono);font-size:11px;color:var(--orange);letter-spacing:.12em;text-transform:uppercase;}
+.sidebar-brand h1{font-family:var(--display);font-size:17px;margin-top:6px;line-height:1.3;}
+.sidebar nav a{display:block;padding:8px 20px;font-size:13.5px;color:var(--text-dim);border-left:2px solid transparent;}
+.sidebar nav a:hover{color:var(--text);text-decoration:none;background:var(--card);}
+.sidebar nav a.active{color:var(--orange);border-left-color:var(--orange);background:var(--card);}
+.main{flex:1;min-width:0;}
+.container{max-width:900px;margin:0 auto;padding:56px 40px 120px;}
+.cover{background:linear-gradient(160deg,#131C2E 0%, #0B1120 70%);border:1px solid var(--border);border-radius:14px;
+  padding:44px 40px;margin-bottom:48px;position:relative;overflow:hidden;}
+.cover::before{content:"";position:absolute;top:-60px;right:-60px;width:260px;height:260px;
+  background:radial-gradient(circle,rgba(255,153,0,.18),transparent 70%);}
+.cover .eyebrow{font-family:var(--mono);color:var(--orange);font-size:12px;letter-spacing:.14em;text-transform:uppercase;}
+.cover h1{font-family:var(--display);font-size:34px;margin:12px 0 14px;max-width:640px;position:relative;}
+.cover p.lede{color:var(--text-dim);max-width:560px;font-size:15px;position:relative;}
+.cover-meta{display:flex;flex-wrap:wrap;gap:10px;margin-top:24px;position:relative;}
+.chip{background:var(--card);border:1px solid var(--border);border-radius:999px;padding:6px 14px;font-size:12.5px;color:var(--text-dim);font-family:var(--mono);}
+.chip b{color:var(--text);}
+h2.section-title{font-family:var(--display);font-size:24px;margin:56px 0 18px;padding-bottom:10px;border-bottom:1px solid var(--border);
+  display:flex;align-items:center;gap:10px;scroll-margin-top:24px;}
+h2.section-title .num{font-family:var(--mono);color:var(--orange-dim);font-size:15px;}
+h3{font-family:var(--display);font-size:18px;margin:26px 0 10px;color:var(--text);}
+h4{font-size:15px;margin:18px 0 8px;color:var(--orange);font-family:var(--mono);}
+p{margin-bottom:14px;color:#C7CEDB;}
+ul,ol{margin:0 0 14px 22px;color:#C7CEDB;} li{margin-bottom:6px;}
+strong{color:var(--text);}
+.card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:20px 22px;margin:16px 0;}
+.story-card{background:linear-gradient(135deg,#1A2333,#161E2C);border-left:3px solid var(--orange);border-radius:8px;padding:22px 24px;margin:16px 0;}
+.story-card p{color:#D7DCE8;font-style:italic;} .story-card p:last-child{margin-bottom:0;}
+.role-tag{display:inline-block;font-family:var(--mono);font-size:11px;color:var(--orange);background:rgba(255,153,0,.1);
+  border:1px solid rgba(255,153,0,.3);border-radius:5px;padding:2px 8px;margin-bottom:10px;letter-spacing:.05em;}
+.box{border-radius:8px;padding:16px 18px;margin:16px 0;border:1px solid;}
+.box.tip{background:rgba(0,168,225,.07);border-color:rgba(0,168,225,.35);}
+.box.warn{background:rgba(251,191,36,.07);border-color:rgba(251,191,36,.35);}
+.box.security{background:rgba(248,113,113,.07);border-color:rgba(248,113,113,.35);}
+.box.win{background:rgba(52,211,153,.07);border-color:rgba(52,211,153,.35);}
+.box .label{font-family:var(--mono);font-size:11px;text-transform:uppercase;letter-spacing:.1em;display:block;margin-bottom:6px;}
+.box.tip .label{color:var(--blue);} .box.warn .label{color:var(--warning);}
+.box.security .label{color:var(--error);} .box.win .label{color:var(--green);}
+.box p:last-child{margin-bottom:0;}
+table{width:100%;border-collapse:collapse;margin:16px 0;font-size:14px;}
+th{background:var(--card-2);color:var(--orange);text-align:left;padding:10px 12px;font-family:var(--mono);
+  font-size:12px;text-transform:uppercase;letter-spacing:.04em;border-bottom:1px solid var(--border);}
+td{padding:10px 12px;border-bottom:1px solid var(--border);color:#C7CEDB;vertical-align:top;}
+tr:last-child td{border-bottom:none;} tr:hover td{background:rgba(255,255,255,.02);}
+.code-wrap{position:relative;margin:16px 0;border-radius:8px;overflow:hidden;border:1px solid var(--border);}
+.code-head{background:var(--card-2);padding:8px 14px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border);}
+.code-head span{font-family:var(--mono);font-size:11.5px;color:var(--text-dim);}
+.copy-btn{background:transparent;border:1px solid var(--border);color:var(--text-dim);font-family:var(--mono);font-size:11px;
+  padding:4px 10px;border-radius:5px;cursor:pointer;}
+.copy-btn:hover{border-color:var(--orange);color:var(--orange);}
+pre{background:var(--code-bg);padding:16px 18px;overflow-x:auto;font-family:var(--mono);font-size:13px;line-height:1.6;color:var(--code-text);}
+code{font-family:var(--mono);}
+p code, li code{background:var(--card-2);padding:1px 6px;border-radius:4px;font-size:13px;color:#FFC876;}
+.comment{color:#5E7099;} .kw{color:var(--blue);} .str{color:var(--green);}
+.diagram{background:var(--code-bg);border:1px solid var(--border);border-radius:10px;padding:28px;margin:20px 0;overflow-x:auto;}
+.flow{display:flex;flex-direction:column;align-items:center;gap:0;font-family:var(--mono);font-size:13px;}
+.flow-box{background:var(--card);border:1px solid var(--orange-dim);border-radius:8px;padding:12px 22px;min-width:260px;
+  text-align:center;color:var(--text);opacity:0;transform:translateY(8px);animation:reveal .5s ease forwards;}
+.flow-box.public{border-color:var(--blue);} .flow-box.private{border-color:var(--green);}
+.flow-arrow{color:#4B5875;font-size:18px;padding:6px 0;opacity:0;animation:reveal .5s ease forwards;}
+@keyframes reveal{to{opacity:1;transform:translateY(0);}}
+.flow-box small, .flow-arrow small{display:block;color:var(--text-dim);font-size:10.5px;margin-top:3px;}
+details{background:var(--card);border:1px solid var(--border);border-radius:8px;margin:10px 0;padding:0;}
+details summary{cursor:pointer;padding:14px 18px;font-family:var(--mono);font-size:13.5px;color:var(--orange);
+  list-style:none;display:flex;justify-content:space-between;align-items:center;}
+details summary::-webkit-details-marker{display:none;}
+details summary::after{content:"+";color:var(--text-dim);font-size:16px;}
+details[open] summary::after{content:"–";}
+details .inner{padding:0 18px 16px;border-top:1px solid var(--border);padding-top:12px;}
+details .inner p:last-child{margin-bottom:0;}
+.qa{margin:14px 0;padding:16px 18px;background:var(--card-2);border-radius:8px;border:1px solid var(--border);}
+.qa .q{font-family:var(--display);font-size:14.5px;color:var(--text);margin-bottom:8px;}
+.qa .q .qn{color:var(--orange);font-family:var(--mono);margin-right:6px;}
+.qa .follow{margin-top:10px;padding-top:10px;border-top:1px dashed var(--border);color:var(--text-dim);font-size:13px;}
+.qa .follow b{color:var(--blue);}
+.resume-list{list-style:none;margin:14px 0;}
+.resume-list li{padding:12px 16px;background:var(--card);border-left:3px solid var(--green);border-radius:0 6px 6px 0;
+  margin-bottom:8px;font-size:14px;color:#D7DCE8;}
+.criteria{list-style:none;margin:14px 0;}
+.criteria li{padding-left:28px;position:relative;margin-bottom:8px;color:#C7CEDB;}
+.criteria li::before{content:"✓";position:absolute;left:0;color:var(--green);font-family:var(--mono);}
+.progress-bar{height:6px;background:var(--card-2);border-radius:999px;overflow:hidden;margin:14px 0 4px;}
+.progress-bar-fill{height:100%;width:44%;background:linear-gradient(90deg,var(--orange),var(--blue));}
+.progress-label{font-family:var(--mono);font-size:11px;color:var(--text-dim);}
+footer{text-align:center;padding:40px;color:#4B5875;font-family:var(--mono);font-size:12px;border-top:1px solid var(--border);margin-top:60px;}
+.steps{list-style:none;margin:16px 0;counter-reset:step;}
+.steps li{position:relative;padding:14px 18px 14px 52px;margin-bottom:10px;background:var(--card);border:1px solid var(--border);
+  border-radius:8px;counter-increment:step;}
+.steps li::before{content:counter(step);position:absolute;left:16px;top:14px;width:24px;height:24px;border-radius:50%;
+  background:var(--orange);color:#0B1120;font-family:var(--mono);font-weight:700;font-size:12px;
+  display:flex;align-items:center;justify-content:center;}
+.steps li b{color:var(--text);}
+@media(max-width:860px){
+  .sidebar{position:fixed;left:-270px;transition:left .2s;z-index:50;box-shadow:20px 0 40px rgba(0,0,0,.4);}
+  .sidebar.open{left:0;} .container{padding:24px 18px 100px;}
+  .mobile-toggle{position:fixed;bottom:20px;right:20px;z-index:60;background:var(--orange);color:#0B1120;border:none;
+    border-radius:50%;width:52px;height:52px;font-size:20px;cursor:pointer;box-shadow:0 6px 20px rgba(0,0,0,.4);}
+}
+@media(min-width:861px){.mobile-toggle{display:none;}}
+@media(prefers-reduced-motion:reduce){*{animation:none !important;transition:none !important;}}
+</style>
+</head>
+<body>
+<div class="shell">
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-brand">
+      <span class="tag">AWS Cloud Engineering</span>
+      <h1>Assignment 11<br>Intermediate Stage</h1>
+    </div>
+    <nav>
+      <a href="#story">Production Story</a>
+      <a href="#requirements">Requirements</a>
+      <a href="#architecture">Architecture</a>
+      <a href="#decisions">Architecture Decisions</a>
+      <a href="#console">Manual Console Steps</a>
+      <a href="#cli">AWS CLI</a>
+      <a href="#terraform">Terraform</a>
+      <a href="#validation">Validation &amp; Testing</a>
+      <a href="#monitoring">Monitoring</a>
+      <a href="#incident">Production Incident</a>
+      <a href="#troubleshooting">Troubleshooting Method</a>
+      <a href="#cost">Cost Awareness</a>
+      <a href="#review">Architecture Review</a>
+      <a href="#cleanup">Cleanup</a>
+      <a href="#acceptance">Acceptance Criteria</a>
+      <a href="#challenge">Practice Challenge</a>
+      <a href="#interview">Interview Prep</a>
+      <a href="#resume">Resume Points</a>
+      <a href="#next">Next Project</a>
+    </nav>
+  </aside>
+
+  <div class="main">
+    <div class="container">
+
+      <div class="cover">
+        <span class="eyebrow">Assignment 11 of 25 · Intermediate</span>
+        <h1>Implementing VPC Endpoints and Controlled Egress</h1>
+        <p class="lede">Right now, every time the app tier talks to S3 or Secrets Manager, that traffic leaves the VPC through the NAT Gateway and travels over the public AWS network backbone before it ever reaches those services — even though both are AWS services in the same region. Ananya wants to know why "internal" traffic is taking the most exposed possible path.</p>
+        <div class="cover-meta">
+          <span class="chip">Difficulty: <b>Intermediate</b></span>
+          <span class="chip">Domain: <b>Insurance</b></span>
+          <span class="chip">Services: <b>VPC Endpoints · PrivateLink · Endpoint Policies</b></span>
+          <span class="chip">IaC: <b>Console + CLI + Terraform</b></span>
+          <span class="chip">Est. lab time: <b>2.5–3.5 hrs</b></span>
+        </div>
+        <div class="progress-bar"><div class="progress-bar-fill"></div></div>
+        <span class="progress-label">Progress: Assignment 11 of 25</span>
+      </div>
+
+      <!-- STORY -->
+      <h2 class="section-title" id="story"><span class="num">01</span> Production Story</h2>
+      <div class="story-card">
+        <span class="role-tag">Security Team — Ananya Reddy</span>
+        <p>"I was reviewing VPC Flow Logs and noticed every S3 and Secrets Manager call from the app tier is routing out through the NAT Gateway, onto the public internet path, before it reaches an AWS service that's sitting in the exact same region as us. That's more exposure than necessary for traffic that never needed to leave AWS's own network at all. And separately — I want to know exactly what the app tier can reach out to on the internet. Right now the security group allows all outbound traffic to anywhere. That's too broad for a production system handling customer data."</p>
+      </div>
+      <div class="box tip">
+        <span class="label">Why this is Assignment 11</span>
+        <p>Every AWS-to-AWS call the app tier makes — to S3 (Assignment 1's bucket, Assignment 4's lifecycle-managed objects), to Secrets Manager (Assignment 5's rating-API key and Assignment 8's DB credentials) — currently takes the long way around through the NAT Gateway. A <strong>VPC Endpoint</strong> creates a private, direct path from inside the VPC straight to an AWS service, without touching the internet or even the NAT Gateway at all. We also tighten the app tier's security group to a specific, named allowlist instead of "anywhere," closing Ananya's second concern in the same pass.</p>
+      </div>
+
+      <!-- REQUIREMENTS -->
+      <h2 class="section-title" id="requirements"><span class="num">02</span> Business &amp; Technical Requirements</h2>
+      <table>
+        <tr><th>Type</th><th>Requirement</th></tr>
+        <tr><td>Security</td><td>Traffic to S3 and Secrets Manager must stay entirely on AWS's private network, never traversing the public internet path.</td></tr>
+        <tr><td>Security</td><td>The app tier's outbound access must be an explicit allowlist — the third-party rating API and OS patch repositories via NAT, everything else via VPC Endpoints — not a blanket "allow all."</td></tr>
+        <tr><td>Cost</td><td>Reducing NAT Gateway data-processing charges is a welcome side effect, not the primary driver — security is the stated reason, cost savings get called out separately.</td></tr>
+        <tr><td>Availability</td><td>Endpoints must be resilient across both AZs, consistent with everything else built so far.</td></tr>
+      </table>
+
+      <!-- ARCHITECTURE -->
+      <h2 class="section-title" id="architecture"><span class="num">03</span> Architecture Design</h2>
+      <div class="diagram">
+        <div class="flow">
+          <div class="flow-box private" style="animation-delay:.05s">App Instance (sg-app)<small>Assignment 7's ASG</small></div>
+          <div class="flow-arrow" style="animation-delay:.25s">↓ private, AWS backbone only</div>
+          <div class="flow-box" style="animation-delay:.35s">S3 Gateway Endpoint<small>route-table-based, no ENI, free</small></div>
+          <div class="flow-arrow" style="animation-delay:.55s">↕ separately</div>
+          <div class="flow-box" style="animation-delay:.65s">Secrets Manager Interface Endpoint<small>PrivateLink ENI in each private subnet</small></div>
+          <div class="flow-arrow" style="animation-delay:.85s">↓ only remaining NAT-routed traffic</div>
+          <div class="flow-box public" style="animation-delay:.95s">NAT Gateway<small>rating API + OS patching only, egress-restricted</small></div>
+        </div>
+      </div>
+      <p>Two different endpoint mechanisms are in play here, and they work differently under the hood. The <strong>S3 Gateway Endpoint</strong> isn't a network device at all — it's a special route-table entry that AWS resolves internally, adding a target for S3's IP ranges directly into the private subnets' route tables. The <strong>Secrets Manager Interface Endpoint</strong> is a real Elastic Network Interface (ENI) with a private IP, deployed via AWS PrivateLink into each private subnet, and DNS resolution for <code>secretsmanager.ap-south-1.amazonaws.com</code> is transparently redirected to that private ENI instead of the public endpoint.</p>
+
+      <!-- DECISIONS -->
+      <h2 class="section-title" id="decisions"><span class="num">04</span> Architecture Decision Making</h2>
+
+      <h3>Decision: Gateway Endpoint vs. Interface Endpoint — Not a Free Choice, AWS Decides Per Service</h3>
+      <table>
+        <tr><th></th><th>Gateway Endpoint</th><th>Interface Endpoint (PrivateLink)</th></tr>
+        <tr><td>Supported services</td><td>Only S3 and DynamoDB</td><td>Most other AWS services, including Secrets Manager, KMS, EC2, SSM</td></tr>
+        <tr><td>Mechanism</td><td>Route table entry — no ENI, no hourly charge</td><td>ENI with a private IP per subnet — hourly charge per endpoint per AZ, plus per-GB data processing</td></tr>
+        <tr><td>DNS behavior</td><td>No DNS change needed — route table handles it transparently</td><td>Requires "Private DNS" enabled on the endpoint so existing service hostnames resolve to the private IP automatically</td></tr>
+      </table>
+      <p>This isn't really a decision we get to make freely — S3 only supports the Gateway type, Secrets Manager only supports the Interface type. What we <em>do</em> decide is to use whichever type each service supports, rather than routing either through NAT just because it's simpler to reason about one mechanism instead of two.</p>
+
+      <h3>Decision: Endpoint Policies — Should Every Endpoint Trust Everything?</h3>
+      <p>By default, a VPC Endpoint has no restrictive policy — anything with network access to it and valid IAM permissions can use it to reach the service. We attach an explicit <strong>endpoint policy</strong> to the S3 Gateway Endpoint restricting it to only the specific buckets this VPC's workloads actually use (the reconciliation bucket and audit-logs bucket), so even a compromised instance inside this VPC can't use the endpoint as a path to some unrelated S3 bucket in the account or another account entirely.</p>
+
+      <!-- CONSOLE -->
+      <h2 class="section-title" id="console"><span class="num">05</span> AWS Console — Manual Steps</h2>
+      <ol class="steps">
+        <li><b>Create the S3 Gateway Endpoint.</b> VPC console → <em>Endpoints → Create endpoint</em> → service category "AWS services" → search <code>s3</code> → select the Gateway type entry (<code>com.amazonaws.ap-south-1.s3</code>) → VPC <code>quote-portal-vpc</code> → route tables: select both private-tier route tables (from Assignment 2) → policy: custom, restricting to the reconciliation and audit-logs bucket ARNs specifically.</li>
+        <li><b>Create the Secrets Manager Interface Endpoint.</b> <em>Create endpoint</em> again → search <code>secretsmanager</code> → select the Interface type → VPC <code>quote-portal-vpc</code> → subnets: both private subnets (one ENI per AZ) → security group: a new <code>sg-vpce</code> allowing HTTPS (443) inbound from <code>sg-app</code> only → enable "Private DNS names" so the existing <code>secretsmanager.ap-south-1.amazonaws.com</code> hostname the app already uses resolves to the private endpoint automatically, with zero application code change.</li>
+        <li><b>Tighten sg-app's egress rule.</b> EC2 console → <code>sg-app</code> → <em>Outbound rules → Edit</em> → remove the blanket "all traffic to 0.0.0.0/0" rule → add specific rules: HTTPS (443) to the rating API's known IP range/prefix list, HTTPS (443) to <code>sg-vpce</code>, and HTTP/HTTPS to the OS patch repository's IP range if needed.</li>
+        <li><b>Verify DNS resolution from inside an app instance.</b> SSM into an instance → <code>nslookup secretsmanager.ap-south-1.amazonaws.com</code> → the returned IP should now be a private VPC IP (10.20.x.x), not a public AWS IP — confirming Private DNS is correctly redirecting the call.</li>
+        <li><b>Confirm S3 traffic no longer transits NAT.</b> VPC Flow Logs (Assignment 2/9) → filter for S3's IP ranges from the app subnet — should show zero flow records through the NAT Gateway's ENI for S3 traffic after the endpoint is live.</li>
+      </ol>
+
+      <!-- CLI -->
+      <h2 class="section-title" id="cli"><span class="num">06</span> AWS CLI</h2>
+      <div class="code-wrap">
+        <div class="code-head"><span>bash</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre><span class="comment"># Create the S3 Gateway Endpoint, attached to both private route tables</span>
+aws ec2 create-vpc-endpoint \
+  --vpc-id $VPC_ID --service-name com.amazonaws.ap-south-1.s3 \
+  --route-table-ids $PRIVATE_RT_A_ID $PRIVATE_RT_B_ID \
+  --policy-document file://s3-endpoint-policy.json
+
+<span class="comment"># Create the Secrets Manager Interface Endpoint with Private DNS enabled</span>
+aws ec2 create-vpc-endpoint \
+  --vpc-id $VPC_ID --service-name com.amazonaws.ap-south-1.secretsmanager \
+  --vpc-endpoint-type Interface \
+  --subnet-ids $PRIVATE_A_SUBNET_ID $PRIVATE_B_SUBNET_ID \
+  --security-group-ids $SG_VPCE_ID \
+  --private-dns-enabled
+
+<span class="comment"># Confirm DNS now resolves privately from inside the app instance</span>
+nslookup secretsmanager.ap-south-1.amazonaws.com</pre>
+      </div>
+      <table>
+        <tr><th>Flag</th><th>Meaning</th></tr>
+        <tr><td><code>--route-table-ids</code></td><td>For a Gateway Endpoint, this IS the mechanism — it inserts a route for S3's IP prefix list into each specified route table</td></tr>
+        <tr><td><code>--private-dns-enabled</code></td><td>Makes the standard public service hostname transparently resolve to the private endpoint — without this, applications would need to be rewritten to use a different, endpoint-specific hostname</td></tr>
+      </table>
+
+      <!-- TERRAFORM -->
+      <h2 class="section-title" id="terraform"><span class="num">07</span> Terraform Implementation</h2>
+
+      <h3>main.tf — S3 Gateway Endpoint With a Restrictive Policy</h3>
+      <div class="code-wrap">
+        <div class="code-head"><span>main.tf (part 1 of 3)</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre><span class="kw">resource</span> "aws_vpc_endpoint" "s3" {
+  vpc_id       = aws_vpc.main.id
+  service_name = "com.amazonaws.${var.region}.s3"
+  vpc_endpoint_type = "Gateway"
+  route_table_ids   = [aws_route_table.private[0].id, aws_route_table.private[1].id]
+  <span class="comment"># Both AZs' private route tables — this endpoint has no ENI or AZ concept</span>
+  <span class="comment"># of its own; it's purely a routing target attached wherever needed.</span>
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect    = "Allow"
+      Principal = "*"
+      Action    = ["s3:GetObject", "s3:PutObject", "s3:ListBucket"]
+      Resource = [
+        aws_s3_bucket.reconcile_bucket.arn,
+        "${aws_s3_bucket.reconcile_bucket.arn}/*",
+        aws_s3_bucket.audit_logs.arn,
+        "${aws_s3_bucket.audit_logs.arn}/*"
+      ]
+      <span class="comment"># Principal = "*" here is scoped down by RESOURCE, not principal — this</span>
+      <span class="comment"># policy governs what the ENDPOINT itself will forward, regardless of who</span>
+      <span class="comment"># asks; actual caller identity is still separately checked by each</span>
+      <span class="comment"># bucket's own IAM/bucket policy. This is a second, independent layer —</span>
+      <span class="comment"># same defense-in-depth pattern as the KMS key policy from Assignment 5.</span>
+    }]
+  })
+}</pre>
+      </div>
+
+      <h3>main.tf — Secrets Manager Interface Endpoint</h3>
+      <div class="code-wrap">
+        <div class="code-head"><span>main.tf (part 2 of 3)</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre><span class="kw">resource</span> "aws_security_group" "vpce" {
+  name   = "sg-vpce"
+  vpc_id = aws_vpc.main.id
+
+  ingress {
+    description     = "HTTPS from app tier only"
+    from_port       = 443
+    to_port         = 443
+    protocol        = "tcp"
+    security_groups = [aws_security_group.app.id]
+  }
+  egress { from_port = 0; to_port = 0; protocol = "-1"; cidr_blocks = ["0.0.0.0/0"] }
+  tags = { Name = "sg-vpce" }
+}
+
+<span class="kw">resource</span> "aws_vpc_endpoint" "secretsmanager" {
+  vpc_id              = aws_vpc.main.id
+  service_name        = "com.amazonaws.${var.region}.secretsmanager"
+  vpc_endpoint_type   = "Interface"
+  subnet_ids          = aws_subnet.private[*].id
+  security_group_ids  = [aws_security_group.vpce.id]
+  private_dns_enabled = true
+  <span class="comment"># private_dns_enabled = true means the app's existing code — already</span>
+  <span class="comment"># calling the standard secretsmanager.<region>.amazonaws.com hostname</span>
+  <span class="comment"># since Assignment 5 — needs ZERO code change. DNS resolution alone</span>
+  <span class="comment"># silently redirects it to the private endpoint.</span>
+}</pre>
+      </div>
+
+      <h3>main.tf — Tightened App Egress</h3>
+      <div class="code-wrap">
+        <div class="code-head"><span>main.tf (part 3 of 3)</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre><span class="comment"># Replacing sg-app's previous "egress: all to 0.0.0.0/0" rule from</span>
+<span class="comment"># Assignment 3 with a named allowlist:</span>
+<span class="kw">resource</span> "aws_security_group_rule" "app_egress_rating_api" {
+  type              = "egress"
+  security_group_id = aws_security_group.app.id
+  from_port         = 443
+  to_port           = 443
+  protocol          = "tcp"
+  cidr_blocks       = [var.rating_api_cidr]
+  description       = "Third-party rating API — the one legitimate external dependency"
+}
+
+<span class="kw">resource</span> "aws_security_group_rule" "app_egress_secretsmanager_endpoint" {
+  type                     = "egress"
+  security_group_id        = aws_security_group.app.id
+  from_port                = 443
+  to_port                  = 443
+  protocol                 = "tcp"
+  source_security_group_id = aws_security_group.vpce.id
+  description               = "Secrets Manager via private endpoint only"
+}
+<span class="comment"># NOTE: S3 traffic needs no corresponding egress rule addition here — the</span>
+<span class="comment"># Gateway Endpoint works at the route-table level, which sits BELOW the</span>
+<span class="comment"># security group layer; as long as sg-app allows HTTPS out generally to</span>
+<span class="comment"># where it's actually going, the route table silently sends S3-bound</span>
+<span class="comment"># traffic via the endpoint instead of NAT — no separate egress rule keyed</span>
+<span class="comment"># to the endpoint itself is required for the Gateway type specifically.</span></pre>
+      </div>
+
+      <!-- VALIDATION -->
+      <h2 class="section-title" id="validation"><span class="num">08</span> Validation &amp; Testing</h2>
+      <ul>
+        <li><strong>Route table test:</strong> <code>aws ec2 describe-route-tables</code> on the private route tables shows a new route with the S3 prefix-list ID as destination and the Gateway Endpoint as target.</li>
+        <li><strong>DNS test:</strong> from inside an app instance, <code>nslookup secretsmanager.ap-south-1.amazonaws.com</code> resolves to a private 10.20.x.x address.</li>
+        <li><strong>Functional test:</strong> the app still successfully retrieves both secrets (rating API key, DB credentials) and reads/writes S3 objects — zero application code change required, confirming both endpoints are working transparently.</li>
+        <li><strong>Flow log test:</strong> Flow Logs show zero S3/Secrets Manager traffic through the NAT Gateway's ENI after the endpoints are live — only the rating API traffic remains NAT-routed.</li>
+        <li><strong>Negative test:</strong> temporarily attempt an outbound call from the app instance to an arbitrary, unlisted external host — must fail, confirming the tightened egress allowlist is actually enforced, not just documented.</li>
+      </ul>
+
+      <!-- MONITORING -->
+      <h2 class="section-title" id="monitoring"><span class="num">09</span> Monitoring &amp; Observability</h2>
+      <table>
+        <tr><th>What</th><th>Why</th></tr>
+        <tr><td>NAT Gateway <code>BytesOutToDestination</code> metric, before/after</td><td>A direct, measurable before/after comparison showing how much traffic actually moved off NAT and onto the endpoints</td></tr>
+        <tr><td>VPC Endpoint-specific Flow Log entries</td><td>Confirms traffic is genuinely flowing through the endpoints, not silently still going through NAT due to a misconfiguration</td></tr>
+      </table>
+
+      <!-- INCIDENT -->
+      <h2 class="section-title" id="incident"><span class="num">10</span> Production Incident</h2>
+      <div class="story-card">
+        <span class="role-tag">Shortly after the egress tightening deployed</span>
+        <p>The reconciliation job from Assignment 1 — which shares the same VPC but runs on its own instance outside the ASG — starts failing. Its S3 uploads work fine, but its CloudWatch Logs delivery starts silently failing, and nobody notices until log gaps are spotted days later during a routine review.</p>
+      </div>
+      <h4>Investigation</h4>
+      <p>The reconciliation instance's own security group was tightened at the same time as <code>sg-app</code>'s, using a copy-pasted egress ruleset — but CloudWatch Logs uses its own separate service endpoint (<code>logs.ap-south-1.amazonaws.com</code>), which wasn't included in either the S3 Gateway Endpoint (wrong service entirely) or the new Secrets Manager Interface Endpoint (also wrong service) — and the blanket NAT-routed egress that used to silently cover it was removed without a like-for-like CloudWatch Logs endpoint added in its place.</p>
+      <h4>Root Cause</h4>
+      <p>An incomplete audit of exactly which AWS services a workload calls before tightening its egress rules — S3 and Secrets Manager were the two explicitly named in this assignment's story, but CloudWatch Logs (added quietly back in Assignment 1) was overlooked entirely.</p>
+      <h4>Immediate Fix</h4>
+      <p>Temporarily restored broader egress on the reconciliation instance's security group to stop the log-gap bleeding while a proper fix was built.</p>
+      <h4>Permanent Fix</h4>
+      <div class="code-wrap">
+        <div class="code-head"><span>Terraform addition</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre><span class="kw">resource</span> "aws_vpc_endpoint" "logs" {
+  vpc_id              = aws_vpc.main.id
+  service_name        = "com.amazonaws.${var.region}.logs"
+  vpc_endpoint_type   = "Interface"
+  subnet_ids          = aws_subnet.private[*].id
+  security_group_ids  = [aws_security_group.vpce.id]
+  private_dns_enabled = true
+}
+<span class="comment"># A third Interface Endpoint, same pattern as Secrets Manager — added</span>
+<span class="comment"># specifically because this incident surfaced the gap.</span></pre>
+      </div>
+      <h4>Validation</h4>
+      <p>Re-tightened the reconciliation instance's egress, confirmed CloudWatch Logs delivery resumed with zero gaps over the following 48 hours.</p>
+      <h4>Lessons Learned</h4>
+      <ul>
+        <li>Tightening egress requires a complete inventory of every AWS service a workload actually calls, not just the ones a specific security review happened to name — a partial list creates exactly this kind of silent gap.</li>
+        <li>A "silent" failure (logs stop arriving, nothing crashes) is more dangerous than a loud one — worth a specific alarm on log ingestion rate dropping to zero, not just on error rates.</li>
+      </ul>
+
+      <!-- TROUBLESHOOTING -->
+      <h2 class="section-title" id="troubleshooting"><span class="num">11</span> Troubleshooting Methodology</h2>
+      <table>
+        <tr><th>Symptom</th><th>Check First</th><th>Likely Cause</th></tr>
+        <tr><td>App can't reach an AWS service after egress tightening</td><td>Whether a VPC Endpoint exists for that specific service, and whether it's referenced in the security group's egress rules</td><td>Missing endpoint for a service that was overlooked during the inventory — exactly this assignment's incident</td></tr>
+        <tr><td>DNS still resolves to a public IP after enabling the Interface Endpoint</td><td>Whether "Private DNS names" was actually enabled on the endpoint</td><td>Endpoint created without private DNS — traffic would still route out via NAT despite the endpoint existing</td></tr>
+        <tr><td>S3 access denied only from inside the VPC, works fine from elsewhere</td><td>The Gateway Endpoint's own policy document</td><td>Endpoint policy scoped too narrowly — doesn't include a bucket the workload legitimately needs</td></tr>
+      </table>
+
+      <!-- COST -->
+      <h2 class="section-title" id="cost"><span class="num">12</span> Cost Optimization</h2>
+      <table>
+        <tr><th>Resource</th><th>Cost Before</th><th>Cost After</th></tr>
+        <tr><td>S3 traffic</td><td>NAT Gateway per-GB data processing charge</td><td>Zero — Gateway Endpoints have no hourly or data-processing charge at all</td></tr>
+        <tr><td>Secrets Manager traffic</td><td>NAT Gateway per-GB data processing charge</td><td>Interface Endpoint's own hourly charge (per AZ) + smaller per-GB processing charge — usually still net cheaper than NAT for meaningful traffic volume, though not free like the Gateway type</td></tr>
+      </table>
+      <div class="box tip">
+        <span class="label">Security first, savings second</span>
+        <p>Consistent with this assignment's stated priority: the endpoints were built because Ananya flagged an exposure concern, not primarily to save money. The cost reduction is real and worth reporting, but it's a secondary benefit of the security decision, not the reason for it.</p>
+      </div>
+
+      <!-- REVIEW -->
+      <h2 class="section-title" id="review"><span class="num">13</span> Solutions Architect Review</h2>
+      <table>
+        <tr><th>Lens</th><th>Assessment</th></tr>
+        <tr><td>Security</td><td>AWS-to-AWS traffic now stays fully on the private AWS network; egress is an explicit, named allowlist rather than "anywhere" — directly answers both of Ananya's concerns</td></tr>
+        <tr><td>Reliability</td><td>Endpoints span both AZs, consistent with the rest of the architecture; the CloudWatch Logs gap incident, once fixed, closed a real availability gap for observability specifically</td></tr>
+        <tr><td>Cost</td><td>Net reduction in NAT data-processing charges, reported as a secondary benefit</td></tr>
+        <tr><td>Operations</td><td>The incident here is a genuine cautionary tale worth keeping visible: egress tightening needs a full service inventory, not a partial one, before rollout</td></tr>
+      </table>
+
+      <!-- CLEANUP -->
+      <h2 class="section-title" id="cleanup"><span class="num">14</span> Cleanup</h2>
+      <div class="code-wrap">
+        <div class="code-head"><span>bash</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre>terraform destroy
+<span class="comment"># Removes both endpoints, the vpce security group, and the tightened</span>
+<span class="comment"># egress rules. If reverting locally for testing, remember the app will</span>
+<span class="comment"># fall back to routing S3/Secrets Manager traffic through NAT again once</span>
+<span class="comment"># the endpoints are gone — not a functional break, just a return to the</span>
+<span class="comment"># pre-Assignment-11 routing path.</span></pre>
+      </div>
+
+      <!-- ACCEPTANCE -->
+      <h2 class="section-title" id="acceptance"><span class="num">15</span> Acceptance Criteria</h2>
+      <ul class="criteria">
+        <li>S3 Gateway Endpoint active on both private route tables, scoped via policy to only the buckets this VPC's workloads use</li>
+        <li>Secrets Manager Interface Endpoint active with Private DNS enabled, verified by a DNS resolution test</li>
+        <li>Zero S3/Secrets Manager traffic transiting the NAT Gateway, confirmed via Flow Logs</li>
+        <li>App tier's security group egress is a named allowlist, not a blanket allow-all — verified by a negative test</li>
+        <li>Every AWS service the workloads in this VPC actually call has either a working endpoint or an explicit, deliberate NAT-routed allowance — no silent gaps</li>
+      </ul>
+
+      <!-- CHALLENGE -->
+      <h2 class="section-title" id="challenge"><span class="num">16</span> Practice Challenge</h2>
+      <div class="card">
+        <p><strong>Ananya comes back:</strong> "Good catch on the CloudWatch Logs gap. Before we call this done — what other AWS services does anything in this VPC actually talk to that we haven't checked yet?"</p>
+        <p><strong>Requirement:</strong> Produce a complete inventory of every AWS service every workload in the VPC calls, and confirm each either has a working endpoint or a deliberate, documented NAT exception.</p>
+        <p><strong>Acceptance Criteria:</strong> No AWS service call silently relies on NAT without that being an explicit, reviewed decision.</p>
+      </div>
+      <details>
+        <summary>Challenge Solution</summary>
+        <div class="inner">
+          <p>Walk every workload built so far and list its AWS API calls: the reconciliation job (S3, CloudWatch Logs, and — from Assignment 4 — DLM interacts with EBS but that's control-plane, not called from inside the VPC); the app tier (S3, Secrets Manager, CloudWatch Logs, and RDS — though RDS traffic stays inside the VPC already via the security-group-chained path from Assignment 8, no endpoint needed since it was never routing through NAT in the first place). Cross-reference against VPC Flow Logs filtered to the NAT Gateway's ENI over a full week to catch anything call-pattern analysis alone might miss — logs don't lie about what's actually happening, even when the mental inventory does. Anything still showing up as NAT-routed gets either its own Interface Endpoint (KMS is a strong candidate, given Assignment 5's CMK usage) or an explicit, named, documented exception if no endpoint exists for that service or the traffic is genuinely external.</p>
+        </div>
+      </details>
+
+      <!-- INTERVIEW -->
+      <h2 class="section-title" id="interview"><span class="num">17</span> Interview Preparation</h2>
+
+      <div class="qa">
+        <div class="q"><span class="qn">Q1 · Networking</span>What's the actual mechanical difference between a Gateway Endpoint and an Interface Endpoint?</div>
+        <p>A Gateway Endpoint is a route table entry — no network interface, no IP address of its own, and AWS resolves it internally as a routing target for a specific service's IP prefix list. An Interface Endpoint is a real ENI with a private IP address deployed into a subnet via AWS PrivateLink, and DNS (if Private DNS is enabled) is redirected to that ENI's IP instead of the service's public endpoint. Only S3 and DynamoDB support the Gateway type; nearly everything else that supports VPC Endpoints at all uses the Interface type.</p>
+        <div class="follow"><b>Follow-up:</b> "Why does that mechanical difference matter for cost?" — A route table entry has no infrastructure to run and bill for; an ENI is a provisioned resource with an hourly charge per AZ plus data processing — which is exactly why Gateway Endpoints are free and Interface Endpoints aren't.</div>
+      </div>
+
+      <div class="qa">
+        <div class="q"><span class="qn">Q2 · Security</span>Why give the S3 Gateway Endpoint its own policy document — doesn't the IAM role's own S3 policy already control access?</div>
+        <p>They're two independent layers, same defense-in-depth pattern used with the KMS key policy in Assignment 5. The IAM role's policy controls what that specific caller identity is allowed to do. The endpoint policy controls what the endpoint itself will forward, regardless of caller — so even if a role somewhere in the account had overly broad S3 permissions, traffic through THIS endpoint specifically is still capped to the buckets named in the endpoint policy. One control being correct doesn't make the other redundant.</p>
+        <div class="follow"><b>Follow-up:</b> "What would happen if the IAM policy allowed a bucket the endpoint policy didn't?" — The call would be denied — the endpoint policy is evaluated in addition to IAM, not instead of it, so the more restrictive of the two effectively wins for traffic passing through that endpoint.</div>
+      </div>
+
+      <div class="qa">
+        <div class="q"><span class="qn">Q3 · Production Scenario</span>After tightening egress rules, a workload starts silently failing on a service call nobody thought to check. How do you find every affected service before it becomes an incident?</div>
+        <p>Don't rely purely on a manual inventory from memory — that's exactly what missed CloudWatch Logs in this assignment's incident. Cross-reference against actual VPC Flow Log data filtered to the NAT Gateway's ENI over a representative time window (long enough to catch anything that only runs occasionally, like a nightly job) — the logs show ground truth about what's actually being called, which is more reliable than any mental or documented list.</p>
+        <div class="follow"><b>Follow-up:</b> "How would you catch this before it ever reached production?" — Deploy the egress tightening to a staging/dev environment carrying representative traffic first, and watch for any error spike or silent metric drop (like log ingestion rate) over a full operational cycle — including nightly/weekly jobs — before promoting the same change to production.</div>
+      </div>
+
+      <div class="qa">
+        <div class="q"><span class="qn">Q4 · Cost Optimization</span>Is it ever not worth adding a VPC Interface Endpoint for a given service?</div>
+        <p>Yes — if the traffic volume to that service is genuinely small, the Interface Endpoint's fixed hourly charge (times the number of AZs) could exceed what the equivalent NAT Gateway data-processing charge would have cost for that light traffic. The security argument (keeping traffic off the public path) can still justify it regardless of the cost comparison, but it's worth explicitly checking rather than assuming an endpoint always pays for itself — for high-traffic services like S3 and Secrets Manager in this assignment, it clearly does.</p>
+        <div class="follow"><b>Follow-up:</b> "How would you actually measure whether it paid off?" — Compare the NAT Gateway's per-GB data processing charge for that service's traffic volume before, against the Interface Endpoint's fixed hourly cost after — a direct, measurable comparison rather than an assumption.</div>
+      </div>
+
+      <div class="qa">
+        <div class="q"><span class="qn">Q5 · Terraform</span>Why does the Gateway Endpoint need no corresponding security group rule, while the Interface Endpoint does?</div>
+        <p>A Gateway Endpoint operates at the routing layer — traffic destined for S3's IP prefix gets redirected to it via the route table before security groups even become relevant to that hop in the same way. An Interface Endpoint is a real ENI sitting in a subnet, and like any ENI, it needs a security group controlling what can actually connect to it — which is why <code>sg-vpce</code> exists and why <code>sg-app</code>'s egress rule references it explicitly.</p>
+        <div class="follow"><b>Follow-up:</b> "Does the app tier's security group need an explicit egress rule for the S3 Gateway Endpoint traffic at all?" — As long as sg-app allows general outbound HTTPS to wherever it's actually headed, the route table silently redirects S3-bound traffic to the endpoint instead of NAT — no endpoint-specific egress rule is required for the Gateway type the way it is for the Interface type.</div>
+      </div>
+
+      <div class="qa">
+        <div class="q"><span class="qn">Q6 · Manager Round</span>How do you explain to Ananya that a security improvement caused an outage (the CloudWatch Logs gap), without it sounding like the whole initiative was a mistake?</div>
+        <p>I'd be direct that it was a real gap in execution, not a flaw in the underlying approach — the egress-tightening principle is correct and stays; what was incomplete was the service inventory behind it. I'd walk through exactly how the gap was found and closed, and the process change (cross-referencing against actual Flow Log data, not just a mental list) that prevents the same class of mistake next time a similar change ships. Framing it as "the security work surfaced its own gap and we fixed the gap" is both honest and accurate — it's not spin, it's what actually happened.</p>
+        <div class="follow"><b>Follow-up:</b> "What would you do differently before the next egress-tightening change?" — Run the Flow-Log-based service inventory FIRST, before writing any restrictive rule, rather than tightening first and discovering gaps reactively — the challenge in this assignment is exactly that inventory step, now moved earlier in the process going forward.</div>
+      </div>
+
+      <!-- RESUME -->
+      <h2 class="section-title" id="resume"><span class="num">18</span> Resume Points</h2>
+      <ul class="resume-list">
+        <li>Implemented AWS PrivateLink and Gateway VPC Endpoints for S3 and Secrets Manager, eliminating public-internet-path exposure for internal AWS-to-AWS service traffic</li>
+        <li>Tightened application-tier security group egress from an unrestricted allow-all policy to an explicit, named service allowlist</li>
+        <li>Authored a restrictive VPC endpoint policy scoping S3 Gateway Endpoint access to only the specific buckets required, as a second independent access-control layer alongside IAM</li>
+        <li>Diagnosed and resolved a silent log-delivery outage caused by an incomplete service inventory during egress hardening, then established a Flow-Log-based verification process to prevent recurrence</li>
+        <li>Reduced NAT Gateway data-processing costs as a measured secondary outcome of a security-driven network redesign</li>
+      </ul>
+
+      <!-- NEXT -->
+      <h2 class="section-title" id="next"><span class="num">19</span> Next Project</h2>
+      <div class="box win">
+        <span class="label">When you're ready</span>
+        <p>Verify the endpoints, run the negative egress test, and say <strong>"Next Project"</strong> when ready. Assignment 12 is where Terraform stops being "the way we happen to be building things" and becomes the fully explicit, primary provisioning method for this whole course — proper backend state, locking, and the environment structure this course has been informally building toward since Assignment 1.</p>
+      </div>
+
+    </div>
+    <footer>AWS Cloud Engineering Masterclass · Assignment 11 of 25 · Intermediate Stage</footer>
+  </div>
+</div>
+
+<button class="mobile-toggle" id="mobileToggle" aria-label="Toggle menu">☰</button>
+<script>
+const sections = document.querySelectorAll('h2.section-title[id]');
+const navLinks = document.querySelectorAll('.sidebar nav a');
+function onScroll(){
+  let current = '';
+  sections.forEach(s=>{ if(window.scrollY >= s.offsetTop - 80) current = s.id; });
+  navLinks.forEach(a=> a.classList.toggle('active', a.getAttribute('href') === '#'+current));
+}
+window.addEventListener('scroll', onScroll); onScroll();
+document.getElementById('mobileToggle').addEventListener('click', ()=> document.getElementById('sidebar').classList.toggle('open'));
+document.querySelectorAll('.sidebar nav a').forEach(a=> a.addEventListener('click', ()=> document.getElementById('sidebar').classList.remove('open')));
+function copyCode(btn){
+  const pre = btn.closest('.code-wrap').querySelector('pre');
+  navigator.clipboard.writeText(pre.innerText).then(()=>{
+    const orig = btn.textContent; btn.textContent = 'Copied!';
+    setTimeout(()=> btn.textContent = orig, 1500);
+  });
+}
+</script>
+</body>
+</html>

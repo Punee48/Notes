@@ -1,0 +1,1128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Advanced Project 12: JVM Heap Monitoring & Thread Dump — Ansible AAP</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--purple:#6d28d9;--purple-dark:#4c1d95;--purple-light:#8b5cf6;--purple-pale:#ede9fe;
+--bg:#fafafa;--card:#fff;--border:#e5e7eb;--text:#1f2937;--text-dim:#6b7280;
+--code-bg:#1e1b2e;--code-text:#e2d9f3;--green:#059669;--amber:#d97706;--red:#dc2626;
+--shadow:0 1px 3px rgba(109,40,217,.1);}
+*{box-sizing:border-box;}
+body{margin:0;font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);line-height:1.7;}
+.topbar{background:linear-gradient(135deg,var(--purple-dark),var(--purple));color:#fff;padding:22px 5%;
+position:sticky;top:0;z-index:100;box-shadow:0 2px 12px rgba(109,40,217,.3);display:flex;
+justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;}
+.topbar h1{margin:0;font-size:1.1rem;font-weight:800;}
+.badge{background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.3);padding:4px 14px;border-radius:20px;font-size:.73rem;font-weight:700;}
+.layout{display:flex;max-width:1500px;margin:0 auto;}
+nav.toc{width:270px;flex-shrink:0;padding:20px 14px;position:sticky;top:76px;align-self:flex-start;max-height:calc(100vh - 96px);overflow-y:auto;}
+nav.toc h3{font-size:.72rem;text-transform:uppercase;letter-spacing:1.2px;color:var(--text-dim);margin:0 0 10px 6px;}
+nav.toc a{display:block;padding:6px 12px;border-radius:8px;color:var(--text);text-decoration:none;font-size:.83rem;margin-bottom:2px;border-left:3px solid transparent;}
+nav.toc a:hover{background:var(--purple-pale);border-left-color:var(--purple-light);color:var(--purple);}
+main{flex:1;padding:26px 5% 80px;min-width:0;}
+.hero{background:linear-gradient(135deg,var(--purple-pale),#fff);border:1px solid #ddd6fe;border-radius:16px;padding:28px;margin-bottom:28px;}
+.hero h2{margin-top:0;color:var(--purple-dark);font-size:1.5rem;line-height:1.3;}
+.tag-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;}
+.tag{background:var(--purple-pale);color:var(--purple);padding:4px 12px;border-radius:20px;font-size:.73rem;font-weight:600;}
+section{margin-bottom:32px;}
+.card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px 24px;box-shadow:var(--shadow);margin-bottom:16px;}
+h2.st{font-size:1.25rem;color:var(--purple-dark);border-bottom:3px solid var(--purple-light);padding-bottom:7px;margin-bottom:16px;}
+h3{color:var(--purple-dark);font-size:1.05rem;margin-top:18px;}
+.story-box{background:#fffbeb;border-left:4px solid var(--amber);border-radius:8px;padding:16px 20px;margin:14px 0;color:#78350f;}
+.story-box b{color:#92400e;}
+.warn-box{background:#fef2f2;border-left:4px solid var(--red);border-radius:8px;padding:14px 18px;margin:12px 0;color:#7f1d1d;}
+.tip-box{background:#ecfdf5;border-left:4px solid var(--green);border-radius:8px;padding:14px 18px;margin:12px 0;color:#064e3b;}
+.info-box{background:var(--purple-pale);border-left:4px solid var(--purple-light);border-radius:8px;padding:14px 18px;margin:12px 0;color:var(--purple-dark);}
+details{border:1px solid #ddd6fe;border-radius:10px;margin-bottom:10px;background:#faf9ff;overflow:hidden;}
+summary{padding:12px 16px;cursor:pointer;font-weight:600;color:var(--purple-dark);list-style:none;display:flex;justify-content:space-between;align-items:center;background:#f5f3ff;}
+summary::-webkit-details-marker{display:none;}
+summary::after{content:"+";font-size:1.1rem;font-weight:700;color:var(--purple-light);}
+details[open] summary::after{content:"−";}
+details>div.inner{padding:14px 16px;}
+table{border-collapse:collapse;width:100%;margin:12px 0;font-size:.86rem;}
+th,td{border:1px solid var(--border);padding:9px 12px;text-align:left;vertical-align:top;}
+th{background:var(--purple);color:#fff;font-weight:600;}
+tr:nth-child(even){background:#faf9ff;}
+.cw{position:relative;margin:14px 0;}
+.cl{background:#14102a;color:#a78bfa;padding:7px 14px;font-size:.72rem;font-family:'JetBrains Mono',monospace;border-radius:8px 8px 0 0;display:flex;justify-content:space-between;align-items:center;}
+pre{background:var(--code-bg);color:var(--code-text);padding:16px;border-radius:0 0 8px 8px;overflow-x:auto;margin:0;font-family:'JetBrains Mono',monospace;font-size:.82rem;line-height:1.6;}
+.cb{background:var(--purple-light);color:#fff;border:none;padding:3px 10px;border-radius:4px;font-size:.7rem;cursor:pointer;font-weight:600;}
+.cb:hover{background:var(--purple);}
+.fs{display:flex;gap:12px;padding:11px 0;border-bottom:1px dashed #e9d5ff;}
+.fn{background:var(--purple);color:#fff;width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;flex-shrink:0;font-size:.82rem;}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+@media(max-width:900px){.g2{grid-template-columns:1fr;}nav.toc{display:none;}}
+ul,ol{padding-left:22px;}li{margin-bottom:6px;}
+.ascii{background:#14102a;color:#a78bfa;font-family:'JetBrains Mono',monospace;padding:20px;border-radius:10px;font-size:.77rem;overflow-x:auto;line-height:1.45;}
+.fn-row{display:flex;justify-content:space-between;padding:20px 0;border-top:2px solid var(--border);margin-top:40px;}
+.btn{background:var(--purple);color:#fff;padding:10px 20px;border-radius:8px;text-decoration:none;font-weight:600;font-size:.86rem;}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <h1>🏦 Advanced Enterprise Ansible — BFSI Series</h1>
+  <div style="display:flex;gap:8px;">
+    <span class="badge">PROJECT 12 / 30</span>
+    <span class="badge" style="background:rgba(255,255,255,.15);">JVM | Tomcat | JBoss | Middleware</span>
+  </div>
+</div>
+<div class="layout">
+<nav class="toc">
+  <h3>Table of Contents</h3>
+  <a href="#story">1. The Banking Story</a>
+  <a href="#concepts">2. JVM & JMX Concepts</a>
+  <a href="#business">3. Business Requirements</a>
+  <a href="#design">4. Solution Design</a>
+  <a href="#arch">5. Architecture</a>
+  <a href="#structure">6. Project Structure</a>
+  <a href="#inventory">7. Inventory & Variables</a>
+  <a href="#roles">8. Roles & Tasks</a>
+  <a href="#threaddump">9. Thread Dump Collection</a>
+  <a href="#heapdump">10. Heap Dump & GC Analysis</a>
+  <a href="#playbooks">11. Master Playbooks</a>
+  <a href="#aap">12. AAP Configuration</a>
+  <a href="#flow">13. Execution Flow</a>
+  <a href="#lab">14. Lab Setup</a>
+  <a href="#interview">15. Interview Prep</a>
+</nav>
+<main>
+
+<div class="hero">
+  <h2>Project 12: JVM Heap Monitoring, Thread Dump Collection &amp; GC Analysis Automation</h2>
+  <p>ABC Global Bank runs its Core Banking System (CBS), Loan Management System (LMS), and Payment Gateway on <strong>Java middleware</strong> — Apache Tomcat 10, JBoss EAP 7.4, and Oracle WebLogic 14c across 180 application servers. Java applications are uniquely vulnerable to <strong>OutOfMemoryError (OOM)</strong> — when the JVM heap fills up, the application freezes or crashes with no warning. Manual JVM monitoring requires DBAs and app teams to constantly check JConsole dashboards. This project automates JVM heap monitoring via JMX, automatic thread dump collection when heap is high (for developer analysis), heap dump triggering on OOM, GC pause analysis, and Tomcat connector thread pool monitoring — all producing evidence for the performance team and CISO.</p>
+  <div class="tag-row">
+    <span class="tag">Apache Tomcat 10</span><span class="tag">JBoss EAP 7.4</span>
+    <span class="tag">JMX Monitoring</span><span class="tag">JVM Heap Analysis</span>
+    <span class="tag">Thread Dumps</span><span class="tag">GC Pause Monitoring</span>
+    <span class="tag">Red Hat AAP 2.5</span><span class="tag">RHEL 8/9</span>
+  </div>
+</div>
+
+<!-- STORY -->
+<section id="story">
+<h2 class="st">🏦 1. The Banking Story</h2>
+<div class="card">
+<div class="story-box">
+<b>Setting:</b> ABC Global Bank's Loan Management System (LMS) runs on JBoss EAP 7.4 across 12 application servers. The JVM heap is configured as 4GB (-Xmx4g). The LMS processes loan disbursements, EMI calculations, and credit limit checks for 850,000 active loan accounts.<br><br>
+<b>Incident 1 — The Silent OOM:</b> On a Monday morning (peak load — 47,000 customers checking loan status via mobile banking), the JVM heap on lms-app03 reached 98% utilization. The application entered "Stop-The-World" GC pauses — the entire JVM froze for 12-15 seconds at a time while GC ran. Customers saw "Request Timed Out" errors. The application eventually threw <code>java.lang.OutOfMemoryError: Java heap space</code> and crashed at 11:23 AM. Nobody noticed for 14 minutes because the monitoring system only checked process PID — the Tomcat process was still technically running (JBoss doesn't always exit on OOM). The thread was stuck in OOM state, consuming no CPU, appearing "up" to process monitors.<br><br>
+<b>Incident 2 — The Thread Deadlock:</b> The LMS payment processing module had a thread deadlock that locked 48 of 200 request processing threads. Response times increased from 200ms to 8+ seconds. No OOM — just slow. The app team needed a thread dump to diagnose the deadlock. Getting a thread dump required: engineer SSHing to each of 12 servers, finding the JBoss PID, running jstack, collecting the output, and emailing it to the developer. This took 45 minutes across 12 servers. By the time the developer got the thread dump from all 12 servers, the deadlock had self-resolved and the dumps were stale.<br><br>
+<b>Incident 3 — The GC Tuning Request:</b> The CISO asked for evidence that all JVM processes have adequate memory headroom. The app team had no centralized data — each engineer knew their 2-3 servers but nobody knew the fleet status. Generating the report took 3 days of manual data collection.<br><br>
+<b>The Ask:</b> "Monitor heap on all 180 JVM servers every 5 minutes. Auto-collect thread dumps when heap > 80%. Auto-trigger heap dump on OOM. Alert on high GC pause times. Give us a daily report of JVM health across the fleet."
+</div>
+</div>
+</section>
+
+<!-- CONCEPTS -->
+<section id="concepts">
+<h2 class="st">📚 2. JVM & JMX Concepts</h2>
+<div class="card">
+<details><summary>JVM Memory Pools — What to Monitor</summary><div class="inner">
+<table>
+<tr><th>Memory Pool</th><th>What It Stores</th><th>Alert When</th></tr>
+<tr><td>Heap — Young Gen (Eden)</td><td>New objects; cleared by Minor GC frequently</td><td>Rapid fill rate indicates high allocation</td></tr>
+<tr><td>Heap — Old Gen (Tenured)</td><td>Long-lived objects; cleared by Major GC</td><td>Alert at 75% — Full GC when this fills = application freeze</td></tr>
+<tr><td>Metaspace</td><td>Class metadata (Java 8+, replaced PermGen)</td><td>Alert at 80% — class loading leak</td></tr>
+<tr><td>Code Cache</td><td>JIT-compiled native code</td><td>Alert at 90% — JIT disabled, performance degrades</td></tr>
+</table>
+<b>Key insight:</b> Most OOM errors come from Old Gen filling up. We primarily monitor Old Gen (Tenured) percentage.
+</div></details>
+
+<details><summary>JMX — How Ansible Queries JVM Metrics</summary><div class="inner">
+<b>JMX (Java Management Extensions)</b> is Java's built-in monitoring API. Every JVM exposes JMX beans (MBeans) that contain runtime metrics — heap usage, thread counts, GC statistics, class loading, etc.<br><br>
+To enable JMX remote access, add these JVM flags:<br>
+<code>-Dcom.sun.management.jmxremote</code><br>
+<code>-Dcom.sun.management.jmxremote.port=9010</code><br>
+<code>-Dcom.sun.management.jmxremote.authenticate=false</code><br><br>
+Ansible queries JMX using a Python script with the <code>jmxquery</code> library, or via <code>jcmd</code> / <code>jstat</code> command-line tools included in the JDK. We use both approaches — <code>jstat</code> for quick heap stats (no JMX port needed) and <code>jmxquery</code> for detailed Tomcat connector thread pool metrics.
+</div></details>
+
+<details><summary>Thread Dump vs Heap Dump — What Each Tells You</summary><div class="inner">
+<b>Thread Dump (<code>jstack PID</code>):</b> Snapshot of all thread states at a moment in time. Shows what every thread is doing — which lock it holds, which it's waiting for. Used for: deadlock diagnosis, identifying "stuck" threads, finding which thread is causing high CPU.<br><br>
+<b>Heap Dump (<code>jmap -dump:format=b PID</code> or <code>jcmd PID GC.heap_dump</code>):</b> Complete snapshot of all objects in the JVM heap. Can be analyzed with tools like Eclipse MAT (Memory Analyzer Tool) or VisualVM. Used for: OOM analysis, memory leak detection, finding which objects are consuming heap.<br><br>
+<b>Our automation strategy:</b> Thread dump automatically when heap > 80% (early warning). Heap dump on OOM or heap > 95% (for post-mortem analysis). Thread dump collection is fast (< 1 second). Heap dump can be 1-4GB — requires adequate disk space.
+</div></details>
+
+<details><summary>GC Pause Analysis — Why It Matters in Banking</summary><div class="inner">
+When the JVM runs Garbage Collection, it may stop all application threads (Stop-The-World pause). In banking:<br>
+<b>Minor GC:</b> Clears Young Gen. Usually 10-50ms. Acceptable.<br>
+<b>Major/Full GC:</b> Clears Old Gen. Can take 1-30+ seconds. CRITICAL — all transactions freeze during this time.<br><br>
+A 5-second GC pause on the CBS application server means 5 seconds where no transactions are processed, no API calls respond, no database writes complete. For RTGS/NEFT systems with strict timing requirements, GC pauses exceeding 2 seconds can cause transaction failures.<br><br>
+We monitor GC pause time using <code>jstat -gcutil PID</code> which shows: Young GC count, Young GC time, Full GC count, Full GC time. Increasing Full GC time is an early warning of OOM.
+</div></details>
+</div>
+</section>
+
+<!-- BUSINESS -->
+<section id="business">
+<h2 class="st">📋 3. Business Requirements</h2>
+<div class="card">
+<table>
+<tr><th>Requirement</th><th>Detail</th><th>Threshold</th></tr>
+<tr><td>Heap utilization monitoring</td><td>Old Gen heap % every 5 minutes</td><td>Warn 70%, Critical 80%, Emergency 90%</td></tr>
+<tr><td>Auto thread dump collection</td><td>Collect thread dump from all JVM processes when heap > 80%</td><td>3 dumps, 30 seconds apart (for deadlock pattern analysis)</td></tr>
+<tr><td>Auto heap dump on OOM</td><td>Enable -XX:+HeapDumpOnOutOfMemoryError on all JVMs</td><td>OOM → heap dump saved to /opt/jvm-dumps/</td></tr>
+<tr><td>GC pause monitoring</td><td>Full GC count and time from jstat</td><td>Alert if Full GC > 5 times in 5 minutes</td></tr>
+<tr><td>Tomcat connector threads</td><td>Active vs max threads in connector pool</td><td>Alert if active threads > 80% of max (thread exhaustion)</td></tr>
+<tr><td>JVM process validation</td><td>Verify JVM process is running, not zombie</td><td>Alert if JVM process missing</td></tr>
+<tr><td>Heap dump storage management</td><td>Clean old heap dumps (> 7 days) to prevent disk fill</td><td>Daily cleanup</td></tr>
+<tr><td>Daily JVM fleet report</td><td>All 180 JVMs — heap%, GC stats, thread count</td><td>Daily 06:00 AM to CISO and app team</td></tr>
+</table>
+</div>
+</section>
+
+<!-- DESIGN -->
+<section id="design">
+<h2 class="st">🛠️ 4. Solution Design</h2>
+<div class="card">
+<table>
+<tr><th>Playbook</th><th>Schedule</th><th>Key Actions</th></tr>
+<tr><td>jvm_heap_monitor.yml</td><td>Every 5 min</td><td>Heap %, GC stats, connector threads, auto-restart on OOM</td></tr>
+<tr><td>jvm_thread_dump.yml</td><td>On-demand OR triggered by heap monitor</td><td>3 consecutive thread dumps → archive → notify developer</td></tr>
+<tr><td>jvm_heap_dump.yml</td><td>On-demand OR triggered on OOM detection</td><td>jmap/jcmd heap dump → compress → archive to NFS</td></tr>
+<tr><td>jvm_gc_analysis.yml</td><td>Every 15 min</td><td>Parse GC log file for pause patterns</td></tr>
+<tr><td>jvm_fleet_report.yml</td><td>Daily 06:00 AM</td><td>HTML dashboard — all JVM metrics fleet-wide</td></tr>
+<tr><td>jvm_dump_cleanup.yml</td><td>Daily 02:00 AM</td><td>Remove heap/thread dumps older than 7 days</td></tr>
+</table>
+
+<div class="info-box">
+<b>Key Design — JVM Discovery:</b> Rather than hardcoding JVM PIDs in inventory, the playbook automatically discovers all running JVM processes using <code>ps aux | grep java</code> and extracts the PID, application name, and heap settings from the process command line. This handles JVM restarts (new PID) without any inventory update.
+</div>
+</div>
+</section>
+
+<!-- ARCH -->
+<section id="arch">
+<h2 class="st">🗺️ 5. Architecture</h2>
+<div class="card">
+<div class="ascii">
+<pre style="background:none;color:inherit;">
+              AAP CONTROLLER
+              ──────────────
+              Schedule: Every 5 min → jvm_heap_monitor.yml
+                   │ SSH | serial: 20
+                   ▼
+  ┌──────────────────────────────────────────────────────────────────────┐
+  │  180 JAVA APPLICATION SERVERS (RHEL 8/9)                             │
+  │                                                                        │
+  │  Step 1: Discover all JVM processes (ps aux | grep java)              │
+  │  ┌────────────────────────────────────────────────────────────┐       │
+  │  │  Process: PID=12345 App=LMS-JBoss Heap=-Xmx4g             │       │
+  │  │  Process: PID=23456 App=CBS-Tomcat Heap=-Xmx8g            │       │
+  │  └────────────────────────────────────────────────────────────┘       │
+  │                                                                        │
+  │  Step 2: For each JVM — query heap metrics via jstat                  │
+  │  ┌────────────────────────────────────────────────────────────┐       │
+  │  │  jstat -gcutil PID 1 1                                      │       │
+  │  │  S0   S1    E     O     M     YGC  YGCT  FGC  FGCT  GCT   │       │
+  │  │  0.0  45.2  73.1  82.4  87.3  142  8.234  3   12.45  20.68│       │
+  │  │       ↑Survivor  ↑Eden  ↑OldGen ↑Metaspace ↑FullGC time  │       │
+  │  └────────────────────────────────────────────────────────────┘       │
+  │                                                                        │
+  │  Step 3: Classify heap severity                                        │
+  │  OldGen < 70% → GREEN   No action                                     │
+  │  OldGen 70-80% → WARN   Slack alert to #jvm-monitoring                │
+  │  OldGen 80-90% → CRIT   PagerDuty P2 + Auto thread dump              │
+  │  OldGen > 90% → EMERG   PagerDuty P1 + Heap dump + Consider restart  │
+  └──────────────────────────────────────────────────────────────────────┘
+                   │
+        ┌──────────┼──────────────────────────────────┐
+        ▼          ▼                                   ▼
+  Thread Dump   Heap Dump                        GC Analysis
+  jstack PID    jcmd PID GC.heap_dump            Parse GC log file
+  3 × 30s       /opt/jvm-dumps/lms-heap.hprof    Full GC pause trends
+  Archive NFS   Compress + archive               Alert if > 5 FullGC/5min
+</pre>
+</div>
+</div>
+</section>
+
+<!-- STRUCTURE -->
+<section id="structure">
+<h2 class="st">📁 6. Project Structure</h2>
+<div class="card">
+<div class="ascii">
+<pre style="background:none;color:inherit;">
+jvm-monitoring-automation/
+├── ansible.cfg
+├── inventory/
+│   └── production/
+│       ├── hosts.ini                        # App servers grouped by middleware type
+│       └── group_vars/
+│           ├── all.yml                      # JVM thresholds, dump paths
+│           ├── tomcat_servers.yml           # Tomcat-specific settings
+│           └── jboss_servers.yml            # JBoss EAP-specific settings
+├── roles/
+│   ├── jvm_discovery/                       # Role 1: Discover JVM processes
+│   │   └── tasks/
+│   │       ├── main.yml
+│   │       └── find_jvm_processes.yml       # ps aux + parse JVM args
+│   │
+│   ├── jvm_heap_check/                      # Role 2: Query heap metrics
+│   │   └── tasks/
+│   │       ├── main.yml
+│   │       ├── query_heap_jstat.yml         # jstat -gcutil per PID
+│   │       ├── query_tomcat_jmx.yml         # JMX connector thread pool
+│   │       └── classify_heap_severity.yml   # Warn/Critical/Emergency
+│   │
+│   ├── jvm_thread_dump/                     # Role 3: Thread dump collection
+│   │   └── tasks/
+│   │       ├── main.yml
+│   │       ├── collect_thread_dumps.yml     # jstack 3 times, 30s apart
+│   │       └── archive_thread_dumps.yml     # Compress + copy to NFS
+│   │
+│   ├── jvm_heap_dump/                       # Role 4: Heap dump collection
+│   │   └── tasks/
+│   │       ├── main.yml
+│   │       └── collect_heap_dump.yml        # jcmd GC.heap_dump
+│   │
+│   ├── jvm_gc_analysis/                     # Role 5: GC log analysis
+│   │   └── tasks/
+│   │       ├── main.yml
+│   │       └── parse_gc_log.yml             # Extract Full GC pause times
+│   │
+│   └── jvm_report/                          # Role 6: Daily fleet report
+│       ├── tasks/main.yml
+│       └── templates/
+│           └── jvm_fleet_report.html.j2
+│
+├── playbooks/
+│   ├── jvm_heap_monitor.yml                 # Every 5 min
+│   ├── jvm_thread_dump.yml                  # On-demand
+│   ├── jvm_heap_dump.yml                    # On-demand / triggered
+│   ├── jvm_gc_analysis.yml                  # Every 15 min
+│   ├── jvm_fleet_report.yml                 # Daily
+│   └── jvm_dump_cleanup.yml                 # Daily cleanup
+└── ansible.cfg</pre>
+</div>
+</div>
+</section>
+
+<!-- INVENTORY -->
+<section id="inventory">
+<h2 class="st">📂 7. Inventory &amp; Variables</h2>
+<div class="card">
+<div class="cw"><div class="cl"><span>inventory/production/hosts.ini</span><button class="cb" onclick="copyCode(this)">Copy</button></div>
+<pre><code># =====================================================================
+# Java Application Server Inventory
+# =====================================================================
+
+[tomcat_servers]                                       # Tomcat application servers
+cbs-app01.abcbank.in  ansible_host=10.10.2.11
+cbs-app02.abcbank.in  ansible_host=10.10.2.12
+cbs-app03.abcbank.in  ansible_host=10.10.2.13
+
+[jboss_servers]                                        # JBoss EAP servers
+lms-app01.abcbank.in  ansible_host=10.10.3.11
+lms-app02.abcbank.in  ansible_host=10.10.3.12
+lms-app03.abcbank.in  ansible_host=10.10.3.13
+
+[java_app_servers:children]
+tomcat_servers
+jboss_servers
+
+[java_app_servers:vars]
+ansible_user=ansible
+ansible_become=true
+ansible_become_method=sudo
+
+[tomcat_servers:vars]
+middleware_type=tomcat
+app_user=tomcat                                        # OS user running Tomcat
+jmx_port=9010                                          # Tomcat JMX remote port
+gc_log_path=/opt/tomcat/logs/gc.log                   # GC log location
+heap_dump_path=/opt/jvm-dumps                          # Where to store heap dumps
+thread_dump_path=/opt/jvm-dumps/threads               # Thread dump location
+
+[jboss_servers:vars]
+middleware_type=jboss
+app_user=jboss
+jmx_port=9990                                          # JBoss management port
+gc_log_path=/opt/jboss/standalone/log/gc.log
+heap_dump_path=/opt/jvm-dumps
+thread_dump_path=/opt/jvm-dumps/threads</code></pre></div>
+
+<div class="cw"><div class="cl"><span>inventory/production/group_vars/all.yml</span><button class="cb" onclick="copyCode(this)">Copy</button></div>
+<pre><code>---
+# ── JVM Heap Alert Thresholds ─────────────────────────────────────────
+jvm_heap_warn_percent: 70           # Slack warning — heap getting high
+jvm_heap_critical_percent: 80       # PagerDuty P2 + auto thread dump
+jvm_heap_emergency_percent: 90      # PagerDuty P1 + heap dump
+
+# ── Thread Pool Thresholds (Tomcat) ──────────────────────────────────
+tomcat_thread_warn_percent: 80      # Warn if 80% of max threads active
+tomcat_thread_critical_percent: 90  # Critical — near thread exhaustion
+
+# ── GC Thresholds ─────────────────────────────────────────────────────
+full_gc_count_warn: 3               # Warn if > 3 Full GCs in monitoring window
+full_gc_count_critical: 5           # Critical if > 5 Full GCs
+full_gc_pause_warn_sec: 2.0         # Warn if any Full GC pause > 2 seconds
+full_gc_pause_critical_sec: 5.0     # Critical if pause > 5 seconds
+
+# ── Thread Dump Settings ─────────────────────────────────────────────
+thread_dump_count: 3                # Collect 3 thread dumps
+thread_dump_interval_sec: 30        # 30 seconds between dumps
+thread_dump_archive_path: /mnt/compliance/jvm-dumps/threads  # NFS archive
+
+# ── Heap Dump Settings ───────────────────────────────────────────────
+heap_dump_archive_path: /mnt/compliance/jvm-dumps/heaps    # NFS archive
+heap_dump_retention_days: 7         # Keep heap dumps for 7 days
+heap_dump_min_free_gb: 5           # Alert if < 5GB free before dump
+
+# ── JVM Identification ───────────────────────────────────────────────
+jvm_app_identifiers:               # Strings in Java process CMD to identify app
+  - pattern: "org.apache.catalina.startup.Bootstrap"
+    app_name: "Tomcat"
+  - pattern: "org.jboss.as.standalone"
+    app_name: "JBoss-EAP"
+  - pattern: "weblogic.Server"
+    app_name: "WebLogic"
+
+# ── Alerting ─────────────────────────────────────────────────────────
+pagerduty_integration_url: "https://events.pagerduty.com/v2/enqueue"
+slack_webhook_url: "{{ vault_slack_webhook_url }}"
+jvm_alert_slack_channel: "#jvm-monitoring"</code></pre></div>
+</div>
+</section>
+
+<!-- ROLES -->
+<section id="roles">
+<h2 class="st">💻 8. Roles &amp; Tasks — Complete Code</h2>
+
+<div class="card">
+<h3>Role 1: jvm_discovery — Find All JVM Processes</h3>
+<div class="cw"><div class="cl"><span>roles/jvm_discovery/tasks/find_jvm_processes.yml</span><button class="cb" onclick="copyCode(this)">Copy</button></div>
+<pre><code>---
+# =====================================================================
+# Discover all running JVM processes dynamically
+# Extracts: PID, app name, heap settings, JMX port
+# Using jps (JDK tool) for reliable JVM-specific process listing
+# =====================================================================
+
+- name: List all running JVM processes using jps
+  ansible.builtin.shell:
+    cmd: "jps -lv 2>/dev/null || ps aux | grep java | grep -v grep"
+    # jps: JDK tool — lists Java processes only
+    # -l: show full main class name
+    # -v: show JVM flags (including -Xmx heap setting)
+    # Fallback: ps aux if jps not available
+    executable: /bin/bash
+  register: jvm_process_list
+  changed_when: false
+  become: true
+  become_user: root
+
+- name: Parse JVM processes into structured list
+  ansible.builtin.set_fact:
+    discovered_jvms: >-
+      {{ discovered_jvms | default([]) + [{
+        'pid': item.split()[0],
+        'main_class': item.split()[1] | default('Unknown'),
+        'app_name': (jvm_app_identifiers
+                     | selectattr('pattern', 'in', item)
+                     | map(attribute='app_name')
+                     | first | default('Unknown-Java')),
+        'xmx_mb': (item | regex_search('-Xmx([0-9]+)([gGmM])', '\\1', '\\2')
+                   | default(['0', 'M'])),
+        'jmx_port': (item | regex_search('jmxremote\\.port=([0-9]+)', '\\1')
+                     | first | default(jmx_port | string))
+      }] }}
+  loop: "{{ jvm_process_list.stdout_lines | reject('match', '^[0-9]+ Jps.*') | list }}"
+  loop_control:
+    label: "PID {{ item.split()[0] | default('?') }}"
+  # Reject the jps process itself from the list
+
+- name: Fail if no JVM processes found (expected JVM is missing)
+  ansible.builtin.debug:
+    msg: >-
+      ⚠️ WARNING: No JVM processes found on {{ inventory_hostname }}.
+      Expected {{ middleware_type }} to be running.
+      Check if the application server is down.
+  when: discovered_jvms | default([]) | length == 0
+
+- name: Log discovered JVMs
+  ansible.builtin.debug:
+    msg:
+      - "JVM Discovery — {{ inventory_hostname }}"
+      - "Found {{ discovered_jvms | length }} JVM process(es)"
+      - "{% for jvm in discovered_jvms %}"
+      - "  PID={{ jvm.pid }} App={{ jvm.app_name }} JMX={{ jvm.jmx_port }}"
+      - "{% endfor %}"</code></pre></div>
+</div>
+
+<div class="card">
+<h3>Role 2: jvm_heap_check — Query Heap via jstat</h3>
+<div class="cw"><div class="cl"><span>roles/jvm_heap_check/tasks/query_heap_jstat.yml</span><button class="cb" onclick="copyCode(this)">Copy</button></div>
+<pre><code>---
+# =====================================================================
+# Query JVM heap metrics using jstat
+# jstat is included in JDK — no external library needed
+# =====================================================================
+
+- name: Query heap utilization for each discovered JVM
+  ansible.builtin.shell:
+    cmd: >
+      jstat -gcutil {{ item.pid }} 1 1 2>/dev/null
+    # jstat -gcutil PID interval count
+    # -gcutil: garbage collection utilization summary
+    # Output columns: S0 S1 E O M CCS YGC YGCT FGC FGCT GCT
+    # S0/S1: Survivor spaces %
+    # E: Eden % (Young Gen)
+    # O: Old Gen % ← KEY METRIC for OOM prediction
+    # M: Metaspace %
+    # YGC/YGCT: Young GC count/time
+    # FGC/FGCT: Full GC count/time ← KEY for GC pause analysis
+  register: jstat_outputs
+  loop: "{{ discovered_jvms | default([]) }}"
+  loop_control:
+    label: "PID {{ item.pid }} ({{ item.app_name }})"
+  changed_when: false
+  become: true
+  become_user: "{{ app_user }}"         # Run as app user (not root) to access JVM
+  failed_when: false
+
+- name: Parse jstat output into heap metrics per JVM
+  ansible.builtin.set_fact:
+    jvm_heap_metrics: >-
+      {{ jvm_heap_metrics | default([]) + [{
+        'pid': item.item.pid,
+        'app_name': item.item.app_name,
+        'host': inventory_hostname,
+        'eden_pct': (item.stdout_lines | last | split() | list)[2] | float | round(1)
+                    if item.stdout_lines | length >= 2 else 0,
+        'old_gen_pct': (item.stdout_lines | last | split() | list)[3] | float | round(1)
+                       if item.stdout_lines | length >= 2 else 0,
+        'metaspace_pct': (item.stdout_lines | last | split() | list)[4] | float | round(1)
+                         if item.stdout_lines | length >= 2 else 0,
+        'full_gc_count': (item.stdout_lines | last | split() | list)[8] | int
+                         if item.stdout_lines | length >= 2 else 0,
+        'full_gc_time_sec': (item.stdout_lines | last | split() | list)[9] | float | round(2)
+                            if item.stdout_lines | length >= 2 else 0,
+        'jstat_failed': item.rc != 0
+      }] }}
+  loop: "{{ jstat_outputs.results }}"
+  loop_control:
+    label: "{{ item.item.app_name }} PID={{ item.item.pid }}"
+  # Split the last line of jstat output (header is first line, data is second)
+
+- name: Classify heap severity for each JVM
+  ansible.builtin.set_fact:
+    jvm_severity_map: >-
+      {{ jvm_severity_map | default([]) + [{
+        'pid': item.pid,
+        'app_name': item.app_name,
+        'old_gen_pct': item.old_gen_pct,
+        'full_gc_count': item.full_gc_count,
+        'severity': ('EMERGENCY' if item.old_gen_pct >= jvm_heap_emergency_percent
+                     else ('CRITICAL' if item.old_gen_pct >= jvm_heap_critical_percent
+                           else ('WARNING' if item.old_gen_pct >= jvm_heap_warn_percent
+                                 else 'OK'))),
+        'gc_severity': ('CRITICAL' if item.full_gc_count >= full_gc_count_critical
+                        else ('WARNING' if item.full_gc_count >= full_gc_count_warn
+                              else 'OK'))
+      }] }}
+  loop: "{{ jvm_heap_metrics | default([]) }}"
+  loop_control:
+    label: "{{ item.app_name }}"
+
+- name: Log heap monitoring summary
+  ansible.builtin.debug:
+    msg:
+      - "JVM Heap Monitor — {{ inventory_hostname }}"
+      - "{% for jvm in jvm_severity_map %}"
+      - "  {{ jvm.app_name }} PID={{ jvm.pid }}: OldGen={{ jvm.old_gen_pct }}%
+          FullGC={{ jvm.full_gc_count }} — {{ jvm.severity }}"
+      - "{% endfor %}"
+
+- name: Fire PagerDuty EMERGENCY for JVMs near OOM
+  ansible.builtin.uri:
+    url: "{{ pagerduty_integration_url }}"
+    method: POST
+    body_format: json
+    body:
+      routing_key: "{{ vault_pagerduty_routing_key }}"
+      event_action: trigger
+      dedup_key: "jvm-heap-emergency-{{ inventory_hostname }}-{{ item.pid }}"
+      payload:
+        summary: >-
+          🚨 JVM HEAP EMERGENCY: {{ item.app_name }} PID={{ item.pid }}
+          on {{ inventory_hostname }} Old Gen={{ item.old_gen_pct }}%.
+          OutOfMemoryError IMMINENT. Auto-heap dump triggered.
+        severity: critical
+        source: ansible-jvm-monitor
+        custom_details:
+          host: "{{ inventory_hostname }}"
+          app: "{{ item.app_name }}"
+          pid: "{{ item.pid }}"
+          old_gen_pct: "{{ item.old_gen_pct }}"
+          full_gc_count: "{{ item.full_gc_count }}"
+          action_taken: "Thread dump + Heap dump collection initiated"
+    status_code: [202]
+  loop: "{{ jvm_severity_map | selectattr('severity', 'equalto', 'EMERGENCY') | list }}"
+  loop_control:
+    label: "{{ item.app_name }}"
+  delegate_to: localhost
+  when: jvm_severity_map | selectattr('severity', 'equalto', 'EMERGENCY') | list | length > 0
+
+- name: Fire PagerDuty CRITICAL for JVMs with high heap
+  ansible.builtin.uri:
+    url: "{{ pagerduty_integration_url }}"
+    method: POST
+    body_format: json
+    body:
+      routing_key: "{{ vault_pagerduty_routing_key }}"
+      event_action: trigger
+      dedup_key: "jvm-heap-critical-{{ inventory_hostname }}-{{ item.pid }}"
+      payload:
+        summary: >-
+          ⚠️ JVM Heap Critical: {{ item.app_name }} on {{ inventory_hostname }}
+          Old Gen={{ item.old_gen_pct }}%. Thread dump being collected.
+        severity: error
+        source: ansible-jvm-monitor
+    status_code: [202]
+  loop: "{{ jvm_severity_map | selectattr('severity', 'equalto', 'CRITICAL') | list }}"
+  loop_control:
+    label: "{{ item.app_name }}"
+  delegate_to: localhost
+  when: jvm_severity_map | selectattr('severity', 'equalto', 'CRITICAL') | list | length > 0</code></pre></div>
+
+<div class="cw"><div class="cl"><span>roles/jvm_heap_check/tasks/query_tomcat_jmx.yml</span><button class="cb" onclick="copyCode(this)">Copy</button></div>
+<pre><code>---
+# =====================================================================
+# Query Tomcat Connector Thread Pool via JMX (Jolokia HTTP bridge)
+# Thread pool exhaustion = new requests rejected = application unavailable
+# =====================================================================
+
+- name: Query Tomcat connector thread metrics via Jolokia HTTP API
+  ansible.builtin.uri:
+    url: >-
+      http://localhost:8778/jolokia/read/
+      Catalina:name="http-nio-8080",type=ThreadPool/
+      currentThreadCount,currentThreadsBusy,maxThreads
+    # Jolokia: HTTP bridge to JMX — exposes JMX as REST API
+    # URL format: /jolokia/read/MBean-Name/attribute1,attribute2
+    # Catalina:name=...,type=ThreadPool: Tomcat's connector MBean
+    method: GET
+    return_content: true
+    status_code: [200]
+    timeout: 10
+  register: jolokia_thread_data
+  failed_when: false
+  when: middleware_type == 'tomcat'
+
+- name: Parse Tomcat thread pool metrics
+  ansible.builtin.set_fact:
+    tomcat_threads:
+      current_total: "{{ jolokia_thread_data.json.value.currentThreadCount | int }}"
+      current_busy: "{{ jolokia_thread_data.json.value.currentThreadsBusy | int }}"
+      max_threads: "{{ jolokia_thread_data.json.value.maxThreads | int }}"
+      busy_percent: >-
+        {{ ((jolokia_thread_data.json.value.currentThreadsBusy | int
+             / jolokia_thread_data.json.value.maxThreads | int) * 100)
+           | round(1) }}
+  when:
+    - middleware_type == 'tomcat'
+    - jolokia_thread_data.status == 200
+
+- name: Alert if Tomcat thread pool near exhaustion
+  ansible.builtin.uri:
+    url: "{{ slack_webhook_url }}"
+    method: POST
+    body_format: json
+    body:
+      text: >-
+        ⚠️ *Tomcat Thread Pool Alert — {{ inventory_hostname }}*
+        Busy Threads: *{{ tomcat_threads.current_busy }}/{{ tomcat_threads.max_threads }}*
+        ({{ tomcat_threads.busy_percent }}% utilized)
+        At 100%: new HTTP requests will be REJECTED
+        _Consider increasing maxThreads or investigating slow requests_
+    status_code: [200]
+  delegate_to: localhost
+  when:
+    - middleware_type == 'tomcat'
+    - tomcat_threads is defined
+    - tomcat_threads.busy_percent | float >= tomcat_thread_warn_percent | float</code></pre></div>
+</div>
+
+<!-- THREAD DUMP -->
+<section id="threaddump">
+<h2 class="st">🧵 9. Thread Dump Collection Role</h2>
+<div class="card">
+<div class="cw"><div class="cl"><span>roles/jvm_thread_dump/tasks/collect_thread_dumps.yml</span><button class="cb" onclick="copyCode(this)">Copy</button></div>
+<pre><code>---
+# =====================================================================
+# Collect 3 consecutive thread dumps for deadlock pattern analysis
+# 3 dumps × 30s apart shows thread state CHANGES (deadlocked threads
+# appear in the same BLOCKED state in all 3 dumps)
+# =====================================================================
+
+- name: Identify JVMs needing thread dumps (critical or emergency heap)
+  ansible.builtin.set_fact:
+    jvms_needing_thread_dump: >-
+      {{ jvm_severity_map
+         | selectattr('severity', 'in', ['CRITICAL', 'EMERGENCY'])
+         | list }}
+
+- name: Create thread dump directory for this session
+  ansible.builtin.file:
+    path: "{{ thread_dump_path }}/{{ ansible_date_time.iso8601_basic_short }}"
+    state: directory
+    mode: '0755'
+    owner: "{{ app_user }}"
+  become: true
+  when: jvms_needing_thread_dump | length > 0
+
+- name: Collect thread dump 1 of 3 for each critical JVM
+  ansible.builtin.shell:
+    cmd: >
+      jstack -l {{ item.pid }}
+      > {{ thread_dump_path }}/{{ ansible_date_time.iso8601_basic_short }}/
+        {{ item.app_name }}-{{ item.pid }}-dump1-{{ ansible_date_time.epoch }}.txt
+      2>&1
+    # jstack -l: print thread dump with ownable synchronizers (lock information)
+    # -l: include ownable synchronizers — critical for deadlock detection
+    # > file: redirect to timestamped file
+  loop: "{{ jvms_needing_thread_dump }}"
+  loop_control:
+    label: "Thread dump 1/3 for {{ item.app_name }} PID={{ item.pid }}"
+  become: true
+  become_user: "{{ app_user }}"
+  register: dump1_results
+
+- name: Wait 30 seconds between dumps
+  ansible.builtin.pause:
+    seconds: "{{ thread_dump_interval_sec }}"
+    prompt: "Waiting {{ thread_dump_interval_sec }}s before dump 2..."
+
+- name: Collect thread dump 2 of 3
+  ansible.builtin.shell:
+    cmd: >
+      jstack -l {{ item.pid }}
+      > {{ thread_dump_path }}/{{ ansible_date_time.iso8601_basic_short }}/
+        {{ item.app_name }}-{{ item.pid }}-dump2-{{ ansible_date_time.epoch }}.txt
+      2>&1
+  loop: "{{ jvms_needing_thread_dump }}"
+  loop_control:
+    label: "Thread dump 2/3 for {{ item.app_name }}"
+  become: true
+  become_user: "{{ app_user }}"
+
+- name: Wait another 30 seconds
+  ansible.builtin.pause:
+    seconds: "{{ thread_dump_interval_sec }}"
+
+- name: Collect thread dump 3 of 3
+  ansible.builtin.shell:
+    cmd: >
+      jstack -l {{ item.pid }}
+      > {{ thread_dump_path }}/{{ ansible_date_time.iso8601_basic_short }}/
+        {{ item.app_name }}-{{ item.pid }}-dump3-{{ ansible_date_time.epoch }}.txt
+      2>&1
+  loop: "{{ jvms_needing_thread_dump }}"
+  loop_control:
+    label: "Thread dump 3/3 for {{ item.app_name }}"
+  become: true
+  become_user: "{{ app_user }}"
+
+- name: Create tarball of all thread dumps from this session
+  ansible.builtin.archive:
+    path: "{{ thread_dump_path }}/{{ ansible_date_time.iso8601_basic_short }}"
+    dest: "{{ thread_dump_path }}/thread-dumps-{{ inventory_hostname }}-{{ ansible_date_time.iso8601_basic_short }}.tar.gz"
+    format: gz
+  become: true
+
+- name: Copy thread dump archive to NFS compliance store
+  ansible.builtin.copy:
+    src: "{{ thread_dump_path }}/thread-dumps-{{ inventory_hostname }}-{{ ansible_date_time.iso8601_basic_short }}.tar.gz"
+    dest: "{{ thread_dump_archive_path }}/"
+    remote_src: true
+  become: true
+
+- name: Notify developers about collected thread dumps
+  ansible.builtin.uri:
+    url: "{{ slack_webhook_url }}"
+    method: POST
+    body_format: json
+    body:
+      text: >-
+        🧵 *JVM Thread Dumps Collected — {{ inventory_hostname }}*
+        *Reason:* Heap > {{ jvm_heap_critical_percent }}%
+        *JVMs:* {{ jvms_needing_thread_dump | map(attribute='app_name') | list | join(', ') }}
+        *Archive:* {{ thread_dump_archive_path }}/thread-dumps-{{ inventory_hostname }}-{{ ansible_date_time.iso8601_basic_short }}.tar.gz
+        *3 dumps × 30s apart collected for deadlock pattern analysis*
+        _Use: jstack -l or analyze with FastThread.io / IBM Thread Analyzer_
+    status_code: [200]
+  delegate_to: localhost</code></pre></div>
+</div>
+
+<!-- HEAP DUMP -->
+<section id="heapdump">
+<h2 class="st">💾 10. Heap Dump &amp; GC Log Analysis</h2>
+<div class="card">
+<div class="cw"><div class="cl"><span>roles/jvm_heap_dump/tasks/collect_heap_dump.yml</span><button class="cb" onclick="copyCode(this)">Copy</button></div>
+<pre><code>---
+# =====================================================================
+# Collect JVM Heap Dump for OOM Analysis
+# Uses jcmd (preferred over jmap — safer for live production JVMs)
+# IMPORTANT: Heap dumps are large (1-8GB). Check disk space first!
+# =====================================================================
+
+- name: Check available disk space before heap dump
+  ansible.builtin.shell:
+    cmd: "df -B1G {{ heap_dump_path }} | tail -1 | awk '{print $4}'"
+    # df -B1G: show size in GB
+    # awk '{print $4}': extract available space column
+  register: available_disk_gb
+  changed_when: false
+  become: true
+
+- name: Skip heap dump if insufficient disk space
+  ansible.builtin.meta: end_host
+  when: available_disk_gb.stdout | trim | int < heap_dump_min_free_gb | int
+
+- name: Identify JVMs needing heap dump (emergency level)
+  ansible.builtin.set_fact:
+    jvms_needing_heap_dump: >-
+      {{ jvm_severity_map
+         | selectattr('severity', 'equalto', 'EMERGENCY')
+         | list }}
+
+- name: Create heap dump directory
+  ansible.builtin.file:
+    path: "{{ heap_dump_path }}"
+    state: directory
+    mode: '0755'
+    owner: "{{ app_user }}"
+  become: true
+
+- name: Collect heap dump using jcmd GC.heap_dump
+  ansible.builtin.shell:
+    cmd: >
+      jcmd {{ item.pid }} GC.heap_dump
+      {{ heap_dump_path }}/{{ item.app_name }}-{{ item.pid }}-{{ ansible_date_time.epoch }}.hprof
+    # jcmd: preferred over jmap for production heap dumps
+    # GC.heap_dump: requests a heap dump via JVM diagnostic command
+    # .hprof: Java heap dump format — analyzed by Eclipse MAT, VisualVM, JProfiler
+    # Advantage of jcmd over jmap: triggers via JVM's own diagnostic framework
+    #   = safer, less likely to cause application freeze
+  loop: "{{ jvms_needing_heap_dump }}"
+  loop_control:
+    label: "Heap dump for {{ item.app_name }} PID={{ item.pid }}"
+  register: heap_dump_results
+  become: true
+  become_user: "{{ app_user }}"
+
+- name: Compress heap dump to save disk space
+  ansible.builtin.shell:
+    cmd: >
+      gzip {{ heap_dump_path }}/{{ item.app_name }}-{{ item.pid }}-{{ ansible_date_time.epoch }}.hprof
+    # gzip: compress the .hprof file (often reduces 4GB → 800MB)
+    # Eclipse MAT and most analysis tools can read gzipped hprof files
+  loop: "{{ jvms_needing_heap_dump }}"
+  loop_control:
+    label: "Compressing {{ item.app_name }} heap dump"
+  become: true
+
+- name: Log heap dump collection results
+  ansible.builtin.debug:
+    msg: >-
+      Heap dumps collected for {{ jvms_needing_heap_dump | length }} JVMs
+      on {{ inventory_hostname }}.
+      Location: {{ heap_dump_path }}/
+      Files: {{ jvms_needing_heap_dump
+               | map(attribute='app_name') | list
+               | zip(jvms_needing_heap_dump | map(attribute='pid') | list)
+               | map('join', '-') | list | join(', ') }}-*.hprof.gz</code></pre></div>
+
+<div class="cw"><div class="cl"><span>roles/jvm_gc_analysis/tasks/parse_gc_log.yml</span><button class="cb" onclick="copyCode(this)">Copy</button></div>
+<pre><code>---
+# =====================================================================
+# Parse GC Log File for Full GC Pause Patterns
+# GC log gives historical pause data — jstat only gives current totals
+# =====================================================================
+
+- name: Read last 200 lines of GC log file
+  ansible.builtin.shell:
+    cmd: "tail -200 {{ gc_log_path }} 2>/dev/null || echo 'GC_LOG_NOT_FOUND'"
+  register: gc_log_tail
+  changed_when: false
+  become: true
+  failed_when: false
+
+- name: Extract Full GC events from GC log (G1GC format)
+  ansible.builtin.set_fact:
+    full_gc_events: >-
+      {{ gc_log_tail.stdout_lines
+         | select('match', '.*GC\\(.*Full GC.*\\).*')
+         | list }}
+    # G1GC full GC log format:
+    # [2024-01-15T14:23:45.123+0530] GC(42) Full GC (System.gc())
+    # [2024-01-15T14:23:52.456+0530] GC(42) Pause Full (System.gc()) 2048M->1024M(4096M) 7324ms
+    # We look for "Full GC" lines to count occurrences
+
+- name: Extract pause durations from Full GC events
+  ansible.builtin.set_fact:
+    full_gc_pause_times: >-
+      {{ full_gc_events
+         | map('regex_search', '([0-9]+)ms', '\\1')
+         | select('ne', none)
+         | map('first')
+         | map('int')
+         | list }}
+    # regex_search extracts the pause time in milliseconds
+
+- name: Calculate GC statistics
+  ansible.builtin.set_fact:
+    gc_analysis:
+      full_gc_count_recent: "{{ full_gc_events | length }}"
+      max_pause_ms: "{{ full_gc_pause_times | max | default(0) }}"
+      avg_pause_ms: >-
+        {{ (full_gc_pause_times | sum / (full_gc_pause_times | length))
+           | round(0) | int
+           if full_gc_pause_times | length > 0 else 0 }}
+      exceeds_warn_threshold: >-
+        {{ full_gc_events | length >= full_gc_count_warn | int
+           or (full_gc_pause_times | max | default(0) | int)
+              >= (full_gc_pause_warn_sec * 1000) | int }}
+
+- name: Alert on excessive Full GC activity
+  ansible.builtin.uri:
+    url: "{{ slack_webhook_url }}"
+    method: POST
+    body_format: json
+    body:
+      text: >-
+        ⚠️ *JVM Full GC Alert — {{ inventory_hostname }}*
+        *Full GC Events:* {{ gc_analysis.full_gc_count_recent }}
+        *Max Pause:* {{ gc_analysis.max_pause_ms }}ms
+        *Avg Pause:* {{ gc_analysis.avg_pause_ms }}ms
+        {% if gc_analysis.max_pause_ms | int >= (full_gc_pause_critical_sec * 1000) | int %}
+        🔴 CRITICAL: Pause exceeds {{ full_gc_pause_critical_sec }}s threshold
+        Applications experienced {{ gc_analysis.max_pause_ms }}ms freeze
+        {% endif %}
+    status_code: [200]
+  delegate_to: localhost
+  when: gc_analysis.exceeds_warn_threshold | bool</code></pre></div>
+</div>
+
+<!-- PLAYBOOKS -->
+<section id="playbooks">
+<h2 class="st">📜 11. Master Playbooks</h2>
+<div class="card">
+<div class="cw"><div class="cl"><span>playbooks/jvm_heap_monitor.yml — Every 5 Minutes</span><button class="cb" onclick="copyCode(this)">Copy</button></div>
+<pre><code>---
+# =====================================================================
+# JVM Heap Monitor — Every 5 Minutes
+# Discovers JVMs, checks heap, triggers thread/heap dumps as needed
+# =====================================================================
+- name: JVM Heap Monitoring — ABC Global Bank
+  hosts: java_app_servers
+  gather_facts: true
+  become: true
+  serial: 20                                 # 20 app servers at a time
+
+  vars_files:
+    - "{{ inventory_dir }}/group_vars/all/vault.yml"
+
+  roles:
+    - role: jvm_discovery                    # Step 1: Find JVM processes
+      tags: [discover, always]
+    - role: jvm_heap_check                   # Step 2: Heap + connector metrics
+      tags: [heap, always]
+
+  post_tasks:
+    - name: Trigger thread dump for critical/emergency JVMs
+      ansible.builtin.include_role:
+        name: jvm_thread_dump
+      when: >
+        jvm_severity_map is defined
+        and jvm_severity_map
+            | selectattr('severity', 'in', ['CRITICAL', 'EMERGENCY'])
+            | list | length > 0
+      tags: thread_dump
+
+    - name: Trigger heap dump for emergency JVMs
+      ansible.builtin.include_role:
+        name: jvm_heap_dump
+      when: >
+        jvm_severity_map is defined
+        and jvm_severity_map
+            | selectattr('severity', 'equalto', 'EMERGENCY')
+            | list | length > 0
+      tags: heap_dump
+
+    - name: Auto-resolve PagerDuty alerts for healthy JVMs
+      ansible.builtin.uri:
+        url: "{{ pagerduty_integration_url }}"
+        method: POST
+        body_format: json
+        body:
+          routing_key: "{{ vault_pagerduty_routing_key }}"
+          event_action: resolve
+          dedup_key: "jvm-heap-critical-{{ inventory_hostname }}-{{ item.pid }}"
+        status_code: [202]
+      loop: "{{ jvm_severity_map | selectattr('severity', 'equalto', 'OK') | list }}"
+      loop_control:
+        label: "{{ item.app_name }}"
+      delegate_to: localhost
+      when: jvm_severity_map is defined</code></pre></div>
+</div>
+</section>
+
+<!-- AAP -->
+<section id="aap">
+<h2 class="st">🔴 12. AAP Configuration</h2>
+<div class="card">
+<details><summary>Job Templates & Workflow</summary><div class="inner">
+<table>
+<tr><th>Template</th><th>Playbook</th><th>Schedule</th><th>Survey</th></tr>
+<tr><td>JVM-Heap-Monitor</td><td>jvm_heap_monitor.yml</td><td>Every 5 min</td><td>None</td></tr>
+<tr><td>JVM-Thread-Dump-OnDemand</td><td>jvm_thread_dump.yml</td><td>On-demand</td><td>Target host, App name (optional)</td></tr>
+<tr><td>JVM-Heap-Dump-OnDemand</td><td>jvm_heap_dump.yml</td><td>On-demand</td><td>Target host, PID (optional)</td></tr>
+<tr><td>JVM-GC-Analysis</td><td>jvm_gc_analysis.yml</td><td>Every 15 min</td><td>None</td></tr>
+<tr><td>JVM-Fleet-Report</td><td>jvm_fleet_report.yml</td><td>Daily 06:00 AM</td><td>None</td></tr>
+<tr><td>JVM-Dump-Cleanup</td><td>jvm_dump_cleanup.yml</td><td>Daily 02:00 AM</td><td>None</td></tr>
+</table>
+<div class="tip-box"><b>Jolokia Setup:</b> For Tomcat JMX queries via HTTP, deploy the Jolokia WAR agent to Tomcat's webapps/ directory. It exposes all JMX beans as REST JSON API at http://localhost:8778/jolokia. Secured with basic auth in production (credentials in AAP Vault credential).</div>
+</div></details>
+
+<details><summary>EE Requirements — Python jmxquery Library</summary><div class="inner">
+<div class="cw"><div class="cl"><span>execution_environment/requirements.txt</span><button class="cb" onclick="copyCode(this)">Copy</button></div>
+<pre><code># For Jolokia/JMX query via Python (optional — we primarily use jstat/jcmd)
+jmxquery>=0.5.1         # Python JMX query library
+requests>=2.28.0        # For Jolokia HTTP API calls
+
+# Note: jstat and jcmd are JDK tools available on the target servers
+# No additional Python library needed for our primary monitoring approach</code></pre></div>
+</div></details>
+</div>
+</section>
+
+<!-- FLOW -->
+<section id="flow">
+<h2 class="st">🔄 13. Execution Flow</h2>
+<div class="card">
+<div class="fs"><div class="fn">1</div><div>Every 5 minutes: JVM-Heap-Monitor fires. SSH connects to 180 app servers (serial:20). <code>jps -lv</code> discovers all running JVMs with PIDs and heap settings. App name extracted from command line matching jvm_app_identifiers.</div></div>
+<div class="fs"><div class="fn">2</div><div><code>jstat -gcutil PID 1 1</code> runs for each discovered JVM. Output parsed: Eden%, OldGen%, Metaspace%, Full GC count, Full GC time. OldGen% is the primary alert metric.</div></div>
+<div class="fs"><div class="fn">3</div><div>Severity classification: OK / WARNING / CRITICAL / EMERGENCY per JVM per server. WARNING (70-80%) → Slack to #jvm-monitoring. CRITICAL (80-90%) → PagerDuty P2 + trigger thread dump. EMERGENCY (>90%) → PagerDuty P1 + thread dump + heap dump.</div></div>
+<div class="fs"><div class="fn">4</div><div>Thread dump collection: <code>jstack -l PID</code> runs 3 times, 30 seconds apart. All dumps compressed into tarball and archived to NFS compliance store. Slack notification to dev team with archive path and analysis tool suggestions.</div></div>
+<div class="fs"><div class="fn">5</div><div>Heap dump (EMERGENCY only): disk space checked first — must have 5GB free. <code>jcmd PID GC.heap_dump /opt/jvm-dumps/app-pid-epoch.hprof</code> runs. gzip compresses the file. Archived to NFS. Developer gets Slack notification with file path.</div></div>
+<div class="fs"><div class="fn">6</div><div>Every 15 min: GC Analysis parses gc.log file. Full GC events extracted by regex. Pause times in ms extracted. Alert on > 5 Full GCs or > 2-second pause. This provides historical trend data vs jstat's running totals.</div></div>
+</div>
+</section>
+
+<!-- LAB -->
+<section id="lab">
+<h2 class="st">🧪 14. Lab Setup</h2>
+<div class="card">
+<div class="cw"><div class="cl"><span>Lab: Run Tomcat with JMX enabled and test monitoring</span><button class="cb" onclick="copyCode(this)">Copy</button></div>
+<pre><code"># ── Install JDK and Tomcat on RHEL lab VM ────────────────────────────
+sudo yum install -y java-17-openjdk java-17-openjdk-devel
+sudo yum install -y tomcat
+
+# ── Enable JMX on Tomcat ──────────────────────────────────────────────
+cat >> /etc/tomcat/tomcat.conf << 'EOF'
+JAVA_OPTS="-Xms512m -Xmx2g
+  -Dcom.sun.management.jmxremote
+  -Dcom.sun.management.jmxremote.port=9010
+  -Dcom.sun.management.jmxremote.authenticate=false
+  -Dcom.sun.management.jmxremote.ssl=false
+  -verbose:gc
+  -Xloggc:/var/log/tomcat/gc.log
+  -XX:+PrintGCDetails
+  -XX:+PrintGCDateStamps
+  -XX:+HeapDumpOnOutOfMemoryError
+  -XX:HeapDumpPath=/opt/jvm-dumps"
+EOF
+
+sudo systemctl start tomcat
+
+# ── Test jstat on Tomcat PID ──────────────────────────────────────────
+TOMCAT_PID=$(jps | grep Bootstrap | awk '{print $1}')
+echo "Tomcat PID: $TOMCAT_PID"
+
+jstat -gcutil $TOMCAT_PID 1 5  # 5 samples, 1 second apart
+# Expected output:
+#   S0     S1     E      O      M     CCS    YGC     YGCT    FGC    FGCT     GCT
+#   0.00  45.23  73.12  12.45  85.32  80.45     42   0.823     0    0.000    0.823
+
+# ── Test jstack thread dump ───────────────────────────────────────────
+jstack -l $TOMCAT_PID | head -50
+
+# ── Simulate heap pressure for testing ───────────────────────────────
+# Deploy a servlet that allocates memory (only in lab!):
+# curl http://localhost:8080/memory-test/allocate?mb=500
+
+# ── Run Ansible monitoring playbook ──────────────────────────────────
+ansible-playbook playbooks/jvm_heap_monitor.yml \
+  -i inventory/production/hosts.ini -v
+
+# ── On-demand thread dump test ────────────────────────────────────────
+ansible-playbook playbooks/jvm_thread_dump.yml \
+  -i inventory/production/hosts.ini -v
+
+# Verify output:
+ls -la /opt/jvm-dumps/threads/</code></pre></div>
+
+<h3>Troubleshooting</h3>
+<table>
+<tr><th>Issue</th><th>Cause</th><th>Fix</th></tr>
+<tr><td>jstat: no such process</td><td>JVM not running or PID wrong</td><td>Use jps to verify PID; jstat must run as same user as JVM</td></tr>
+<tr><td>jstack: permission denied</td><td>Running as wrong user</td><td>become_user: tomcat — jstack must run as the JVM OS user</td></tr>
+<tr><td>jcmd heap_dump: diagnostic error</td><td>JVM startup flags missing -XX:+AllowUserSignalHandlers</td><td>Add flag to JVM startup; or use jmap -dump as fallback</td></tr>
+<tr><td>Jolokia returns 404</td><td>Jolokia WAR not deployed to Tomcat</td><td>Download jolokia-war-agent.jar, place in webapps/jolokia.war</td></tr>
+<tr><td>GC log empty or not found</td><td>GC logging not enabled in JVM flags</td><td>Add -Xloggc:/path/gc.log -XX:+PrintGCDetails to JVM startup</td></tr>
+</table>
+</div>
+</section>
+
+<!-- INTERVIEW -->
+<section id="interview">
+<h2 class="st">🎯 15. Interview Prep</h2>
+<div class="card">
+<div class="g2">
+<div>
+<details><summary>Q: Why do you collect 3 thread dumps 30 seconds apart instead of just one?</summary><div class="inner">
+A single thread dump shows thread states at one moment — but it's hard to distinguish between a thread that's legitimately processing (briefly BLOCKED) and one that's deadlocked (permanently BLOCKED).<br><br>
+Three dumps 30 seconds apart reveal patterns: a thread stuck in BLOCKED state in all 3 dumps, waiting for the same lock, while the lock-holding thread is also WAITING — that's a deadlock signature. A thread that was BLOCKED in dump 1 but RUNNABLE in dump 2 was just temporarily waiting.<br><br>
+This is the same technique recommended by Oracle, IBM, and Java performance experts for deadlock diagnosis. Automated collection via Ansible eliminates the 45-minute manual process from Incident 2 — developers get all 3 dumps from all 12 servers within 2 minutes of heap threshold being exceeded.
+</div></details>
+<details><summary>Q: What is the difference between jstat, jmap, and jcmd for JVM monitoring?</summary><div class="inner">
+<b>jstat:</b> Lightweight, real-time statistics reader. No JVM impact. Reads counters directly from JVM's shared memory. Best for continuous monitoring. Cannot trigger actions — read-only.<br><br>
+<b>jmap:</b> Can read heap summaries AND create heap dumps. Older tool — creates heap dumps by attaching to JVM using ptrace (can briefly pause the JVM). Less safe for production.<br><br>
+<b>jcmd:</b> Modern, preferred tool (Java 7+). Sends diagnostic commands to JVM via its own internal interface (no ptrace). <code>GC.heap_dump</code> is safer than jmap for production heap dumps. Also can: <code>VM.flags</code> (see JVM flags), <code>Thread.print</code> (thread dump), <code>GC.run</code> (trigger GC).<br><br>
+Our automation uses: <b>jstat</b> for continuous 5-minute heap monitoring, <b>jstack</b> for thread dumps (specifically designed for this), <b>jcmd</b> for heap dumps (safer than jmap in production).
+</div></details>
+</div>
+<div>
+<details><summary>Q: What is Stop-The-World GC and why is it critical in banking transaction systems?</summary><div class="inner">
+Stop-The-World (STW) is a JVM GC mechanism where ALL application threads are paused while the garbage collector runs. During this pause: no transactions are processed, no API requests complete, no database writes happen — the JVM is completely frozen.<br><br>
+In banking, STW pauses matter for: RTGS (Real-Time Gross Settlement) — transactions have strict timing requirements. SWIFT payment gateways — messages must be processed within seconds. CBS transaction commits — customer-facing operations freeze.<br><br>
+Modern GC algorithms (G1GC, ZGC, Shenandoah) reduce STW pauses, but Full GC is still often STW. Monitoring Full GC pause times is essential — a 5-second Full GC pause in the Core Banking System means 5 seconds where 2,400 branch tellers see frozen screens. Our GC log analysis specifically tracks Full GC pause duration and alerts if any pause exceeds 2 seconds (our SLA threshold).
+</div></details>
+<details><summary>Q: How do you handle the case where a JVM is restarted between Ansible monitoring runs (new PID)?</summary><div class="inner">
+Our JVM discovery role runs on EVERY 5-minute cycle — we use <code>jps -lv</code> (or <code>ps aux | grep java</code>) to dynamically discover all current JVM PIDs at the start of each run. We never store PIDs in inventory or variables that persist between runs.<br><br>
+This means: if Tomcat restarts between minute 10 and minute 15, the minute 15 run discovers the new PID automatically. The restart counter (stored separately for tracking crash loops) is keyed by app_name and hostname — not by PID. So the crash loop detection still works even after PID changes.<br><br>
+This is why dynamic JVM discovery is essential in banking — application servers restart regularly for deployments, patches, and OOM recovery. A static PID-based approach would miss new JVM instances.
+</div></details>
+</div>
+</div>
+</section>
+
+<div class="fn-row">
+  <span style="color:var(--text-dim);font-size:.85rem;">Advanced Series — Project 12 of 30 Complete</span>
+  <a class="btn" href="#">Request Project 13 →</a>
+</div>
+</main>
+</div>
+<script>
+function copyCode(btn){
+  const pre=btn.closest('.cw').querySelector('pre code')||btn.closest('.cw').querySelector('pre');
+  navigator.clipboard.writeText(pre.innerText).then(()=>{const o=btn.innerText;btn.innerText='Copied!';setTimeout(()=>btn.innerText=o,1500);});
+}
+</script>
+</body>
+</html>

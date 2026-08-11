@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Project 12 — Windows Event Log Reporting | PowerShell Masterclass</title>
+<style>
+  :root{
+    --primary:#6D28D9; --secondary:#7C3AED; --light-purple:#EDE9FE; --xlight-purple:#F5F3FF;
+    --bg:#FFFFFF; --text:#1F2937; --muted:#6B7280; --border:#E5E1F5;
+    --success:#15803D; --warn:#B45309; --danger:#B91C1C;
+    --code-bg:#1E1B2E; --code-text:#E9E4FF;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0; font-family:"Segoe UI",Calibri,Roboto,Arial,sans-serif; background:var(--bg); color:var(--text); line-height:1.65;}
+  a{color:var(--primary);}
+  .layout{display:flex; max-width:1400px; margin:0 auto;}
+  nav.sidebar{width:270px; flex-shrink:0; position:sticky; top:0; height:100vh; overflow-y:auto; background:var(--xlight-purple); border-right:1px solid var(--border); padding:22px 16px;}
+  nav.sidebar h3{color:var(--primary); font-size:13px; text-transform:uppercase; letter-spacing:.06em; margin:18px 0 8px;}
+  nav.sidebar a{display:block; padding:7px 10px; border-radius:8px; color:var(--text); text-decoration:none; font-size:14px; margin-bottom:2px;}
+  nav.sidebar a:hover{background:var(--light-purple); color:var(--primary);}
+  #progressWrap{background:var(--light-purple); border-radius:10px; padding:10px; margin-bottom:8px;}
+  #progressBar{height:8px; background:var(--border); border-radius:6px; overflow:hidden;}
+  #progressFill{height:100%; width:0%; background:linear-gradient(90deg,var(--primary),var(--secondary)); transition:width .2s;}
+  #progressLabel{font-size:12px; color:var(--muted); margin-top:6px;}
+  main{flex:1; min-width:0; padding:0;}
+  .cover{background:linear-gradient(135deg,var(--primary),var(--secondary)); color:#fff; padding:60px 48px; position:relative; overflow:hidden;}
+  .cover::after{content:"";position:absolute;right:-80px;top:-80px;width:300px;height:300px;border-radius:50%;background:rgba(255,255,255,.08);}
+  .badge{display:inline-block; background:rgba(255,255,255,.18); padding:5px 14px; border-radius:20px; font-size:12px; letter-spacing:.05em; margin-right:8px; margin-bottom:14px;}
+  .cover h1{font-size:34px; margin:6px 0 10px; max-width:760px;}
+  .cover p.sub{font-size:16px; opacity:.92; max-width:640px;}
+  .cover-meta{display:flex; gap:28px; margin-top:26px; flex-wrap:wrap;}
+  .cover-meta div{background:rgba(255,255,255,.12); padding:12px 18px; border-radius:10px; min-width:140px;}
+  .cover-meta span{display:block; font-size:12px; opacity:.85;}
+  .cover-meta strong{font-size:16px;}
+  section{padding:34px 48px; border-bottom:1px solid var(--border);}
+  section h2{color:var(--primary); font-size:24px; border-left:5px solid var(--primary); padding-left:14px; margin-top:0;}
+  section h3{color:var(--secondary); font-size:18px; margin-top:26px;}
+  .story{background:var(--xlight-purple); border-left:5px solid var(--primary); padding:20px 24px; border-radius:0 10px 10px 0; font-size:15px;}
+  .story b{color:var(--primary);}
+  .callout{border-radius:10px; padding:16px 18px; margin:16px 0; font-size:14.5px;}
+  .callout.tip{background:#F0FDF4; border-left:5px solid var(--success);}
+  .callout.note{background:var(--xlight-purple); border-left:5px solid var(--secondary);}
+  .callout.warn{background:#FFFBEB; border-left:5px solid var(--warn);}
+  .callout.security{background:#FEF2F2; border-left:5px solid var(--danger);}
+  .callout .lbl{font-weight:700; display:block; margin-bottom:4px;}
+  table{width:100%; border-collapse:collapse; margin:16px 0; font-size:14px;}
+  th,td{border:1px solid var(--border); padding:9px 12px; text-align:left; vertical-align:top;}
+  th{background:var(--light-purple); color:var(--primary);}
+  tr:nth-child(even){background:var(--xlight-purple);}
+  .codewrap{position:relative; margin:16px 0;}
+  pre{background:var(--code-bg); color:var(--code-text); padding:18px 16px; border-radius:10px; overflow-x:auto; font-family:Consolas,"Cascadia Code",Menlo,monospace; font-size:13.5px; line-height:1.7;}
+  pre code{white-space:pre;}
+  .copybtn{position:absolute; top:10px; right:10px; background:var(--secondary); color:#fff; border:none; padding:6px 12px; border-radius:6px; font-size:12px; cursor:pointer;}
+  .copybtn:hover{background:var(--primary);}
+  .explain-list{list-style:none; padding:0; margin:14px 0;}
+  .explain-list li{background:var(--xlight-purple); border-radius:8px; padding:10px 14px; margin-bottom:6px; font-size:14.5px;}
+  .explain-list code{background:var(--light-purple); padding:2px 6px; border-radius:5px; color:var(--primary); font-weight:600;}
+  details{background:var(--xlight-purple); border-radius:10px; padding:12px 16px; margin:10px 0;}
+  details summary{cursor:pointer; font-weight:600; color:var(--primary);}
+  .diagram{background:var(--xlight-purple); border-radius:12px; padding:20px; margin:16px 0; overflow-x:auto;}
+  .flow{display:flex; flex-wrap:wrap; align-items:center; gap:10px; font-size:13.5px;}
+  .flow .box{background:#fff; border:2px solid var(--secondary); border-radius:8px; padding:8px 14px; font-weight:600; color:var(--primary);}
+  .flow .arrow{color:var(--secondary); font-size:18px;}
+  .steps{counter-reset:step;}
+  .steps .step{position:relative; padding-left:44px; margin-bottom:18px;}
+  .steps .step::before{counter-increment:step; content:counter(step); position:absolute; left:0; top:0; background:var(--primary); color:#fff; width:30px; height:30px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:700;}
+  .grid2{display:grid; grid-template-columns:1fr 1fr; gap:16px;}
+  @media(max-width:900px){.grid2{grid-template-columns:1fr;} nav.sidebar{display:none;} section{padding:26px 20px;} .cover{padding:36px 22px;}}
+  footer{padding:30px 48px; background:var(--xlight-purple); color:var(--muted); font-size:13px;}
+</style>
+</head>
+<body>
+
+<div class="layout">
+  <nav class="sidebar">
+    <div id="progressWrap">
+      <div id="progressLabel">Reading progress</div>
+      <div id="progressBar"><div id="progressFill"></div></div>
+    </div>
+    <h3>Project 12</h3>
+    <a href="#cover">Cover</a>
+    <a href="#recap1">Recap: Projects 1–11</a>
+    <a href="#story">The Story</a>
+    <a href="#concepts">Concepts First</a>
+    <a href="#lab">Hands-On Lab</a>
+    <a href="#script">Full Script</a>
+    <a href="#linebyline">Line-by-Line</a>
+    <a href="#architecture">Architecture</a>
+    <a href="#incident">Production Incident</a>
+    <a href="#troubleshoot">Troubleshooting</a>
+    <a href="#security">Security Notes</a>
+    <a href="#recap">Key Learnings</a>
+    <a href="#interview">Interview Prep</a>
+    <a href="#challenges">Coding Challenges</a>
+    <a href="#resume">Resume Points</a>
+    <a href="#assignment">Practice Assignment</a>
+    <a href="#next">Next Project</a>
+  </nav>
+
+  <main id="top">
+    <div class="cover" id="cover">
+      <span class="badge">PROJECT 12</span><span class="badge">INTERMEDIATE</span><span class="badge">BFSI TRACK</span>
+      <h1>Windows Event Log Reporting</h1>
+      <p class="sub">Turn Project 7's raw event queries into a polished, styled HTML report ready to hand to management — with automatic retention cleanup for old reports.</p>
+      <div class="cover-meta">
+        <div><span>Difficulty</span><strong>Intermediate</strong></div>
+        <div><span>Estimated Lab Time</span><strong>70–85 min</strong></div>
+        <div><span>Concepts</span><strong>8 core concepts</strong></div>
+        <div><span>Track</span><strong>12 of 40</strong></div>
+      </div>
+    </div>
+
+    <section id="recap1">
+      <h2>Quick Recap of Projects 1–11</h2>
+      <p>Project 7 taught us to query and correlate Windows Event Logs; Project 6 taught safe retention/cleanup of
+      old files; Project 11 taught scheduling. This project combines all three: a proper <b>HTML report</b> instead
+      of console output, saved with a timestamp, with old reports automatically cleaned up — exactly the kind of
+      script you'd schedule to run every morning using what we just learned in Project 11.</p>
+    </section>
+
+    <section id="story">
+      <h2>The Story — Why We're Building This</h2>
+      <div class="story">
+        Project 7's console output was great for us, but Operations doesn't want to run a PowerShell script and
+        read colored console text every morning — they want a polished report they can open in a browser, forward
+        in an email, or archive for compliance. Our manager asks for a proper <b>HTML report</b>, generated daily,
+        with old reports automatically cleaned up so the reports folder doesn't grow forever.
+      </div>
+    </section>
+
+    <section id="concepts">
+      <h2>Concepts First — Before We Touch Code</h2>
+
+      <h3>1. ConvertTo-Html — Objects to HTML Tables</h3>
+      <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code>$Results | ConvertTo-Html -Fragment</code></pre></div>
+      <ul class="explain-list">
+        <li><code>ConvertTo-Html</code> — takes pipeline objects and converts them into an HTML <code>&lt;table&gt;</code>,
+        the same way <code>Export-Csv</code> converts them to CSV rows or <code>ConvertTo-Json</code> converts them
+        to JSON — one consistent object, many possible output formats.</li>
+        <li><code>-Fragment</code> — outputs just the <code>&lt;table&gt;</code> HTML, without a full
+        <code>&lt;html&gt;&lt;head&gt;&lt;body&gt;</code> document wrapper — useful because we want to combine
+        <i>multiple</i> tables (restarts, app errors) into one custom-styled page ourselves, rather than getting a
+        separate complete HTML document for each.</li>
+      </ul>
+
+      <h3>2. Here-Strings — Multi-Line Text Blocks</h3>
+      <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code>$Css = @"
+body { font-family: Segoe UI, sans-serif; background: #F5F3FF; color: #1F2937; }
+h1 { color: #6D28D9; }
+table { border-collapse: collapse; width: 100%; }
+th { background: #EDE9FE; color: #6D28D9; padding: 8px; }
+td { padding: 8px; border: 1px solid #E5E1F5; }
+"@</code></pre></div>
+      <ul class="explain-list">
+        <li><code>@" ... "@</code> — a <b>here-string</b>: everything between the opening <code>@"</code> and closing
+        <code>"@</code> (which must start at the beginning of its own line) is treated as one literal multi-line
+        string, including quotes and special characters that would otherwise need escaping. This is the natural way
+        to embed a whole block of CSS or HTML without fighting string escaping line by line.</li>
+      </ul>
+      <div class="callout note"><span class="lbl">Double vs single-quoted here-strings</span><code>@" "@</code>
+      still allows variable interpolation inside it (like a normal double-quoted string); <code>@' '@</code> treats
+      everything completely literally, with no interpolation at all — useful when your block of text happens to
+      contain dollar signs you don't want PowerShell to try to expand.</div>
+
+      <h3>3. Assembling a Full Report from Fragments</h3>
+      <p>We build the final HTML by combining a header, our embedded CSS, and each table fragment into one string,
+      then write that combined result to a file — the same "collect pieces, then combine" shape we've used since
+      Project 7's two-log correlation.</p>
+
+      <h3>4. Report Retention — Reusing Project 6's Cleanup Pattern</h3>
+      <p>A daily report generator run forever will eventually leave hundreds of old report files behind. We reuse
+      the exact age-based cleanup logic from Project 6 (<code>LastWriteTime</code>, a retention threshold,
+      <code>Remove-Item</code>) — this time applied to our own generated reports instead of application logs,
+      proving that pattern generalizes.</p>
+    </section>
+
+    <section id="lab">
+      <h2>Hands-On Lab — Build It Yourself</h2>
+      <div class="steps">
+        <div class="step"><b>Create the project folder:</b>
+          <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code>New-Item -ItemType Directory -Path "C:\PS-Masterclass\Project12\reports" -Force
+Set-Location "C:\PS-Masterclass\Project12"</code></pre></div>
+        </div>
+        <div class="step"><b>Create <code>New-EventLogHtmlReport.ps1</code></b> in VS Code and paste the full script below.</div>
+        <div class="step"><b>Run it:</b>
+          <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code>.\New-EventLogHtmlReport.ps1</code></pre></div>
+        </div>
+        <div class="step"><b>Open the generated HTML file</b> from <code>.\reports\</code> in your browser and
+        confirm it's styled with the purple theme, not plain unstyled tables.</div>
+        <div class="step"><b>Test retention:</b> temporarily lower <code>$RetentionDays</code> to 0, run the script
+        twice, and confirm the first report gets cleaned up automatically on the second run — then set it back to a
+        realistic value.</div>
+      </div>
+    </section>
+
+    <section id="script">
+      <h2>Full Script — New-EventLogHtmlReport.ps1</h2>
+      <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code># =====================================================================
+# New-EventLogHtmlReport.ps1
+# ABC Bank - Windows Infrastructure Automation Team
+# Purpose: Generate a styled HTML event log report with automatic retention cleanup
+# =====================================================================
+
+$ComputerName  = $env:COMPUTERNAME
+$DaysBack      = 7                        # How many days of event history to include
+$RetentionDays = 30                        # How long to keep generated report files
+$ReportFolder  = ".\reports"
+
+$StartTime = (Get-Date).AddDays(-$DaysBack)
+
+# ---------------------------------------------------------------
+# STEP 1: Gather event data (same queries as Project 7)
+# ---------------------------------------------------------------
+$RestartEvents = @()
+try {
+    $RestartEvents = Get-WinEvent -FilterHashtable @{ LogName = "System"; Id = 6008,41,1074; StartTime = $StartTime } -ErrorAction Stop |
+        Select-Object TimeCreated, Id, ProviderName, @{ Name="Message"; Expression={ ($_.Message -split "`n")[0] } }   # Calculated property (Project 5 pattern)
+}
+catch { }   # No restart events found is a normal, expected outcome (Project 7 pattern) - nothing to do here
+
+$AppErrors = @()
+try {
+    $AppErrors = Get-WinEvent -FilterHashtable @{ LogName = "Application"; Level = 1,2; StartTime = $StartTime } -ErrorAction Stop |
+        Select-Object TimeCreated, Id, ProviderName, @{ Name="Message"; Expression={ ($_.Message -split "`n")[0] } }
+}
+catch { }
+
+# ---------------------------------------------------------------
+# STEP 2: Define the report's visual style as a here-string
+# ---------------------------------------------------------------
+$Css = @"                                                          # Opens the here-string - must be at end of this line
+<style>
+    body { font-family: 'Segoe UI', sans-serif; background: #F5F3FF; color: #1F2937; padding: 30px; }
+    h1 { color: #6D28D9; border-bottom: 3px solid #6D28D9; padding-bottom: 10px; }
+    h2 { color: #7C3AED; margin-top: 30px; }
+    table { border-collapse: collapse; width: 100%; margin-top: 10px; background: white; }
+    th { background: #EDE9FE; color: #6D28D9; padding: 10px; text-align: left; }
+    td { padding: 8px 10px; border-bottom: 1px solid #E5E1F5; }
+    .meta { color: #6B7280; font-size: 14px; }
+</style>
+"@                                                                   # Closes the here-string - must start this line
+
+# ---------------------------------------------------------------
+# STEP 3: Convert each result set into an HTML table fragment
+# ---------------------------------------------------------------
+$RestartHtml = if ($RestartEvents.Count -gt 0) {                    # Only builds a table if there's data to show
+    $RestartEvents | ConvertTo-Html -Fragment -PreContent "<h2>Restart / Shutdown Events</h2>"
+} else {
+    "<h2>Restart / Shutdown Events</h2><p>None found in the last $DaysBack days.</p>"
+}
+
+$AppErrorHtml = if ($AppErrors.Count -gt 0) {
+    $AppErrors | ConvertTo-Html -Fragment -PreContent "<h2>Application Errors</h2>"
+} else {
+    "<h2>Application Errors</h2><p>None found in the last $DaysBack days.</p>"
+}
+
+# ---------------------------------------------------------------
+# STEP 4: Assemble the full HTML document
+# ---------------------------------------------------------------
+$ReportDate = Get-Date -Format "yyyy-MM-dd HH:mm"
+
+$FullReport = @"
+<html>
+<head>$Css</head>
+<body>
+    <h1>Event Log Report - $ComputerName</h1>
+    <p class="meta">Generated $ReportDate | Covering the last $DaysBack days</p>
+    $RestartHtml
+    $AppErrorHtml
+</body>
+</html>
+"@
+
+# ---------------------------------------------------------------
+# STEP 5: Save the report
+# ---------------------------------------------------------------
+if (-not (Test-Path $ReportFolder)) { New-Item -ItemType Directory -Path $ReportFolder | Out-Null }
+
+$Timestamp   = Get-Date -Format "yyyyMMdd_HHmmss"
+$ReportPath  = Join-Path $ReportFolder "EventReport_$Timestamp.html"   # Join-Path from Project 6
+$FullReport | Out-File -FilePath $ReportPath -Encoding UTF8              # Writes the assembled HTML to disk
+
+Write-Host "`nReport generated: $ReportPath" -ForegroundColor Green
+
+# ---------------------------------------------------------------
+# STEP 6: Clean up old reports (Project 6's retention pattern, reapplied)
+# ---------------------------------------------------------------
+$CutoffDate = (Get-Date).AddDays(-$RetentionDays)
+
+$OldReports = Get-ChildItem -Path $ReportFolder -Filter "EventReport_*.html" |
+    Where-Object { $_.LastWriteTime -lt $CutoffDate }
+
+if ($OldReports.Count -gt 0) {
+    Write-Host "Removing $($OldReports.Count) report(s) older than $RetentionDays days..." -ForegroundColor Yellow
+    $OldReports | Remove-Item -Force
+}
+else {
+    Write-Host "No old reports to clean up." -ForegroundColor Cyan
+}
+</code></pre></div>
+      </div>
+    </section>
+
+    <section id="linebyline">
+      <h2>Line-by-Line Explanation</h2>
+
+      <h3><code>$Css = @" ... "@</code></h3>
+      <ul class="explain-list">
+        <li>Notice <code>@"</code> must be the last thing on its opening line, and <code>"@</code> must be the very
+        first thing on its closing line — this strict formatting is what lets PowerShell reliably tell where the
+        block of literal text begins and ends.</li>
+      </ul>
+
+      <h3><code>$RestartEvents | ConvertTo-Html -Fragment -PreContent "&lt;h2&gt;Restart / Shutdown Events&lt;/h2&gt;"</code></h3>
+      <ul class="explain-list">
+        <li><code>-PreContent</code> — extra HTML inserted immediately before the generated table — a convenient
+        way to add a heading to each fragment without manually concatenating strings afterward.</li>
+      </ul>
+
+      <h3><code>$RestartHtml = if ($RestartEvents.Count -gt 0) { ... } else { ... }</code></h3>
+      <ul class="explain-list">
+        <li>Same "if/else producing a value directly" pattern from Projects 3, 6, and 8 — here choosing between a
+        real data table and a friendly "none found" message, so the report never shows a confusing empty table with
+        just column headers and no rows.</li>
+      </ul>
+
+      <h3><code>$FullReport = @" &lt;html&gt;&lt;head&gt;$Css&lt;/head&gt;... "@</code></h3>
+      <ul class="explain-list">
+        <li>Because this here-string uses <code>@"</code> (double-quoted style), <code>$Css</code>,
+        <code>$ComputerName</code>, <code>$ReportDate</code>, <code>$RestartHtml</code>, and <code>$AppErrorHtml</code>
+        all get interpolated directly into the final string — the entire report is assembled from previously-built
+        pieces in one readable block, rather than one giant concatenated line.</li>
+      </ul>
+
+      <h3><code>$FullReport | Out-File -FilePath $ReportPath -Encoding UTF8</code></h3>
+      <ul class="explain-list">
+        <li><code>-Encoding UTF8</code> — explicitly sets the file's text encoding; being explicit here avoids
+        potential character-display issues in browsers, especially important once report content might include
+        non-ASCII characters from application error messages.</li>
+      </ul>
+
+      <h3><code>Get-ChildItem -Path $ReportFolder -Filter "EventReport_*.html" | Where-Object { $_.LastWriteTime -lt $CutoffDate }</code></h3>
+      <ul class="explain-list">
+        <li>The <code>-Filter "EventReport_*.html"</code> narrows results to only files this script itself created
+        (by naming convention), so cleanup can never accidentally target unrelated files that happen to live in the
+        same reports folder.</li>
+      </ul>
+    </section>
+
+    <section id="architecture">
+      <h2>Architecture &amp; Report Assembly Flow</h2>
+      <div class="diagram">
+        <div class="flow">
+          <div class="box">Get-WinEvent x2</div><div class="arrow">→</div>
+          <div class="box">ConvertTo-Html -Fragment</div><div class="arrow">→</div>
+          <div class="box">Two HTML Table Fragments</div>
+        </div>
+        <div class="flow" style="margin-top:12px;">
+          <div class="box">CSS Here-String</div><div class="arrow">+</div>
+          <div class="box">Fragments</div><div class="arrow">→</div>
+          <div class="box">Assembled Full Report (Here-String)</div><div class="arrow">→</div>
+          <div class="box">Out-File</div>
+        </div>
+        <div class="flow" style="margin-top:12px;">
+          <div class="box">Get-ChildItem (report files)</div><div class="arrow">→</div>
+          <div class="box">Age Filter</div><div class="arrow">→</div>
+          <div class="box">Remove-Item (retention cleanup)</div>
+        </div>
+      </div>
+      <p>Every report run does two independent jobs: <b>produce</b> a new report, and <b>retire</b> old ones. Keeping
+      these as separate steps (rather than one tangled block) means either could be changed or disabled independently
+      — for instance, if a compliance requirement later demanded reports be kept for a full year, only
+      <code>$RetentionDays</code> would need to change.</p>
+    </section>
+
+    <section id="incident">
+      <h2>Production Incident Walkthrough</h2>
+      <div class="story">
+        Three months after this script starts running daily via a Project-11-style scheduled task, someone notices
+        the reports folder has grown to over 90 files and asks whether that's expected. Because retention was built
+        in from day one with a sensible default, the answer is simple: reports older than 30 days are automatically
+        removed, and 90 files roughly matches 30 days times a few report types — nothing is silently accumulating
+        forever.
+      </div>
+      <ul class="explain-list">
+        <li><b>Why build retention in from the very first version instead of adding it later "if it becomes a problem"?</b>
+        Unbounded growth is a predictable, guaranteed outcome of any recurring file-generating script — the same
+        reasoning that made -WhatIf's safe-by-default in Project 6 worth building in immediately rather than
+        retrofitting after an incident.</li>
+      </ul>
+    </section>
+
+    <section id="troubleshoot">
+      <h2>Troubleshooting Cheat Sheet</h2>
+      <table>
+        <tr><th>Symptom</th><th>Likely Root Cause</th><th>Fix</th></tr>
+        <tr><td>Report opens as plain unstyled text/tables</td><td>The here-string's closing <code>"@</code> wasn't at the very start of its line</td><td>Check for accidental leading spaces before <code>"@</code> in both here-strings</td></tr>
+        <tr><td>"$Css" or "$RestartHtml" literally appears as text in the output file</td><td>A single-quoted here-string (<code>@' '@</code>) was used by mistake, disabling interpolation</td><td>Confirm both here-strings use double-quote style (<code>@" "@</code>)</td></tr>
+        <tr><td>Old reports never get cleaned up</td><td>$RetentionDays set too high for your test, or file names don't match the -Filter pattern</td><td>Confirm generated files start with exactly "EventReport_" as expected by the -Filter</td></tr>
+        <tr><td>Report shows "None found" for everything even though events exist</td><td>DaysBack window too short for the events on your machine</td><td>Temporarily increase $DaysBack and confirm data appears</td></tr>
+      </table>
+    </section>
+
+    <section id="security">
+      <h2>Security &amp; Best Practices</h2>
+      <div class="callout tip"><span class="lbl">Best practice reinforced here</span>Using <code>-Filter "EventReport_*.html"</code>
+      during cleanup — rather than deleting every file in the reports folder — protects against accidentally removing
+      unrelated files someone else might place there, the same "be specific about what you touch" discipline from
+      Project 6's regex-based log matching.</div>
+      <div class="callout security"><span class="lbl">Still read-only on events, still local</span>This script only
+      reads event logs and manages its own generated files — it makes no changes to the system being reported on.</div>
+    </section>
+
+    <section id="recap">
+      <h2>Key Learnings &amp; Recap</h2>
+      <div class="grid2">
+        <div>
+          <h3>Commands/Syntax Learned</h3>
+          <ul class="explain-list">
+            <li><code>ConvertTo-Html -Fragment -PreContent</code></li>
+            <li>Here-strings: <code>@" "@</code> and <code>@' '@</code></li>
+            <li><code>Out-File -Encoding UTF8</code></li>
+          </ul>
+        </div>
+        <div>
+          <h3>Concepts Learned</h3>
+          <ul class="explain-list">
+            <li>Objects → HTML, the same conversion family as CSV/JSON</li>
+            <li>Assembling a report from pre-built fragments</li>
+            <li>Building retention cleanup in from day one, not as an afterthought</li>
+            <li>Scoping cleanup narrowly with a specific filename filter</li>
+          </ul>
+        </div>
+      </div>
+      <h3>Common Mistakes to Avoid</h3>
+      <ul class="explain-list">
+        <li>Misplacing here-string delimiters (they must be alone on their line).</li>
+        <li>Using a single-quoted here-string when you actually need variable interpolation.</li>
+        <li>Deleting every file in a shared reports folder instead of only the ones your script created.</li>
+        <li>Showing an empty table with no explanatory message when a check finds nothing.</li>
+      </ul>
+    </section>
+
+    <section id="interview">
+      <h2>Interview Preparation</h2>
+      <details><summary>Q1. What's the difference between ConvertTo-Html with and without -Fragment?</summary>
+        <p><b>Answer:</b> Without <code>-Fragment</code>, you get a complete, standalone HTML document
+        (<code>&lt;html&gt;&lt;head&gt;&lt;body&gt;</code> and all); with <code>-Fragment</code>, you get just the
+        <code>&lt;table&gt;</code> element itself, intended to be combined with other content into a larger custom
+        document — exactly what we needed here since we wanted two tables in one styled page.</p>
+        <p><b>Follow-up:</b> "How would you add custom CSS if you weren't using -Fragment?" — Answer:
+        <code>ConvertTo-Html</code> has a <code>-Head</code> parameter for injecting a custom
+        <code>&lt;head&gt;</code> block (including a <code>&lt;style&gt;</code> tag) into the full document it
+        generates.</p>
+      </details>
+      <details><summary>Q2. Why use a here-string for the CSS instead of a regular quoted string?</summary>
+        <p><b>Answer:</b> CSS naturally spans many lines and contains characters (curly braces, colons, semicolons)
+        that would be tedious and error-prone to escape in a single-line string — a here-string lets us paste it in
+        almost exactly as we'd write a real .css file.</p>
+        <p><b>Follow-up:</b> "When would you choose a single-quoted here-string (@' '@) instead?" — Answer: when the
+        block of text itself contains dollar signs or other characters you don't want PowerShell trying to interpret
+        as variables — for example, embedding literal PowerShell code samples or regex patterns inside documentation.</p>
+      </details>
+      <details><summary>Q3. Why filter cleanup by filename pattern instead of just deleting every old file in the reports folder?</summary>
+        <p><b>Answer:</b> A shared folder might eventually contain files this script didn't create — filtering by
+        the specific naming convention this script uses ensures cleanup only ever touches its own output, never
+        something unrelated that happens to be old.</p>
+        <p><b>Follow-up:</b> "What would you do if two different scripts needed to share the same reports folder?" —
+        Answer: give each script its own clearly distinct filename prefix (as we did with "EventReport_") so each
+        can safely clean up only its own files without needing a separate folder per script.</p>
+      </details>
+    </section>
+
+    <section id="challenges">
+      <h2>Coding Challenges</h2>
+      <details><summary>Challenge 1: Add a third section to the report showing a summary count (Restart Events: X, Application Errors: Y)</summary>
+        <details><summary>Show answer</summary>
+        <pre><code>$SummaryHtml = "<h2>Summary</h2><p>Restart Events: $($RestartEvents.Count) | Application Errors: $($AppErrors.Count)</p>"
+# Add $SummaryHtml into the $FullReport here-string, right after the meta paragraph</code></pre>
+        </details>
+      </details>
+      <details><summary>Challenge 2: Highlight rows differently based on severity using inline conditional CSS classes</summary>
+        <details><summary>Show answer</summary>
+        <pre><code># Simplified approach: add a colored badge instead of per-row classes, using a calculated property in Select-Object
+@{ Name="Severity"; Expression={ if ($_.Level -eq 1) {"CRITICAL"} else {"ERROR"} } }</code></pre>
+        </details>
+      </details>
+      <details><summary>Challenge 3: Only keep the 10 most recent reports, regardless of age (in addition to the age-based cleanup)</summary>
+        <details><summary>Show answer</summary>
+        <pre><code>$AllReports = Get-ChildItem -Path $ReportFolder -Filter "EventReport_*.html" | Sort-Object LastWriteTime -Descending
+$AllReports | Select-Object -Skip 10 | Remove-Item -Force   # Keeps the 10 newest, removes everything else</code></pre>
+        </details>
+      </details>
+    </section>
+
+    <section id="resume">
+      <h2>Resume Points</h2>
+      <ul class="explain-list">
+        <li>Built an automated PowerShell HTML reporting pipeline for Windows Event Log data with custom-styled, management-ready output.</li>
+        <li>Implemented file retention automation to prevent unbounded report accumulation, scoped safely by naming convention.</li>
+        <li>Applied object-to-HTML conversion and here-string templating to produce polished reports without manual formatting.</li>
+      </ul>
+    </section>
+
+    <section id="assignment">
+      <h2>Practice Assignment</h2>
+      <div class="callout note">
+        Change the CSS here-string to use a different accent color of your choosing (keep it readable), regenerate a
+        report, and confirm your change appears correctly in the browser — practicing that here-string edits take
+        effect exactly where you'd expect.
+      </div>
+    </section>
+
+    <section id="next">
+      <h2>Next Project Prerequisites</h2>
+      <p>Project 13 (Registry Configuration Management) moves to a new data source — the Windows Registry — including
+      safely reading, validating, and changing registry values with the same ShouldProcess and idempotency discipline
+      from Project 10. Be comfortable with here-strings and ConvertTo-Html before moving on. When ready, say
+      <b>"Next Project."</b></p>
+    </section>
+
+    <footer>
+      PowerShell Masterclass — ABC Bank Automation Track · Project 12 of 40 · Generated for offline, self-contained use.
+    </footer>
+  </main>
+</div>
+
+<script>
+function copyCode(btn){
+  const code = btn.parentElement.querySelector('pre').innerText;
+  navigator.clipboard.writeText(code).then(()=>{
+    const old = btn.innerText; btn.innerText = "Copied!";
+    setTimeout(()=>btn.innerText = old, 1200);
+  });
+}
+window.addEventListener('scroll', ()=>{
+  const h = document.documentElement;
+  const pct = (h.scrollTop) / (h.scrollHeight - h.clientHeight) * 100;
+  document.getElementById('progressFill').style.width = pct + '%';
+  document.getElementById('progressLabel').innerText = 'Reading progress: ' + Math.round(pct) + '%';
+});
+</script>
+</body>
+</html>

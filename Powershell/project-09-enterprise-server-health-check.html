@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Project 09 — Enterprise Server Health Check | PowerShell Masterclass</title>
+<style>
+  :root{
+    --primary:#6D28D9; --secondary:#7C3AED; --light-purple:#EDE9FE; --xlight-purple:#F5F3FF;
+    --bg:#FFFFFF; --text:#1F2937; --muted:#6B7280; --border:#E5E1F5;
+    --success:#15803D; --warn:#B45309; --danger:#B91C1C;
+    --code-bg:#1E1B2E; --code-text:#E9E4FF;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0; font-family:"Segoe UI",Calibri,Roboto,Arial,sans-serif; background:var(--bg); color:var(--text); line-height:1.65;}
+  a{color:var(--primary);}
+  .layout{display:flex; max-width:1400px; margin:0 auto;}
+  nav.sidebar{width:270px; flex-shrink:0; position:sticky; top:0; height:100vh; overflow-y:auto; background:var(--xlight-purple); border-right:1px solid var(--border); padding:22px 16px;}
+  nav.sidebar h3{color:var(--primary); font-size:13px; text-transform:uppercase; letter-spacing:.06em; margin:18px 0 8px;}
+  nav.sidebar a{display:block; padding:7px 10px; border-radius:8px; color:var(--text); text-decoration:none; font-size:14px; margin-bottom:2px;}
+  nav.sidebar a:hover{background:var(--light-purple); color:var(--primary);}
+  #progressWrap{background:var(--light-purple); border-radius:10px; padding:10px; margin-bottom:8px;}
+  #progressBar{height:8px; background:var(--border); border-radius:6px; overflow:hidden;}
+  #progressFill{height:100%; width:0%; background:linear-gradient(90deg,var(--primary),var(--secondary)); transition:width .2s;}
+  #progressLabel{font-size:12px; color:var(--muted); margin-top:6px;}
+  main{flex:1; min-width:0; padding:0;}
+  .cover{background:linear-gradient(135deg,var(--primary),var(--secondary)); color:#fff; padding:60px 48px; position:relative; overflow:hidden;}
+  .cover::after{content:"";position:absolute;right:-80px;top:-80px;width:300px;height:300px;border-radius:50%;background:rgba(255,255,255,.08);}
+  .badge{display:inline-block; background:rgba(255,255,255,.18); padding:5px 14px; border-radius:20px; font-size:12px; letter-spacing:.05em; margin-right:8px; margin-bottom:14px;}
+  .cover h1{font-size:34px; margin:6px 0 10px; max-width:760px;}
+  .cover p.sub{font-size:16px; opacity:.92; max-width:640px;}
+  .cover-meta{display:flex; gap:28px; margin-top:26px; flex-wrap:wrap;}
+  .cover-meta div{background:rgba(255,255,255,.12); padding:12px 18px; border-radius:10px; min-width:140px;}
+  .cover-meta span{display:block; font-size:12px; opacity:.85;}
+  .cover-meta strong{font-size:16px;}
+  section{padding:34px 48px; border-bottom:1px solid var(--border);}
+  section h2{color:var(--primary); font-size:24px; border-left:5px solid var(--primary); padding-left:14px; margin-top:0;}
+  section h3{color:var(--secondary); font-size:18px; margin-top:26px;}
+  .story{background:var(--xlight-purple); border-left:5px solid var(--primary); padding:20px 24px; border-radius:0 10px 10px 0; font-size:15px;}
+  .story b{color:var(--primary);}
+  .callout{border-radius:10px; padding:16px 18px; margin:16px 0; font-size:14.5px;}
+  .callout.tip{background:#F0FDF4; border-left:5px solid var(--success);}
+  .callout.note{background:var(--xlight-purple); border-left:5px solid var(--secondary);}
+  .callout.warn{background:#FFFBEB; border-left:5px solid var(--warn);}
+  .callout.security{background:#FEF2F2; border-left:5px solid var(--danger);}
+  .callout .lbl{font-weight:700; display:block; margin-bottom:4px;}
+  table{width:100%; border-collapse:collapse; margin:16px 0; font-size:14px;}
+  th,td{border:1px solid var(--border); padding:9px 12px; text-align:left; vertical-align:top;}
+  th{background:var(--light-purple); color:var(--primary);}
+  tr:nth-child(even){background:var(--xlight-purple);}
+  .codewrap{position:relative; margin:16px 0;}
+  pre{background:var(--code-bg); color:var(--code-text); padding:18px 16px; border-radius:10px; overflow-x:auto; font-family:Consolas,"Cascadia Code",Menlo,monospace; font-size:13.5px; line-height:1.7;}
+  pre code{white-space:pre;}
+  .copybtn{position:absolute; top:10px; right:10px; background:var(--secondary); color:#fff; border:none; padding:6px 12px; border-radius:6px; font-size:12px; cursor:pointer;}
+  .copybtn:hover{background:var(--primary);}
+  .explain-list{list-style:none; padding:0; margin:14px 0;}
+  .explain-list li{background:var(--xlight-purple); border-radius:8px; padding:10px 14px; margin-bottom:6px; font-size:14.5px;}
+  .explain-list code{background:var(--light-purple); padding:2px 6px; border-radius:5px; color:var(--primary); font-weight:600;}
+  details{background:var(--xlight-purple); border-radius:10px; padding:12px 16px; margin:10px 0;}
+  details summary{cursor:pointer; font-weight:600; color:var(--primary);}
+  .diagram{background:var(--xlight-purple); border-radius:12px; padding:20px; margin:16px 0; overflow-x:auto;}
+  .flow{display:flex; flex-wrap:wrap; align-items:center; gap:10px; font-size:13.5px;}
+  .flow .box{background:#fff; border:2px solid var(--secondary); border-radius:8px; padding:8px 14px; font-weight:600; color:var(--primary);}
+  .flow .arrow{color:var(--secondary); font-size:18px;}
+  .steps{counter-reset:step;}
+  .steps .step{position:relative; padding-left:44px; margin-bottom:18px;}
+  .steps .step::before{counter-increment:step; content:counter(step); position:absolute; left:0; top:0; background:var(--primary); color:#fff; width:30px; height:30px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:700;}
+  .grid2{display:grid; grid-template-columns:1fr 1fr; gap:16px;}
+  .milestone{background:linear-gradient(135deg,var(--light-purple),var(--xlight-purple)); border:2px dashed var(--secondary); border-radius:12px; padding:22px 24px; margin:18px 0;}
+  @media(max-width:900px){.grid2{grid-template-columns:1fr;} nav.sidebar{display:none;} section{padding:26px 20px;} .cover{padding:36px 22px;}}
+  footer{padding:30px 48px; background:var(--xlight-purple); color:var(--muted); font-size:13px;}
+</style>
+</head>
+<body>
+
+<div class="layout">
+  <nav class="sidebar">
+    <div id="progressWrap">
+      <div id="progressLabel">Reading progress</div>
+      <div id="progressBar"><div id="progressFill"></div></div>
+    </div>
+    <h3>Project 09</h3>
+    <a href="#cover">Cover</a>
+    <a href="#milestone">Welcome to Stage 2</a>
+    <a href="#recap1">Recap: Beginner Stage</a>
+    <a href="#story">The Story</a>
+    <a href="#concepts">Concepts First</a>
+    <a href="#lab">Hands-On Lab</a>
+    <a href="#script">Full Script</a>
+    <a href="#linebyline">Line-by-Line</a>
+    <a href="#architecture">Architecture</a>
+    <a href="#incident">Production Incident</a>
+    <a href="#troubleshoot">Troubleshooting</a>
+    <a href="#security">Security Notes</a>
+    <a href="#recap">Key Learnings</a>
+    <a href="#interview">Interview Prep</a>
+    <a href="#challenges">Coding Challenges</a>
+    <a href="#resume">Resume Points</a>
+    <a href="#assignment">Practice Assignment</a>
+    <a href="#next">Next Project</a>
+  </nav>
+
+  <main id="top">
+    <div class="cover" id="cover">
+      <span class="badge">PROJECT 09</span><span class="badge">INTERMEDIATE</span><span class="badge">BFSI TRACK</span>
+      <h1>Enterprise Server Health Check</h1>
+      <p class="sub">Stop hardcoding server names and thresholds. Drive disk, service, and connectivity checks from external CSV and config files, and combine them into one unified health report.</p>
+      <div class="cover-meta">
+        <div><span>Difficulty</span><strong>Intermediate</strong></div>
+        <div><span>Estimated Lab Time</span><strong>75–90 min</strong></div>
+        <div><span>Concepts</span><strong>8 core concepts</strong></div>
+        <div><span>Track</span><strong>9 of 40 — Stage 2 Begins</strong></div>
+      </div>
+    </div>
+
+    <section id="milestone">
+      <h2>🚀 Welcome to Stage 2 — Intermediate</h2>
+      <div class="milestone">
+        <p>Beginner-stage projects hardcoded almost everything — server names, thresholds, target lists — directly
+        in the script. That's fine for learning one concept at a time, but it means changing anything requires
+        editing code. Stage 2 shifts toward <b>data-driven automation</b>: scripts that read their configuration
+        from external files, so the same script can run against 1 server or 500 without a single code change.</p>
+      </div>
+    </section>
+
+    <section id="recap1">
+      <h2>Quick Recap of the Beginner Stage (Projects 1–8)</h2>
+      <p>We built individual checks for disk space (Project 2), services (Project 4), and network connectivity
+      (Project 8) — each as its own standalone script with hardcoded values. Today we combine all three into one
+      unified health check, and take the first step toward removing hardcoded values by reading server lists and
+      thresholds from external files instead.</p>
+    </section>
+
+    <section id="story">
+      <h2>The Story — Why We're Building This</h2>
+      <div class="story">
+        Operations currently runs three separate scripts every morning — one for disks, one for services, one for
+        connectivity — against a list of servers someone maintains by memory. Our manager wants <b>one unified
+        health check</b> that runs all three checks per server, reads the server list from a CSV file the team can
+        update without touching any code, and reads its thresholds from a separate settings file — exactly the kind
+        of separation between "code" and "configuration" that real enterprise automation requires.
+      </div>
+    </section>
+
+    <section id="concepts">
+      <h2>Concepts First — Before We Touch Code</h2>
+
+      <h3>1. Why Separate Configuration from Code</h3>
+      <div class="callout note"><span class="lbl">The core principle</span>Hardcoded values mean every change
+      requires editing and re-testing a script. External configuration means the Operations team can update the
+      server list or a threshold themselves, safely, without touching PowerShell code at all — and the script itself
+      never needs to change just because the environment did.</div>
+
+      <h3>2. CSV Configuration with Import-Csv</h3>
+      <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code>ServerName,CheckDisk,CheckServices,ServicesToCheck
+localhost,Yes,Yes,"Spooler;BITS"</code></pre></div>
+      <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code>$Servers = Import-Csv -Path ".\config\servers.csv"   # Reads the CSV and returns an array of PSCustomObjects</code></pre></div>
+      <ul class="explain-list">
+        <li><code>Import-Csv</code> — reads a CSV file and automatically converts each row into a
+        <code>PSCustomObject</code>, with column headers becoming property names. This is the same object shape
+        we've been building manually with <code>[PSCustomObject]@{}</code> since Project 1 — now it comes straight
+        from a file instead.</li>
+      </ul>
+
+      <h3>3. PowerShell Data Files (.psd1) for Settings</h3>
+      <p>A <code>.psd1</code> file holds structured settings using PowerShell's own hash table syntax — safer than a
+      script file because it can only contain data, never executable code.</p>
+      <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code>@{
+    DiskWarningPercent  = 20
+    DiskCriticalPercent = 10
+    ReportPath          = ".\reports"
+}</code></pre></div>
+      <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code>$Config = Import-PowerShellDataFile -Path ".\config\settings.psd1"   # Safely loads the settings as a hash table</code></pre></div>
+      <ul class="explain-list">
+        <li><code>Import-PowerShellDataFile</code> — reads a <code>.psd1</code> file into a hash table. It's
+        deliberately restricted to only understand data (numbers, strings, hash tables, arrays) — it will refuse to
+        run a file containing actual commands, which makes it a safer choice than dot-sourcing a script for
+        configuration purposes.</li>
+      </ul>
+
+      <h3>4. Splatting — Passing a Hash Table as Parameters</h3>
+      <p>When a cmdlet call has many parameters, splatting lets you define them once in a hash table and pass the
+      whole thing at once, instead of a long, hard-to-read single line.</p>
+      <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code>$PortTestParams = @{                          # Defines the parameters as a hash table
+    ComputerName      = $ServerName
+    Port              = 445
+    InformationLevel  = "Quiet"
+    WarningAction     = "SilentlyContinue"
+}
+$PortOk = Test-NetConnection @PortTestParams   # The @ sign "splats" the hash table as named parameters</code></pre></div>
+      <ul class="explain-list">
+        <li>The <code>@</code> sign (instead of <code>$</code>) in front of the variable name is what triggers
+        splatting — it tells PowerShell "unpack this hash table's keys and values as separate named parameters,"
+        rather than passing the hash table itself as a single argument.</li>
+      </ul>
+      <div class="callout tip"><span class="lbl">Why this matters</span>Beyond readability, splatting means the same
+      parameter set can be reused across multiple calls, or conditionally built up (adding a key only if needed)
+      before the actual cmdlet call — something a long inline parameter list can't do cleanly.</div>
+
+      <h3>5. Combining Three Existing Checks into One Function</h3>
+      <p>Rather than copy-pasting the disk/service/connectivity logic from Projects 2, 4, and 8, we wrap each as its
+      own function and call all three per server — the same "reusable function" idea from Project 2, now composing
+      multiple functions together.</p>
+    </section>
+
+    <section id="lab">
+      <h2>Hands-On Lab — Build It Yourself</h2>
+      <div class="steps">
+        <div class="step"><b>Create the project structure</b> — notice it's more organized than previous projects,
+        matching how real projects grow over time:
+          <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code>New-Item -ItemType Directory -Path "C:\PS-Masterclass\Project09\config" -Force
+New-Item -ItemType Directory -Path "C:\PS-Masterclass\Project09\reports" -Force
+Set-Location "C:\PS-Masterclass\Project09"</code></pre></div>
+        </div>
+        <div class="step"><b>Create <code>config\servers.csv</code></b> with this content (Notepad or VS Code):
+          <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code>ServerName,CheckDisk,CheckServices,ServicesToCheck
+localhost,Yes,Yes,"Spooler;BITS"</code></pre></div>
+          <div class="callout note"><span class="lbl">Local practice note</span>We use <code>localhost</code> so the
+          lab runs entirely on your own machine. In Project 31+ (PowerShell Remoting), this same CSV structure will
+          drive checks against real remote servers with no script changes needed — only the config changes.</div>
+        </div>
+        <div class="step"><b>Create <code>config\settings.psd1</code></b> with this content:
+          <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code>@{
+    DiskWarningPercent  = 20
+    DiskCriticalPercent = 10
+    ReportPath          = ".\reports"
+}</code></pre></div>
+        </div>
+        <div class="step"><b>Create <code>Invoke-ServerHealthCheck.ps1</code></b> and paste the full script below.</div>
+        <div class="step"><b>Run it:</b>
+          <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code>.\Invoke-ServerHealthCheck.ps1</code></pre></div>
+        </div>
+        <div class="step"><b>Validate:</b> confirm disk, service, and connectivity results all appear per server,
+        and a combined CSV is saved. Then try changing a threshold in <code>settings.psd1</code> and re-running —
+        confirm the script's behavior changes without editing the .ps1 file at all.</div>
+      </div>
+    </section>
+
+    <section id="script">
+      <h2>Full Script — Invoke-ServerHealthCheck.ps1</h2>
+      <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code># =====================================================================
+# Invoke-ServerHealthCheck.ps1
+# ABC Bank - Windows Infrastructure Automation Team
+# Purpose: Unified disk/service/connectivity health check, driven by config files
+# =====================================================================
+
+# ---------------------------------------------------------------
+# STEP 1: Load configuration from external files - nothing hardcoded here
+# ---------------------------------------------------------------
+$Config  = Import-PowerShellDataFile -Path ".\config\settings.psd1"   # Loads thresholds and paths as a hash table
+$Servers = Import-Csv -Path ".\config\servers.csv"                     # Loads the server list as objects
+
+Write-Host "`n=== ENTERPRISE SERVER HEALTH CHECK ===" -ForegroundColor Magenta
+Write-Host "Loaded $($Servers.Count) server(s) from config.`n" -ForegroundColor Cyan
+
+# ---------------------------------------------------------------
+# FUNCTION: Disk check (based on Project 2's logic, now threshold-driven by $Config)
+# ---------------------------------------------------------------
+function Test-DiskHealth {
+    param([string]$ServerName)                              # Which server to check
+
+    $Disks = Get-CimInstance -ClassName Win32_LogicalDisk -Filter "DriveType=3" -ComputerName $ServerName -ErrorAction SilentlyContinue
+
+    $WorstStatus = "HEALTHY"                                 # Assume healthy until a worse disk is found
+    foreach ($Disk in $Disks) {                                # Checks every local fixed disk
+        $FreePercent = [math]::Round(($Disk.FreeSpace / $Disk.Size) * 100, 1)
+
+        if ($FreePercent -lt $Config.DiskCriticalPercent) { $WorstStatus = "CRITICAL" }        # Worst possible result
+        elseif ($FreePercent -lt $Config.DiskWarningPercent -and $WorstStatus -ne "CRITICAL") { $WorstStatus = "WARNING" }  # Only downgrade if not already CRITICAL
+    }
+    return $WorstStatus                                        # One combined result for all disks on this server
+}
+
+# ---------------------------------------------------------------
+# FUNCTION: Service check (based on Project 4's logic)
+# ---------------------------------------------------------------
+function Test-ServiceHealth {
+    param(
+        [string]$ServerName,                                  # Which server to check
+        [string[]]$ServiceNames                                 # Array of service names to verify
+    )
+
+    $AllRunning = $true                                          # Assume healthy until proven otherwise
+    foreach ($SvcName in $ServiceNames) {                          # Checks each named service
+        try {
+            $Svc = Get-Service -Name $SvcName -ComputerName $ServerName -ErrorAction Stop
+            if ($Svc.Status -ne "Running") { $AllRunning = $false }   # Any non-running service fails the check
+        }
+        catch {
+            $AllRunning = $false                                     # A missing service also fails the check
+        }
+    }
+    if ($AllRunning) { return "HEALTHY" } else { return "ISSUE FOUND" }
+}
+
+# ---------------------------------------------------------------
+# FUNCTION: Connectivity check (based on Project 8's logic, using splatting)
+# ---------------------------------------------------------------
+function Test-ServerConnectivity {
+    param([string]$ServerName)                                 # Which server to check
+
+    $PortTestParams = @{                                         # Splatted parameter set (concept #4 above)
+        ComputerName     = $ServerName
+        Port             = 445                                    # SMB - a reasonable general "is it up" port
+        InformationLevel = "Quiet"
+        WarningAction    = "SilentlyContinue"
+    }
+    $PortOk = Test-NetConnection @PortTestParams                  # Splats the hash table as named parameters
+
+    if ($PortOk) { return "REACHABLE" } else { return "UNREACHABLE" }
+}
+
+# ---------------------------------------------------------------
+# STEP 2: Run all applicable checks per server, based on the CSV's Yes/No flags
+# ---------------------------------------------------------------
+$Results = @()   # Will hold one combined result object per server
+
+foreach ($Server in $Servers) {                                  # $Server is one row from servers.csv
+
+    Write-Host "Checking $($Server.ServerName)..." -ForegroundColor Cyan
+
+    $DiskStatus = "SKIPPED"                                        # Default if this check wasn't requested
+    if ($Server.CheckDisk -eq "Yes") {                               # Only runs if the CSV said to
+        $DiskStatus = Test-DiskHealth -ServerName $Server.ServerName
+    }
+
+    $ServiceStatus = "SKIPPED"
+    if ($Server.CheckServices -eq "Yes") {                           # Only runs if the CSV said to
+        $ServiceList = $Server.ServicesToCheck -split ";"              # Splits "Spooler;BITS" into an array
+        $ServiceStatus = Test-ServiceHealth -ServerName $Server.ServerName -ServiceNames $ServiceList
+    }
+
+    $ConnStatus = Test-ServerConnectivity -ServerName $Server.ServerName   # Always checked - baseline reachability
+
+    $Results += [PSCustomObject]@{                                  # One combined record per server
+        ServerName      = $Server.ServerName
+        DiskStatus      = $DiskStatus
+        ServiceStatus   = $ServiceStatus
+        Connectivity    = $ConnStatus
+        CheckedAt       = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+    }
+}
+
+# ---------------------------------------------------------------
+# STEP 3: Display and export the combined report
+# ---------------------------------------------------------------
+Write-Host "`n=== RESULTS ===" -ForegroundColor Magenta
+$Results | Format-Table -AutoSize
+
+if (-not (Test-Path $Config.ReportPath)) {                        # Uses the path FROM CONFIG, not hardcoded
+    New-Item -ItemType Directory -Path $Config.ReportPath | Out-Null
+}
+$Timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
+$Results | Export-Csv -Path "$($Config.ReportPath)\HealthCheck_$Timestamp.csv" -NoTypeInformation
+
+Write-Host "`nReport saved to $($Config.ReportPath)\" -ForegroundColor Green
+</code></pre></div>
+      </div>
+    </section>
+
+    <section id="linebyline">
+      <h2>Line-by-Line Explanation</h2>
+
+      <h3><code>$Config = Import-PowerShellDataFile -Path ".\config\settings.psd1"</code></h3>
+      <ul class="explain-list">
+        <li>After this line, <code>$Config</code> is a plain hash table — <code>$Config.DiskWarningPercent</code>
+        works exactly like accessing a property, because hash table keys and object properties both use dot
+        notation in PowerShell.</li>
+      </ul>
+
+      <h3><code>if ($FreePercent -lt $Config.DiskCriticalPercent) { $WorstStatus = "CRITICAL" }</code></h3>
+      <ul class="explain-list">
+        <li>Same threshold-comparison logic from Project 2's <code>Get-DiskStatus</code> function, but the numbers
+        now come from the loaded config file instead of being typed directly into the script — change the
+        <code>.psd1</code> file, and every future run uses the new threshold automatically.</li>
+      </ul>
+
+      <h3><code>elseif ($FreePercent -lt $Config.DiskWarningPercent -and $WorstStatus -ne "CRITICAL")</code></h3>
+      <ul class="explain-list">
+        <li>The extra <code>-and $WorstStatus -ne "CRITICAL"</code> condition prevents a later, less-severe disk
+        from downgrading an already-CRITICAL result back to WARNING — since we're now checking multiple disks per
+        server and need to preserve the <i>worst</i> result across all of them, not just the last one checked.</li>
+      </ul>
+
+      <h3><code>$ServiceList = $Server.ServicesToCheck -split ";"</code></h3>
+      <ul class="explain-list">
+        <li>CSV cells can only hold plain text, so multiple service names are packed into one cell separated by
+        semicolons (<code>"Spooler;BITS"</code>). The <code>-split</code> operator (first seen in Project 7) turns
+        that single string back into a proper array we can loop over.</li>
+      </ul>
+
+      <h3><code>$PortOk = Test-NetConnection @PortTestParams</code></h3>
+      <ul class="explain-list">
+        <li>This single line is equivalent to writing
+        <code>Test-NetConnection -ComputerName $ServerName -Port 445 -InformationLevel Quiet -WarningAction SilentlyContinue</code>
+        — splatting doesn't change what happens, only how readable and reusable the parameter list is.</li>
+      </ul>
+
+      <h3><code>[string[]]$ServiceNames</code> (in the function's param block)</h3>
+      <ul class="explain-list">
+        <li><code>[string[]]</code> — the square brackets after the type mean "an array of this type," constraining
+        the parameter to accept a list of strings rather than a single one, matching what <code>-split</code>
+        produces.</li>
+      </ul>
+    </section>
+
+    <section id="architecture">
+      <h2>Architecture &amp; Configuration Flow</h2>
+      <div class="diagram">
+        <div class="flow">
+          <div class="box">settings.psd1</div><div class="arrow">→</div>
+          <div class="box">Import-PowerShellDataFile</div><div class="arrow">→</div>
+          <div class="box">$Config hash table</div>
+        </div>
+        <div class="flow" style="margin-top:12px;">
+          <div class="box">servers.csv</div><div class="arrow">→</div>
+          <div class="box">Import-Csv</div><div class="arrow">→</div>
+          <div class="box">$Servers objects</div>
+        </div>
+        <div class="flow" style="margin-top:12px;">
+          <div class="box">$Config + $Servers</div><div class="arrow">→</div>
+          <div class="box">Per-Server Function Calls</div><div class="arrow">→</div>
+          <div class="box">Combined Report</div>
+        </div>
+      </div>
+      <p>Notice the script itself contains zero server names and zero threshold numbers — every environment-specific
+      value flows in from the two config files. This is the architectural shift Stage 2 is built around: the
+      <b>logic</b> lives in the script; the <b>environment-specific facts</b> live in configuration, and the two
+      never mix.</p>
+    </section>
+
+    <section id="incident">
+      <h2>Production Incident Walkthrough</h2>
+      <div class="story">
+        Six months from now, ABC Bank decommissions a server and onboards three new ones. With the old three
+        separate hardcoded scripts, someone would need to edit and re-test three different .ps1 files. With this
+        unified, config-driven version, Operations just edits <code>servers.csv</code> — no PowerShell knowledge, no
+        code review, no risk of breaking script logic while updating a server list.
+      </div>
+      <ul class="explain-list">
+        <li><b>Why put thresholds in a separate file from the server list?</b> They change for different reasons and
+        on different schedules — thresholds might be tuned occasionally by the automation team, while the server
+        list changes routinely as infrastructure changes. Separating them means each can be owned and edited by the
+        right people without touching the other.</li>
+        <li><b>Why use .psd1 for settings instead of another CSV?</b> Settings here are a small, fixed set of
+        named values (not a repeating list of rows), which fits a hash table naturally — and
+        <code>Import-PowerShellDataFile</code>'s restriction to data-only content makes it a safer choice than a
+        script file for something Operations might edit.</li>
+      </ul>
+    </section>
+
+    <section id="troubleshoot">
+      <h2>Troubleshooting Cheat Sheet</h2>
+      <table>
+        <tr><th>Symptom</th><th>Likely Root Cause</th><th>Fix</th></tr>
+        <tr><td>"Cannot find path .\config\servers.csv"</td><td>Script run from the wrong working directory</td><td>Confirm with <code>Get-Location</code> that you're in the Project09 folder before running</td></tr>
+        <tr><td>Import-PowerShellDataFile throws a syntax error</td><td>Typo in the .psd1 file (missing comma, unmatched brace)</td><td>.psd1 syntax is strict hash-table syntax; compare carefully against the example</td></tr>
+        <tr><td>ServiceStatus always shows ISSUE FOUND</td><td>Service names in the CSV don't match real names on your machine, or the semicolon separator was typed as a comma</td><td>Re-verify with <code>Get-Service | Select Name</code> and check the CSV's exact separator</td></tr>
+        <tr><td>DiskStatus always shows HEALTHY even at low thresholds</td><td>Config values loaded as strings instead of numbers, so comparisons behave unexpectedly</td><td>Confirm .psd1 values aren't wrapped in quotes; numbers should be written plain (e.g. <code>20</code>, not <code>"20"</code>)</td></tr>
+      </table>
+    </section>
+
+    <section id="security">
+      <h2>Security &amp; Best Practices</h2>
+      <div class="callout tip"><span class="lbl">Best practice reinforced here</span><code>Import-PowerShellDataFile</code>
+      was chosen deliberately over dot-sourcing a <code>.ps1</code> settings file — a <code>.psd1</code> file cannot
+      contain executable commands, so even if it were tampered with, it couldn't be used to run arbitrary code
+      through this script. Prefer data-only formats for configuration whenever the content doesn't need to execute
+      anything.</div>
+      <div class="callout security"><span class="lbl">Still no credentials in this project</span>All checks in this
+      lab run locally; once we reach the remoting projects, we'll extend this exact config-driven structure to
+      support <code>PSCredential</code> per server, rather than hardcoding anything sensitive into CSV or psd1 files.</div>
+    </section>
+
+    <section id="recap">
+      <h2>Key Learnings &amp; Recap</h2>
+      <div class="grid2">
+        <div>
+          <h3>Commands/Syntax Learned</h3>
+          <ul class="explain-list">
+            <li><code>Import-Csv</code></li>
+            <li><code>Import-PowerShellDataFile</code> and .psd1 syntax</li>
+            <li>Splatting with <code>@</code></li>
+            <li><code>[string[]]</code> array-typed parameters</li>
+          </ul>
+        </div>
+        <div>
+          <h3>Concepts Learned</h3>
+          <ul class="explain-list">
+            <li>Separating configuration from code</li>
+            <li>Composing multiple existing functions into one unified check</li>
+            <li>Preserving the "worst" result across multiple sub-checks</li>
+            <li>Why .psd1 is safer than a .ps1 for settings</li>
+          </ul>
+        </div>
+      </div>
+      <h3>Common Mistakes to Avoid</h3>
+      <ul class="explain-list">
+        <li>Hardcoding a fallback value "just in case" the config file is missing, defeating the purpose of externalizing it.</li>
+        <li>Letting a later, healthier sub-check silently overwrite an earlier CRITICAL result.</li>
+        <li>Putting frequently-changing data (like a server list) into the same file as rarely-changing settings.</li>
+      </ul>
+    </section>
+
+    <section id="interview">
+      <h2>Interview Preparation</h2>
+      <details><summary>Q1. Why separate the server list (CSV) from the settings (psd1) instead of one combined config file?</summary>
+        <p><b>Answer:</b> They have different shapes (a repeating list of rows vs a fixed set of named settings) and
+        different change patterns (frequent list updates vs occasional threshold tuning) — keeping them separate lets
+        each be owned, edited, and validated independently without one change risking the other.</p>
+        <p><b>Follow-up:</b> "What would you do if you needed per-server thresholds instead of one global set?" —
+        Answer: add threshold columns directly to servers.csv, or move to a richer format like JSON that can nest
+        settings per server — we'll cover JSON specifically in an upcoming project.</p>
+      </details>
+      <details><summary>Q2. What does splatting actually change about how a cmdlet call executes?</summary>
+        <p><b>Answer:</b> Nothing about execution — splatting is purely a readability and reusability convenience;
+        <code>Test-NetConnection @PortTestParams</code> and writing out every <code>-Param value</code> individually
+        produce identical results. The benefit is being able to build, inspect, reuse, or conditionally modify the
+        parameter set before the call happens.</p>
+        <p><b>Follow-up:</b> "Can you combine splatting with additional individual parameters on the same call?" —
+        Answer: yes — you can splat a hash table and still add explicit <code>-Parameter value</code> pairs on the
+        same line as long as there's no conflict between them.</p>
+      </details>
+      <details><summary>Q3. Why did Test-DiskHealth need extra logic to avoid downgrading a CRITICAL result?</summary>
+        <p><b>Answer:</b> A server can have multiple disks; if disk C: is CRITICAL but disk D: is only WARNING and
+        gets checked afterward in the loop, a naive implementation would let the WARNING result overwrite the
+        CRITICAL one — the added condition ensures the function always reports the single worst status found across
+        all disks, not just whichever was checked last.</p>
+        <p><b>Follow-up:</b> "How would you report all disk issues individually instead of just the worst one?" —
+        Answer: instead of tracking a single <code>$WorstStatus</code> string, build an array of per-disk result
+        objects (like Project 2 did) and return the whole collection, letting the caller decide how to summarize it.</p>
+      </details>
+    </section>
+
+    <section id="challenges">
+      <h2>Coding Challenges</h2>
+      <details><summary>Challenge 1: Add a MaxServiceCheckRetries setting to settings.psd1 and use it (even if unused for now, practice wiring it through)</summary>
+        <details><summary>Show answer</summary>
+        <pre><code># In settings.psd1:
+MaxServiceCheckRetries = 3
+
+# In the script:
+Write-Host "Configured retry limit: $($Config.MaxServiceCheckRetries)"</code></pre>
+        </details>
+      </details>
+      <details><summary>Challenge 2: Skip connectivity checks entirely for any server where CheckDisk and CheckServices are both "No"</summary>
+        <details><summary>Show answer</summary>
+        <pre><code>if ($Server.CheckDisk -eq "No" -and $Server.CheckServices -eq "No") {
+    Write-Host "Skipping $($Server.ServerName) entirely - no checks requested" -ForegroundColor Gray
+    continue   # Skips the rest of this loop iteration
+}</code></pre>
+        </details>
+      </details>
+      <details><summary>Challenge 3: Add an OverallStatus property that's "ISSUE" if any of the three individual checks aren't healthy/reachable</summary>
+        <details><summary>Show answer</summary>
+        <pre><code>$HasIssue = ($DiskStatus -in @("WARNING","CRITICAL")) -or ($ServiceStatus -eq "ISSUE FOUND") -or ($ConnStatus -eq "UNREACHABLE")
+OverallStatus = if ($HasIssue) { "ISSUE" } else { "HEALTHY" }   # Add this property to the PSCustomObject</code></pre>
+        </details>
+      </details>
+    </section>
+
+    <section id="resume">
+      <h2>Resume Points</h2>
+      <ul class="explain-list">
+        <li>Designed a unified, config-driven PowerShell health check consolidating disk, service, and connectivity monitoring across multiple servers.</li>
+        <li>Implemented external CSV and PowerShell Data File (.psd1) configuration to separate environment data from script logic.</li>
+        <li>Applied parameter splatting to build reusable, maintainable cmdlet calls across multiple check functions.</li>
+      </ul>
+    </section>
+
+    <section id="assignment">
+      <h2>Practice Assignment</h2>
+      <div class="callout note">
+        Add a second row to <code>servers.csv</code> for <code>localhost</code> again but with
+        <code>CheckDisk = No</code> and a different service list, and confirm the report correctly shows
+        <code>SKIPPED</code> for disk on that row while still checking services and connectivity.
+      </div>
+    </section>
+
+    <section id="next">
+      <h2>Next Project Prerequisites</h2>
+      <p>Project 10 (Windows Service Recovery Automation) will build on this unified structure and introduce
+      controlled, auditable remediation — actually restarting a failed service, with proper logging and
+      confirmation, rather than just detecting problems. Be comfortable with Import-Csv, .psd1 config, and splatting
+      before moving on. When ready, say <b>"Next Project."</b></p>
+    </section>
+
+    <footer>
+      PowerShell Masterclass — ABC Bank Automation Track · Project 09 of 40 · Generated for offline, self-contained use.
+    </footer>
+  </main>
+</div>
+
+<script>
+function copyCode(btn){
+  const code = btn.parentElement.querySelector('pre').innerText;
+  navigator.clipboard.writeText(code).then(()=>{
+    const old = btn.innerText; btn.innerText = "Copied!";
+    setTimeout(()=>btn.innerText = old, 1200);
+  });
+}
+window.addEventListener('scroll', ()=>{
+  const h = document.documentElement;
+  const pct = (h.scrollTop) / (h.scrollHeight - h.clientHeight) * 100;
+  document.getElementById('progressFill').style.width = pct + '%';
+  document.getElementById('progressLabel').innerText = 'Reading progress: ' + Math.round(pct) + '%';
+});
+</script>
+</body>
+</html>

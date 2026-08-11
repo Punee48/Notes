@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Project 7 — Linux Firewall Troubleshooting</title>
+<style>
+:root{
+  --blue:#2563EB; --blue-bg:#EFF6FF;
+  --purple:#7C3AED; --purple-bg:#F5F3FF;
+  --teal:#0F766E; --teal-bg:#F0FDFA;
+  --green:#16A34A; --green-bg:#F0FDF4;
+  --orange:#EA580C; --orange-bg:#FFF7ED;
+  --red:#DC2626; --red-bg:#FEF2F2;
+  --bg:#FFFFFF; --text:#1F2937; --muted:#6B7280;
+  --border:#E5E7EB; --sidebar-w:280px;
+}
+*{box-sizing:border-box;}
+body{margin:0;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--text);line-height:1.65;}
+a{color:var(--blue);text-decoration:none;}
+a:hover{text-decoration:underline;}
+code{font-family:"SFMono-Regular",Consolas,"Liberation Mono",Menlo,monospace;}
+
+.cover{padding:60px 24px 40px;background:linear-gradient(135deg,var(--blue-bg),var(--purple-bg));border-bottom:1px solid var(--border);}
+.cover-inner{max-width:900px;margin:0 auto;}
+.badge-row{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:18px;}
+.badge{font-size:12.5px;font-weight:600;padding:5px 12px;border-radius:20px;letter-spacing:.02em;}
+.badge.blue{background:var(--blue);color:#fff;}
+.badge.purple{background:var(--purple);color:#fff;}
+.badge.teal{background:var(--teal);color:#fff;}
+.badge.orange{background:var(--orange);color:#fff;}
+.cover h1{font-size:2.1rem;margin:0 0 8px;color:#111827;}
+.cover .subtitle{font-size:1.05rem;color:var(--muted);margin-bottom:26px;}
+.cover-meta{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;}
+.meta-card{background:#fff;border:1px solid var(--border);border-radius:10px;padding:12px 14px;}
+.meta-card .label{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:700;}
+.meta-card .value{font-size:14.5px;font-weight:600;margin-top:2px;}
+
+.layout{display:flex;max-width:1400px;margin:0 auto;}
+.sidebar{width:var(--sidebar-w);flex-shrink:0;position:sticky;top:0;align-self:flex-start;height:100vh;overflow-y:auto;border-right:1px solid var(--border);padding:22px 14px;}
+.sidebar h4{font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin:18px 0 6px 10px;}
+.sidebar h4:first-child{margin-top:0;}
+.sidebar a{display:block;padding:7px 10px;border-radius:8px;font-size:13.5px;color:#374151;margin-bottom:1px;}
+.sidebar a:hover{background:var(--blue-bg);text-decoration:none;color:var(--blue);}
+.progress-wrap{margin:10px 10px 4px;}
+.progress-bar{height:6px;background:var(--border);border-radius:4px;overflow:hidden;}
+.progress-fill{height:100%;width:0%;background:linear-gradient(90deg,var(--blue),var(--purple));transition:width .2s;}
+.progress-label{font-size:11px;color:var(--muted);margin-top:4px;}
+
+.content{flex:1;min-width:0;padding:34px 40px 100px;}
+section{margin-bottom:48px;scroll-margin-top:20px;}
+h2.sec-title{font-size:1.5rem;border-bottom:2px solid var(--border);padding-bottom:10px;margin-bottom:18px;display:flex;align-items:center;gap:10px;}
+h2.sec-title .num{background:var(--blue);color:#fff;width:30px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;}
+h3{font-size:1.15rem;margin-top:28px;color:#111827;}
+
+.box{border-radius:10px;padding:16px 18px;margin:16px 0;border:1px solid transparent;}
+.box .box-title{font-weight:700;font-size:13px;text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px;display:flex;align-items:center;gap:6px;}
+.box.concept{background:var(--blue-bg);border-color:#BFDBFE;}
+.box.concept .box-title{color:var(--blue);}
+.box.architecture{background:var(--purple-bg);border-color:#DDD6FE;}
+.box.architecture .box-title{color:var(--purple);}
+.box.success{background:var(--green-bg);border-color:#BBF7D0;}
+.box.success .box-title{color:var(--green);}
+.box.warning{background:var(--orange-bg);border-color:#FED7AA;}
+.box.warning .box-title{color:var(--orange);}
+.box.failure{background:var(--red-bg);border-color:#FECACA;}
+.box.failure .box-title{color:var(--red);}
+.box.bestpractice{background:var(--teal-bg);border-color:#99F6E4;}
+.box.bestpractice .box-title{color:var(--teal);}
+.box.story{background:#F9FAFB;border-color:var(--border);border-left:4px solid var(--purple);}
+
+.story p{margin:0 0 10px;}
+.story .quote{font-style:italic;color:#374151;border-left:3px solid var(--purple);padding-left:12px;margin:10px 0;}
+
+.term{background:#0F172A;color:#E2E8F0;border-radius:10px;margin:14px 0;overflow:hidden;border:1px solid #1E293B;}
+.term-header{display:flex;justify-content:space-between;align-items:center;background:#1E293B;padding:8px 14px;font-size:12px;color:#94A3B8;}
+.copy-btn{background:#334155;color:#E2E8F0;border:none;border-radius:6px;padding:4px 10px;font-size:11.5px;cursor:pointer;}
+.copy-btn:hover{background:#475569;}
+.term pre{margin:0;padding:14px 16px;overflow-x:auto;font-size:13.5px;line-height:1.6;}
+.term .cmdno{color:#64748B;margin-right:8px;}
+.term .cmd{color:#7DD3FC;}
+.term .out{color:#CBD5E1;}
+.term .out-err{color:#FCA5A5;}
+.term .out-ok{color:#86EFAC;}
+.term .comment{color:#64748B;}
+
+table.breakdown{width:100%;border-collapse:collapse;margin:12px 0 20px;font-size:14px;}
+table.breakdown th{background:#F3F4F6;text-align:left;padding:8px 10px;font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);}
+table.breakdown td{padding:9px 10px;border-top:1px solid var(--border);vertical-align:top;}
+table.breakdown td.token{font-family:monospace;color:var(--blue);font-weight:700;white-space:nowrap;}
+
+details.collapse{border:1px solid var(--border);border-radius:10px;margin:14px 0;overflow:hidden;}
+details.collapse summary{cursor:pointer;padding:12px 16px;font-weight:600;background:#F9FAFB;list-style:none;display:flex;align-items:center;gap:8px;}
+details.collapse summary::-webkit-details-marker{display:none;}
+details.collapse summary:before{content:"▶";font-size:11px;color:var(--muted);transition:transform .15s;}
+details.collapse[open] summary:before{transform:rotate(90deg);}
+details.collapse .collapse-body{padding:4px 16px 16px;}
+
+.diagram-frame{background:#FAFAFA;border:1px solid var(--border);border-radius:12px;padding:18px;margin:16px 0;overflow-x:auto;}
+.diagram-caption{font-size:12.5px;color:var(--muted);text-align:center;margin-top:8px;}
+
+table.ref{width:100%;border-collapse:collapse;font-size:14px;margin:14px 0;}
+table.ref th{background:#F3F4F6;padding:8px 10px;text-align:left;font-size:12.5px;}
+table.ref td{padding:8px 10px;border-top:1px solid var(--border);}
+
+.dtree{list-style:none;padding-left:0;font-size:14px;}
+.dtree li{padding:8px 12px;margin-bottom:6px;border-radius:8px;border:1px solid var(--border);position:relative;}
+.dtree li.q{background:var(--blue-bg);}
+.dtree li.ok{background:var(--green-bg);}
+.dtree li.bad{background:var(--red-bg);}
+.dtree .arrow{text-align:center;color:var(--muted);font-size:12px;margin:2px 0;}
+
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin:16px 0;}
+.card{border:1px solid var(--border);border-radius:10px;padding:14px 16px;}
+.card h4{margin:0 0 6px;font-size:14.5px;}
+.card p{margin:0;font-size:13.5px;color:var(--muted);}
+
+.qa{border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin:12px 0;background:#FCFCFD;}
+.qa .q{font-weight:700;color:#111827;margin-bottom:6px;}
+.qa .q .qtag{background:var(--purple);color:#fff;font-size:10.5px;padding:2px 8px;border-radius:10px;margin-right:8px;text-transform:uppercase;}
+.qa .followup{margin-top:8px;padding-top:8px;border-top:1px dashed var(--border);font-size:13.5px;color:var(--muted);}
+
+.top-link{position:fixed;bottom:22px;right:22px;background:var(--blue);color:#fff;width:42px;height:42px;border-radius:50%;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(0,0,0,.15);font-size:18px;}
+.top-link:hover{text-decoration:none;background:#1D4ED8;}
+
+@media (max-width:900px){
+  .sidebar{display:none;}
+  .content{padding:22px 18px 80px;}
+}
+</style>
+</head>
+<body>
+
+<div class="cover">
+  <div class="cover-inner">
+    <div class="badge-row">
+      <span class="badge blue">Project 7 of ~38</span>
+      <span class="badge purple">Linux Networking Masterclass</span>
+      <span class="badge teal">Domain: Banking / Compliance</span>
+      <span class="badge orange">Difficulty: Intermediate → Advanced</span>
+    </div>
+    <h1>Linux Firewall Troubleshooting</h1>
+    <div class="subtitle">A newly deployed microservice in the bank's segmented network can't reach anything — but the rule that should allow it is right there in the ruleset. Time to understand exactly how the kernel walks a firewall ruleset, not just what a rule says.</div>
+    <div class="cover-meta">
+      <div class="meta-card"><div class="label">Estimated Lab Time</div><div class="value">3.5 – 4.5 hours</div></div>
+      <div class="meta-card"><div class="label">Prerequisites</div><div class="value">Projects 1–6 completed</div></div>
+      <div class="meta-card"><div class="label">Lab Environment</div><div class="value">3 namespaces simulating segmented zones + a firewall/router namespace</div></div>
+      <div class="meta-card"><div class="label">Concepts Learned</div><div class="value">Chains, tables, rule order, default policy, conntrack states</div></div>
+    </div>
+  </div>
+</div>
+
+<div class="layout">
+  <nav class="sidebar" id="sidebar">
+    <div class="progress-wrap">
+      <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+      <div class="progress-label" id="progressLabel">0% through Project 7</div>
+    </div>
+    <h4>Orientation</h4>
+    <a href="#story">1. The Incident</a>
+    <a href="#foundation">2. Firewall Foundation</a>
+    <a href="#architecture">3. The Netfilter Hook Chain</a>
+    <a href="#conntrack">4. Connection Tracking</a>
+    <a href="#methodology">5. Troubleshooting Method</a>
+    <h4>Hands-On Lab</h4>
+    <a href="#labsetup">6. Lab Setup (Segmented Zones)</a>
+    <a href="#verify">7. Verify Baseline</a>
+    <h4>Break / Fix (4 Incidents)</h4>
+    <a href="#break1">8. Rule Order (Shadowed Allow)</a>
+    <a href="#break2">9. Missing Stateful Return Rule</a>
+    <a href="#break3">10. Default DROP Policy Surprise</a>
+    <a href="#break4">11. Conntrack Table Exhaustion</a>
+    <h4>Wrap-Up</h4>
+    <a href="#bestpractices">12. Best Practices</a>
+    <a href="#cheatsheet">13. Cheat Sheet</a>
+    <a href="#interview">14. Interview Prep</a>
+    <a href="#practice">15. Practice Tasks</a>
+    <a href="#resume">16. Resume Points</a>
+    <a href="#next">17. Next Project</a>
+  </nav>
+
+  <main class="content">
+
+  <section id="story">
+    <h2 class="sec-title"><span class="num">1</span>The Incident</h2>
+    <div class="box story">
+      <p>We support Linux infrastructure for a bank's internal application network, which is heavily segmented for compliance reasons — every zone-to-zone connection must be explicitly allowed. A new fraud-detection microservice was just deployed in the app zone and needs to reach a scoring API in the data zone on port 9090.</p>
+      <p class="quote">"We added the allow rule for port 9090 like always, but the service still can't connect. Someone swears they saw the rule in the config. We're not sure if it's even being applied, or if something else is silently blocking it first."</p>
+      <p>"The rule is there but it doesn't work" is one of the most common firewall complaints in enterprise environments — and it's almost always explained by understanding one core fact: a Linux firewall doesn't evaluate all rules and pick the best match. It walks the ruleset from top to bottom and stops at the FIRST match. Where a rule sits matters as much as whether it exists.</p>
+    </div>
+    <div class="box concept">
+      <div class="box-title">🔵 Why this project matters</div>
+      <p>Nearly every "add a firewall rule" ticket you'll do as a Linux/DevOps engineer touches the concepts in this project — chains, rule order, default policy, and stateful connection tracking. Banking and other regulated industries lean especially hard on host-based Linux firewalls for compliance segmentation, making this one of the highest-frequency skills in this masterclass.</p>
+    </div>
+  </section>
+
+  <section id="foundation">
+    <h2 class="sec-title"><span class="num">2</span>Firewall Foundation</h2>
+
+    <h3>2.1 Tables and chains — the organizing structure</h3>
+    <div class="box concept">
+      <div class="box-title">🔵 Concept</div>
+      <p>Netfilter (the kernel firewall engine behind iptables, nftables, and firewalld) organizes rules into <b>tables</b> by purpose — the <code>filter</code> table for allow/deny decisions, the <code>nat</code> table for address translation, the <code>mangle</code> table for packet modification. Within each table, rules are grouped into <b>chains</b> that correspond to specific points in a packet's journey — <code>INPUT</code> for traffic destined to this host, <code>OUTPUT</code> for traffic originating from this host, <code>FORWARD</code> for traffic passing through this host to somewhere else (relevant when Linux acts as a router, like our segmentation firewall in this story).</p>
+    </div>
+
+    <h3>2.2 First match wins — this is the single most important rule</h3>
+    <div class="box concept">
+      <div class="box-title">🔵 Concept</div>
+      <p>Within a chain, the kernel evaluates rules IN ORDER, top to bottom, and stops at the very first rule that matches the packet — it does not continue looking for a "better" or "more specific" match afterward. If a broad DROP rule sits above a specific ALLOW rule for the same traffic, the DROP wins every time, and the ALLOW rule below it is completely dead code — syntactically present, semantically irrelevant. This exact pattern explains our incident.</p>
+    </div>
+
+    <h3>2.3 Default policy — what happens when nothing matches</h3>
+    <div class="box concept">
+      <div class="box-title">🔵 Concept</div>
+      <p>Every chain has a <b>default policy</b> (commonly ACCEPT or DROP) that applies only when a packet reaches the end of the chain without matching any explicit rule. A chain with policy DROP is "deny by default, allow by exception" — the secure, recommended posture for regulated environments — but it means ANY traffic type the ruleset didn't explicitly plan for silently disappears, with no rule to blame and no obvious error.</p>
+    </div>
+
+    <h3>2.4 Stateful vs stateless — why "allow port 9090" isn't the whole story</h3>
+    <div class="box concept">
+      <div class="box-title">🔵 Concept</div>
+      <p>A purely stateless rule set requires you to separately allow both directions of every conversation — outbound requests AND their inbound replies. A stateful firewall instead tracks each connection's state (via conntrack, covered next) and lets you write one rule allowing NEW connections to port 9090, plus one general rule allowing ESTABLISHED and RELATED traffic to return — which covers replies automatically, for any port, without a rule per direction per port.</p>
+    </div>
+  </section>
+
+  <section id="architecture">
+    <h2 class="sec-title"><span class="num">3</span>The Netfilter Hook Chain — Where Each Chain Actually Sits</h2>
+    <div class="box architecture">
+      <div class="box-title">🟣 Architecture</div>
+      <p>Understanding WHERE each chain sits relative to the routing decision explains a lot of confusion — INPUT only sees traffic addressed to this host, FORWARD only sees traffic passing through, and they are mutually exclusive for a given packet.</p>
+    </div>
+    <div class="diagram-frame">
+<svg viewBox="0 0 900 260" xmlns="http://www.w3.org/2000/svg" width="100%">
+<style>.lbl{font:600 12.5px sans-serif;fill:#1F2937;} .sub{font:10.5px sans-serif;fill:#6B7280;} .box{fill:#EFF6FF;stroke:#2563EB;stroke-width:1.5;rx:8;} .box2{fill:#F5F3FF;stroke:#7C3AED;stroke-width:1.5;rx:8;} .arr{stroke:#374151;stroke-width:2;marker-end:url(#a8);}</style>
+<defs><marker id="a8" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#374151"/></marker></defs>
+
+<rect x="10" y="100" width="120" height="50" class="box"/><text x="70" y="130" text-anchor="middle" class="lbl">Packet arrives</text>
+
+<rect x="170" y="100" width="130" height="50" class="box2"/><text x="235" y="122" text-anchor="middle" class="lbl">PREROUTING</text><text x="235" y="140" text-anchor="middle" class="sub">(nat/mangle)</text>
+
+<rect x="340" y="100" width="130" height="50" class="box"/><text x="405" y="130" text-anchor="middle" class="lbl">Routing Decision</text>
+
+<rect x="510" y="30" width="130" height="50" class="box"/><text x="575" y="52" text-anchor="middle" class="lbl">INPUT chain</text><text x="575" y="70" text-anchor="middle" class="sub">for this host</text>
+<rect x="680" y="30" width="130" height="50" class="box2"/><text x="745" y="60" text-anchor="middle" class="lbl">Local Process</text>
+
+<rect x="510" y="150" width="130" height="50" class="box"/><text x="575" y="180" text-anchor="middle" class="lbl">FORWARD chain</text><text x="575" y="198" text-anchor="middle" class="sub">passing through</text>
+
+<rect x="680" y="150" width="130" height="50" class="box2"/><text x="745" y="172" text-anchor="middle" class="lbl">POSTROUTING</text><text x="745" y="190" text-anchor="middle" class="sub">(nat)</text>
+
+<line x1="130" y1="125" x2="168" y2="125" class="arr"/>
+<line x1="300" y1="125" x2="338" y2="125" class="arr"/>
+<line x1="405" y1="100" x2="540" y2="60" class="arr"/>
+<line x1="405" y1="150" x2="540" y2="175" class="arr"/>
+<line x1="640" y1="55" x2="678" y2="55" class="arr"/>
+<line x1="640" y1="175" x2="678" y2="175" class="arr"/>
+</svg>
+    </div>
+    <div class="diagram-caption">Figure 1 — After the routing decision, a packet goes EITHER to INPUT (destined for this host) OR FORWARD (passing through) — never both. Our segmentation firewall, acting as a router between zones, cares about FORWARD, not INPUT.</div>
+  </section>
+
+  <section id="conntrack">
+    <h2 class="sec-title"><span class="num">4</span>Connection Tracking (conntrack)</h2>
+    <div class="box concept">
+      <div class="box-title">🔵 Concept</div>
+      <p>The kernel's connection tracking system watches every connection passing through and assigns it a state, which rules can then match against using the <code>-m state</code> or <code>-m conntrack</code> module:</p>
+    </div>
+    <table class="ref">
+      <tr><th>State</th><th>Meaning</th></tr>
+      <tr><td><code>NEW</code></td><td>The first packet of a connection we haven't seen before (e.g. an initial SYN).</td></tr>
+      <tr><td><code>ESTABLISHED</code></td><td>Part of a connection that has already seen traffic in both directions.</td></tr>
+      <tr><td><code>RELATED</code></td><td>Not part of the connection itself, but logically related to one we're tracking — e.g. an FTP data connection related to its control connection, or an ICMP error related to a UDP/TCP flow.</td></tr>
+      <tr><td><code>INVALID</code></td><td>Doesn't match any known connection and doesn't look like a valid new connection attempt either — often worth dropping outright as a basic hardening measure.</td></tr>
+    </table>
+    <p>This is what makes the common, compact rule pattern possible:</p>
+    <div class="term">
+      <div class="term-header"><span>bash — the standard stateful pattern</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button></div>
+      <pre><span class="cmdno">1</span><span class="cmd">iptables -A INPUT -m state --state ESTABLISHED,RELATED -j ACCEPT</span>
+<span class="cmdno">2</span><span class="cmd">iptables -A INPUT -p tcp --dport 9090 -m state --state NEW -j ACCEPT</span>
+<span class="cmdno">3</span><span class="cmd">iptables -A INPUT -j DROP</span></pre>
+    </div>
+    <table class="breakdown">
+      <tr><th>Token</th><th>Meaning</th></tr>
+      <tr><td class="token">-m state --state ESTABLISHED,RELATED</td><td>Match packets belonging to already-tracked, in-progress conversations — this single rule covers return traffic for every allowed connection, regardless of port, so you don't need a mirrored rule for every direction of every service.</td></tr>
+      <tr><td class="token">-m state --state NEW</td><td>Match only the first packet of a brand-new connection attempt — this is where you make the actual "is this service allowed" decision.</td></tr>
+    </table>
+  </section>
+
+  <section id="methodology">
+    <h2 class="sec-title"><span class="num">5</span>Troubleshooting Method for Firewall Incidents</h2>
+    <ul class="dtree">
+      <li class="q">1. Confirm which chain actually matters for this traffic — INPUT/OUTPUT (this host) vs FORWARD (passing through, if this box is a router)</li>
+      <div class="arrow">↓</div>
+      <li class="q">2. List the chain with line numbers and counters: does traffic even reach the rule you expect, or does something above it match first?</li>
+      <div class="arrow">↓</div>
+      <li class="q">3. Check the chain's default policy — is unmatched traffic being silently dropped?</li>
+      <div class="arrow">↓</div>
+      <li class="q">4. Is the return/reply traffic allowed? (stateful ESTABLISHED,RELATED rule present?)</li>
+      <div class="arrow">↓</div>
+      <li class="q">5. Check conntrack table health — is it full, causing new connections to be silently dropped regardless of rules?</li>
+      <div class="arrow">↓</div>
+      <li class="ok">Only after confirming the ruleset itself is correct and healthy, move on to routing/DNS from earlier projects</li>
+    </ul>
+    <div class="box warning"><div class="box-title">🟠 Warning</div><p>Never trust "I can see the rule in the config" as proof it's working — always check counters (packet/byte hit counts) with <code>iptables -L -n -v</code> to see whether traffic is actually reaching that rule at all, or being caught by something earlier in the chain.</p></div>
+  </section>
+
+  <section id="labsetup">
+    <h2 class="sec-title"><span class="num">6</span>Lab Setup — Segmented Zones with a Firewall/Router</h2>
+    <p>We'll build three namespaces: <code>ns-app-zone</code> (where our fraud-detection microservice runs), <code>ns-data-zone</code> (where the scoring API runs), and <code>ns-segfw</code> (a router/firewall namespace between them, forwarding traffic and enforcing the segmentation policy).</p>
+    <div class="term">
+      <div class="term-header"><span>bash — run as root/sudo</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button></div>
+      <pre><span class="cmdno">1</span><span class="cmd">sudo ip netns add ns-app-zone</span>
+<span class="cmdno">2</span><span class="cmd">sudo ip netns add ns-segfw</span>
+<span class="cmdno">3</span><span class="cmd">sudo ip netns add ns-data-zone</span>
+<span class="cmdno">4</span><span class="cmd">sudo ip link add veth-app type veth peer name fw-app-in</span>
+<span class="cmdno">5</span><span class="cmd">sudo ip link add veth-data type veth peer name fw-data-in</span>
+<span class="cmdno">6</span><span class="cmd">sudo ip link set veth-app netns ns-app-zone</span>
+<span class="cmdno">7</span><span class="cmd">sudo ip link set fw-app-in netns ns-segfw</span>
+<span class="cmdno">8</span><span class="cmd">sudo ip link set veth-data netns ns-data-zone</span>
+<span class="cmdno">9</span><span class="cmd">sudo ip link set fw-data-in netns ns-segfw</span>
+<span class="cmdno">10</span><span class="cmd">sudo ip netns exec ns-app-zone ip addr add 10.60.1.10/24 dev veth-app</span>
+<span class="cmdno">11</span><span class="cmd">sudo ip netns exec ns-segfw ip addr add 10.60.1.1/24 dev fw-app-in</span>
+<span class="cmdno">12</span><span class="cmd">sudo ip netns exec ns-data-zone ip addr add 10.60.2.10/24 dev veth-data</span>
+<span class="cmdno">13</span><span class="cmd">sudo ip netns exec ns-segfw ip addr add 10.60.2.1/24 dev fw-data-in</span>
+<span class="cmdno">14</span><span class="cmd">sudo ip netns exec ns-app-zone ip route add default via 10.60.1.1</span>
+<span class="cmdno">15</span><span class="cmd">sudo ip netns exec ns-data-zone ip route add default via 10.60.2.1</span>
+<span class="cmdno">16</span><span class="cmd">for ns in ns-app-zone ns-segfw ns-data-zone; do sudo ip netns exec $ns ip link set lo up; done</span>
+<span class="cmdno">17</span><span class="cmd">sudo ip netns exec ns-app-zone ip link set veth-app up</span>
+<span class="cmdno">18</span><span class="cmd">sudo ip netns exec ns-data-zone ip link set veth-data up</span>
+<span class="cmdno">19</span><span class="cmd">sudo ip netns exec ns-segfw bash -c "ip link set fw-app-in up; ip link set fw-data-in up"</span>
+<span class="cmdno">20</span><span class="cmd">sudo ip netns exec ns-segfw sysctl -w net.ipv4.ip_forward=1</span>
+<span class="cmdno">21</span><span class="cmd">sudo ip netns exec ns-data-zone python3 -m http.server 9090 --bind 10.60.2.10 &amp;</span></pre>
+    </div>
+
+    <h3>6.1 Baseline segmentation policy — deny by default, allow by exception</h3>
+    <div class="term">
+      <div class="term-header"><span>bash — on ns-segfw</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button></div>
+      <pre><span class="cmdno">1</span><span class="cmd">sudo ip netns exec ns-segfw iptables -P FORWARD DROP</span>
+<span class="cmdno">2</span><span class="cmd">sudo ip netns exec ns-segfw iptables -A FORWARD -m state --state ESTABLISHED,RELATED -j ACCEPT</span>
+<span class="cmdno">3</span><span class="cmd">sudo ip netns exec ns-segfw iptables -A FORWARD -s 10.60.1.10 -d 10.60.2.10 -p tcp --dport 9090 -m state --state NEW -j ACCEPT</span></pre>
+    </div>
+    <table class="breakdown">
+      <tr><th>Token</th><th>Meaning</th></tr>
+      <tr><td class="token">iptables -P FORWARD DROP</td><td>Sets the FORWARD chain's default policy to DROP — deny by default, matching the bank's compliance posture.</td></tr>
+      <tr><td class="token">-s 10.60.1.10 -d 10.60.2.10 -p tcp --dport 9090 -m state --state NEW</td><td>Explicitly allows only NEW connections from our specific fraud-detection host to the specific scoring API host on the specific port — a precisely scoped exception, exactly what a bank auditor would expect to see.</td></tr>
+    </table>
+  </section>
+
+  <section id="verify">
+    <h2 class="sec-title"><span class="num">7</span>Verify the Baseline</h2>
+    <div class="term">
+      <div class="term-header"><span>bash — on ns-app-zone</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button></div>
+      <pre><span class="cmdno">1</span><span class="cmd">sudo ip netns exec ns-app-zone curl -s -o /dev/null -w "%{http_code}\n" http://10.60.2.10:9090/</span>
+<span class="out-ok">    200</span></pre>
+    </div>
+    <div class="box success"><div class="box-title">🟢 Validation</div><p>Traffic crosses the segmentation firewall successfully. This is our known-good baseline.</p></div>
+  </section>
+
+  <!-- BREAK 1 -->
+  <section id="break1">
+    <h2 class="sec-title"><span class="num">8</span>Break-Fix #1 — Rule Order (The Shadowed Allow)</h2>
+    <div class="box failure"><div class="box-title">🔴 Break It</div><p>This reproduces the exact incident: insert a broad DROP rule ABOVE our specific ALLOW rule, simulating a well-meaning but misordered change (very common when rules are appended without checking existing order).</p></div>
+    <div class="term">
+      <div class="term-header"><span>bash — on ns-segfw</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button></div>
+      <pre><span class="cmdno">1</span><span class="cmd">sudo ip netns exec ns-segfw iptables -I FORWARD 1 -s 10.60.1.0/24 -d 10.60.2.0/24 -j DROP</span></pre>
+    </div>
+    <table class="breakdown">
+      <tr><th>Token</th><th>Meaning</th></tr>
+      <tr><td class="token">-I FORWARD 1</td><td>Inserts this rule at position 1 — the very top of the FORWARD chain — ahead of every existing rule, including our specific ALLOW for port 9090.</td></tr>
+    </table>
+    <h3>Observe</h3>
+    <div class="term">
+      <div class="term-header"><span>bash — on ns-app-zone</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button></div>
+      <pre><span class="cmdno">1</span><span class="cmd">sudo ip netns exec ns-app-zone curl --max-time 3 http://10.60.2.10:9090/</span>
+<span class="out-err">    curl: (28) Connection timed out</span></pre>
+    </div>
+    <h3>Diagnose using rule counters — the key technique</h3>
+    <div class="term">
+      <div class="term-header"><span>bash — on ns-segfw</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button></div>
+      <pre><span class="cmdno">1</span><span class="cmd">sudo ip netns exec ns-segfw iptables -L FORWARD -n -v --line-numbers</span>
+<span class="out">    Chain FORWARD (policy DROP 0 packets, 0 bytes)
+    num   pkts bytes target  prot opt source          destination         
+    1     4    240  DROP    all  --  10.60.1.0/24     10.60.2.0/24        
+    2     0    0    ACCEPT  all  --  0.0.0.0/0        0.0.0.0/0    state ESTABLISHED,RELATED
+    3     0    0    ACCEPT  tcp  --  10.60.1.10       10.60.2.10   tcp dpt:9090 state NEW</span></pre>
+    </div>
+    <table class="breakdown">
+      <tr><th>Token</th><th>Meaning</th></tr>
+      <tr><td class="token">-L FORWARD -n -v --line-numbers</td><td>Lists the FORWARD chain with numeric addresses (-n), verbose packet/byte counters (-v), and line numbers — the single most important diagnostic command for any firewall rule-order issue.</td></tr>
+      <tr><td class="token">pkts / bytes columns</td><td>How many packets/bytes have matched THIS specific rule since counters were last reset — rule 1 shows 4 packets matched, while rules 2 and 3 show zero, proving conclusively that our intended ALLOW rule is never even being reached.</td></tr>
+    </table>
+    <div class="box concept"><div class="box-title">🔵 Reading the symptom</div><p>The counters are the proof: rule 1 (our accidental broad DROP) has a non-zero packet count and is climbing with every attempt, while rule 3 (the intended, correctly-scoped ALLOW) sits at zero forever. This is definitive, unambiguous evidence — not a guess — that the ALLOW rule exists but is unreachable due to its position in the chain.</p></div>
+    <div class="box failure"><div class="box-title">🔴 Root Cause</div><p>A broad DROP rule was inserted above the specific ALLOW rule; since the kernel stops at the first match, every relevant packet was caught and dropped before ever reaching the intended allow rule.</p></div>
+    <div class="term">
+      <div class="term-header"><span>bash — fix: remove the misordered rule</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button></div>
+      <pre><span class="cmdno">1</span><span class="cmd">sudo ip netns exec ns-segfw iptables -D FORWARD 1</span></pre>
+    </div>
+    <div class="box success"><div class="box-title">🟢 Validate</div><p>Re-run iptables -L FORWARD -n -v — traffic should now hit the ALLOW rule's counter, and the curl test should succeed again.</p></div>
+    <div class="box bestpractice"><div class="box-title">🟦 Production Best Practice</div><p>Always verify a new rule's position with <code>--line-numbers</code> before considering a change complete, and prefer <code>-A</code> (append to bottom) plus explicit line-numbered insertion only when you specifically intend to change evaluation order — accidental <code>-I</code> without a position, which defaults to the top, is a very common cause of this exact incident.</p></div>
+  </section>
+
+  <!-- BREAK 2 -->
+  <section id="break2">
+    <h2 class="sec-title"><span class="num">9</span>Break-Fix #2 — Missing Stateful Return Rule</h2>
+    <div class="box failure"><div class="box-title">🔴 Break It</div><p>Remove the ESTABLISHED,RELATED rule, simulating an incomplete stateless-style ruleset that only thought about the outbound direction.</p></div>
+    <div class="term">
+      <div class="term-header"><span>bash — on ns-segfw</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button></div>
+      <pre><span class="cmdno">1</span><span class="cmd">sudo ip netns exec ns-segfw iptables -D FORWARD -m state --state ESTABLISHED,RELATED -j ACCEPT</span></pre>
+    </div>
+    <h3>Observe</h3>
+    <div class="term">
+      <div class="term-header"><span>bash — on ns-app-zone</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button></div>
+      <pre><span class="cmdno">1</span><span class="cmd">sudo ip netns exec ns-app-zone curl --max-time 3 http://10.60.2.10:9090/</span>
+<span class="out-err">    curl: (28) Connection timed out</span></pre>
+    </div>
+    <div class="box concept"><div class="box-title">🔵 Reading the symptom</div><p>The outbound SYN is correctly allowed by our NEW-state rule and reaches the scoring API — but the API's reply (SYN-ACK) is traveling in the OPPOSITE direction through FORWARD, and with no rule allowing ESTABLISHED/RELATED traffic, that reply has nothing to match except the default DROP policy. The client-side symptom (a timeout, as if the SYN vanished) looks identical to Project 1's simple firewall-drop scenario, but the actual mechanism here is subtly different: the SYN got through fine, but its reply didn't.</p></div>
+    <div class="box failure"><div class="box-title">🔴 Root Cause</div><p>The ruleset only accounted for the outbound direction of the connection; without a stateful rule permitting established/related return traffic, replies were silently dropped by the default policy.</p></div>
+    <div class="term">
+      <div class="term-header"><span>bash — fix: restore the stateful return rule (must be added before the specific NEW rule to be efficient, though any position before the default DROP works)</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button></div>
+      <pre><span class="cmdno">1</span><span class="cmd">sudo ip netns exec ns-segfw iptables -I FORWARD 1 -m state --state ESTABLISHED,RELATED -j ACCEPT</span></pre>
+    </div>
+    <div class="box success"><div class="box-title">🟢 Validate</div><p>Re-run the curl test — it should succeed now that reply traffic has an explicit path through the chain.</p></div>
+  </section>
+
+  <!-- BREAK 3 -->
+  <section id="break3">
+    <h2 class="sec-title"><span class="num">10</span>Break-Fix #3 — Default DROP Policy Surprise (Wrong Chain Assumption)</h2>
+    <div class="box failure"><div class="box-title">🔴 Break It</div><p>A very common real-world mistake: someone correctly secures INPUT and OUTPUT on the firewall host itself, but forgets that traffic PASSING THROUGH the box (which is what our segmentation scenario actually is) uses FORWARD, not INPUT. Simulate this by adding a seemingly-correct-looking INPUT rule that has zero effect on our actual traffic.</p></div>
+    <div class="term">
+      <div class="term-header"><span>bash — on ns-segfw, someone's well-intentioned but misplaced rule</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button></div>
+      <pre><span class="cmdno">1</span><span class="cmd">sudo ip netns exec ns-segfw iptables -A INPUT -p tcp --dport 9090 -j ACCEPT</span>
+<span class="cmdno">2</span><span class="cmd">sudo ip netns exec ns-segfw iptables -A FORWARD -j DROP</span>
+<span class="comment"># (someone believed the INPUT rule above would somehow help, then added a catch-all FORWARD DROP for "cleanup")</span></pre>
+    </div>
+    <h3>Observe</h3>
+    <div class="term">
+      <div class="term-header"><span>bash — on ns-app-zone</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button></div>
+      <pre><span class="cmdno">1</span><span class="cmd">sudo ip netns exec ns-app-zone curl --max-time 3 http://10.60.2.10:9090/</span>
+<span class="out-err">    curl: (28) Connection timed out</span></pre>
+    </div>
+    <div class="term">
+      <div class="term-header"><span>bash — on ns-segfw, check BOTH chains</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button></div>
+      <pre><span class="cmdno">1</span><span class="cmd">sudo ip netns exec ns-segfw iptables -L INPUT -n -v</span>
+<span class="out">    (shows our port 9090 rule with pkts=0 — it's never matching anything)</span>
+<span class="cmdno">2</span><span class="cmd">sudo ip netns exec ns-segfw iptables -L FORWARD -n -v</span>
+<span class="out">    (shows the new catch-all DROP at the bottom with a climbing packet count)</span></pre>
+    </div>
+    <div class="box concept"><div class="box-title">🔵 Reading the symptom</div><p>The INPUT rule has zero matches because our traffic was never destined FOR this host — it's passing THROUGH it, which is governed entirely by FORWARD. This is a conceptual mistake, not a syntax mistake: the rule is perfectly valid iptables syntax, just written in the wrong chain for what it's trying to accomplish. This is exactly why understanding the hook diagram from Section 3 matters more than memorizing command syntax.</p></div>
+    <div class="box failure"><div class="box-title">🔴 Root Cause</div><p>A rule intended to allow traffic was added to the wrong chain (INPUT instead of FORWARD) for a router/segmentation-firewall use case, and a separate, unrelated catch-all DROP was added to FORWARD without an accompanying allow rule.</p></div>
+    <div class="term">
+      <div class="term-header"><span>bash — fix</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button></div>
+      <pre><span class="cmdno">1</span><span class="cmd">sudo ip netns exec ns-segfw iptables -D INPUT -p tcp --dport 9090 -j ACCEPT</span>
+<span class="cmdno">2</span><span class="cmd">sudo ip netns exec ns-segfw iptables -D FORWARD -j DROP</span></pre>
+    </div>
+    <div class="box bestpractice"><div class="box-title">🟦 Production Best Practice</div><p>Before adding any firewall rule, always ask "is this box the endpoint of this traffic (INPUT/OUTPUT) or a router/pass-through for it (FORWARD)?" — this single question prevents one of the most common categories of "the rule doesn't work" tickets.</p></div>
+  </section>
+
+  <!-- BREAK 4 -->
+  <section id="break4">
+    <h2 class="sec-title"><span class="num">11</span>Break-Fix #4 — Conntrack Table Exhaustion</h2>
+    <div class="box failure"><div class="box-title">🔴 Break It</div><p>Every tracked connection consumes an entry in the kernel's connection tracking table, which has a maximum size. If it fills up, the kernel can't track (and therefore can't correctly allow) any NEW connections, even with a perfectly correct ruleset. Simulate a small table filling up under connection load.</p></div>
+    <div class="term">
+      <div class="term-header"><span>bash — on ns-segfw, check and then shrink the conntrack limit for this lab</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button></div>
+      <pre><span class="cmdno">1</span><span class="cmd">sudo ip netns exec ns-segfw sysctl net.netfilter.nf_conntrack_max</span>
+<span class="out">    net.netfilter.nf_conntrack_max = 262144</span>
+<span class="cmdno">2</span><span class="cmd">sudo ip netns exec ns-segfw sysctl -w net.netfilter.nf_conntrack_max=8</span></pre>
+    </div>
+    <table class="breakdown">
+      <tr><th>Token</th><th>Meaning</th></tr>
+      <tr><td class="token">net.netfilter.nf_conntrack_max</td><td>The maximum number of connections the kernel will track simultaneously across the whole system — in real production incidents this is usually exhausted by a connection-storm or leak, not by intentionally lowering it like we're doing here for the lab.</td></tr>
+    </table>
+    <h3>Observe</h3>
+    <div class="term">
+      <div class="term-header"><span>bash — on ns-app-zone, generate several connections quickly</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button></div>
+      <pre><span class="cmdno">1</span><span class="cmd">for i in $(seq 1 15); do sudo ip netns exec ns-app-zone curl -s --max-time 2 -o /dev/null http://10.60.2.10:9090/; done</span></pre>
+    </div>
+    <div class="term">
+      <div class="term-header"><span>bash — on ns-segfw, check for the telltale kernel message and conntrack count</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button></div>
+      <pre><span class="cmdno">1</span><span class="cmd">sudo ip netns exec ns-segfw dmesg | grep -i conntrack | tail -3</span>
+<span class="out-err">    nf_conntrack: table full, dropping packet</span>
+<span class="cmdno">2</span><span class="cmd">sudo ip netns exec ns-segfw conntrack -L | wc -l</span>
+<span class="out">    8</span></pre>
+    </div>
+    <table class="breakdown">
+      <tr><th>Token</th><th>Meaning</th></tr>
+      <tr><td class="token">conntrack -L</td><td>Lists every currently tracked connection in the kernel's conntrack table — comparing this count against nf_conntrack_max tells you exactly how close to full the table is.</td></tr>
+    </table>
+    <div class="box concept"><div class="box-title">🔵 Reading the symptom</div><p>This is one of the sneakiest firewall-adjacent failures: your rules can be perfectly correct, your counters can even show packets matching the right ALLOW rule — and connections still get dropped, because the kernel literally has no room left to track a new one. The unmistakable fingerprint is the <code>nf_conntrack: table full, dropping packet</code> message in dmesg/kernel logs — always check this specifically when a firewall issue seems to defy the ruleset itself.</p></div>
+    <div class="box failure"><div class="box-title">🔴 Root Cause</div><p>The connection tracking table reached its configured maximum size, causing the kernel to drop new connection attempts regardless of what the firewall ruleset actually allowed.</p></div>
+    <div class="term">
+      <div class="term-header"><span>bash — fix: restore a sane limit</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button></div>
+      <pre><span class="cmdno">1</span><span class="cmd">sudo ip netns exec ns-segfw sysctl -w net.netfilter.nf_conntrack_max=262144</span></pre>
+    </div>
+    <div class="box bestpractice"><div class="box-title">🟦 Production Best Practice</div><p>Monitor conntrack table usage (current count vs. max) as a standard production metric on any Linux host doing significant firewall or NAT work — silently hitting this ceiling is a common, hard-to-diagnose cause of intermittent connection failures under load, especially on busy NAT gateways and load balancers.</p></div>
+  </section>
+
+  <section id="bestpractices">
+    <h2 class="sec-title"><span class="num">12</span>Production Best Practices</h2>
+    <div class="cards">
+      <div class="card"><h4>🟦 Always check counters, not just config</h4><p>iptables -L -n -v --line-numbers proves whether traffic actually reaches a rule — never assume from reading the config alone.</p></div>
+      <div class="card"><h4>🟦 Know your chain — INPUT/OUTPUT vs FORWARD</h4><p>Ask whether this host is the endpoint or a pass-through for the traffic before writing a rule.</p></div>
+      <div class="card"><h4>🟦 Always pair NEW rules with a stateful return rule</h4><p>One ESTABLISHED,RELATED ACCEPT rule near the top of a chain covers replies for everything you explicitly allow.</p></div>
+      <div class="card"><h4>🟦 Default-deny, but audit for orphaned allow rules</h4><p>A rule below an earlier broad match is effectively dead — periodically audit for unreachable rules using counters.</p></div>
+      <div class="card"><h4>🟦 Monitor conntrack table usage</h4><p>A perfectly correct ruleset can still fail traffic if the connection tracking table itself is full.</p></div>
+    </div>
+  </section>
+
+  <section id="cheatsheet">
+    <h2 class="sec-title"><span class="num">13</span>Troubleshooting Cheat Sheet</h2>
+    <table class="ref">
+      <tr><th>Symptom</th><th>Likely Cause</th><th>Command to Confirm</th></tr>
+      <tr><td>Traffic blocked despite a correct-looking ALLOW rule existing</td><td>An earlier rule in the same chain matches first (rule order)</td><td><code>iptables -L &lt;chain&gt; -n -v --line-numbers</code>, check counters</td></tr>
+      <tr><td>Outbound works, but no response ever arrives</td><td>Missing ESTABLISHED,RELATED return rule</td><td>Check for the stateful accept rule in the relevant chain</td></tr>
+      <tr><td>Rule seems to have zero effect at all</td><td>Rule added to the wrong chain (INPUT vs FORWARD)</td><td>Confirm whether this host is the endpoint or a pass-through for the traffic</td></tr>
+      <tr><td>Intermittent failures under high connection volume</td><td>Conntrack table exhaustion</td><td><code>dmesg | grep conntrack</code>, <code>conntrack -L | wc -l</code> vs <code>nf_conntrack_max</code></td></tr>
+    </table>
+  </section>
+
+  <section id="interview">
+    <h2 class="sec-title"><span class="num">14</span>Interview Preparation</h2>
+
+    <div class="qa"><div class="q"><span class="qtag">Scenario</span>A firewall rule to allow a specific service exists in the configuration, but traffic is still being blocked. How do you troubleshoot it?</div>
+    <p>I wouldn't trust the config file alone — I'd check the actual rule counters with iptables -L -n -v --line-numbers to see whether traffic is even reaching that rule. Since Linux firewalls evaluate rules top-to-bottom and stop at the first match, a broader rule earlier in the same chain could be catching the traffic first, which would show as a growing counter on that earlier rule and a zero counter on the intended allow rule.</p>
+    <div class="followup">Interviewer follow-up: "The counters show zero on every rule in the chain — what does that tell you?" — Answer: that traffic isn't reaching this chain at all, which means I'm probably looking at the wrong chain — for example checking INPUT when the traffic is actually passing through the host and governed by FORWARD, or the packet is being dropped even earlier, like at the conntrack layer.</div>
+    </div>
+
+    <div class="qa"><div class="q"><span class="qtag">Concept</span>What is the difference between the INPUT and FORWARD chains?</div>
+    <p>INPUT handles traffic destined for the local host itself, and OUTPUT handles traffic originating from the local host. FORWARD handles traffic that's just passing through the host to somewhere else — relevant whenever Linux is acting as a router, NAT gateway, or segmentation firewall between two networks rather than being the actual source or destination.</p>
+    </div>
+
+    <div class="qa"><div class="q"><span class="qtag">Troubleshooting</span>Your firewall rules look completely correct, but connections are still failing intermittently under load. What would you check?</div>
+    <p>I'd check the connection tracking table — nf_conntrack_max versus the current count from conntrack -L, and look in dmesg for "table full" messages. A correct ruleset can still fail to allow new connections if the kernel has run out of room to track them, which is a very common but easy-to-overlook cause of intermittent failures specifically under high connection volume.</p>
+    </div>
+
+    <div class="qa"><div class="q"><span class="qtag">Production</span>Why is it important to pair a NEW-state allow rule with an ESTABLISHED,RELATED rule?</div>
+    <p>Because a stateless approach would require a separate explicit rule for every direction of every allowed service, which doesn't scale and is easy to get wrong. Tracking connection state lets you write one broad rule that allows return traffic for anything already permitted, plus narrow, specific rules only for the initial NEW connection — that's what makes a secure "deny by default" posture actually manageable in a real ruleset.</p>
+    </div>
+  </section>
+
+  <section id="practice">
+    <h2 class="sec-title"><span class="num">15</span>Practice Tasks &amp; Break-Fix Challenge</h2>
+    <div class="box warning">
+      <div class="box-title">🟠 Practice Tasks</div>
+      <ol>
+        <li>Rebuild the three-zone segmentation lab from memory, including the correct baseline stateful ruleset.</li>
+        <li>Reproduce all 4 break-fix scenarios and, for each, use ONLY counters (never just reading the rule text) to prove your diagnosis before checking this file's answer.</li>
+        <li>Design and implement a second segmentation rule allowing a different app-zone host to reach a different port, without breaking the existing rule — then verify both with counters.</li>
+      </ol>
+    </div>
+    <div class="box failure">
+      <div class="box-title">🔴 Break-Fix Challenge</div>
+      <p>Have someone else apply exactly one of the four breaks without telling you which. Diagnose it cold using only <code>iptables -L -n -v --line-numbers</code>, <code>conntrack -L</code>, and <code>dmesg</code> — state your root cause before undoing the break.</p>
+    </div>
+  </section>
+
+  <section id="resume">
+    <h2 class="sec-title"><span class="num">16</span>Resume Points &amp; How to Explain This Project</h2>
+    <div class="box bestpractice">
+      <div class="box-title">🟦 Realistic resume bullet points</div>
+      <ul>
+        <li>Diagnosed and resolved Linux firewall (iptables/netfilter) incidents including rule-order shadowing, missing stateful return rules, chain misconfiguration, and connection-tracking table exhaustion.</li>
+        <li>Designed and implemented a compliant, deny-by-default network segmentation firewall policy between simulated application zones using stateful iptables rules.</li>
+        <li>Established a counter-based (iptables -L -n -v) diagnostic method to definitively prove which firewall rule is actually handling given traffic, rather than relying on configuration review alone.</li>
+      </ul>
+    </div>
+    <div class="box concept">
+      <div class="box-title">🔵 Natural spoken interview answer</div>
+      <p>"I built a lab simulating a segmented banking network with a Linux host acting as the firewall between an application zone and a data zone, using a deny-by-default FORWARD chain policy. I practiced diagnosing four different firewall problems — a broad rule accidentally placed above a specific allow rule that made it unreachable, a missing stateful rule that blocked return traffic even though outbound was allowed, a rule written in the wrong chain because the host was acting as a router rather than an endpoint, and connection tracking table exhaustion that dropped new connections despite a perfectly correct ruleset. The single most valuable habit I built was never trusting a config file by itself — always checking iptables' actual packet counters to prove exactly which rule is handling real traffic before making any change."</p>
+    </div>
+  </section>
+
+  <section id="next">
+    <h2 class="sec-title"><span class="num">17</span>Next Project Prerequisites</h2>
+    <div class="box architecture">
+      <div class="box-title">🟣 Coming up in Project 8 — NAT and Port Forwarding</div>
+      <p>We'll build directly on this project's segmentation firewall and go deep into source NAT, destination NAT, masquerading, and port forwarding — the mechanisms that let one IP represent many, and let external traffic reach an internal service on a different port.</p>
+      <p>Say <b>"Next Project"</b> when you're ready to continue.</p>
+    </div>
+  </section>
+
+  </main>
+</div>
+
+<a href="#" class="top-link" title="Back to top">↑</a>
+
+<script>
+function copyBlock(btn){
+  const pre = btn.closest('.term').querySelector('pre');
+  const text = pre.innerText;
+  navigator.clipboard.writeText(text).then(()=>{
+    const old = btn.textContent;
+    btn.textContent = "Copied!";
+    setTimeout(()=>btn.textContent = old, 1400);
+  });
+}
+window.addEventListener('scroll', function(){
+  const sections = document.querySelectorAll('section');
+  const total = document.body.scrollHeight - window.innerHeight;
+  const pct = Math.min(100, Math.round((window.scrollY/total)*100));
+  document.getElementById('progressFill').style.width = pct + '%';
+  document.getElementById('progressLabel').textContent = pct + '% through Project 7';
+
+  let current = '';
+  sections.forEach(sec=>{
+    const rect = sec.getBoundingClientRect();
+    if(rect.top <= 120) current = sec.id;
+  });
+  document.querySelectorAll('.sidebar a').forEach(a=>{
+    a.style.background = '';
+    a.style.color = '';
+    a.style.fontWeight = '';
+    if(a.getAttribute('href') === '#'+current){
+      a.style.background = 'var(--blue-bg)';
+      a.style.color = 'var(--blue)';
+      a.style.fontWeight = '700';
+    }
+  });
+});
+</script>
+</body>
+</html>

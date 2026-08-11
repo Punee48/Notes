@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Project 02 — Disk Space Monitoring | PowerShell Masterclass</title>
+<style>
+  :root{
+    --primary:#6D28D9; --secondary:#7C3AED; --light-purple:#EDE9FE; --xlight-purple:#F5F3FF;
+    --bg:#FFFFFF; --text:#1F2937; --muted:#6B7280; --border:#E5E1F5;
+    --success:#15803D; --warn:#B45309; --danger:#B91C1C;
+    --code-bg:#1E1B2E; --code-text:#E9E4FF;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0; font-family:"Segoe UI",Calibri,Roboto,Arial,sans-serif; background:var(--bg); color:var(--text); line-height:1.65;}
+  a{color:var(--primary);}
+  .layout{display:flex; max-width:1400px; margin:0 auto;}
+  nav.sidebar{width:270px; flex-shrink:0; position:sticky; top:0; height:100vh; overflow-y:auto; background:var(--xlight-purple); border-right:1px solid var(--border); padding:22px 16px;}
+  nav.sidebar h3{color:var(--primary); font-size:13px; text-transform:uppercase; letter-spacing:.06em; margin:18px 0 8px;}
+  nav.sidebar a{display:block; padding:7px 10px; border-radius:8px; color:var(--text); text-decoration:none; font-size:14px; margin-bottom:2px;}
+  nav.sidebar a:hover{background:var(--light-purple); color:var(--primary);}
+  #progressWrap{background:var(--light-purple); border-radius:10px; padding:10px; margin-bottom:8px;}
+  #progressBar{height:8px; background:var(--border); border-radius:6px; overflow:hidden;}
+  #progressFill{height:100%; width:0%; background:linear-gradient(90deg,var(--primary),var(--secondary)); transition:width .2s;}
+  #progressLabel{font-size:12px; color:var(--muted); margin-top:6px;}
+  main{flex:1; min-width:0; padding:0;}
+  .cover{background:linear-gradient(135deg,var(--primary),var(--secondary)); color:#fff; padding:60px 48px; position:relative; overflow:hidden;}
+  .cover::after{content:"";position:absolute;right:-80px;top:-80px;width:300px;height:300px;border-radius:50%;background:rgba(255,255,255,.08);}
+  .badge{display:inline-block; background:rgba(255,255,255,.18); padding:5px 14px; border-radius:20px; font-size:12px; letter-spacing:.05em; margin-right:8px; margin-bottom:14px;}
+  .cover h1{font-size:34px; margin:6px 0 10px; max-width:760px;}
+  .cover p.sub{font-size:16px; opacity:.92; max-width:640px;}
+  .cover-meta{display:flex; gap:28px; margin-top:26px; flex-wrap:wrap;}
+  .cover-meta div{background:rgba(255,255,255,.12); padding:12px 18px; border-radius:10px; min-width:140px;}
+  .cover-meta span{display:block; font-size:12px; opacity:.85;}
+  .cover-meta strong{font-size:16px;}
+  section{padding:34px 48px; border-bottom:1px solid var(--border);}
+  section h2{color:var(--primary); font-size:24px; border-left:5px solid var(--primary); padding-left:14px; margin-top:0;}
+  section h3{color:var(--secondary); font-size:18px; margin-top:26px;}
+  .story{background:var(--xlight-purple); border-left:5px solid var(--primary); padding:20px 24px; border-radius:0 10px 10px 0; font-size:15px;}
+  .story b{color:var(--primary);}
+  .callout{border-radius:10px; padding:16px 18px; margin:16px 0; font-size:14.5px;}
+  .callout.tip{background:#F0FDF4; border-left:5px solid var(--success);}
+  .callout.note{background:var(--xlight-purple); border-left:5px solid var(--secondary);}
+  .callout.warn{background:#FFFBEB; border-left:5px solid var(--warn);}
+  .callout.security{background:#FEF2F2; border-left:5px solid var(--danger);}
+  .callout .lbl{font-weight:700; display:block; margin-bottom:4px;}
+  table{width:100%; border-collapse:collapse; margin:16px 0; font-size:14px;}
+  th,td{border:1px solid var(--border); padding:9px 12px; text-align:left; vertical-align:top;}
+  th{background:var(--light-purple); color:var(--primary);}
+  tr:nth-child(even){background:var(--xlight-purple);}
+  .codewrap{position:relative; margin:16px 0;}
+  pre{background:var(--code-bg); color:var(--code-text); padding:18px 16px; border-radius:10px; overflow-x:auto; font-family:Consolas,"Cascadia Code",Menlo,monospace; font-size:13.5px; line-height:1.7;}
+  pre code{white-space:pre;}
+  .copybtn{position:absolute; top:10px; right:10px; background:var(--secondary); color:#fff; border:none; padding:6px 12px; border-radius:6px; font-size:12px; cursor:pointer;}
+  .copybtn:hover{background:var(--primary);}
+  .explain-list{list-style:none; padding:0; margin:14px 0;}
+  .explain-list li{background:var(--xlight-purple); border-radius:8px; padding:10px 14px; margin-bottom:6px; font-size:14.5px;}
+  .explain-list code{background:var(--light-purple); padding:2px 6px; border-radius:5px; color:var(--primary); font-weight:600;}
+  details{background:var(--xlight-purple); border-radius:10px; padding:12px 16px; margin:10px 0;}
+  details summary{cursor:pointer; font-weight:600; color:var(--primary);}
+  .diagram{background:var(--xlight-purple); border-radius:12px; padding:20px; margin:16px 0; overflow-x:auto;}
+  .flow{display:flex; flex-wrap:wrap; align-items:center; gap:10px; font-size:13.5px;}
+  .flow .box{background:#fff; border:2px solid var(--secondary); border-radius:8px; padding:8px 14px; font-weight:600; color:var(--primary);}
+  .flow .arrow{color:var(--secondary); font-size:18px;}
+  .steps{counter-reset:step;}
+  .steps .step{position:relative; padding-left:44px; margin-bottom:18px;}
+  .steps .step::before{counter-increment:step; content:counter(step); position:absolute; left:0; top:0; background:var(--primary); color:#fff; width:30px; height:30px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:700;}
+  .grid2{display:grid; grid-template-columns:1fr 1fr; gap:16px;}
+  @media(max-width:900px){.grid2{grid-template-columns:1fr;} nav.sidebar{display:none;} section{padding:26px 20px;} .cover{padding:36px 22px;}}
+  footer{padding:30px 48px; background:var(--xlight-purple); color:var(--muted); font-size:13px;}
+</style>
+</head>
+<body>
+
+<div class="layout">
+  <nav class="sidebar">
+    <div id="progressWrap">
+      <div id="progressLabel">Reading progress</div>
+      <div id="progressBar"><div id="progressFill"></div></div>
+    </div>
+    <h3>Project 02</h3>
+    <a href="#cover">Cover</a>
+    <a href="#recap1">Recap: Project 1</a>
+    <a href="#story">The Story</a>
+    <a href="#concepts">Concepts First</a>
+    <a href="#lab">Hands-On Lab</a>
+    <a href="#script">Full Script</a>
+    <a href="#linebyline">Line-by-Line</a>
+    <a href="#architecture">Architecture</a>
+    <a href="#incident">Production Incident</a>
+    <a href="#troubleshoot">Troubleshooting</a>
+    <a href="#security">Security Notes</a>
+    <a href="#recap">Key Learnings</a>
+    <a href="#interview">Interview Prep</a>
+    <a href="#challenges">Coding Challenges</a>
+    <a href="#resume">Resume Points</a>
+    <a href="#assignment">Practice Assignment</a>
+    <a href="#next">Next Project</a>
+  </nav>
+
+  <main id="top">
+    <div class="cover" id="cover">
+      <span class="badge">PROJECT 02</span><span class="badge">BEGINNER</span><span class="badge">BFSI TRACK</span>
+      <h1>Disk Space Monitoring with Threshold-Based Alerting</h1>
+      <p class="sub">Turn last project's disk inventory into a real monitoring script that flags servers running low on space — the way ABC Bank's operations team would want it every morning.</p>
+      <div class="cover-meta">
+        <div><span>Difficulty</span><strong>Beginner</strong></div>
+        <div><span>Estimated Lab Time</span><strong>60–75 min</strong></div>
+        <div><span>Concepts</span><strong>9 core concepts</strong></div>
+        <div><span>Track</span><strong>2 of 40</strong></div>
+      </div>
+    </div>
+
+    <section id="recap1">
+      <h2>Quick Recap of Project 1</h2>
+      <p>In Project 1 we built <code>Get-ServerInventory.ps1</code>, which used <code>Get-CimInstance</code> to
+      collect OS, hardware, and disk information, wrapped it in <code>[PSCustomObject]</code>, and exported it to
+      CSV. We already know how to <b>get</b> disk data. This project's job is to <b>decide</b> whether that data is a
+      problem — and that requires a new tool: conditional logic.</p>
+    </section>
+
+    <section id="story">
+      <h2>The Story — Why We're Building This</h2>
+      <div class="story">
+        Last week at ABC Bank, <b>WINAPP07</b> — a Production application server — ran out of disk space at 2 AM.
+        The overnight batch job failed, and nobody noticed until customers started reporting issues at 7 AM.
+        Our manager isn't happy: <i>"We collected inventory data in your first script, but nobody was watching it.
+        I want a script that actually tells us when a disk is dangerously low — before it becomes an incident."</i><br><br>
+        Today we upgrade our disk inventory into a real <b>disk space monitor</b> with warning and critical
+        thresholds, color-coded output, and a clear pass/fail status per drive.
+      </div>
+    </section>
+
+    <section id="concepts">
+      <h2>Concepts First — Before We Touch Code</h2>
+
+      <h3>1. Comparison Operators</h3>
+      <table>
+        <tr><th>Operator</th><th>Meaning</th></tr>
+        <tr><td><code>-eq</code></td><td>equal to</td></tr>
+        <tr><td><code>-ne</code></td><td>not equal to</td></tr>
+        <tr><td><code>-lt</code></td><td>less than</td></tr>
+        <tr><td><code>-le</code></td><td>less than or equal to</td></tr>
+        <tr><td><code>-gt</code></td><td>greater than</td></tr>
+        <tr><td><code>-ge</code></td><td>greater than or equal to</td></tr>
+      </table>
+      <div class="callout note"><span class="lbl">Why letters, not symbols?</span>PowerShell uses <code>-lt</code>
+      instead of <code>&lt;</code> because the angle brackets are already used for redirection in the shell.
+      Using words like <code>-lt</code> avoids that clash and reads almost like plain English.</div>
+
+      <h3>2. Logical Operators</h3>
+      <ul class="explain-list">
+        <li><code>-and</code> — both conditions must be true</li>
+        <li><code>-or</code> — at least one condition must be true</li>
+        <li><code>-not</code> / <code>!</code> — reverses a condition (true becomes false)</li>
+      </ul>
+
+      <h3>3. if / elseif / else</h3>
+      <p>This is how PowerShell makes decisions. It checks a condition; if true, it runs one block of code, otherwise
+      it can check further conditions or fall through to a default block.</p>
+      <div class="diagram">
+        <div class="flow">
+          <div class="box">Check FreePercent</div><div class="arrow">→</div>
+          <div class="box">Is it &lt; 10%?</div><div class="arrow">→</div>
+          <div class="box">CRITICAL</div>
+        </div>
+        <div class="flow" style="margin-top:10px;">
+          <div class="box">else, is it &lt; 20%?</div><div class="arrow">→</div>
+          <div class="box">WARNING</div>
+        </div>
+        <div class="flow" style="margin-top:10px;">
+          <div class="box">else</div><div class="arrow">→</div>
+          <div class="box">HEALTHY</div>
+        </div>
+      </div>
+
+      <h3>4. Why Two Thresholds Instead of One?</h3>
+      <div class="callout tip"><span class="lbl">Production practice</span>Real monitoring almost never uses a
+      single cutoff. A <b>Warning</b> threshold (e.g. 20% free) gives operations time to plan; a <b>Critical</b>
+      threshold (e.g. 10% free) means "act now." One threshold either causes alert fatigue (too sensitive) or misses
+      the early warning window (too loose).</div>
+
+      <h3>5. Functions — Our First Reusable Block</h3>
+      <p>A <b>function</b> packages a piece of logic under a name so we can call it repeatedly instead of copying
+      code. We'll introduce a small one here; Project 09+ will go much deeper into parameters and validation.</p>
+      <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code>function Get-DiskStatus {      # Defines a new function named Get-DiskStatus
+    param($FreePercent)        # Declares one input value the function expects
+    if ($FreePercent -lt 10) { "CRITICAL" }        # Returns the word CRITICAL when under 10%
+    elseif ($FreePercent -lt 20) { "WARNING" }     # Returns WARNING when under 20% (but not under 10%)
+    else { "HEALTHY" }                              # Otherwise, returns HEALTHY
+}</code></pre></div>
+      <ul class="explain-list">
+        <li><code>function Get-DiskStatus { }</code> — defines a reusable block of code under a Verb-Noun name, just like a built-in cmdlet.</li>
+        <li><code>param($FreePercent)</code> — declares the function's input; when we call <code>Get-DiskStatus -FreePercent 8</code>, the value 8 is bound to this variable.</li>
+        <li>Whatever value is produced last inside the function (here, the quoted word) is automatically returned as the function's output — no explicit <code>return</code> needed, though we'll use <code>return</code> explicitly in later, more complex functions for clarity.</li>
+      </ul>
+
+      <h3>6. Color-Coded Console Output</h3>
+      <p><code>Write-Host -ForegroundColor</code> lets us visually distinguish status at a glance — Red for
+      Critical, Yellow for Warning, Green for Healthy. This mirrors how real monitoring dashboards use color.</p>
+    </section>
+
+    <section id="lab">
+      <h2>Hands-On Lab — Build It Yourself</h2>
+      <div class="steps">
+        <div class="step"><b>Reuse your Project01 folder structure.</b> Create a new folder for this project:
+          <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code>New-Item -ItemType Directory -Path "C:\PS-Masterclass\Project02\reports" -Force
+Set-Location "C:\PS-Masterclass\Project02"</code></pre></div>
+        </div>
+        <div class="step"><b>Create the script file</b> in VS Code named <code>Get-DiskSpaceMonitor.ps1</code>.</div>
+        <div class="step"><b>Copy the full script</b> below into the file and save it.</div>
+        <div class="step"><b>Run it:</b>
+          <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code>.\Get-DiskSpaceMonitor.ps1</code></pre></div>
+        </div>
+        <div class="step"><b>Validate:</b> you should see each local drive listed with a color-coded status
+        (Green/Yellow/Red), and a CSV report saved to <code>.\reports\</code>.</div>
+        <div class="step"><b>Optional test:</b> temporarily lower the thresholds in the script (e.g. Warning to 99%)
+        so you can see a real drive trigger a WARNING or CRITICAL status, confirming the logic actually branches
+        correctly — then set the thresholds back.</div>
+      </div>
+    </section>
+
+    <section id="script">
+      <h2>Full Script — Get-DiskSpaceMonitor.ps1</h2>
+      <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code># =====================================================================
+# Get-DiskSpaceMonitor.ps1
+# ABC Bank - Windows Infrastructure Automation Team
+# Purpose: Monitor local disk space and flag Warning/Critical thresholds
+# =====================================================================
+
+$ComputerName     = $env:COMPUTERNAME     # The server we are checking (local machine for this lab)
+$WarningThreshold = 20                    # Free space percent below which we consider a disk "WARNING"
+$CriticalThreshold = 10                   # Free space percent below which we consider a disk "CRITICAL"
+
+# ---------------------------------------------------------------
+# FUNCTION: Decide the status label for a given free-space percent
+# ---------------------------------------------------------------
+function Get-DiskStatus {                          # Defines a reusable decision function
+    param(
+        [double]$FreePercent,                       # The free space percentage to evaluate
+        [double]$WarnLevel,                          # The warning threshold to compare against
+        [double]$CritLevel                            # The critical threshold to compare against
+    )
+
+    if ($FreePercent -lt $CritLevel) {                # First check the most severe condition
+        return "CRITICAL"                              # Immediately exits the function with this value
+    }
+    elseif ($FreePercent -lt $WarnLevel) {             # Only checked if the CRITICAL condition was false
+        return "WARNING"                                # Exits the function with this value
+    }
+    else {                                              # Runs only if neither condition above matched
+        return "HEALTHY"                                # Exits the function with this value
+    }
+}
+
+# ---------------------------------------------------------------
+# STEP 1: Collect local fixed disks using CIM (same approach as Project 1)
+# ---------------------------------------------------------------
+$DiskInfo = Get-CimInstance -ClassName Win32_LogicalDisk -Filter "DriveType=3"   # DriveType=3 = local fixed disk
+
+# ---------------------------------------------------------------
+# STEP 2: Build a status report, one object per disk
+# ---------------------------------------------------------------
+$DiskReport = $DiskInfo | ForEach-Object {           # Processes each disk object one at a time
+    $FreePercent = [math]::Round(($_.FreeSpace / $_.Size) * 100, 1)   # Calculates free space percentage
+
+    $Status = Get-DiskStatus -FreePercent $FreePercent `   # Calls our function with named parameters
+                              -WarnLevel $WarningThreshold `
+                              -CritLevel $CriticalThreshold
+
+    [PSCustomObject]@{                                # Builds one clean record for this disk
+        ServerName  = $ComputerName                    # Which server this disk belongs to
+        DriveLetter = $_.DeviceID                       # e.g. "C:"
+        SizeGB      = [math]::Round($_.Size / 1GB, 2)   # Total size in GB
+        FreeGB      = [math]::Round($_.FreeSpace / 1GB, 2)  # Free space in GB
+        FreePercent = $FreePercent                       # Free space as a percentage
+        Status      = $Status                            # HEALTHY / WARNING / CRITICAL
+    }
+}
+
+# ---------------------------------------------------------------
+# STEP 3: Print color-coded results to the console
+# ---------------------------------------------------------------
+Write-Host "`n=== DISK SPACE MONITOR: $ComputerName ===" -ForegroundColor Magenta   # Section header
+
+foreach ($Disk in $DiskReport) {                      # Loops through each disk record one at a time
+    $Line = "{0}  {1} GB free of {2} GB ({3}%)  -  {4}" -f `   # Builds a formatted display line
+                $Disk.DriveLetter, $Disk.FreeGB, $Disk.SizeGB, $Disk.FreePercent, $Disk.Status
+
+    if ($Disk.Status -eq "CRITICAL") {                # Chooses the display color based on status
+        Write-Host $Line -ForegroundColor Red          # Red for CRITICAL
+    }
+    elseif ($Disk.Status -eq "WARNING") {
+        Write-Host $Line -ForegroundColor Yellow        # Yellow for WARNING
+    }
+    else {
+        Write-Host $Line -ForegroundColor Green          # Green for HEALTHY
+    }
+}
+
+# ---------------------------------------------------------------
+# STEP 4: Export the report to CSV for the operations team
+# ---------------------------------------------------------------
+if (-not (Test-Path ".\reports")) {                    # Checks whether the reports folder already exists
+    New-Item -ItemType Directory -Path ".\reports" | Out-Null   # Creates it silently if missing
+}
+
+$Timestamp = Get-Date -Format "yyyyMMdd_HHmmss"         # Builds a sortable timestamp for the filename
+
+$DiskReport |                                            # Sends the disk records into the pipeline
+    Export-Csv -Path ".\reports\DiskSpace_$Timestamp.csv" -NoTypeInformation   # Writes them to CSV
+
+# ---------------------------------------------------------------
+# STEP 5: Summarize how many disks need attention
+# ---------------------------------------------------------------
+$CriticalCount = ($DiskReport | Where-Object { $_.Status -eq "CRITICAL" }).Count   # Counts CRITICAL disks
+$WarningCount  = ($DiskReport | Where-Object { $_.Status -eq "WARNING"  }).Count   # Counts WARNING disks
+
+Write-Host "`nSummary: $CriticalCount Critical, $WarningCount Warning disk(s) found." -ForegroundColor Cyan
+Write-Host "Report saved to .\reports\" -ForegroundColor Green
+</code></pre></div>
+      </div>
+    </section>
+
+    <section id="linebyline">
+      <h2>Line-by-Line Explanation</h2>
+
+      <h3><code>function Get-DiskStatus { param(...) if... elseif... else... }</code></h3>
+      <ul class="explain-list">
+        <li><code>function Get-DiskStatus</code> — declares a new function; PowerShell now treats
+        <code>Get-DiskStatus</code> as a callable command for the rest of the script.</li>
+        <li><code>param([double]$FreePercent, ...)</code> — declares typed parameters. <code>[double]</code>
+        constrains the input to a decimal number; if something else is passed, PowerShell will try to convert it or throw an error.</li>
+        <li><code>return "CRITICAL"</code> — the <code>return</code> keyword immediately exits the function and
+        hands back the given value as the function's output. Using explicit <code>return</code> here (rather than
+        just leaving a bare value) makes the exit point obvious to a reader.</li>
+      </ul>
+
+      <h3><code>Get-DiskStatus -FreePercent $FreePercent -WarnLevel $WarningThreshold -CritLevel $CriticalThreshold</code></h3>
+      <ul class="explain-list">
+        <li>This calls our function the exact same way we'd call a built-in cmdlet — with named parameters. The
+        backtick <code>`</code> at the end of a line is PowerShell's <b>line-continuation character</b>, letting a
+        single logical command span multiple lines for readability.</li>
+      </ul>
+
+      <h3><code>"{0}  {1} GB free of {2} GB ({3}%)  -  {4}" -f $Disk.DriveLetter, $Disk.FreeGB, ...</code></h3>
+      <ul class="explain-list">
+        <li>This is the <b>format operator</b> <code>-f</code>. The string on the left contains numbered
+        placeholders (<code>{0}</code>, <code>{1}</code>, …); each is replaced, in order, by the corresponding value
+        listed after <code>-f</code>. It's a clean way to build a readable line from several variables without messy
+        string concatenation.</li>
+      </ul>
+
+      <h3><code>foreach ($Disk in $DiskReport) { ... }</code></h3>
+      <ul class="explain-list">
+        <li><code>foreach (...)</code> — a looping <b>keyword</b> (different from the <code>ForEach-Object</code>
+        <b>cmdlet</b> used earlier). It loops over a collection already in memory, assigning each item in turn to
+        the loop variable <code>$Disk</code>.</li>
+        <li><code>$Disk in $DiskReport</code> — reads naturally as "for each <code>$Disk</code> in the collection
+        <code>$DiskReport</code>".</li>
+      </ul>
+      <div class="callout note"><span class="lbl">foreach keyword vs ForEach-Object cmdlet</span>They look similar
+      but work differently: <code>foreach</code> loads the whole collection into memory first and doesn't use the
+      pipeline; <code>ForEach-Object</code> receives one object at a time through the pipeline and can start working
+      before the whole collection is ready. For small in-memory collections like ours, either works fine — the
+      distinction matters more at scale, which we'll revisit in the parallel-processing projects.</div>
+
+      <h3><code>if (-not (Test-Path ".\reports")) { New-Item ... | Out-Null }</code></h3>
+      <ul class="explain-list">
+        <li><code>Test-Path</code> — returns <code>$true</code> or <code>$false</code> depending on whether a path exists.</li>
+        <li><code>-not</code> — reverses that boolean, so the block runs only when the folder is <b>missing</b>.</li>
+        <li><code>| Out-Null</code> — discards the object that <code>New-Item</code> would normally output to the
+        console, keeping our output clean since we don't need to see it here.</li>
+      </ul>
+
+      <h3><code>($DiskReport | Where-Object { $_.Status -eq "CRITICAL" }).Count</code></h3>
+      <ul class="explain-list">
+        <li>The parentheses run the entire pipeline first (filter down to only CRITICAL disks), then
+        <code>.Count</code> is applied to the resulting collection — a property every PowerShell array-like
+        collection exposes, telling us how many items it contains.</li>
+      </ul>
+    </section>
+
+    <section id="architecture">
+      <h2>Architecture &amp; Decision Flow</h2>
+      <div class="diagram">
+        <div class="flow">
+          <div class="box">Get-CimInstance (disks)</div><div class="arrow">→</div>
+          <div class="box">Calculate FreePercent</div><div class="arrow">→</div>
+          <div class="box">Get-DiskStatus function</div><div class="arrow">→</div>
+          <div class="box">Console (color-coded)</div>
+        </div>
+        <div class="flow" style="margin-top:12px;">
+          <div class="box">Get-DiskStatus function</div><div class="arrow">→</div>
+          <div class="box">CSV Report</div><div class="arrow">→</div>
+          <div class="box">Operations Team Review</div>
+        </div>
+      </div>
+      <p>Compared to Project 1, we've added a <b>decision layer</b> between raw data collection and output. This
+      separation — collect, then decide, then report — is a pattern you'll see in almost every monitoring script
+      we build for the rest of the course.</p>
+    </section>
+
+    <section id="incident">
+      <h2>Production Incident Walkthrough</h2>
+      <div class="story">
+        Imagine this script runs against <b>200 servers</b> tonight (we'll actually build multi-server support in
+        later projects). 185 report HEALTHY, 12 report WARNING, and 3 report CRITICAL.
+      </div>
+      <ul class="explain-list">
+        <li><b>Should the script stop when it finds a CRITICAL disk?</b> No — stopping would prevent us from
+        checking the remaining servers. Monitoring scripts should keep going and report everything, not halt on the
+        first problem.</li>
+        <li><b>How do we make sure Operations doesn't miss the 3 CRITICAL servers among 200 rows?</b> The Summary
+        line at the end (Step 5) plus color-coding solves this for a human reading the console; in a later project
+        we'll add automatic email/ticket alerts so nobody has to read every row.</li>
+        <li><b>How do we avoid alert fatigue?</b> This is exactly why we used two thresholds instead of one —
+        WARNING servers are visible but not urgent, so Operations can triage by severity instead of treating every
+        alert as an emergency.</li>
+      </ul>
+    </section>
+
+    <section id="troubleshoot">
+      <h2>Troubleshooting Cheat Sheet</h2>
+      <table>
+        <tr><th>Symptom</th><th>Likely Root Cause</th><th>Fix</th></tr>
+        <tr><td>All disks show HEALTHY even on a nearly-full drive</td><td>Thresholds set too low, or FreePercent calculated before rounding caused a comparison mismatch</td><td>Print <code>$FreePercent</code> before calling the function to confirm the raw value</td></tr>
+        <tr><td>"The term 'Get-DiskStatus' is not recognized"</td><td>The function was called before it was defined earlier in the script</td><td>In PowerShell, functions must be defined before the line that calls them (top to bottom execution)</td></tr>
+        <tr><td>Format string shows literal <code>{0}</code> instead of a value</td><td>Missing or mismatched arguments after <code>-f</code></td><td>Count the placeholders and make sure the same number of values follow <code>-f</code>, in the same order</td></tr>
+        <tr><td>CSV missing the Status column</td><td>Property name typo inside the PSCustomObject hash table</td><td>Re-check spelling matches exactly, including case, between definition and use</td></tr>
+      </table>
+    </section>
+
+    <section id="security">
+      <h2>Security &amp; Best Practices</h2>
+      <div class="callout tip"><span class="lbl">Best practice reinforced here</span>Thresholds are stored as
+      named variables at the top of the script (<code>$WarningThreshold</code>, <code>$CriticalThreshold</code>)
+      rather than "magic numbers" buried inside the logic. This makes the script easy to tune without hunting
+      through code — a small habit that matters a lot once scripts grow to hundreds of lines.</div>
+      <div class="callout security"><span class="lbl">Still local-only</span>This script still targets only the
+      local machine, so no credentials are involved yet. Once we start checking remote servers (Project 09+), we'll
+      properly introduce <code>PSCredential</code>.</div>
+    </section>
+
+    <section id="recap">
+      <h2>Key Learnings &amp; Recap</h2>
+      <div class="grid2">
+        <div>
+          <h3>Commands/Syntax Learned</h3>
+          <ul class="explain-list">
+            <li><code>if / elseif / else</code></li>
+            <li><code>foreach (...)</code> loop keyword</li>
+            <li><code>function</code> and <code>param()</code></li>
+            <li><code>return</code></li>
+            <li>Format operator <code>-f</code></li>
+            <li><code>Test-Path</code></li>
+            <li>Comparison operators (<code>-lt</code>, <code>-eq</code>, etc.)</li>
+          </ul>
+        </div>
+        <div>
+          <h3>Concepts Learned</h3>
+          <ul class="explain-list">
+            <li>Conditional branching and decision logic</li>
+            <li>Why two thresholds beat one in monitoring</li>
+            <li>Separating "collect" from "decide" from "report"</li>
+            <li><code>foreach</code> keyword vs <code>ForEach-Object</code> cmdlet</li>
+          </ul>
+        </div>
+      </div>
+      <h3>Common Mistakes to Avoid</h3>
+      <ul class="explain-list">
+        <li>Checking the least severe condition first — always check CRITICAL before WARNING, or a critical disk could incorrectly be reported as only a warning.</li>
+        <li>Hardcoding threshold numbers directly inside <code>if</code> statements instead of named variables.</li>
+        <li>Letting a monitoring script stop entirely on the first bad result instead of continuing to check everything.</li>
+      </ul>
+    </section>
+
+    <section id="interview">
+      <h2>Interview Preparation</h2>
+      <details><summary>Q1. Why check the CRITICAL condition before WARNING in an if/elseif chain?</summary>
+        <p><b>Answer:</b> <code>elseif</code> conditions are only evaluated if the earlier ones were false — so if
+        WARNING were checked first with a broad condition (like "less than 20%"), a disk at 5% free would match it
+        and never reach the CRITICAL check. Ordering from most to least severe (or most to least specific) avoids
+        that.</p>
+        <p><b>Follow-up:</b> "How would you write this differently using a switch statement?" — Answer: a
+        <code>switch</code> with a script-block condition per case can express the same logic; we'll cover
+        <code>switch</code> directly in an upcoming intermediate project.</p>
+      </details>
+      <details><summary>Q2. What's the difference between the foreach keyword and the ForEach-Object cmdlet?</summary>
+        <p><b>Answer:</b> <code>foreach</code> is a language keyword that loops over a collection already fully
+        loaded in memory. <code>ForEach-Object</code> is a cmdlet that receives objects one at a time through the
+        pipeline, which can be more memory-efficient for very large or streamed datasets.</p>
+        <p><b>Follow-up:</b> "Which would you choose when piping output directly from Get-CimInstance across 500
+        remote servers?" — Answer: <code>ForEach-Object</code>, since it processes and can act on each object as it
+        arrives rather than waiting for the entire set to load.</p>
+      </details>
+      <details><summary>Q3. Why did we wrap the threshold logic in a function instead of writing it inline?</summary>
+        <p><b>Answer:</b> Wrapping it in <code>Get-DiskStatus</code> means the same threshold logic can be reused
+        for any disk, any server, or even other resources (e.g. memory) later, without duplicating the if/elseif
+        chain everywhere it's needed. It also makes the logic independently testable.</p>
+        <p><b>Follow-up:</b> "How would you unit test this function?" — Answer: with Pester, calling
+        <code>Get-DiskStatus</code> with known inputs and asserting the expected status string — covered in the
+        Pester testing project later in the course.</p>
+      </details>
+    </section>
+
+    <section id="challenges">
+      <h2>Coding Challenges</h2>
+      <details><summary>Challenge 1: Add an "OK-BUT-WATCH" status between 20% and 30% free</summary>
+        <details><summary>Show answer</summary>
+        <pre><code>if ($FreePercent -lt $CritLevel) { return "CRITICAL" }
+elseif ($FreePercent -lt $WarnLevel) { return "WARNING" }
+elseif ($FreePercent -lt 30) { return "OK-BUT-WATCH" }
+else { return "HEALTHY" }</code></pre>
+        </details>
+      </details>
+      <details><summary>Challenge 2: Sort the console output so CRITICAL disks print first</summary>
+        <details><summary>Show answer</summary>
+        <pre><code>$SortOrder = @{ "CRITICAL" = 0; "WARNING" = 1; "HEALTHY" = 2 }   # Maps each status to a sort rank
+$DiskReport = $DiskReport | Sort-Object { $SortOrder[$_.Status] }  # Sorts using the mapped rank</code></pre>
+        </details>
+      </details>
+      <details><summary>Challenge 3: Only export the CSV if at least one disk is WARNING or CRITICAL</summary>
+        <details><summary>Show answer</summary>
+        <pre><code>if ($CriticalCount -gt 0 -or $WarningCount -gt 0) {   # Only true when something needs attention
+    $DiskReport | Export-Csv -Path ".\reports\DiskSpace_$Timestamp.csv" -NoTypeInformation
+}</code></pre>
+        </details>
+      </details>
+    </section>
+
+    <section id="resume">
+      <h2>Resume Points</h2>
+      <ul class="explain-list">
+        <li>Developed a PowerShell disk-space monitoring script with configurable Warning/Critical thresholds and color-coded console alerting.</li>
+        <li>Implemented reusable conditional logic as a PowerShell function to classify disk health status.</li>
+        <li>Automated CSV reporting of disk health for operations team visibility.</li>
+      </ul>
+    </section>
+
+    <section id="assignment">
+      <h2>Practice Assignment</h2>
+      <div class="callout note">
+        Modify the script so the console summary line at the end also prints in Red if
+        <code>$CriticalCount -gt 0</code>, Yellow if only <code>$WarningCount -gt 0</code>, and Green otherwise —
+        reusing the same if/elseif/else pattern you just learned.
+      </div>
+    </section>
+
+    <section id="next">
+      <h2>Next Project Prerequisites</h2>
+      <p>Project 03 (CPU and Memory Monitoring) will reuse the <code>Get-DiskStatus</code>-style threshold pattern
+      for CPU and memory metrics. Be comfortable with if/elseif/else and functions before moving on. When ready, say
+      <b>"Next Project."</b></p>
+    </section>
+
+    <footer>
+      PowerShell Masterclass — ABC Bank Automation Track · Project 02 of 40 · Generated for offline, self-contained use.
+    </footer>
+  </main>
+</div>
+
+<script>
+function copyCode(btn){
+  const code = btn.parentElement.querySelector('pre').innerText;
+  navigator.clipboard.writeText(code).then(()=>{
+    const old = btn.innerText; btn.innerText = "Copied!";
+    setTimeout(()=>btn.innerText = old, 1200);
+  });
+}
+window.addEventListener('scroll', ()=>{
+  const h = document.documentElement;
+  const pct = (h.scrollTop) / (h.scrollHeight - h.clientHeight) * 100;
+  document.getElementById('progressFill').style.width = pct + '%';
+  document.getElementById('progressLabel').innerText = 'Reading progress: ' + Math.round(pct) + '%';
+});
+</script>
+</body>
+</html>

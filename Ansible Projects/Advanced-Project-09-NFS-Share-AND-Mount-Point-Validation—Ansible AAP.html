@@ -1,0 +1,1218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Advanced Project 09: NFS Share & Mount Point Validation — Ansible AAP</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--purple:#6d28d9;--purple-dark:#4c1d95;--purple-light:#8b5cf6;--purple-pale:#ede9fe;
+--bg:#fafafa;--card:#fff;--border:#e5e7eb;--text:#1f2937;--text-dim:#6b7280;
+--code-bg:#1e1b2e;--code-text:#e2d9f3;--green:#059669;--amber:#d97706;--red:#dc2626;
+--shadow:0 1px 3px rgba(109,40,217,.1);}
+*{box-sizing:border-box;}
+body{margin:0;font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);line-height:1.7;}
+.topbar{background:linear-gradient(135deg,var(--purple-dark),var(--purple));color:#fff;padding:22px 5%;
+position:sticky;top:0;z-index:100;box-shadow:0 2px 12px rgba(109,40,217,.3);display:flex;
+justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;}
+.topbar h1{margin:0;font-size:1.1rem;font-weight:800;}
+.badge{background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.3);padding:4px 14px;border-radius:20px;font-size:.73rem;font-weight:700;}
+.layout{display:flex;max-width:1500px;margin:0 auto;}
+nav.toc{width:270px;flex-shrink:0;padding:20px 14px;position:sticky;top:76px;align-self:flex-start;max-height:calc(100vh - 96px);overflow-y:auto;}
+nav.toc h3{font-size:.72rem;text-transform:uppercase;letter-spacing:1.2px;color:var(--text-dim);margin:0 0 10px 6px;}
+nav.toc a{display:block;padding:6px 12px;border-radius:8px;color:var(--text);text-decoration:none;font-size:.83rem;margin-bottom:2px;border-left:3px solid transparent;}
+nav.toc a:hover{background:var(--purple-pale);border-left-color:var(--purple-light);color:var(--purple);}
+main{flex:1;padding:26px 5% 80px;min-width:0;}
+.hero{background:linear-gradient(135deg,var(--purple-pale),#fff);border:1px solid #ddd6fe;border-radius:16px;padding:28px;margin-bottom:28px;}
+.hero h2{margin-top:0;color:var(--purple-dark);font-size:1.5rem;line-height:1.3;}
+.tag-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;}
+.tag{background:var(--purple-pale);color:var(--purple);padding:4px 12px;border-radius:20px;font-size:.73rem;font-weight:600;}
+section{margin-bottom:32px;}
+.card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px 24px;box-shadow:var(--shadow);margin-bottom:16px;}
+h2.st{font-size:1.25rem;color:var(--purple-dark);border-bottom:3px solid var(--purple-light);padding-bottom:7px;margin-bottom:16px;}
+h3{color:var(--purple-dark);font-size:1.05rem;margin-top:18px;}
+.story-box{background:#fffbeb;border-left:4px solid var(--amber);border-radius:8px;padding:16px 20px;margin:14px 0;color:#78350f;}
+.story-box b{color:#92400e;}
+.warn-box{background:#fef2f2;border-left:4px solid var(--red);border-radius:8px;padding:14px 18px;margin:12px 0;color:#7f1d1d;}
+.tip-box{background:#ecfdf5;border-left:4px solid var(--green);border-radius:8px;padding:14px 18px;margin:12px 0;color:#064e3b;}
+.info-box{background:var(--purple-pale);border-left:4px solid var(--purple-light);border-radius:8px;padding:14px 18px;margin:12px 0;color:var(--purple-dark);}
+details{border:1px solid #ddd6fe;border-radius:10px;margin-bottom:10px;background:#faf9ff;overflow:hidden;}
+summary{padding:12px 16px;cursor:pointer;font-weight:600;color:var(--purple-dark);list-style:none;display:flex;justify-content:space-between;align-items:center;background:#f5f3ff;}
+summary::-webkit-details-marker{display:none;}
+summary::after{content:"+";font-size:1.1rem;font-weight:700;color:var(--purple-light);}
+details[open] summary::after{content:"−";}
+details>div.inner{padding:14px 16px;}
+table{border-collapse:collapse;width:100%;margin:12px 0;font-size:.86rem;}
+th,td{border:1px solid var(--border);padding:9px 12px;text-align:left;vertical-align:top;}
+th{background:var(--purple);color:#fff;font-weight:600;}
+tr:nth-child(even){background:#faf9ff;}
+.cw{position:relative;margin:14px 0;}
+.cl{background:#14102a;color:#a78bfa;padding:7px 14px;font-size:.72rem;font-family:'JetBrains Mono',monospace;border-radius:8px 8px 0 0;display:flex;justify-content:space-between;align-items:center;}
+pre{background:var(--code-bg);color:var(--code-text);padding:16px;border-radius:0 0 8px 8px;overflow-x:auto;margin:0;font-family:'JetBrains Mono',monospace;font-size:.82rem;line-height:1.6;}
+.cb{background:var(--purple-light);color:#fff;border:none;padding:3px 10px;border-radius:4px;font-size:.7rem;cursor:pointer;font-weight:600;}
+.cb:hover{background:var(--purple);}
+.fs{display:flex;gap:12px;padding:11px 0;border-bottom:1px dashed #e9d5ff;}
+.fn{background:var(--purple);color:#fff;width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;flex-shrink:0;font-size:.82rem;}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+@media(max-width:900px){.g2{grid-template-columns:1fr;}nav.toc{display:none;}}
+ul,ol{padding-left:22px;}li{margin-bottom:6px;}
+.ascii{background:#14102a;color:#a78bfa;font-family:'JetBrains Mono',monospace;padding:20px;border-radius:10px;font-size:.77rem;overflow-x:auto;line-height:1.45;}
+.fn-row{display:flex;justify-content:space-between;padding:20px 0;border-top:2px solid var(--border);margin-top:40px;}
+.btn{background:var(--purple);color:#fff;padding:10px 20px;border-radius:8px;text-decoration:none;font-weight:600;font-size:.86rem;}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <h1>🏦 Advanced Enterprise Ansible — BFSI Series</h1>
+  <div style="display:flex;gap:8px;">
+    <span class="badge">PROJECT 09 / 30</span>
+    <span class="badge" style="background:rgba(255,255,255,.15);">NFS | Mount Points | Storage</span>
+  </div>
+</div>
+<div class="layout">
+<nav class="toc">
+  <h3>Table of Contents</h3>
+  <a href="#story">1. The Banking Story</a>
+  <a href="#concepts">2. NFS Concepts</a>
+  <a href="#business">3. Business Requirements</a>
+  <a href="#problem">4. Problem Statement</a>
+  <a href="#design">5. Solution Design</a>
+  <a href="#arch">6. Architecture</a>
+  <a href="#structure">7. Project Structure</a>
+  <a href="#inventory">8. Inventory & Variables</a>
+  <a href="#roles">9. Roles & Tasks</a>
+  <a href="#recovery">10. Stale Mount Recovery</a>
+  <a href="#server">11. NFS Server Validation</a>
+  <a href="#playbooks">12. Master Playbooks</a>
+  <a href="#aap">13. AAP Configuration</a>
+  <a href="#flow">14. Execution Flow</a>
+  <a href="#lab">15. Lab Setup</a>
+  <a href="#interview">16. Interview Prep</a>
+</nav>
+<main>
+
+<div class="hero">
+  <h2>Project 09: NFS Share Validation &amp; Mount Point Health Monitoring</h2>
+  <p>Network File System (NFS) mounts are the invisible backbone of banking infrastructure. Oracle databases store archived redo logs on NFS, application servers mount shared configuration directories via NFS, backup agents write to NFS targets, and compliance report repositories live on NFS shares. When an NFS mount becomes stale — the mount point exists in the OS but the NFS server is unreachable — any process that touches that path <strong>hangs indefinitely</strong>, causing application timeouts, database archiver failures, and backup job freezes. This project automates complete NFS health validation: mount existence, mount options compliance, stale mount detection, I/O reachability testing, NFS server export validation, and automatic stale mount recovery.</p>
+  <div class="tag-row">
+    <span class="tag">NFS v3/v4</span><span class="tag">RHEL 8/9</span><span class="tag">Stale Mount Detection</span>
+    <span class="tag">Mount Options Compliance</span><span class="tag">Auto-Recovery</span>
+    <span class="tag">Oracle Archivelog NFS</span><span class="tag">Red Hat AAP 2.5</span>
+    <span class="tag">PCI-DSS Storage Controls</span>
+  </div>
+</div>
+
+<!-- STORY -->
+<section id="story">
+<h2 class="st">🏦 1. The Banking Story</h2>
+<div class="card">
+<div class="story-box">
+<b>Setting:</b> ABC Global Bank mounts NFS shares across 340 Linux servers. The primary NAS (NetApp FAS 8200) provides NFS shares for: Oracle archived redo logs (<code>/arch</code>), application shared configurations (<code>/app/shared</code>), compliance report storage (<code>/mnt/compliance</code>), and backup agent staging (<code>/mnt/backups</code>).<br><br>
+<b>Incident 1 — The Archiver Hang:</b> At 02:14 AM, the NetApp NAS experienced a brief network blip — 45 seconds of packet loss. All NFS mounts on the Oracle database servers became stale. The Oracle ARCH process (archiver) tried to write archived redo logs to <code>/arch</code> — and hung. In Oracle, when ARCH hangs, the database suspends all user sessions after the online redo logs fill up. CBS was completely unavailable for 23 minutes. Root cause: stale NFS mount. Fix: remount <code>/arch</code> on all DB servers. Total impact: ₹4.2 crore in suspended transactions during the morning rush.<br><br>
+<b>Incident 2 — The Security Finding:</b> During a PCI-DSS audit, the QSA found that <code>/mnt/backups</code> was mounted with <code>rw,exec</code> options on 47 servers. PCI-DSS requires NFS mounts to be mounted <code>noexec,nosuid,nodev</code> (to prevent execution of code from the NFS share). This was an audit finding: "Unauthorized code execution path from network storage."<br><br>
+<b>Incident 3 — The Silent Ghost:</b> 23 servers had NFS mount entries in <code>/etc/fstab</code> pointing to a decommissioned NFS server. The NFS client retried indefinitely on boot — extending boot time from 45 seconds to 8 minutes. No application ran on those 23 servers — it was only discovered when they needed emergency rebooting after a kernel update.<br><br>
+<b>The Ask:</b> "Monitor all NFS mounts every 15 minutes. Detect stale mounts before they cause application hangs. Auto-remount stale mounts. Validate mount options against security policy. And give us a weekly report of all NFS mounts across the estate."
+</div>
+</div>
+</section>
+
+<!-- CONCEPTS -->
+<section id="concepts">
+<h2 class="st">📚 2. NFS Concepts You Must Know</h2>
+<div class="card">
+<details><summary>What is a Stale NFS Mount?</summary><div class="inner">
+A <strong>stale NFS mount</strong> occurs when:<br>
+1. An NFS share was mounted successfully<br>
+2. The NFS server becomes unreachable (network issue, server reboot, NIC failure)<br>
+3. The mount point still exists in the OS (<code>df</code> shows it, <code>/proc/mounts</code> lists it)<br>
+4. BUT any I/O to that path hangs indefinitely — the kernel waits for the NFS server to respond<br><br>
+<b>Why hangs occur:</b> By default, NFS uses the <code>hard</code> mount option — the OS retries I/O forever until the server responds. A process touching the stale mount enters an uninterruptible sleep (D state in <code>ps</code>). It cannot be killed with <code>kill -9</code>. The only fix is to remount or reboot.<br><br>
+<b>Detection challenge:</b> <code>df -h</code> will hang if a stale mount is listed. <code>mount | grep nfs</code> shows it as mounted. The standard OS tools don't distinguish stale from healthy NFS mounts.
+</div></details>
+
+<details><summary>Mount Options — Security Requirements for Banking</summary><div class="inner">
+<table>
+<tr><th>Option</th><th>Meaning</th><th>Required?</th><th>Why</th></tr>
+<tr><td>noexec</td><td>Prevent execution of binaries on this mount</td><td>Yes — PCI-DSS</td><td>Prevent code execution from NFS share (malware, unauthorized scripts)</td></tr>
+<tr><td>nosuid</td><td>Ignore setuid/setgid bits on files</td><td>Yes — CIS</td><td>Prevent privilege escalation via setuid binaries on NFS</td></tr>
+<tr><td>nodev</td><td>Ignore device files on mount</td><td>Yes — CIS</td><td>Prevent device file exploits from NFS</td></tr>
+<tr><td>hard</td><td>Retry I/O forever if server unreachable</td><td>For Oracle archive — Yes</td><td>Prevents data loss; Oracle requires hard mounts for archivelog</td></tr>
+<tr><td>soft</td><td>Return error after timeout if server unreachable</td><td>For non-critical — preferred</td><td>Application gets error instead of hanging; recoverable</td></tr>
+<tr><td>timeo=N</td><td>Timeout in tenths of a second for soft mounts</td><td>Yes for soft mounts</td><td>Controls how long to wait before returning error</td></tr>
+<tr><td>nointr</td><td>Prevent signals from interrupting I/O</td><td>For Oracle</td><td>Prevents Oracle operations being interrupted mid-write</td></tr>
+</table>
+</div></details>
+
+<details><summary>Testing NFS Reachability Without Hanging</summary><div class="inner">
+The key challenge: we cannot use standard I/O on a potentially stale mount (it will hang). We need timeout-protected methods:<br><br>
+<b>Method 1: timeout command</b><br>
+<code>timeout 5 ls /mnt/nfs_share 2>/dev/null</code> — returns exit code 124 if it hangs for 5 seconds<br><br>
+<b>Method 2: stat with timeout</b><br>
+<code>timeout 3 stat /mnt/nfs_share</code> — stat is quicker than ls for detecting stale mounts<br><br>
+<b>Method 3: Check /proc/mounts + TCP to NFS server</b><br>
+First verify the mount exists in /proc/mounts, then check if the NFS server port is reachable (TCP 2049 or 111 for portmapper). If port is unreachable, mount is likely stale.<br><br>
+Our automation uses Method 1 (timeout + stat) as the primary detection method.
+</div></details>
+</div>
+</section>
+
+<!-- BUSINESS -->
+<section id="business">
+<h2 class="st">📋 3. Business Requirements</h2>
+<div class="card">
+<table>
+<tr><th>Requirement</th><th>Detail</th><th>Priority</th></tr>
+<tr><td>Mount existence check</td><td>Verify all expected NFS mounts are present in /proc/mounts</td><td>P1</td></tr>
+<tr><td>Stale mount detection</td><td>Test I/O reachability with timeout — detect stale mounts</td><td>P1</td></tr>
+<tr><td>Auto-remount on stale</td><td>Unmount stale mount and remount — no human intervention</td><td>P1</td></tr>
+<tr><td>Mount options compliance</td><td>Verify noexec,nosuid,nodev on non-Oracle mounts</td><td>P1</td></tr>
+<tr><td>NFS server export validation</td><td>Run showmount -e on NFS servers to verify exports are active</td><td>P2</td></tr>
+<tr><td>Capacity monitoring</td><td>Check disk usage on NFS mount points (df -h equivalent)</td><td>P2</td></tr>
+<tr><td>fstab audit</td><td>Compare /etc/fstab NFS entries against approved mount list</td><td>P2</td></tr>
+<tr><td>Weekly NFS estate report</td><td>All NFS mounts across 340 servers — server, path, options, status</td><td>P3</td></tr>
+</table>
+</div>
+</section>
+
+<!-- DESIGN -->
+<section id="design">
+<h2 class="st">🛠️ 5. Solution Design</h2>
+<div class="card">
+<table>
+<tr><th>Playbook</th><th>Schedule</th><th>Purpose</th></tr>
+<tr><td>nfs_mount_monitor.yml</td><td>Every 15 min</td><td>Stale detection + auto-remount + capacity check</td></tr>
+<tr><td>nfs_options_audit.yml</td><td>Daily 03:00 AM</td><td>Mount options compliance vs security policy</td></tr>
+<tr><td>nfs_server_validation.yml</td><td>Every 30 min</td><td>NFS server export health from server side</td></tr>
+<tr><td>nfs_fstab_audit.yml</td><td>Weekly Monday 04:00 AM</td><td>fstab vs approved mount list reconciliation</td></tr>
+<tr><td>nfs_estate_report.yml</td><td>Weekly Monday 06:00 AM</td><td>Fleet-wide NFS mount HTML report</td></tr>
+</table>
+
+<div class="info-box">
+<b>Critical Design Decision — Timeout-Protected I/O:</b> Every task that touches an NFS mount path uses the Linux <code>timeout</code> command with a short deadline (3-10 seconds). Without this, a stale mount would cause the Ansible task itself to hang — and the AAP job would never complete. The timeout command ensures Ansible always gets a result (either success or timeout exit code 124) within a predictable time.
+</div>
+</div>
+</section>
+
+<!-- ARCH -->
+<section id="arch">
+<h2 class="st">🗺️ 6. Architecture</h2>
+<div class="card">
+<div class="ascii">
+<pre style="background:none;color:inherit;">
+                    AAP CONTROLLER
+                    ──────────────
+                    Schedule: Every 15 min → nfs_mount_monitor.yml
+                         │ SSH
+                         │ serial: 20 (20 servers at a time)
+                         ▼
+┌──────────────────────────────────────────────────────────────────────┐
+│  340 LINUX CLIENT SERVERS                                             │
+│  (App servers, DB servers, Middleware, Backup agents)                 │
+│                                                                        │
+│  For each expected NFS mount:                                          │
+│  Step 1: Check /proc/mounts — is it mounted?                          │
+│  Step 2: timeout 5 stat <mount_path> — is I/O reachable?             │
+│  Step 3: If stat hangs (timeout 124) → STALE MOUNT DETECTED          │
+│  Step 4: Check df output (timeout protected) — capacity %             │
+│  Step 5: Check mount options vs required policy                        │
+└───────────────────────────┬──────────────────────────────────────────┘
+                             │
+              STALE DETECTED │              MISSING DETECTED
+              ───────────────┤              ──────────────────
+              ▼              │              ▼
+    umount -f -l <path>      │    mount -t nfs <server>:<export> <path>
+    (lazy unmount)           │    (remount from fstab or manual)
+    wait 5 seconds           │
+    mount <path>             │
+    verify stat OK           │
+              │              │
+              └──────────────┴──────────────────────┐
+                                                     ▼
+                                      ┌─────────────────────────────┐
+                                      │  REPORTING                   │
+                                      │  PagerDuty: stale detected   │
+                                      │  PagerDuty: auto-resolve     │
+                                      │  Slack: recovery summary     │
+                                      │  Options: compliance issue   │
+                                      └─────────────────────────────┘
+
+NFS SERVERS (separate play):                         ▲
+┌───────────────────────────────────────────┐         │ showmount -e
+│  NetApp NAS: nas01.abcbank.in             │─────────┘
+│  NetApp NAS: nas02.abcbank.in             │
+│  Pure Storage: pure01.abcbank.in          │
+│                                           │
+│  Checks: NFS service running, exports     │
+│  active, export count matches expected    │
+└───────────────────────────────────────────┘
+</pre>
+</div>
+</div>
+</section>
+
+<!-- STRUCTURE -->
+<section id="structure">
+<h2 class="st">📁 7. Project Structure</h2>
+<div class="card">
+<div class="ascii">
+<pre style="background:none;color:inherit;">
+nfs-mount-automation/
+├── ansible.cfg
+├── inventory/
+│   └── production/
+│       ├── hosts.ini                        # Client servers + NFS servers
+│       └── group_vars/
+│           ├── all.yml                      # Mount definitions, thresholds
+│           ├── oracle_db_servers.yml        # Oracle-specific mount requirements
+│           ├── app_servers.yml              # App server NFS mounts
+│           └── nfs_servers.yml              # NFS server variables
+├── roles/
+│   ├── nfs_mount_check/                     # Role 1: Check and detect
+│   │   ├── tasks/
+│   │   │   ├── main.yml
+│   │   │   ├── check_proc_mounts.yml        # /proc/mounts presence check
+│   │   │   ├── detect_stale_mount.yml       # Timeout-protected I/O test
+│   │   │   ├── check_mount_options.yml      # Options compliance check
+│   │   │   └── check_capacity.yml           # df usage check
+│   │   └── vars/main.yml
+│   │
+│   ├── nfs_mount_recovery/                  # Role 2: Auto-remount stale
+│   │   └── tasks/
+│   │       ├── main.yml
+│   │       ├── unmount_stale.yml            # Lazy unmount
+│   │       └── remount_nfs.yml              # Remount and verify
+│   │
+│   ├── nfs_server_check/                    # Role 3: Server-side validation
+│   │   └── tasks/
+│   │       ├── main.yml
+│   │       └── check_exports.yml            # showmount -e validation
+│   │
+│   ├── nfs_fstab_audit/                     # Role 4: fstab reconciliation
+│   │   └── tasks/main.yml
+│   │
+│   └── nfs_report/                          # Role 5: Reporting
+│       ├── tasks/main.yml
+│       └── templates/
+│           └── nfs_estate_report.html.j2
+│
+├── playbooks/
+│   ├── nfs_mount_monitor.yml
+│   ├── nfs_options_audit.yml
+│   ├── nfs_server_validation.yml
+│   ├── nfs_fstab_audit.yml
+│   └── nfs_estate_report.yml
+└── ansible.cfg</pre>
+</div>
+</div>
+</section>
+
+<!-- INVENTORY -->
+<section id="inventory">
+<h2 class="st">📂 8. Inventory &amp; Variables</h2>
+<div class="card">
+<div class="cw"><div class="cl"><span>inventory/production/hosts.ini</span><button class="cb" onclick="copyCode(this)">Copy</button></div>
+<pre><code># =====================================================================
+# NFS Automation Inventory — Clients + NFS Servers
+# =====================================================================
+
+[oracle_db_servers]                                    # Oracle DB servers (NFS for archivelog)
+cbs-db01.abcbank.in   ansible_host=10.10.4.10
+cbs-db02.abcbank.in   ansible_host=10.10.4.11
+lms-db01.abcbank.in   ansible_host=10.20.4.10
+
+[app_servers]                                          # Application servers (shared config NFS)
+cbs-app01.abcbank.in  ansible_host=10.10.2.11
+cbs-app02.abcbank.in  ansible_host=10.10.2.12
+lms-app01.abcbank.in  ansible_host=10.10.3.11
+
+[backup_servers]                                       # Backup agent servers
+bkp-agent01.abcbank.in ansible_host=10.10.9.20
+
+[nfs_clients:children]                                 # All NFS client servers
+oracle_db_servers
+app_servers
+backup_servers
+
+[nfs_servers]                                          # NFS server hosts
+nas01.abcbank.in   ansible_host=10.10.1.100  nas_vendor=netapp
+nas02.abcbank.in   ansible_host=10.10.1.101  nas_vendor=netapp
+
+[nfs_clients:vars]
+ansible_user=ansible
+ansible_become=true
+ansible_become_method=sudo
+
+[nfs_servers:vars]
+ansible_user=ansible
+ansible_become=true</code></pre></div>
+
+<div class="cw"><div class="cl"><span>inventory/production/group_vars/all.yml</span><button class="cb" onclick="copyCode(this)">Copy</button></div>
+<pre><code>---
+# ── Expected NFS Mounts Per Server Group ─────────────────────────────
+# Structure: list of mount definitions with validation rules
+# These are the REQUIRED mounts — any server missing these is non-compliant
+
+nfs_mounts_oracle_db:                                  # Mounts required on Oracle DB servers
+  - mount_point: /arch                                 # Oracle archivelog destination
+    nfs_server: nas01.abcbank.in                       # NFS server providing this share
+    nfs_export: /vol/oracle_arch                       # Export path on NFS server
+    required_options:                                  # Required mount options
+      - rw                                             # Read-write (Oracle writes here)
+      - hard                                           # Hard mount (Oracle requirement)
+      - nointr                                         # No interrupt (Oracle requirement)
+      - timeo=600                                      # 60-second NFS timeout
+      - rsize=1048576                                  # 1MB read size (performance)
+      - wsize=1048576                                  # 1MB write size (performance)
+    forbidden_options:                                 # Options that must NOT be present
+      - exec                                           # No exec allowed
+    capacity_warn_percent: 75
+    capacity_critical_percent: 85
+    critical: true                                     # true = P1 alert if stale/missing
+
+  - mount_point: /backup                               # RMAN backup destination
+    nfs_server: nas02.abcbank.in
+    nfs_export: /vol/oracle_backup
+    required_options: [rw, hard, timeo=600]
+    capacity_warn_percent: 80
+    capacity_critical_percent: 90
+    critical: true
+
+nfs_mounts_app_servers:                                # Mounts required on App servers
+  - mount_point: /app/shared                           # Shared app configuration
+    nfs_server: nas01.abcbank.in
+    nfs_export: /vol/app_shared
+    required_options: [ro, noexec, nosuid, nodev]      # Read-only, no exec
+    # ro: read-only — apps READ config, never write
+    # noexec,nosuid,nodev: PCI-DSS security requirement
+    capacity_warn_percent: 70
+    critical: false                                    # false = P2/P3 alert
+
+  - mount_point: /mnt/compliance                       # Compliance reports repository
+    nfs_server: nas01.abcbank.in
+    nfs_export: /vol/compliance_reports
+    required_options: [rw, noexec, nosuid, nodev]
+    capacity_warn_percent: 80
+    critical: false
+
+nfs_mounts_backup_servers:
+  - mount_point: /mnt/backups                          # Backup staging area
+    nfs_server: nas02.abcbank.in
+    nfs_export: /vol/backup_staging
+    required_options: [rw, noexec, nosuid, nodev]
+    capacity_warn_percent: 85
+    capacity_critical_percent: 92
+    critical: false
+
+# ── Detection Settings ─────────────────────────────────────────────
+nfs_io_test_timeout_sec: 5            # Timeout for I/O test (stat command)
+nfs_mount_test_file: .ansible_nfs_health_check  # Test file name for write tests
+nfs_remount_attempts: 3               # Max remount attempts before escalating
+
+# ── Alerting ─────────────────────────────────────────────────────────
+pagerduty_integration_url: "https://events.pagerduty.com/v2/enqueue"
+slack_webhook_url: "{{ vault_slack_webhook_url }}"</code></pre></div>
+</div>
+</section>
+
+<!-- ROLES -->
+<section id="roles">
+<h2 class="st">💻 9. Roles &amp; Tasks — Complete Code</h2>
+
+<div class="card">
+<h3>Role 1: nfs_mount_check</h3>
+
+<div class="cw"><div class="cl"><span>roles/nfs_mount_check/tasks/check_proc_mounts.yml</span><button class="cb" onclick="copyCode(this)">Copy</button></div>
+<pre><code>---
+# =====================================================================
+# Check if NFS mounts are present in /proc/mounts
+# /proc/mounts is the kernel's authoritative list of active mounts
+# It's always readable (unlike df which can hang on stale mounts)
+# =====================================================================
+
+- name: Read /proc/mounts to get all current mount information
+  ansible.builtin.slurp:                               # slurp: reads file without I/O hang risk
+    src: /proc/mounts                                   # Kernel mount table — always readable
+  register: proc_mounts_raw
+  become: true
+
+- name: Parse /proc/mounts into structured mount list
+  ansible.builtin.set_fact:
+    current_mounts: >-
+      {{ proc_mounts_raw.content | b64decode
+         | split('\n')
+         | reject('equalto', '')
+         | map('split', ' ')
+         | list }}
+    # Each line in /proc/mounts: "device mountpoint fstype options dump pass"
+    # Example: "nas01:/vol/oracle_arch /arch nfs4 rw,hard,nointr,... 0 0"
+
+- name: Extract NFS-specific mounts
+  ansible.builtin.set_fact:
+    current_nfs_mounts: >-
+      {{ current_mounts
+         | selectattr('2', 'in', ['nfs', 'nfs4'])
+         | list }}
+    # selectattr('2', ...): filter where element at index 2 (fstype) is nfs or nfs4
+
+- name: Determine which expected mounts are actually present
+  ansible.builtin.set_fact:
+    mount_presence: >-
+      {{ mount_presence | default([]) + [{
+        'mount_point': item.mount_point,
+        'nfs_server': item.nfs_server,
+        'nfs_export': item.nfs_export,
+        'is_mounted': (current_nfs_mounts
+                       | selectattr('1', 'equalto', item.mount_point)
+                       | list | length > 0),
+        'actual_options': (current_nfs_mounts
+                           | selectattr('1', 'equalto', item.mount_point)
+                           | map(attribute='3')
+                           | first | default('')),
+        'critical': item.critical | default(false),
+        'required_options': item.required_options,
+        'forbidden_options': item.forbidden_options | default([])
+      }] }}
+  loop: "{{ nfs_mounts_expected }}"
+  loop_control:
+    label: "{{ item.mount_point }}"
+
+- name: Log mount presence results
+  ansible.builtin.debug:
+    msg:
+      - "Mount Presence Check — {{ inventory_hostname }}"
+      - "Expected: {{ mount_presence | length }}"
+      - "Mounted: {{ mount_presence | selectattr('is_mounted') | list | length }}"
+      - "Missing: {{ mount_presence | rejectattr('is_mounted') | map(attribute='mount_point') | list | join(', ') | default('None') }}"</code></pre></div>
+
+<div class="cw"><div class="cl"><span>roles/nfs_mount_check/tasks/detect_stale_mount.yml</span><button class="cb" onclick="copyCode(this)">Copy</button></div>
+<pre><code>---
+# =====================================================================
+# Detect stale NFS mounts using timeout-protected stat command
+# CRITICAL: We MUST use timeout here — without it, stat on a stale
+# mount will hang the Ansible task indefinitely
+# =====================================================================
+
+- name: Test NFS mount I/O reachability using timeout-protected stat
+  ansible.builtin.shell:
+    cmd: >
+      timeout {{ nfs_io_test_timeout_sec }} stat {{ item.mount_point }}
+      > /dev/null 2>&1
+      && echo "REACHABLE"
+      || echo "STALE_OR_MISSING"
+    # timeout {{ N }}: kill the command after N seconds
+    # stat: touches the filesystem (faster than ls or touch)
+    # > /dev/null 2>&1: suppress all output — we only care about exit code
+    # && echo REACHABLE: if stat completes, mount is healthy
+    # || echo STALE_OR_MISSING: if stat times out (exit 124) or fails — stale/missing
+    executable: /bin/bash
+  register: mount_io_tests
+  loop: "{{ mount_presence | selectattr('is_mounted') | list }}"
+  loop_control:
+    label: "{{ item.mount_point }}"
+  changed_when: false
+  become: true
+  # We only test mounts that ARE mounted (from check_proc_mounts)
+  # Mounts that aren't in /proc/mounts are handled by the remount task
+
+- name: Classify mounted mounts as healthy or stale
+  ansible.builtin.set_fact:
+    stale_mounts: >-
+      {{ mount_io_tests.results
+         | selectattr('stdout', 'equalto', 'STALE_OR_MISSING')
+         | map(attribute='item')
+         | list }}
+    healthy_mounts: >-
+      {{ mount_io_tests.results
+         | selectattr('stdout', 'equalto', 'REACHABLE')
+         | map(attribute='item')
+         | list }}
+
+- name: Identify completely missing mounts (not in /proc/mounts at all)
+  ansible.builtin.set_fact:
+    missing_mounts: >-
+      {{ mount_presence
+         | rejectattr('is_mounted')
+         | list }}
+
+- name: Log stale and missing mount detection results
+  ansible.builtin.debug:
+    msg:
+      - "NFS Mount Health — {{ inventory_hostname }}"
+      - "Healthy: {{ healthy_mounts | length }}"
+      - "STALE: {{ stale_mounts | map(attribute='mount_point') | list | join(', ') | default('None') }}"
+      - "MISSING: {{ missing_mounts | map(attribute='mount_point') | list | join(', ') | default('None') }}"
+
+- name: Fire PagerDuty P1 for stale critical NFS mounts
+  ansible.builtin.uri:
+    url: "{{ pagerduty_integration_url }}"
+    method: POST
+    body_format: json
+    body:
+      routing_key: "{{ vault_pagerduty_routing_key }}"
+      event_action: trigger
+      dedup_key: "nfs-stale-{{ inventory_hostname }}-{{ item.mount_point | replace('/', '-') }}"
+      payload:
+        summary: >-
+          🔴 STALE NFS MOUNT: {{ item.mount_point }} on {{ inventory_hostname }}
+          is mounted but I/O is HANGING. {{ item.nfs_server }}:{{ item.nfs_export }}
+          is unreachable. Auto-remount initiated.
+        severity: "{{ 'critical' if item.critical else 'error' }}"
+        source: ansible-nfs-monitor
+        custom_details:
+          host: "{{ inventory_hostname }}"
+          mount_point: "{{ item.mount_point }}"
+          nfs_server: "{{ item.nfs_server }}"
+          nfs_export: "{{ item.nfs_export }}"
+          action: "Ansible auto-remount triggered"
+    status_code: [202]
+  loop: "{{ stale_mounts }}"
+  loop_control:
+    label: "{{ item.mount_point }}"
+  when: stale_mounts | length > 0
+  delegate_to: localhost</code></pre></div>
+
+<div class="cw"><div class="cl"><span>roles/nfs_mount_check/tasks/check_mount_options.yml</span><button class="cb" onclick="copyCode(this)">Copy</button></div>
+<pre><code>---
+# =====================================================================
+# Validate mount options against security policy
+# This catches the PCI-DSS finding (exec on backup mount)
+# =====================================================================
+
+- name: Check required and forbidden mount options for each healthy mount
+  ansible.builtin.set_fact:
+    options_compliance: >-
+      {{ options_compliance | default([]) + [{
+        'mount_point': item.mount_point,
+        'actual_options': item.actual_options,
+        'required_options': item.required_options,
+        'forbidden_options': item.forbidden_options | default([]),
+        'missing_required': (item.required_options
+                             | reject('in', item.actual_options.split(','))
+                             | list),
+        'present_forbidden': (item.forbidden_options | default([])
+                              | select('in', item.actual_options.split(','))
+                              | list),
+        'compliant': ((item.required_options
+                       | reject('in', item.actual_options.split(','))
+                       | list | length == 0)
+                      and (item.forbidden_options | default([])
+                           | select('in', item.actual_options.split(','))
+                           | list | length == 0))
+      }] }}
+  loop: "{{ healthy_mounts }}"
+  loop_control:
+    label: "{{ item.mount_point }}"
+
+- name: Alert on mount options violations
+  ansible.builtin.uri:
+    url: "{{ slack_webhook_url }}"
+    method: POST
+    body_format: json
+    body:
+      text: >-
+        🔒 *NFS Mount Options Violation — {{ inventory_hostname }}*
+        {% for m in options_compliance | rejectattr('compliant') | list %}
+        *Mount:* {{ m.mount_point }}
+        {% if m.missing_required %}
+        Missing required: {{ m.missing_required | join(', ') }}
+        {% endif %}
+        {% if m.present_forbidden %}
+        Forbidden options present: {{ m.present_forbidden | join(', ') }}
+        {% endif %}
+        Actual options: {{ m.actual_options }}
+        {% endfor %}
+        _PCI-DSS Req 7: Unauthorized options may allow code execution from NFS_
+    status_code: [200]
+  delegate_to: localhost
+  when: options_compliance | rejectattr('compliant') | list | length > 0</code></pre></div>
+
+<div class="cw"><div class="cl"><span>roles/nfs_mount_check/tasks/check_capacity.yml</span><button class="cb" onclick="copyCode(this)">Copy</button></div>
+<pre><code>---
+# =====================================================================
+# Check disk usage on NFS mount points
+# MUST use timeout — df on stale mount will hang!
+# =====================================================================
+
+- name: Get disk usage for each healthy NFS mount (timeout-protected)
+  ansible.builtin.shell:
+    cmd: >
+      timeout {{ nfs_io_test_timeout_sec }} df -P {{ item.mount_point }}
+      2>/dev/null | tail -1
+    # df -P: POSIX output format (consistent columns across Linux versions)
+    # tail -1: skip header line, get data line only
+    # timeout: prevent hang on stale mount
+    executable: /bin/bash
+  register: df_results
+  loop: "{{ healthy_mounts }}"
+  loop_control:
+    label: "{{ item.mount_point }}"
+  changed_when: false
+  become: true
+  failed_when: false
+
+- name: Parse df output and calculate usage percentages
+  ansible.builtin.set_fact:
+    capacity_status: >-
+      {{ capacity_status | default([]) + [{
+        'mount_point': item.item.mount_point,
+        'capacity_warn': item.item.capacity_warn_percent | default(80),
+        'capacity_critical': item.item.capacity_critical_percent | default(90),
+        'df_output': item.stdout | default(''),
+        'used_percent': (item.stdout | default('')
+                         | regex_search('([0-9]+)%', '\\1')
+                         | first | default(0) | int),
+        'timed_out': item.rc == 124
+      }] }}
+  loop: "{{ df_results.results }}"
+  loop_control:
+    label: "{{ item.item.mount_point }}"
+
+- name: Alert on high-capacity NFS mounts
+  ansible.builtin.uri:
+    url: "{{ pagerduty_integration_url }}"
+    method: POST
+    body_format: json
+    body:
+      routing_key: "{{ vault_pagerduty_routing_key }}"
+      event_action: trigger
+      dedup_key: "nfs-capacity-{{ inventory_hostname }}-{{ item.mount_point | replace('/', '-') }}"
+      payload:
+        summary: >-
+          ⚠️ NFS Mount Capacity: {{ item.mount_point }} on {{ inventory_hostname }}
+          is {{ item.used_percent }}% full (threshold: {{ item.capacity_critical }}%)
+        severity: "{{ 'critical' if item.used_percent >= item.capacity_critical else 'error' }}"
+        source: ansible-nfs-monitor
+    status_code: [202]
+  loop: "{{ capacity_status | selectattr('used_percent', '>=', 75) | list }}"
+  loop_control:
+    label: "{{ item.mount_point }} ({{ item.used_percent }}%)"
+  when: capacity_status | selectattr('used_percent', '>=', 75) | list | length > 0
+  delegate_to: localhost</code></pre></div>
+</div>
+
+<!-- RECOVERY ROLE -->
+<section id="recovery">
+<h2 class="st">🔧 10. Stale Mount Recovery Role</h2>
+<div class="card">
+<div class="cw"><div class="cl"><span>roles/nfs_mount_recovery/tasks/unmount_stale.yml</span><button class="cb" onclick="copyCode(this)">Copy</button></div>
+<pre><code>---
+# =====================================================================
+# Lazy-unmount stale NFS mount
+# umount -f -l (force + lazy) is required for stale NFS mounts
+# Regular umount will also hang on a stale mount!
+# =====================================================================
+
+- name: Force lazy-unmount of stale NFS mount
+  ansible.builtin.command:
+    cmd: "umount -f -l {{ item.mount_point }}"
+    # -f: force unmount (required for stale/unreachable NFS)
+    # -l: lazy unmount — detaches filesystem NOW even if busy
+    #     processes that have open files get SIGPIPE when they next access the path
+    #     this is safer than -f alone which can break processes
+    # The combination -f -l is the correct approach for stale NFS
+  loop: "{{ stale_mounts + missing_mounts }}"
+  loop_control:
+    label: "Unmounting: {{ item.mount_point }}"
+  failed_when: false                                   # Don't fail if already unmounted
+  register: unmount_results
+  become: true
+
+- name: Wait for unmount to complete
+  ansible.builtin.pause:
+    seconds: 5                                         # Allow kernel to clean up mount table
+
+- name: Verify mount is no longer in /proc/mounts
+  ansible.builtin.shell:
+    cmd: "grep -c '{{ item.mount_point }}' /proc/mounts || echo 0"
+  register: mount_still_present
+  loop: "{{ stale_mounts + missing_mounts }}"
+  loop_control:
+    label: "{{ item.mount_point }}"
+  changed_when: false
+  become: true</code></pre></div>
+
+<div class="cw"><div class="cl"><span>roles/nfs_mount_recovery/tasks/remount_nfs.yml</span><button class="cb" onclick="copyCode(this)">Copy</button></div>
+<pre><code>---
+# =====================================================================
+# Remount NFS after stale unmount
+# Uses mount command with the NFS server and export from our variables
+# =====================================================================
+
+- name: Ensure mount point directory exists before mounting
+  ansible.builtin.file:
+    path: "{{ item.mount_point }}"
+    state: directory
+    mode: '0755'
+    owner: root
+    group: root
+  loop: "{{ stale_mounts + missing_mounts }}"
+  loop_control:
+    label: "{{ item.mount_point }}"
+  become: true
+
+- name: Remount NFS share
+  ansible.posix.mount:                                # Ansible mount module (from ansible.posix)
+    src: "{{ item.nfs_server }}:{{ item.nfs_export }}"  # NFS server:export_path
+    path: "{{ item.mount_point }}"                    # Mount point on this server
+    fstype: nfs                                        # Filesystem type
+    opts: "{{ item.required_options | join(',') }}"   # Mount options from our config
+    state: mounted                                     # mounted = mount AND add to fstab
+    # state: mounted vs ephemeral:
+    # mounted: adds/updates fstab AND mounts immediately (persistent)
+    # ephemeral: mounts now but does NOT update fstab (temporary)
+    # We use mounted to ensure the mount survives next reboot
+  loop: "{{ stale_mounts + missing_mounts }}"
+  loop_control:
+    label: "Remounting: {{ item.mount_point }}"
+  register: remount_results
+  become: true
+
+- name: Verify remounted NFS mount is accessible (timeout-protected)
+  ansible.builtin.shell:
+    cmd: >
+      timeout {{ nfs_io_test_timeout_sec }} stat {{ item.mount_point }}
+      > /dev/null 2>&1
+      && echo "REACHABLE"
+      || echo "STILL_STALE"
+  register: remount_verify
+  loop: "{{ stale_mounts + missing_mounts }}"
+  loop_control:
+    label: "Verifying: {{ item.mount_point }}"
+  changed_when: false
+  become: true
+
+- name: Set recovery success/failure facts
+  ansible.builtin.set_fact:
+    recovery_succeeded: >-
+      {{ remount_verify.results
+         | selectattr('stdout', 'equalto', 'REACHABLE')
+         | map(attribute='item.mount_point')
+         | list }}
+    recovery_failed: >-
+      {{ remount_verify.results
+         | selectattr('stdout', 'equalto', 'STILL_STALE')
+         | map(attribute='item.mount_point')
+         | list }}
+
+- name: Auto-resolve PagerDuty alert for recovered mounts
+  ansible.builtin.uri:
+    url: "{{ pagerduty_integration_url }}"
+    method: POST
+    body_format: json
+    body:
+      routing_key: "{{ vault_pagerduty_routing_key }}"
+      event_action: resolve
+      dedup_key: "nfs-stale-{{ inventory_hostname }}-{{ item | replace('/', '-') }}"
+    status_code: [202]
+  loop: "{{ recovery_succeeded }}"
+  delegate_to: localhost
+
+- name: Escalate if remount failed
+  ansible.builtin.uri:
+    url: "{{ pagerduty_integration_url }}"
+    method: POST
+    body_format: json
+    body:
+      routing_key: "{{ vault_pagerduty_routing_key }}"
+      event_action: trigger
+      dedup_key: "nfs-recovery-failed-{{ inventory_hostname }}-{{ item | replace('/', '-') }}"
+      payload:
+        summary: >-
+          🚨 NFS AUTO-REMOUNT FAILED: {{ item }} on {{ inventory_hostname }}
+          could not be remounted. NFS server may be down.
+          MANUAL INTERVENTION REQUIRED.
+        severity: critical
+        source: ansible-nfs-recovery
+    status_code: [202]
+  loop: "{{ recovery_failed }}"
+  delegate_to: localhost
+  when: recovery_failed | length > 0
+
+- name: Send recovery summary to Slack
+  ansible.builtin.uri:
+    url: "{{ slack_webhook_url }}"
+    method: POST
+    body_format: json
+    body:
+      text: >-
+        🔄 *NFS Auto-Recovery Summary — {{ inventory_hostname }}*
+        {% if recovery_succeeded %}
+        ✅ Recovered: {{ recovery_succeeded | join(', ') }}
+        {% endif %}
+        {% if recovery_failed %}
+        ❌ FAILED: {{ recovery_failed | join(', ') }} — manual action needed
+        {% endif %}
+        _Job {{ tower_job_id | default('N/A') }}_
+    status_code: [200]
+  delegate_to: localhost</code></pre></div>
+</div>
+
+<!-- SERVER VALIDATION -->
+<section id="server">
+<h2 class="st">🖥️ 11. NFS Server Validation Role</h2>
+<div class="card">
+<div class="cw"><div class="cl"><span>roles/nfs_server_check/tasks/check_exports.yml</span><button class="cb" onclick="copyCode(this)">Copy</button></div>
+<pre><code>---
+# =====================================================================
+# Validate NFS Server — run on NFS servers themselves
+# Checks: NFS service running, exports active, export count matches
+# =====================================================================
+
+- name: Check if NFS server service is running
+  ansible.builtin.service_facts:
+  register: nfs_server_services
+  become: true
+
+- name: Verify NFS server processes are active
+  ansible.builtin.set_fact:
+    nfs_server_running: >-
+      {{ 'nfs-server.service' in ansible_facts.services
+         and ansible_facts.services['nfs-server.service'].state == 'running' }}
+    rpcbind_running: >-
+      {{ 'rpcbind.service' in ansible_facts.services
+         and ansible_facts.services['rpcbind.service'].state == 'running' }}
+
+- name: Get list of active NFS exports using showmount
+  ansible.builtin.command:
+    cmd: "showmount -e localhost"                      # showmount -e: list all exports
+    # showmount -e localhost: shows exports from this server
+    # More reliable than parsing /etc/exports (which may differ from active exports)
+  register: showmount_output
+  changed_when: false
+  become: true
+  failed_when: false
+
+- name: Parse showmount output into list of exports
+  ansible.builtin.set_fact:
+    active_exports: >-
+      {{ showmount_output.stdout_lines
+         | reject('match', '^Export list.*')
+         | map('split', ' ')
+         | map('first')
+         | list }}
+    # Reject header line "Export list for localhost:"
+    # Split on space, take first element (the export path)
+    # Result: ['/vol/oracle_arch', '/vol/app_shared', ...]
+
+- name: Check NFS port 2049 is listening
+  ansible.builtin.wait_for:
+    host: "{{ ansible_host }}"
+    port: 2049                                         # NFS port
+    timeout: 10
+    state: started
+  register: nfs_port_check
+  failed_when: false
+  delegate_to: localhost
+
+- name: Log NFS server health summary
+  ansible.builtin.debug:
+    msg:
+      - "NFS Server Health — {{ inventory_hostname }}"
+      - "NFS Service: {{ 'RUNNING' if nfs_server_running else 'STOPPED' }}"
+      - "RPC Bind: {{ 'RUNNING' if rpcbind_running else 'STOPPED' }}"
+      - "Port 2049: {{ 'OPEN' if nfs_port_check.elapsed is defined else 'CLOSED' }}"
+      - "Active Exports: {{ active_exports | length }}"
+      - "Exports: {{ active_exports | join(', ') }}"
+
+- name: Alert if NFS server service is down
+  ansible.builtin.uri:
+    url: "{{ pagerduty_integration_url }}"
+    method: POST
+    body_format: json
+    body:
+      routing_key: "{{ vault_pagerduty_routing_key }}"
+      event_action: trigger
+      dedup_key: "nfs-server-down-{{ inventory_hostname }}"
+      payload:
+        summary: >-
+          🔴 NFS SERVER DOWN: {{ inventory_hostname }} — nfs-server service
+          is not running. All clients will get stale mounts shortly!
+        severity: critical
+        source: ansible-nfs-server-monitor
+    status_code: [202]
+  delegate_to: localhost
+  when: not nfs_server_running | bool</code></pre></div>
+</div>
+
+<!-- PLAYBOOKS -->
+<section id="playbooks">
+<h2 class="st">📜 12. Master Playbooks</h2>
+<div class="card">
+<div class="cw"><div class="cl"><span>playbooks/nfs_mount_monitor.yml — Every 15 Minutes</span><button class="cb" onclick="copyCode(this)">Copy</button></div>
+<pre><code>---
+# =====================================================================
+# NFS Mount Health Monitor — Every 15 Minutes
+# Detects stale mounts and auto-recovers
+# =====================================================================
+
+# PLAY 1: Check NFS server health first (before checking clients)
+- name: NFS Server Health Pre-check
+  hosts: nfs_servers
+  gather_facts: true
+  become: true
+  roles:
+    - role: nfs_server_check
+      tags: server_check
+
+# PLAY 2: Check NFS client mounts
+- name: NFS Client Mount Health Check
+  hosts: nfs_clients
+  gather_facts: true
+  become: true
+  serial: 20                                 # 20 clients at a time
+  vars_files:
+    - "{{ inventory_dir }}/group_vars/all/vault.yml"
+
+  vars:
+    # Select the correct mount list based on which group this host is in
+    nfs_mounts_expected: >-
+      {{ nfs_mounts_oracle_db if 'oracle_db_servers' in group_names
+         else (nfs_mounts_app_servers if 'app_servers' in group_names
+               else nfs_mounts_backup_servers) }}
+    # This dynamically selects which mount list applies to this server
+    # based on its Ansible group membership
+
+  roles:
+    - role: nfs_mount_check
+      tags: [check, always]
+
+  post_tasks:
+    - name: Trigger auto-recovery for stale or missing mounts
+      ansible.builtin.include_role:
+        name: nfs_mount_recovery
+      when: >
+        (stale_mounts is defined and stale_mounts | length > 0)
+        or (missing_mounts is defined and missing_mounts | length > 0)
+      tags: recovery</code></pre></div>
+
+<div class="cw"><div class="cl"><span>playbooks/nfs_fstab_audit.yml — Weekly fstab Reconciliation</span><button class="cb" onclick="copyCode(this)">Copy</button></div>
+<pre><code>---
+# =====================================================================
+# NFS fstab Audit — Weekly
+# Finds unauthorized/ghost NFS entries in /etc/fstab
+# =====================================================================
+- name: NFS fstab Reconciliation Audit
+  hosts: nfs_clients
+  gather_facts: false
+  become: true
+  serial: 30
+
+  vars_files:
+    - "{{ inventory_dir }}/group_vars/all/vault.yml"
+
+  tasks:
+    - name: Read /etc/fstab content
+      ansible.builtin.slurp:
+        src: /etc/fstab
+      register: fstab_raw
+
+    - name: Parse NFS entries from fstab
+      ansible.builtin.set_fact:
+        fstab_nfs_entries: >-
+          {{ fstab_raw.content | b64decode
+             | split('\n')
+             | reject('match', '^#.*')
+             | reject('equalto', '')
+             | select('match', '.*\\s+nfs[4]?\\s+.*')
+             | list }}
+        # Reject comment lines (starting with #)
+        # Reject empty lines
+        # Select only NFS mount lines
+
+    - name: Identify fstab NFS entries NOT in approved mount list
+      ansible.builtin.set_fact:
+        nfs_mounts_expected: >-
+          {{ nfs_mounts_oracle_db + nfs_mounts_app_servers + nfs_mounts_backup_servers }}
+        approved_mount_points: >-
+          {{ (nfs_mounts_oracle_db + nfs_mounts_app_servers + nfs_mounts_backup_servers)
+             | map(attribute='mount_point') | list }}
+
+    - name: Check each fstab NFS entry against approved list
+      ansible.builtin.set_fact:
+        unauthorized_fstab_mounts: >-
+          {{ fstab_nfs_entries
+             | reject('search', approved_mount_points | join('|'))
+             | list }}
+        # reject('search', pattern): remove lines matching any approved mount point
+        # What remains = unauthorized/ghost NFS entries
+
+    - name: Alert on unauthorized fstab NFS entries
+      ansible.builtin.uri:
+        url: "{{ slack_webhook_url }}"
+        method: POST
+        body_format: json
+        body:
+          text: >-
+            ⚠️ *Unauthorized NFS fstab Entries — {{ inventory_hostname }}*
+            The following NFS mounts in /etc/fstab are NOT in the approved mount list:
+            {% for entry in unauthorized_fstab_mounts %}
+            • {{ entry }}
+            {% endfor %}
+            _These may be pointing to decommissioned servers and slowing boot time_
+        status_code: [200]
+      delegate_to: localhost
+      when: unauthorized_fstab_mounts | length > 0</code></pre></div>
+</div>
+</section>
+
+<!-- AAP -->
+<section id="aap">
+<h2 class="st">🔴 13. AAP Configuration</h2>
+<div class="card">
+<details><summary>Job Templates & Schedules</summary><div class="inner">
+<table>
+<tr><th>Template</th><th>Hosts</th><th>Schedule</th><th>Tags</th></tr>
+<tr><td>NFS-Mount-Monitor</td><td>nfs_clients + nfs_servers</td><td>Every 15 min</td><td>check,server_check,recovery</td></tr>
+<tr><td>NFS-Options-Audit</td><td>nfs_clients</td><td>Daily 03:00 AM</td><td>options_audit</td></tr>
+<tr><td>NFS-Server-Validation</td><td>nfs_servers</td><td>Every 30 min</td><td>server_check</td></tr>
+<tr><td>NFS-Fstab-Audit</td><td>nfs_clients</td><td>Weekly Monday</td><td>fstab_audit</td></tr>
+<tr><td>NFS-Estate-Report</td><td>nfs_clients</td><td>Weekly Monday 06:00</td><td>report</td></tr>
+</table>
+</div></details>
+
+<details><summary>Survey Variables for On-Demand Remount</summary><div class="inner">
+<p>For emergency on-demand remount of a specific server:</p>
+<div class="cw"><div class="cl"><span>Survey fields for NFS-Emergency-Remount job template</span><button class="cb" onclick="copyCode(this)">Copy</button></div>
+<pre><code># Survey fields:
+# 1. Target Hostname (text) — which server to remount on
+# 2. Mount Point (text) — specific path to remount (e.g., /arch)
+# 3. Force Unmount (yes/no) — whether to do force+lazy unmount first
+# 4. Skip Server Check (yes/no) — skip NFS server validation (for faster emergency response)
+
+# This lets NOC engineers trigger targeted remounts without
+# running the full fleet-wide playbook</code></pre></div>
+</div></details>
+</div>
+</section>
+
+<!-- FLOW -->
+<section id="flow">
+<h2 class="st">🔄 14. Execution Flow</h2>
+<div class="card">
+<div class="fs"><div class="fn">1</div><div>Every 15 minutes: NFS-Mount-Monitor fires. Play 1 runs on NFS servers: checks nfs-server.service running, showmount -e returns expected exports, port 2049 open. If NFS server is down → P1 alert immediately (all clients about to get stale mounts).</div></div>
+<div class="fs"><div class="fn">2</div><div>Play 2 runs on 340 NFS clients (serial:20). slurp reads /proc/mounts — no I/O hang risk. Parses nfs/nfs4 entries. Compares against expected mount list from group_vars.</div></div>
+<div class="fs"><div class="fn">3</div><div>For each mounted path: timeout 5 stat /mount_point runs. If stat completes within 5 seconds → REACHABLE. If timeout (exit 124) → STALE_OR_MISSING. The timeout is the critical protection that prevents the Ansible job itself from hanging.</div></div>
+<div class="fs"><div class="fn">4</div><div>Stale mounts detected → PagerDuty P1 fires. Auto-recovery starts: umount -f -l (force+lazy unmount — also timeout-protected), 5-second wait, ansible.posix.mount remounts with correct options, timeout stat verifies reachability.</div></div>
+<div class="fs"><div class="fn">5</div><div>Recovery verified → PagerDuty auto-resolve. Slack summary: "NFS auto-recovered /arch on cbs-db01 — remount successful." Total automated MTTR: under 3 minutes vs 23-minute manual MTTR in the incident.</div></div>
+<div class="fs"><div class="fn">6</div><div>Daily: options audit checks actual mount options from /proc/mounts against required policy. Missing noexec or forbidden exec options → Slack alert to security team with exact server and mount point. Weekly: fstab audit finds ghost entries pointing to decommissioned servers.</div></div>
+</div>
+</section>
+
+<!-- LAB -->
+<section id="lab">
+<h2 class="st">🧪 15. Lab Setup</h2>
+<div class="card">
+<div class="cw"><div class="cl"><span>Lab: NFS Server and Client Setup on Linux VMs</span><button class="cb" onclick="copyCode(this)">Copy</button></div>
+<pre><code"># ── NFS Server Setup (on VM 1 — acts as NAS) ─────────────────────────
+sudo yum install -y nfs-utils
+sudo systemctl enable --now nfs-server rpcbind
+
+# Create exports
+sudo mkdir -p /vol/oracle_arch /vol/app_shared /vol/backup_staging
+sudo chmod 755 /vol/oracle_arch /vol/app_shared /vol/backup_staging
+
+# Configure /etc/exports
+cat << 'EOF' | sudo tee /etc/exports
+/vol/oracle_arch    10.0.0.0/8(rw,sync,no_root_squash)
+/vol/app_shared     10.0.0.0/8(ro,sync)
+/vol/backup_staging 10.0.0.0/8(rw,sync)
+EOF
+
+sudo exportfs -ra           # Apply exports
+sudo showmount -e localhost  # Verify exports
+
+# ── NFS Client Setup (on VM 2 — acts as CBS server) ──────────────────
+sudo yum install -y nfs-utils
+sudo mkdir -p /arch /app/shared /mnt/backups
+
+# Mount NFS shares
+sudo mount -t nfs nfs-server-ip:/vol/oracle_arch /arch \
+  -o rw,hard,nointr,timeo=600
+sudo mount -t nfs nfs-server-ip:/vol/app_shared /app/shared \
+  -o ro,noexec,nosuid,nodev
+
+# Verify mounts
+mount | grep nfs
+cat /proc/mounts | grep nfs
+
+# ── Simulate a Stale Mount for Testing ────────────────────────────────
+# On the NFS server: stop NFS temporarily
+sudo systemctl stop nfs-server
+
+# On the client: the mount is now stale
+# Test our detection:
+timeout 5 stat /arch; echo "Exit: $?"
+# Expected exit code: 124 (timeout — stale mount!)
+
+# ── Run Ansible NFS Monitor ───────────────────────────────────────────
+ansible-playbook playbooks/nfs_mount_monitor.yml \
+  -i inventory/production/hosts.ini \
+  -l lab-nfs-client -v
+
+# ── Restart NFS and verify auto-recovery ─────────────────────────────
+sudo systemctl start nfs-server   # On NFS server
+# Ansible should detect stale, remount, verify recovery
+# Check: timeout 5 stat /arch; echo "Exit: $?"
+# Expected: exit 0 (success — mount recovered)</code></pre></div>
+
+<h3>Troubleshooting</h3>
+<table>
+<tr><th>Issue</th><th>Cause</th><th>Fix</th></tr>
+<tr><td>umount -f -l hangs</td><td>Processes with open files on stale mount</td><td>fuser -km /mount_point first to kill processes; then umount -f -l</td></tr>
+<tr><td>ansible.posix.mount fails "device busy"</td><td>Previous umount didn't fully clean up</td><td>Add pause: seconds: 10 between unmount and remount tasks</td></tr>
+<tr><td>showmount times out</td><td>rpcbind not running on NFS server</td><td>systemctl start rpcbind; check firewall port 111 (portmapper)</td></tr>
+<tr><td>df hangs even on healthy mount</td><td>NFS server temporarily busy (not stale — just slow)</td><td>Increase nfs_io_test_timeout_sec to 10-15 for busy environments</td></tr>
+<tr><td>ansible.posix.mount not found</td><td>ansible.posix collection not installed</td><td>ansible-galaxy collection install ansible.posix</td></tr>
+</table>
+</div>
+</section>
+
+<!-- INTERVIEW -->
+<section id="interview">
+<h2 class="st">🎯 16. Interview Prep</h2>
+<div class="card">
+<div class="g2">
+<div>
+<details><summary>Q: Why use /proc/mounts instead of the mount command to check if an NFS share is mounted?</summary><div class="inner">
+The <code>mount</code> command and <code>df</code> both read from the kernel, but they do so by accessing the actual filesystem — which means they will HANG if any listed path is a stale NFS mount. <code>/proc/mounts</code> is a kernel virtual file that is always readable from the VFS layer without triggering any filesystem I/O. Reading <code>/proc/mounts</code> with <code>slurp</code> will NEVER hang, even if every single NFS mount on the system is stale.<br><br>
+This is a critical distinction. If we used <code>ansible.builtin.command: mount</code>, our monitoring playbook would hang on stale mounts — making it completely useless exactly when we need it most.
+</div></details>
+<details><summary>Q: What is the difference between hard and soft NFS mounts, and when would you use each?</summary><div class="inner">
+<b>Hard mount:</b> The NFS client retries I/O indefinitely if the server is unreachable. The process accessing the mount enters an uninterruptible D-state sleep. It cannot be killed. Oracle and databases require hard mounts because a soft mount that returns an I/O error mid-transaction can corrupt the database.<br><br>
+<b>Soft mount:</b> The NFS client returns an I/O error to the application after a configurable timeout. The process gets an error it can handle — no hanging. Better for application servers accessing configuration files (an error is better than a hang).<br><br>
+Banking rule: Oracle archivelog and RMAN backup mounts → hard. Application config and report shares → soft with timeo and retrans set.
+</div></details>
+</div>
+<div>
+<details><summary>Q: How do you detect a stale NFS mount without hanging the Ansible task?</summary><div class="inner">
+The key technique is the Linux <code>timeout</code> command wrapped around any I/O operation on the mount:<br><br>
+<code>timeout 5 stat /mount_point > /dev/null 2>&1 && echo REACHABLE || echo STALE</code><br><br>
+<code>stat</code> is used instead of <code>ls</code> or <code>touch</code> because it's the fastest filesystem metadata operation. The <code>timeout 5</code> prefix guarantees the command completes in at most 5 seconds — if the mount is stale and stat hangs, timeout kills it after 5 seconds and returns exit code 124.<br><br>
+We check the output ("REACHABLE" vs "STALE_OR_MISSING") rather than the exit code because timeout's exit code 124 is different from stat's failure exit code — using stdout string comparison is more reliable across different shell environments.
+</div></details>
+<details><summary>Q: Why use umount -f -l instead of just umount for stale mounts?</summary><div class="inner">
+Regular <code>umount /path</code> will ALSO hang on a stale NFS mount because it tries to communicate with the NFS server to do a clean unmount. We need:<br><br>
+<b>-f (force):</b> Forces the unmount without waiting for a server response. Immediately tells the kernel to stop trying to use the NFS server.<br>
+<b>-l (lazy):</b> Detaches the filesystem from the directory tree immediately, but allows processes that already have files open to continue until they close them. Without -l, force unmount on a busy mount fails with "device busy."<br><br>
+The combination <code>umount -f -l</code> is the industry standard approach for recovering stale NFS mounts. After this, processes that had open files will get SIGPIPE or EIO errors on their next I/O operation — they can then handle the error gracefully rather than hanging indefinitely.
+</div></details>
+</div>
+</div>
+</section>
+
+<div class="fn-row">
+  <span style="color:var(--text-dim);font-size:.85rem;">Advanced Series — Project 9 of 30 Complete</span>
+  <a class="btn" href="#">Request Project 10 →</a>
+</div>
+</main>
+</div>
+<script>
+function copyCode(btn){
+  const pre=btn.closest('.cw').querySelector('pre code')||btn.closest('.cw').querySelector('pre');
+  navigator.clipboard.writeText(pre.innerText).then(()=>{const o=btn.innerText;btn.innerText='Copied!';setTimeout(()=>btn.innerText=o,1500);});
+}
+</script>
+</body>
+</html>
+

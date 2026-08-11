@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Project 5 — Packet Capture and Analysis</title>
+<style>
+:root{
+  --blue:#2563EB; --blue-bg:#EFF6FF;
+  --purple:#7C3AED; --purple-bg:#F5F3FF;
+  --teal:#0F766E; --teal-bg:#F0FDFA;
+  --green:#16A34A; --green-bg:#F0FDF4;
+  --orange:#EA580C; --orange-bg:#FFF7ED;
+  --red:#DC2626; --red-bg:#FEF2F2;
+  --bg:#FFFFFF; --text:#1F2937; --muted:#6B7280;
+  --border:#E5E7EB; --sidebar-w:280px;
+}
+*{box-sizing:border-box;}
+body{margin:0;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--text);line-height:1.65;}
+a{color:var(--blue);text-decoration:none;}
+a:hover{text-decoration:underline;}
+code{font-family:"SFMono-Regular",Consolas,"Liberation Mono",Menlo,monospace;}
+
+.cover{padding:60px 24px 40px;background:linear-gradient(135deg,var(--blue-bg),var(--purple-bg));border-bottom:1px solid var(--border);}
+.cover-inner{max-width:900px;margin:0 auto;}
+.badge-row{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:18px;}
+.badge{font-size:12.5px;font-weight:600;padding:5px 12px;border-radius:20px;letter-spacing:.02em;}
+.badge.blue{background:var(--blue);color:#fff;}
+.badge.purple{background:var(--purple);color:#fff;}
+.badge.teal{background:var(--teal);color:#fff;}
+.badge.orange{background:var(--orange);color:#fff;}
+.cover h1{font-size:2.1rem;margin:0 0 8px;color:#111827;}
+.cover .subtitle{font-size:1.05rem;color:var(--muted);margin-bottom:26px;}
+.cover-meta{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;}
+.meta-card{background:#fff;border:1px solid var(--border);border-radius:10px;padding:12px 14px;}
+.meta-card .label{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:700;}
+.meta-card .value{font-size:14.5px;font-weight:600;margin-top:2px;}
+
+.layout{display:flex;max-width:1400px;margin:0 auto;}
+.sidebar{width:var(--sidebar-w);flex-shrink:0;position:sticky;top:0;align-self:flex-start;height:100vh;overflow-y:auto;border-right:1px solid var(--border);padding:22px 14px;}
+.sidebar h4{font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin:18px 0 6px 10px;}
+.sidebar h4:first-child{margin-top:0;}
+.sidebar a{display:block;padding:7px 10px;border-radius:8px;font-size:13.5px;color:#374151;margin-bottom:1px;}
+.sidebar a:hover{background:var(--blue-bg);text-decoration:none;color:var(--blue);}
+.progress-wrap{margin:10px 10px 4px;}
+.progress-bar{height:6px;background:var(--border);border-radius:4px;overflow:hidden;}
+.progress-fill{height:100%;width:0%;background:linear-gradient(90deg,var(--blue),var(--purple));transition:width .2s;}
+.progress-label{font-size:11px;color:var(--muted);margin-top:4px;}
+
+.content{flex:1;min-width:0;padding:34px 40px 100px;}
+section{margin-bottom:48px;scroll-margin-top:20px;}
+h2.sec-title{font-size:1.5rem;border-bottom:2px solid var(--border);padding-bottom:10px;margin-bottom:18px;display:flex;align-items:center;gap:10px;}
+h2.sec-title .num{background:var(--blue);color:#fff;width:30px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;}
+h3{font-size:1.15rem;margin-top:28px;color:#111827;}
+
+.box{border-radius:10px;padding:16px 18px;margin:16px 0;border:1px solid transparent;}
+.box .box-title{font-weight:700;font-size:13px;text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px;display:flex;align-items:center;gap:6px;}
+.box.concept{background:var(--blue-bg);border-color:#BFDBFE;}
+.box.concept .box-title{color:var(--blue);}
+.box.architecture{background:var(--purple-bg);border-color:#DDD6FE;}
+.box.architecture .box-title{color:var(--purple);}
+.box.success{background:var(--green-bg);border-color:#BBF7D0;}
+.box.success .box-title{color:var(--green);}
+.box.warning{background:var(--orange-bg);border-color:#FED7AA;}
+.box.warning .box-title{color:var(--orange);}
+.box.failure{background:var(--red-bg);border-color:#FECACA;}
+.box.failure .box-title{color:var(--red);}
+.box.bestpractice{background:var(--teal-bg);border-color:#99F6E4;}
+.box.bestpractice .box-title{color:var(--teal);}
+.box.story{background:#F9FAFB;border-color:var(--border);border-left:4px solid var(--purple);}
+
+.story p{margin:0 0 10px;}
+.story .quote{font-style:italic;color:#374151;border-left:3px solid var(--purple);padding-left:12px;margin:10px 0;}
+
+.term{background:#0F172A;color:#E2E8F0;border-radius:10px;margin:14px 0;overflow:hidden;border:1px solid #1E293B;}
+.term-header{display:flex;justify-content:space-between;align-items:center;background:#1E293B;padding:8px 14px;font-size:12px;color:#94A3B8;}
+.copy-btn{background:#334155;color:#E2E8F0;border:none;border-radius:6px;padding:4px 10px;font-size:11.5px;cursor:pointer;}
+.copy-btn:hover{background:#475569;}
+.term pre{margin:0;padding:14px 16px;overflow-x:auto;font-size:13.5px;line-height:1.6;}
+.term .cmdno{color:#64748B;margin-right:8px;}
+.term .cmd{color:#7DD3FC;}
+.term .out{color:#CBD5E1;}
+.term .out-err{color:#FCA5A5;}
+.term .out-ok{color:#86EFAC;}
+.term .comment{color:#64748B;}
+
+table.breakdown{width:100%;border-collapse:collapse;margin:12px 0 20px;font-size:14px;}
+table.breakdown th{background:#F3F4F6;text-align:left;padding:8px 10px;font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);}
+table.breakdown td{padding:9px 10px;border-top:1px solid var(--border);vertical-align:top;}
+table.breakdown td.token{font-family:monospace;color:var(--blue);font-weight:700;white-space:nowrap;}
+
+details.collapse{border:1px solid var(--border);border-radius:10px;margin:14px 0;overflow:hidden;}
+details.collapse summary{cursor:pointer;padding:12px 16px;font-weight:600;background:#F9FAFB;list-style:none;display:flex;align-items:center;gap:8px;}
+details.collapse summary::-webkit-details-marker{display:none;}
+details.collapse summary:before{content:"▶";font-size:11px;color:var(--muted);transition:transform .15s;}
+details.collapse[open] summary:before{transform:rotate(90deg);}
+details.collapse .collapse-body{padding:4px 16px 16px;}
+
+.diagram-frame{background:#FAFAFA;border:1px solid var(--border);border-radius:12px;padding:18px;margin:16px 0;overflow-x:auto;}
+.diagram-caption{font-size:12.5px;color:var(--muted);text-align:center;margin-top:8px;}
+
+table.ref{width:100%;border-collapse:collapse;font-size:14px;margin:14px 0;}
+table.ref th{background:#F3F4F6;padding:8px 10px;text-align:left;font-size:12.5px;}
+table.ref td{padding:8px 10px;border-top:1px solid var(--border);}
+
+.dtree{list-style:none;padding-left:0;font-size:14px;}
+.dtree li{padding:8px 12px;margin-bottom:6px;border-radius:8px;border:1px solid var(--border);position:relative;}
+.dtree li.q{background:var(--blue-bg);}
+.dtree li.ok{background:var(--green-bg);}
+.dtree li.bad{background:var(--red-bg);}
+.dtree .arrow{text-align:center;color:var(--muted);font-size:12px;margin:2px 0;}
+
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin:16px 0;}
+.card{border:1px solid var(--border);border-radius:10px;padding:14px 16px;}
+.card h4{margin:0 0 6px;font-size:14.5px;}
+.card p{margin:0;font-size:13.5px;color:var(--muted);}
+
+.qa{border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin:12px 0;background:#FCFCFD;}
+.qa .q{font-weight:700;color:#111827;margin-bottom:6px;}
+.qa .q .qtag{background:var(--purple);color:#fff;font-size:10.5px;padding:2px 8px;border-radius:10px;margin-right:8px;text-transform:uppercase;}
+.qa .followup{margin-top:8px;padding-top:8px;border-top:1px dashed var(--border);font-size:13.5px;color:var(--muted);}
+
+.top-link{position:fixed;bottom:22px;right:22px;background:var(--blue);color:#fff;width:42px;height:42px;border-radius:50%;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(0,0,0,.15);font-size:18px;}
+.top-link:hover{text-decoration:none;background:#1D4ED8;}
+
+@media (max-width:900px){
+  .sidebar{display:none;}
+  .content{padding:22px 18px 80px;}
+}
+</style>
+</head>
+<body>
+
+<div class="cover">
+  <div class="cover-inner">
+    <div class="badge-row">
+      <span class="badge blue">Project 5 of ~38</span>
+      <span class="badge purple">Linux Networking Masterclass</span>
+      <span class="badge teal">Domain: E-Commerce / DevOps</span>
+      <span class="badge orange">Difficulty: Intermediate</span>
+    </div>
+    <h1>Packet Capture and Analysis</h1>
+    <div class="subtitle">Checkout is randomly slow for some customers, and every layer we know how to check individually says "fine." This is where we stop trusting summaries and start reading the actual packets.</div>
+    <div class="cover-meta">
+      <div class="meta-card"><div class="label">Estimated Lab Time</div><div class="value">3 hours</div></div>
+      <div class="meta-card"><div class="label">Prerequisites</div><div class="value">Projects 1–4 completed</div></div>
+      <div class="meta-card"><div class="label">Lab Environment</div><div class="value">2 namespaces, tcpdump, a slow lab server</div></div>
+      <div class="meta-card"><div class="label">Concepts Learned</div><div class="value">BPF filters, tcpdump flags, safe production capture, reading raw output</div></div>
+    </div>
+  </div>
+</div>
+
+<div class="layout">
+  <nav class="sidebar" id="sidebar">
+    <div class="progress-wrap">
+      <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+      <div class="progress-label" id="progressLabel">0% through Project 5</div>
+    </div>
+    <h4>Orientation</h4>
+    <a href="#story">1. The Incident</a>
+    <a href="#foundation">2. Why Capture Packets At All</a>
+    <a href="#architecture">3. Where tcpdump Sits</a>
+    <a href="#methodology">4. Safe Production Capture Method</a>
+    <h4>Command Deep Dive</h4>
+    <a href="#filters">5. BPF Filters, Word by Word</a>
+    <a href="#flags">6. tcpdump Flags, Word by Word</a>
+    <a href="#reading">7. Reading Raw tcpdump Output</a>
+    <h4>Hands-On Lab</h4>
+    <a href="#labsetup">8. Lab Setup</a>
+    <a href="#verify">9. Verify Baseline Capture</a>
+    <h4>Break / Fix (3 Incidents)</h4>
+    <a href="#break1">10. Retransmissions (Slow Checkout)</a>
+    <a href="#break2">11. Capturing a Firewall Drop</a>
+    <a href="#break3">12. Save, Filter, and Replay a Capture</a>
+    <h4>Wrap-Up</h4>
+    <a href="#bestpractices">13. Best Practices</a>
+    <a href="#cheatsheet">14. Cheat Sheet</a>
+    <a href="#interview">15. Interview Prep</a>
+    <a href="#practice">16. Practice Tasks</a>
+    <a href="#resume">17. Resume Points</a>
+    <a href="#next">18. Next Project</a>
+  </nav>
+
+  <main class="content">
+
+  <section id="story">
+    <h2 class="sec-title"><span class="num">1</span>The Incident</h2>
+    <div class="box story">
+      <p>We're back with the e-commerce platform team. Checkout works for most customers, but a noticeable slice of transactions take 4-8 seconds instead of the usual 200ms — and it's not consistent enough to reproduce on demand from the application logs alone.</p>
+      <p class="quote">"Routing is fine, firewall is fine, DNS is fine, the app team says their code hasn't changed, and TCP connections do eventually complete — they're just slow sometimes. We're out of ideas from the application side."</p>
+      <p>Every tool we've used so far (ss, ip route, getent, dig) gives us a summary — a snapshot of state. None of them show us the actual sequence and timing of packets on the wire. When every summary says "fine" but the real-world symptom persists, it's time to capture and read the raw conversation itself.</p>
+    </div>
+    <div class="box concept">
+      <div class="box-title">🔵 Why this project matters</div>
+      <p>tcpdump is the ground truth of Linux networking — every other tool in this masterclass is really just summarizing what tcpdump can show you directly. Learning to build precise capture filters and read raw output fluently is what separates an engineer who can theorize about a problem from one who can prove it.</p>
+    </div>
+  </section>
+
+  <section id="foundation">
+    <h2 class="sec-title"><span class="num">2</span>Why Capture Packets At All</h2>
+    <div class="box concept">
+      <div class="box-title">🔵 Concept</div>
+      <p>Tools like <code>ss</code> tell you the current state of a connection. They cannot tell you HOW LONG the handshake took, whether a packet was retransmitted, or whether the server responded instantly and the delay happened elsewhere. tcpdump captures the actual packets crossing an interface, with real timestamps — the only source of truth for timing-related and intermittent problems.</p>
+    </div>
+    <div class="box concept">
+      <div class="box-title">🔵 Concept — retransmission, the likely culprit here</div>
+      <p>When the sender doesn't receive an acknowledgment for data within an expected window, TCP assumes the packet was lost and sends it again — a retransmission. This is normal and self-healing, but each retransmission costs real time (following an exponential backoff), and a connection that had to retransmit even once can easily take seconds longer than one that didn't. This is invisible to ss, invisible to application logs, and only visible in a packet capture.</p>
+    </div>
+  </section>
+
+  <section id="architecture">
+    <h2 class="sec-title"><span class="num">3</span>Where tcpdump Sits</h2>
+    <div class="box architecture">
+      <div class="box-title">🟣 Architecture</div>
+      <p>tcpdump uses a kernel facility (libpcap, backed by AF_PACKET sockets) to receive a copy of every packet that crosses a given interface — both inbound and outbound — before or after normal kernel processing, depending on where the interface sits. It does not interfere with the actual traffic; it's a read-only tap on the wire.</p>
+    </div>
+    <div class="diagram-frame">
+<svg viewBox="0 0 820 200" xmlns="http://www.w3.org/2000/svg" width="100%">
+<style>.lbl{font:600 13px sans-serif;fill:#1F2937;} .sub{font:11px sans-serif;fill:#6B7280;} .box{fill:#EFF6FF;stroke:#2563EB;stroke-width:1.5;rx:10;} .box2{fill:#F5F3FF;stroke:#7C3AED;stroke-width:1.5;rx:10;} .arr{stroke:#374151;stroke-width:2;marker-end:url(#a7);}</style>
+<defs><marker id="a7" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6 Z" fill="#374151"/></marker></defs>
+<rect x="20" y="70" width="160" height="60" class="box"/><text x="100" y="105" text-anchor="middle" class="lbl">Application</text>
+<rect x="220" y="70" width="160" height="60" class="box"/><text x="300" y="105" text-anchor="middle" class="lbl">Kernel TCP/IP</text>
+<rect x="420" y="70" width="160" height="60" class="box2"/><text x="500" y="100" text-anchor="middle" class="lbl">tcpdump</text><text x="500" y="118" text-anchor="middle" class="sub">reads a copy here</text>
+<rect x="620" y="70" width="160" height="60" class="box"/><text x="700" y="105" text-anchor="middle" class="lbl">NIC → Network</text>
+<line x1="180" y1="100" x2="218" y2="100" class="arr"/>
+<line x1="380" y1="100" x2="418" y2="100" class="arr"/>
+<line x1="580" y1="100" x2="618" y2="100" class="arr"/>
+</svg>
+    </div>
+    <div class="diagram-caption">Figure 1 — tcpdump taps the traffic without altering it, which is exactly why it can show us ground truth that state-summarizing tools can't.</div>
+  </section>
+
+  <section id="methodology">
+    <h2 class="sec-title"><span class="num">4</span>Safe Production Capture Method</h2>
+    <div class="box bestpractice">
+      <div class="box-title">🟦 Production Best Practice</div>
+      <p>Never run an unfiltered, unbounded tcpdump on a busy production interface — it can consume significant CPU and disk, and an accidentally broad filter can capture sensitive data (credentials, tokens, PII) into a file that then has to be handled carefully. The professional pattern is: filter as precisely as possible (by host and port, never capture "everything"), bound the capture with a packet count or file size, and write to disk instead of trying to eyeball a live, fast-scrolling terminal.</p>
+    </div>
+    <ul class="dtree">
+      <li class="q">1. Define the narrowest possible filter — specific host(s) and port(s), never a bare protocol alone</li>
+      <div class="arrow">↓</div>
+      <li class="q">2. Bound the capture — use -c (packet count) or a rotate/size limit, never let it run forever unattended</li>
+      <div class="arrow">↓</div>
+      <li class="q">3. Write to a file with -w instead of printing live, especially under load</li>
+      <div class="arrow">↓</div>
+      <li class="q">4. Reproduce the problem (or wait for it) while the capture runs</li>
+      <div class="arrow">↓</div>
+      <li class="ok">Analyze the .pcap afterward with -r, or open it in Wireshark for deeper visual analysis (Project 6)</li>
+    </ul>
+  </section>
+
+  <section id="filters">
+    <h2 class="sec-title"><span class="num">5</span>BPF Filters, Word by Word</h2>
+    <p>tcpdump's filter language is called BPF (Berkeley Packet Filter). Getting comfortable combining these expressions is what separates a useful, targeted capture from an overwhelming firehose.</p>
+    <table class="breakdown">
+      <tr><th>Filter Token</th><th>Meaning</th></tr>
+      <tr><td class="token">host 10.10.9.50</td><td>Match packets where EITHER the source OR destination IP is 10.10.9.50.</td></tr>
+      <tr><td class="token">src 10.10.9.50</td><td>Match only packets where 10.10.9.50 is the SOURCE — narrower than <code>host</code>, useful for isolating one direction of traffic.</td></tr>
+      <tr><td class="token">dst 10.10.9.50</td><td>Match only packets where 10.10.9.50 is the DESTINATION.</td></tr>
+      <tr><td class="token">port 8443</td><td>Match packets where either the source or destination port is 8443.</td></tr>
+      <tr><td class="token">src port 51234</td><td>Match only packets whose SOURCE port is 51234 — useful for following one specific client connection.</td></tr>
+      <tr><td class="token">tcp</td><td>Match only TCP protocol packets, excluding UDP, ICMP, ARP, etc.</td></tr>
+      <tr><td class="token">udp</td><td>Match only UDP protocol packets — useful for DNS queries, which typically use UDP.</td></tr>
+      <tr><td class="token">icmp</td><td>Match only ICMP packets — pings and related control messages.</td></tr>
+      <tr><td class="token">net 10.10.9.0/24</td><td>Match packets where either address falls within this entire subnet.</td></tr>
+      <tr><td class="token">and / or / not</td><td>Boolean combinators — build precise compound filters, e.g. <code>tcp and port 8443 and not host 10.10.1.5</code> to exclude a known-noisy health-check source.</td></tr>
+    </table>
+    <div class="term">
+      <div class="term-header"><span>bash — example combined filter</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button></div>
+      <pre><span class="cmdno">1</span><span class="cmd">sudo tcpdump -i eth0 'tcp and host 10.10.9.50 and port 8443 and not src host 10.10.1.5'</span></pre>
+    </div>
+    <div class="box concept"><div class="box-title">🔵 Reading this filter</div><p>"Show me only TCP traffic to or from 10.10.9.50 on port 8443, but exclude anything sourced from 10.10.1.5" — this is exactly the shape of filter you'd write to isolate one problematic checkout connection while excluding a noisy monitoring probe that keeps polling the same port.</p></div>
+  </section>
+
+  <section id="flags">
+    <h2 class="sec-title"><span class="num">6</span>tcpdump Flags, Word by Word</h2>
+    <table class="breakdown">
+      <tr><th>Flag</th><th>Meaning</th></tr>
+      <tr><td class="token">-i eth0</td><td>Capture on this specific interface. Use <code>-i any</code> to capture on all interfaces at once (useful when you're not sure which interface carries the traffic).</td></tr>
+      <tr><td class="token">-nn</td><td>Don't resolve IP addresses to hostnames AND don't resolve port numbers to service names — shows raw numeric values, which is both faster and avoids DNS lookups interfering with (or being confused with) the very traffic you're capturing.</td></tr>
+      <tr><td class="token">-vvv</td><td>Increase verbosity to maximum — shows more protocol detail per packet (TTL, packet ID, more TCP options), useful once you've narrowed down to a small set of packets worth examining closely.</td></tr>
+      <tr><td class="token">-X</td><td>Show packet contents in both hex AND ASCII — useful for inspecting application-layer payload data (e.g. is this actually an HTTP request? what does the body contain?).</td></tr>
+      <tr><td class="token">-A</td><td>Show packet contents in ASCII only — a lighter-weight version of -X when you just want to read plain-text protocols like HTTP.</td></tr>
+      <tr><td class="token">-c 100</td><td>Capture exactly 100 packets and then stop automatically — essential for bounding a capture so it can't run away on a busy interface.</td></tr>
+      <tr><td class="token">-w capture.pcap</td><td>Write raw captured packets to a file instead of printing them, preserving full fidelity for later analysis or for opening in Wireshark.</td></tr>
+      <tr><td class="token">-r capture.pcap</td><td>Read and print packets from a previously saved capture file instead of capturing live traffic.</td></tr>
+    </table>
+  </section>
+
+  <section id="reading">
+    <h2 class="sec-title"><span class="num">7</span>Reading Raw tcpdump Output</h2>
+    <div class="term">
+      <div class="term-header"><span>example output line</span></div>
+      <pre><span class="out">14:02:11.238471 IP 10.10.1.20.51234 &gt; 10.10.9.50.8443: Flags [S], seq 1458203912, win 64240, length 0</span></pre>
+    </div>
+    <table class="breakdown">
+      <tr><th>Field</th><th>Meaning</th></tr>
+      <tr><td class="token">14:02:11.238471</td><td>Timestamp with microsecond precision — critical for measuring exactly how much time passed between packets, e.g. between a SYN and its retransmission.</td></tr>
+      <tr><td class="token">IP</td><td>This is an IPv4 packet (would show IP6 for IPv6).</td></tr>
+      <tr><td class="token">10.10.1.20.51234</td><td>Source IP and source port (the last number after the final dot is the port).</td></tr>
+      <tr><td class="token">&gt;</td><td>Direction indicator — "going to."</td></tr>
+      <tr><td class="token">10.10.9.50.8443</td><td>Destination IP and destination port.</td></tr>
+      <tr><td class="token">Flags [S]</td><td>TCP flags set on this packet. S=SYN, .=ACK (shown as part of combinations like [S.] for SYN-ACK), F=FIN, R=RST, P=PSH (push, deliver data to the app immediately).</td></tr>
+      <tr><td class="token">seq 1458203912</td><td>The sequence number — identifies this packet's position in the byte stream, used by both sides to detect loss and reordering.</td></tr>
+      <tr><td class="token">win 64240</td><td>The TCP window size being advertised — how many bytes the sender is willing to receive before needing an ACK; useful when investigating throughput problems.</td></tr>
+      <tr><td class="token">length 0</td><td>Payload length in bytes — 0 here because a bare SYN carries no application data, only the handshake signal.</td></tr>
+    </table>
+  </section>
+
+  <section id="labsetup">
+    <h2 class="sec-title"><span class="num">8</span>Lab Setup</h2>
+    <div class="term">
+      <div class="term-header"><span>bash — run as root/sudo</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button></div>
+      <pre><span class="cmdno">1</span><span class="cmd">sudo ip netns add ns-client</span>
+<span class="cmdno">2</span><span class="cmd">sudo ip netns add ns-checkout</span>
+<span class="cmdno">3</span><span class="cmd">sudo ip link add veth-client type veth peer name veth-checkout</span>
+<span class="cmdno">4</span><span class="cmd">sudo ip link set veth-client netns ns-client</span>
+<span class="cmdno">5</span><span class="cmd">sudo ip link set veth-checkout netns ns-checkout</span>
+<span class="cmdno">6</span><span class="cmd">sudo ip netns exec ns-client ip addr add 10.10.1.20/24 dev veth-client</span>
+<span class="cmdno">7</span><span class="cmd">sudo ip netns exec ns-checkout ip addr add 10.10.9.50/24 dev veth-checkout</span>
+<span class="cmdno">8</span><span class="cmd">sudo ip netns exec ns-client ip link set veth-client up</span>
+<span class="cmdno">9</span><span class="cmd">sudo ip netns exec ns-checkout ip link set veth-checkout up</span>
+<span class="cmdno">10</span><span class="cmd">for ns in ns-client ns-checkout; do sudo ip netns exec $ns ip link set lo up; done</span>
+<span class="cmdno">11</span><span class="cmd">sudo ip netns exec ns-checkout python3 -m http.server 8443 --bind 10.10.9.50 &amp;</span></pre>
+    </div>
+  </section>
+
+  <section id="verify">
+    <h2 class="sec-title"><span class="num">9</span>Verify a Baseline Capture</h2>
+    <div class="term">
+      <div class="term-header"><span>terminal A — on ns-checkout, start capturing</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button></div>
+      <pre><span class="cmdno">1</span><span class="cmd">sudo ip netns exec ns-checkout tcpdump -i veth-checkout -nn 'tcp port 8443' -c 20</span></pre>
+    </div>
+    <div class="term">
+      <div class="term-header"><span>terminal B — on ns-client, generate traffic</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button></div>
+      <pre><span class="cmdno">1</span><span class="cmd">sudo ip netns exec ns-client curl -s -o /dev/null http://10.10.9.50:8443/</span></pre>
+    </div>
+    <div class="box success"><div class="box-title">🟢 Validation</div><p>You should see a clean SYN → SYN-ACK → ACK, then a data exchange, then a clean FIN sequence — no retransmissions, no resets, tightly spaced timestamps. This is our known-good baseline to compare against.</p></div>
+  </section>
+
+  <!-- BREAK 1 -->
+  <section id="break1">
+    <h2 class="sec-title"><span class="num">10</span>Break-Fix #1 — Capturing Retransmissions (the Slow Checkout Mystery)</h2>
+    <div class="box failure"><div class="box-title">🔴 Break It</div><p>Use Linux's traffic control (tc) to simulate a lossy link between the two namespaces — this reproduces intermittent packet loss without touching firewall or routing config at all, so ss, ip route, and the firewall will all correctly report "fine," exactly like the incident.</p></div>
+    <div class="term">
+      <div class="term-header"><span>bash — on ns-client, introduce 15% packet loss</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button></div>
+      <pre><span class="cmdno">1</span><span class="cmd">sudo ip netns exec ns-client tc qdisc add dev veth-client root netem loss 15%</span></pre>
+    </div>
+    <table class="breakdown">
+      <tr><th>Token</th><th>Meaning</th></tr>
+      <tr><td class="token">tc qdisc add dev veth-client root netem loss 15%</td><td>Attaches the netem (network emulation) queueing discipline to this interface and tells it to randomly drop 15% of outgoing packets — a standard way to simulate real-world lossy links (bad cabling, congested WAN links, flaky wifi) in a lab.</td></tr>
+      </table>
+    <h3>Observe with a capture</h3>
+    <div class="term">
+      <div class="term-header"><span>terminal A — on ns-checkout</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button></div>
+      <pre><span class="cmdno">1</span><span class="cmd">sudo ip netns exec ns-checkout tcpdump -i veth-checkout -nn 'tcp port 8443' -c 40 -w /tmp/slow-checkout.pcap</span></pre>
+    </div>
+    <div class="term">
+      <div class="term-header"><span>terminal B — on ns-client, time a request</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button></div>
+      <pre><span class="cmdno">1</span><span class="cmd">sudo ip netns exec ns-client bash -c "time curl -s -o /dev/null http://10.10.9.50:8443/"</span>
+<span class="out-err">    real    0m2.847s   (versus a sub-50ms baseline)</span></pre>
+    </div>
+    <h3>Read the capture</h3>
+    <div class="term">
+      <div class="term-header"><span>bash — analyze the saved capture</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button></div>
+      <pre><span class="cmdno">1</span><span class="cmd">sudo ip netns exec ns-checkout tcpdump -nn -r /tmp/slow-checkout.pcap</span>
+<span class="out">    14:10:02.001022 IP 10.10.1.20.51301 &gt; 10.10.9.50.8443: Flags [S], seq 100, length 0
+    14:10:02.001501 IP 10.10.9.50.8443 &gt; 10.10.1.20.51301: Flags [S.], seq 500, ack 101, length 0
+    14:10:02.301944 IP 10.10.1.20.51301 &gt; 10.10.9.50.8443: Flags [S], seq 100, length 0
+    </span><span class="out-err">14:10:02.301944 ← same SYN, retransmitted ~300ms later — the original ACK to the SYN-ACK never arrived, so the client's timer fired again</span></pre>
+    </div>
+    <div class="box concept"><div class="box-title">🔵 Reading the symptom</div><p>This is the smoking gun ss and application logs could never show us: the exact same sequence number appearing a second time is a textbook retransmission, and the gap between the two timestamps (roughly 300ms here) is time the connection spent doing nothing productive, waiting to recover from loss. Multiply this across several retransmitted segments in a longer transfer and you get exactly the multi-second delays customers were experiencing — all while every state-based tool reports a perfectly healthy, ESTABLISHED connection, because the connection DID eventually succeed.</p></div>
+    <div class="box failure"><div class="box-title">🔴 Root Cause</div><p>Intermittent packet loss on the network path was causing TCP retransmissions, each one costing hundreds of milliseconds to multiple seconds of delay — invisible to any tool that only reports connection state rather than packet-level timing.</p></div>
+    <div class="term">
+      <div class="term-header"><span>bash — fix (in the lab, remove the simulated loss)</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button></div>
+      <pre><span class="cmdno">1</span><span class="cmd">sudo ip netns exec ns-client tc qdisc del dev veth-client root netem</span></pre>
+    </div>
+    <div class="box bestpractice"><div class="box-title">🟦 Production Best Practice</div><p>In a real incident, the "fix" for packet loss is investigating the physical/virtual network path — bad cabling, an overloaded switch port, a saturated link, or a misbehaving virtualization NIC driver — not something you fix on the Linux host itself. But finding it starts with exactly this kind of packet capture, since it's the only tool that reveals retransmission as the mechanism.</p></div>
+  </section>
+
+  <!-- BREAK 2 -->
+  <section id="break2">
+    <h2 class="sec-title"><span class="num">11</span>Break-Fix #2 — Capturing a Firewall Drop in the Act</h2>
+    <div class="box failure"><div class="box-title">🔴 Break It</div><p>Revisit Project 1's firewall-drop scenario, but this time PROVE it definitively with a capture instead of inferring it from a timeout.</p></div>
+    <div class="term">
+      <div class="term-header"><span>bash — on ns-checkout</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button></div>
+      <pre><span class="cmdno">1</span><span class="cmd">sudo ip netns exec ns-checkout iptables -A INPUT -p tcp --dport 8443 -j DROP</span>
+<span class="cmdno">2</span><span class="cmd">sudo ip netns exec ns-checkout tcpdump -i veth-checkout -nn 'tcp port 8443' -c 5 -w /tmp/dropped.pcap &amp;</span></pre>
+    </div>
+    <div class="term">
+      <div class="term-header"><span>bash — on ns-client</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button></div>
+      <pre><span class="cmdno">1</span><span class="cmd">sudo ip netns exec ns-client timeout 3 curl http://10.10.9.50:8443/</span></pre>
+    </div>
+    <h3>Read the capture</h3>
+    <div class="term">
+      <div class="term-header"><span>bash</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button></div>
+      <pre><span class="cmdno">1</span><span class="cmd">sudo ip netns exec ns-checkout tcpdump -nn -r /tmp/dropped.pcap</span>
+<span class="out">    14:15:00.100221 IP 10.10.1.20.51400 &gt; 10.10.9.50.8443: Flags [S], seq 900, length 0</span>
+<span class="out-err">    (capture ends here — nothing else was ever captured on this interface for this flow)</span></pre>
+    </div>
+    <div class="box concept"><div class="box-title">🔵 Reading the symptom — a crucial, precise distinction</div><p>Notice the SYN WAS captured arriving on veth-checkout — that proves the packet physically reached this host's NIC and kernel. But no SYN-ACK was ever sent back, because iptables' INPUT chain DROP rule discarded it after the NIC received it but before the application ever saw it. This precisely pinpoints the drop to the local firewall layer on THIS host, rather than somewhere out on the network — a distinction that matters enormously when deciding which team or which device to investigate next.</p></div>
+    <div class="term">
+      <div class="term-header"><span>bash — fix</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button></div>
+      <pre><span class="cmdno">1</span><span class="cmd">sudo ip netns exec ns-checkout iptables -D INPUT -p tcp --dport 8443 -j DROP</span></pre>
+    </div>
+  </section>
+
+  <!-- BREAK 3 -->
+  <section id="break3">
+    <h2 class="sec-title"><span class="num">12</span>Break-Fix #3 — Saving, Filtering, and Replaying a Capture</h2>
+    <div class="box warning"><div class="box-title">🟠 Scenario</div><p>In a real incident, you often can't sit and watch a live capture — you need to capture broadly for a while, then filter down afterward to find the interesting packets. Let's practice exactly that workflow using the retransmission capture from Break-Fix #1.</p></div>
+    <div class="term">
+      <div class="term-header"><span>bash — re-run the lossy capture to generate a fresh file</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button></div>
+      <pre><span class="cmdno">1</span><span class="cmd">sudo ip netns exec ns-client tc qdisc add dev veth-client root netem loss 15%</span>
+<span class="cmdno">2</span><span class="cmd">sudo ip netns exec ns-checkout tcpdump -i veth-checkout -nn 'tcp port 8443' -c 60 -w /tmp/investigate.pcap &amp;</span>
+<span class="cmdno">3</span><span class="cmd">sudo ip netns exec ns-client curl -s -o /dev/null http://10.10.9.50:8443/</span></pre>
+    </div>
+    <div class="term">
+      <div class="term-header"><span>bash — filter the saved file down to just the retransmissions, offline</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button></div>
+      <pre><span class="cmdno">1</span><span class="cmd">sudo ip netns exec ns-checkout tcpdump -nn -r /tmp/investigate.pcap 'tcp[tcpflags] & tcp-syn != 0'</span></pre>
+    </div>
+    <table class="breakdown">
+      <tr><th>Token</th><th>Meaning</th></tr>
+      <tr><td class="token">-r /tmp/investigate.pcap</td><td>Read from the previously saved file instead of capturing live — this is the "replay" half of the workflow, letting you re-analyze the same data with different filters as many times as needed without re-running the incident.</td></tr>
+      <tr><td class="token">'tcp[tcpflags] & tcp-syn != 0'</td><td>An advanced BPF expression that matches only packets with the SYN flag set — useful specifically for spotting retransmitted SYNs (duplicates) after the fact, buried among dozens of other packets in a larger capture.</td></tr>
+    </table>
+    <div class="box success"><div class="box-title">🟢 Validation</div><p>You should be able to count how many SYNs appear for what should have been a single connection attempt — any count greater than 1 confirms at least one retransmission occurred during that request.</p></div>
+    <div class="term">
+      <div class="term-header"><span>bash — cleanup</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button></div>
+      <pre><span class="cmdno">1</span><span class="cmd">sudo ip netns exec ns-client tc qdisc del dev veth-client root netem</span></pre>
+    </div>
+    <div class="box bestpractice"><div class="box-title">🟦 Production Best Practice</div><p>This capture-then-filter-offline workflow is exactly how you handle production incidents where you can't predict precisely when the problem will occur — capture broadly and safely with -w and -c, then take your time analyzing afterward instead of trying to catch the issue live.</p></div>
+  </section>
+
+  <section id="bestpractices">
+    <h2 class="sec-title"><span class="num">13</span>Production Best Practices</h2>
+    <div class="cards">
+      <div class="card"><h4>🟦 Never capture unfiltered on a busy host</h4><p>Always scope to specific hosts/ports, and always bound with -c or a size/time limit.</p></div>
+      <div class="card"><h4>🟦 Write to a file, analyze after</h4><p>-w plus -r separates the risky live-capture window from the safe, unlimited-time analysis phase.</p></div>
+      <div class="card"><h4>🟦 Duplicate sequence numbers = retransmission</h4><p>The single most important pattern to recognize by eye in raw tcpdump output.</p></div>
+      <div class="card"><h4>🟦 A captured SYN with no reply pinpoints the host</h4><p>If tcpdump on the SERVER shows the SYN arriving but nothing going back out, the problem is on that host (firewall, or nothing listening) — not somewhere out on the network.</p></div>
+      <div class="card"><h4>🟦 Handle captures like sensitive data</h4><p>.pcap files can contain credentials, tokens, and PII in plaintext protocols — store and share them as carefully as you would a password.</p></div>
+    </div>
+  </section>
+
+  <section id="cheatsheet">
+    <h2 class="sec-title"><span class="num">14</span>Troubleshooting Cheat Sheet</h2>
+    <table class="ref">
+      <tr><th>Symptom</th><th>What to Capture / Look For</th></tr>
+      <tr><td>Intermittent slowness, connections eventually succeed</td><td>Look for duplicate sequence numbers = retransmissions</td></tr>
+      <tr><td>Need to prove a firewall is dropping vs a network issue</td><td>Capture on the SERVER side — SYN arrives with no reply sent = local drop</td></tr>
+      <tr><td>Can't predict when the issue will occur</td><td>Capture broadly with -c/-w, filter and analyze offline with -r</td></tr>
+      <tr><td>Need to inspect actual request/response content</td><td>-A (ASCII) or -X (hex+ASCII) for plaintext protocols only</td></tr>
+    </table>
+  </section>
+
+  <section id="interview">
+    <h2 class="sec-title"><span class="num">15</span>Interview Preparation</h2>
+
+    <div class="qa"><div class="q"><span class="qtag">Scenario</span>An application is intermittently slow but every state-based check (connection status, firewall rules, routing) looks fine. How would you investigate?</div>
+    <p>State-based tools only show a snapshot, not timing or history, so I'd move to a packet capture to see the actual sequence and timestamps of packets. I'd filter narrowly to the specific host and port involved, bound it with a packet count, and write it to a file so I could analyze it without pressure. The key thing I'd look for is duplicate sequence numbers, which indicate TCP retransmissions — each one costs real time due to backoff and would explain intermittent slowness that never shows up as an outright failure.</p>
+    <div class="followup">Interviewer follow-up: "How do you know it's retransmission and not just a slow server?" — Answer: a slow server would show a normal handshake completing quickly, followed by a long gap before the response payload. A retransmission shows the exact same SYN or data segment appearing more than once with the same sequence number, which only happens when the original wasn't acknowledged in time.</div>
+    </div>
+
+    <div class="qa"><div class="q"><span class="qtag">Concept</span>What's the difference between running tcpdump live versus using -w and -r?</div>
+    <p>Live capture prints packets to the terminal as they arrive, which works fine for quick, low-volume checks but is risky on a busy interface since you can't easily bound or revisit it. Using -w writes raw packets to a file instead, letting you safely bound the capture and analyze it later with -r and different filters as many times as needed, without re-triggering the original incident.</p>
+    </div>
+
+    <div class="qa"><div class="q"><span class="qtag">Production</span>Why should you avoid capturing traffic with no filter on a production host?</div>
+    <p>An unfiltered capture on a busy interface can consume significant CPU and disk I/O, potentially making performance worse during an active incident, and can also capture large volumes of unrelated, possibly sensitive traffic that then has to be stored and handled carefully. A precise filter — specific host and port — keeps the capture lightweight and focused on the actual problem.</p>
+    </div>
+
+    <div class="qa"><div class="q"><span class="qtag">Troubleshooting</span>You captured a SYN packet arriving at a server's NIC, but no SYN-ACK was ever sent. What does that tell you?</div>
+    <p>It tells me the packet successfully reached this host at the network layer, so routing and the physical/virtual path are fine — the problem is local to this host, most likely a firewall rule silently dropping the packet, or possibly nothing listening on that port, which I'd confirm next with ss.</p>
+    </div>
+  </section>
+
+  <section id="practice">
+    <h2 class="sec-title"><span class="num">16</span>Practice Tasks &amp; Break-Fix Challenge</h2>
+    <div class="box warning">
+      <div class="box-title">🟠 Practice Tasks</div>
+      <ol>
+        <li>Rebuild the client/checkout lab and reproduce the retransmission scenario using different loss percentages (5%, 15%, 30%) — observe how request time changes.</li>
+        <li>Write your own BPF filter that captures only retransmitted SYNs (hint: covered in Break-Fix #3) without help from this file.</li>
+        <li>Capture a plaintext HTTP request/response with -A and identify the actual HTTP method, path, and status line in the output.</li>
+      </ol>
+    </div>
+    <div class="box failure">
+      <div class="box-title">🔴 Break-Fix Challenge</div>
+      <p>Have someone else apply either the packet-loss break or the firewall-drop break without telling you which. Using only a bounded, filtered tcpdump capture written to a file and analyzed afterward, determine which one occurred and prove it from the raw output.</p>
+    </div>
+  </section>
+
+  <section id="resume">
+    <h2 class="sec-title"><span class="num">17</span>Resume Points &amp; How to Explain This Project</h2>
+    <div class="box bestpractice">
+      <div class="box-title">🟦 Realistic resume bullet points</div>
+      <ul>
+        <li>Diagnosed intermittent application latency to a network packet-loss root cause using targeted tcpdump captures, identifying TCP retransmissions invisible to connection-state monitoring tools.</li>
+        <li>Established a safe production packet-capture methodology using precise BPF filters, bounded capture counts, and offline file-based analysis.</li>
+        <li>Used packet captures to definitively distinguish local firewall drops from network-path issues by confirming packet arrival at the NIC layer.</li>
+      </ul>
+    </div>
+    <div class="box concept">
+      <div class="box-title">🔵 Natural spoken interview answer</div>
+      <p>"I worked through a scenario where an application was intermittently slow but every state-based check — connection status, firewall rules, routing — looked completely healthy. I used tcpdump with a precise filter and a bounded packet count to safely capture traffic, wrote it to a file, and then analyzed it afterward instead of trying to watch it live. The capture showed the same TCP sequence number appearing twice a few hundred milliseconds apart, which is a retransmission — meaning packet loss on the network path was silently costing seconds per request, something no connection-state tool could have shown me. I also practiced proving exactly where a firewall drop happens by capturing on the server side and seeing a SYN arrive with no reply ever sent back out."</p>
+    </div>
+  </section>
+
+  <section id="next">
+    <h2 class="sec-title"><span class="num">18</span>Next Project Prerequisites</h2>
+    <div class="box architecture">
+      <div class="box-title">🟣 Coming up in Project 6 — Wireshark Analysis</div>
+      <p>We'll take the .pcap files we've already learned to create and open them in Wireshark for visual TCP stream analysis, spotting retransmissions, duplicate ACKs, and zero-window conditions at a glance instead of reading raw text line by line.</p>
+      <p>Say <b>"Next Project"</b> when you're ready to continue.</p>
+    </div>
+  </section>
+
+  </main>
+</div>
+
+<a href="#" class="top-link" title="Back to top">↑</a>
+
+<script>
+function copyBlock(btn){
+  const pre = btn.closest('.term').querySelector('pre');
+  const text = pre.innerText;
+  navigator.clipboard.writeText(text).then(()=>{
+    const old = btn.textContent;
+    btn.textContent = "Copied!";
+    setTimeout(()=>btn.textContent = old, 1400);
+  });
+}
+window.addEventListener('scroll', function(){
+  const sections = document.querySelectorAll('section');
+  const total = document.body.scrollHeight - window.innerHeight;
+  const pct = Math.min(100, Math.round((window.scrollY/total)*100));
+  document.getElementById('progressFill').style.width = pct + '%';
+  document.getElementById('progressLabel').textContent = pct + '% through Project 5';
+
+  let current = '';
+  sections.forEach(sec=>{
+    const rect = sec.getBoundingClientRect();
+    if(rect.top <= 120) current = sec.id;
+  });
+  document.querySelectorAll('.sidebar a').forEach(a=>{
+    a.style.background = '';
+    a.style.color = '';
+    a.style.fontWeight = '';
+    if(a.getAttribute('href') === '#'+current){
+      a.style.background = 'var(--blue-bg)';
+      a.style.color = 'var(--blue)';
+      a.style.fontWeight = '700';
+    }
+  });
+});
+</script>
+</body>
+</html>

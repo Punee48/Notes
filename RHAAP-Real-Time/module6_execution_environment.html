@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Module 6 — The Execution Environment</title>
+<style>
+  :root{
+    --blue:#1D4ED8; --blue-light:#DBEAFE; --blue-vlight:#EFF6FF;
+    --ink:#1F2937; --muted:#4B5563; --line:#E5E7EB; --ok:#047857; --warn:#B45309; --bad:#B91C1C;
+    --code-bg:#0F172A; --code-ink:#E2E8F0;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:Segoe UI, Arial, sans-serif;color:var(--ink);background:#fff;line-height:1.65;font-size:16px;}
+  .layout{display:flex;min-height:100vh;}
+  nav{width:280px;flex-shrink:0;background:var(--blue-vlight);border-right:1px solid var(--line);padding:24px 16px;position:sticky;top:0;height:100vh;overflow-y:auto;}
+  nav h2{font-size:14px;text-transform:uppercase;letter-spacing:.05em;color:var(--blue);margin:0 0 12px;}
+  nav a{display:block;padding:7px 10px;border-radius:6px;color:var(--ink);text-decoration:none;font-size:14px;margin-bottom:2px;}
+  nav a:hover{background:var(--blue-light);}
+  main{flex:1;padding:40px 60px;max-width:960px;}
+  .badge{display:inline-block;background:var(--blue);color:#fff;font-size:12px;font-weight:600;padding:4px 10px;border-radius:999px;letter-spacing:.03em;}
+  h1{font-size:30px;margin:14px 0 6px;color:var(--blue);}
+  .subtitle{color:var(--muted);font-size:16px;margin-bottom:32px;}
+  h2{font-size:22px;margin-top:48px;border-bottom:2px solid var(--blue-light);padding-bottom:8px;color:#111827;}
+  h3{font-size:18px;margin-top:24px;color:#111827;}
+  p{margin:12px 0;}
+  .story{background:var(--blue-vlight);border-left:4px solid var(--blue);padding:16px 20px;border-radius:6px;margin:16px 0;}
+  .why{background:#FFFBEB;border-left:4px solid var(--warn);padding:14px 20px;border-radius:6px;margin:14px 0;}
+  .prod{background:#ECFDF5;border-left:4px solid var(--ok);padding:14px 20px;border-radius:6px;margin:14px 0;}
+  .flow{background:#F9FAFB;border:1px solid var(--line);border-radius:8px;padding:18px 20px;margin:16px 0;font-family:Consolas,monospace;font-size:14px;white-space:pre;overflow-x:auto;color:#111827;}
+  table{width:100%;border-collapse:collapse;margin:16px 0;font-size:14px;}
+  th{background:var(--blue);color:#fff;text-align:left;padding:9px 11px;}
+  td{padding:9px 11px;border-bottom:1px solid var(--line);vertical-align:top;}
+  tr:nth-child(even) td{background:#F9FAFB;}
+  details{border:1px solid var(--line);border-radius:8px;margin:14px 0;padding:0;}
+  summary{cursor:pointer;padding:12px 16px;font-weight:600;background:#F9FAFB;border-radius:8px;}
+  details[open] summary{border-bottom:1px solid var(--line);border-radius:8px 8px 0 0;}
+  details .inner{padding:14px 18px;}
+  .task{background:#ECFDF5;border:1px solid #A7F3D0;border-radius:8px;padding:18px 22px;margin:24px 0;}
+  .task h3{margin-top:0;color:var(--ok);}
+  .next{background:#111827;color:#fff;border-radius:8px;padding:20px 24px;margin-top:30px;}
+  code{background:#F1F5F9;padding:1px 6px;border-radius:4px;font-size:13.5px;}
+  pre{background:var(--code-bg);color:var(--code-ink);padding:16px 18px;border-radius:8px;overflow-x:auto;font-size:13.5px;margin:14px 0;}
+  .line-note{font-size:14px;color:var(--muted);margin:4px 0 4px 18px;}
+  footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);color:var(--muted);font-size:13px;}
+</style>
+</head>
+<body>
+<div class="layout">
+
+<nav>
+  <h2>Masterclass</h2>
+  <a href="#recap">1. What Is an EE, Really?</a>
+  <a href="#why-custom">2. Why the Default EE Is Not Enough</a>
+  <a href="#builder">3. ansible-builder</a>
+  <a href="#eeyml">4. execution-environment.yml Explained</a>
+  <a href="#supporting">5. Supporting Files</a>
+  <a href="#build-register">6. Building and Registering the EE</a>
+  <a href="#task">7. Hands-On Task</a>
+  <a href="#next">8. What Comes Next</a>
+</nav>
+
+<main>
+  <span class="badge">MODULE 6</span>
+  <h1>The Execution Environment</h1>
+  <p class="subtitle">Packaging everything Ansible needs into one portable, versioned container</p>
+
+  <h2 id="recap">1. What Is an Execution Environment, Really?</h2>
+  <div class="story">
+    <p>Puneeth, here's a simple way to picture it. In Module 5 we said Collections are like an "international calling plan" for Ansible. Now think of the <strong>Execution Environment (EE)</strong> as the entire phone itself — a self-contained container image that already has Ansible Core, the exact Collections we need (<code>amazon.aws</code>, <code>azure.azcollection</code>, <code>kubernetes.core</code>, <code>redhat.openshift</code>), and every underlying Python library those collections secretly depend on (like <code>boto3</code> for AWS), all baked in together, at exact pinned versions.</p>
+    <p>When AAP runs your job, it doesn't run Ansible from "wherever it happens to be installed" — it launches this exact container image, runs the playbook inside it, and then throws the container away. This is what makes results reproducible: the same EE image gives the same behavior whether it runs in DEV testing today or in PROD six months from now.</p>
+  </div>
+
+  <h2 id="why-custom">2. Why the Default AAP Execution Environment Is Not Enough</h2>
+  <p>AAP ships with a default EE, but it is intentionally general-purpose and lightweight — it does not include every possible cloud SDK, because that would make it enormous and slow to pull. It typically does <em>not</em> include the Azure Python SDK or the specific version of <code>boto3</code>/<code>botocore</code> our AWS collection needs, and it may not include the Kubernetes Python client needed for OpenShift Virtualization at all.</p>
+  <div class="why"><strong>What happens if you try to use the default EE anyway:</strong> Your playbook will often fail with a confusing Python error like <code>ModuleNotFoundError: No module named 'boto3'</code>, even though your <code>collections/requirements.yml</code> looks completely correct. This is a very common beginner trap — people assume installing the Ansible Collection is enough, forgetting that many collections are just a thin Ansible-flavored wrapper around a separate Python SDK, which must also be present inside the EE.</div>
+
+  <h2 id="builder">3. ansible-builder — The Tool That Builds Our EE</h2>
+  <p><code>ansible-builder</code> is a command-line tool (made by Red Hat) that reads a small set of definition files and produces a container image — you never have to hand-write a raw Dockerfile/Containerfile yourself, which keeps the process consistent and auditable.</p>
+
+  <h2 id="eeyml">4. execution-environment.yml, Line by Line</h2>
+  <pre>---
+version: 3
+
+images:
+  base_image:
+    name: registry.redhat.io/ansible-automation-platform-24/ee-minimal-rhel9:latest
+
+dependencies:
+  galaxy: collections/requirements.yml
+  python: requirements.txt
+  system: bindep.txt
+
+additional_build_steps:
+  append_base:
+    - RUN echo "Built for ABC Payments Multi-Cloud Provisioning Project"</pre>
+  <p><strong>Explaining every line:</strong></p>
+  <p class="line-note"><code>version: 3</code> — the schema version of the <code>execution-environment.yml</code> format itself; this tells <code>ansible-builder</code> which set of rules to use to read the rest of the file. Different major versions of <code>ansible-builder</code> expect different schema versions.</p>
+  <p class="line-note"><code>images: base_image: name:</code> — the starting container image everything else gets layered on top of. We deliberately choose Red Hat's official minimal RHEL 9 EE base image rather than a random public image, because it is already hardened and supported under a Red Hat subscription — an important point for a regulated company.</p>
+  <p class="line-note"><code>dependencies: galaxy:</code> — points to the exact <code>collections/requirements.yml</code> file we built in Module 5, so <code>ansible-builder</code> knows which Ansible Collections to install into the image.</p>
+  <p class="line-note"><code>dependencies: python:</code> — points to a <code>requirements.txt</code> file listing raw Python packages (like <code>boto3</code>) that need to be installed with <code>pip</code>, separately from the Ansible Collections.</p>
+  <p class="line-note"><code>dependencies: system:</code> — points to a <code>bindep.txt</code> file listing operating-system-level packages (like <code>gcc</code> or <code>openssl-devel</code>) that some Python packages need already present in order to compile/install successfully.</p>
+  <p class="line-note"><code>additional_build_steps</code> — an escape hatch for any extra shell command you need run during the image build, here just a harmless label; in real projects this is sometimes used to add internal CA certificates so HTTPS to internal APIs is trusted.</p>
+
+  <h2 id="supporting">5. The Supporting Files</h2>
+  <details open>
+    <summary>requirements.txt — Python SDK dependencies</summary>
+    <div class="inner">
+<pre>boto3>=1.34.0,&lt;2.0.0
+botocore>=1.34.0,&lt;2.0.0
+msrestazure>=0.6.4
+azure-mgmt-compute>=30.0.0
+azure-mgmt-network>=25.0.0
+azure-identity>=1.15.0
+kubernetes>=29.0.0,&lt;30.0.0
+openshift>=0.13.2</pre>
+      <p class="line-note"><code>boto3</code> / <code>botocore</code> — the official AWS SDK for Python; the <code>amazon.aws</code> collection's modules are actually thin Ansible wrappers that internally call these libraries to talk to the AWS API. Without them, every AWS module fails immediately.</p>
+      <p class="line-note"><code>azure-mgmt-compute</code>, <code>azure-mgmt-network</code>, <code>azure-identity</code> — the Azure equivalents; different Azure resource types (VM, network) each need their own small SDK package, and <code>azure-identity</code> handles the authentication flow from Module 3.</p>
+      <p class="line-note"><code>kubernetes</code> — the official Python client for the Kubernetes API, which <code>kubernetes.core</code> modules use under the hood to talk to any Kubernetes-compatible API, including OpenShift's.</p>
+      <p class="line-note"><code>openshift</code> — an additional Python library some <code>redhat.openshift</code> collection modules need for OpenShift-specific object types beyond plain Kubernetes.</p>
+    </div>
+  </details>
+  <details>
+    <summary>bindep.txt — system-level packages</summary>
+    <div class="inner">
+<pre>gcc [platform:rpm]
+python3-devel [platform:rpm]
+openssl-devel [platform:rpm]
+libffi-devel [platform:rpm]</pre>
+      <p class="line-note">These are not Python packages — they are operating-system packages (installed via <code>dnf</code>/<code>yum</code> inside the container) that some Python packages need present in order to compile native extensions during installation. The <code>[platform:rpm]</code> tag tells <code>ansible-builder</code> "only install this on RPM-based systems like RHEL," since <code>bindep</code> can target multiple OS families.</p>
+    </div>
+  </details>
+
+  <h2 id="build-register">6. Building and Registering the EE</h2>
+  <div class="flow">Developer machine / CI pipeline
+        |
+        v
+ansible-builder build -t abc-multicloud-ee:1.0.0 -f execution-environment.yml
+        |
+        v
+Container image is built locally
+        |
+        v
+podman push abc-multicloud-ee:1.0.0  registry.abcbank.local/aap/abc-multicloud-ee:1.0.0
+        |
+        v
+Private Container Registry  (internal, not Docker Hub)
+        |
+        v
+Registered inside AAP as an "Execution Environment" object
+        |
+        v
+Attached to our Job Templates so every job run uses this exact image</div>
+  <div class="prod"><strong>Recommended for production — versioning and rollback:</strong> Always tag the image with a real version number (<code>1.0.0</code>), never just <code>latest</code>. If a new EE version breaks something in DEV, you can instantly point the Job Template back at the previous tag (<code>1.0.0</code> instead of <code>1.1.0</code>) while you investigate — this is your entire rollback strategy for the EE layer, and it takes seconds because no rebuild is needed, just a different tag reference.</div>
+
+  <div class="task" id="task">
+    <h3>7. Hands-On Task</h3>
+    <p>Write out, in your own words, the answer to this: "If a teammate's playbook works fine when they test it locally with <code>ansible-playbook</code> on their laptop, but fails inside AAP with <code>ModuleNotFoundError: No module named 'kubernetes'</code>, what is the most likely missing piece, and which file would you edit to fix it?" This exact style of question is common in real interviews for AAP-based roles.</p>
+  </div>
+
+  <div class="next" id="next">
+    <strong>What comes next — Module 7 (Phase 7): Enterprise Git Project Structure.</strong>
+    <p style="margin-bottom:0">With the EE ready, we now design the actual Git repository — the folder structure for roles, playbooks, inventory, and vars — the way a production-grade Ansible project is organized, and explain why each folder exists. Reply "next" whenever you're ready.</p>
+  </div>
+
+  <footer>Enterprise Multi-Cloud Server Provisioning Masterclass — Module 6 of 30 · Built for Puneeth's DevOps/AAP learning track</footer>
+</main>
+</div>
+</body>
+</html>

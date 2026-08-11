@@ -1,0 +1,1110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Advanced Project 14: PostgreSQL Replication Health — Ansible AAP</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--purple:#6d28d9;--purple-dark:#4c1d95;--purple-light:#8b5cf6;--purple-pale:#ede9fe;
+--bg:#fafafa;--card:#fff;--border:#e5e7eb;--text:#1f2937;--text-dim:#6b7280;
+--code-bg:#1e1b2e;--code-text:#e2d9f3;--green:#059669;--amber:#d97706;--red:#dc2626;
+--shadow:0 1px 3px rgba(109,40,217,.1);}
+*{box-sizing:border-box;}
+body{margin:0;font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);line-height:1.7;}
+.topbar{background:linear-gradient(135deg,var(--purple-dark),var(--purple));color:#fff;padding:22px 5%;
+position:sticky;top:0;z-index:100;box-shadow:0 2px 12px rgba(109,40,217,.3);display:flex;
+justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;}
+.topbar h1{margin:0;font-size:1.1rem;font-weight:800;}
+.badge{background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.3);padding:4px 14px;border-radius:20px;font-size:.73rem;font-weight:700;}
+.layout{display:flex;max-width:1500px;margin:0 auto;}
+nav.toc{width:270px;flex-shrink:0;padding:20px 14px;position:sticky;top:76px;align-self:flex-start;max-height:calc(100vh - 96px);overflow-y:auto;}
+nav.toc h3{font-size:.72rem;text-transform:uppercase;letter-spacing:1.2px;color:var(--text-dim);margin:0 0 10px 6px;}
+nav.toc a{display:block;padding:6px 12px;border-radius:8px;color:var(--text);text-decoration:none;font-size:.83rem;margin-bottom:2px;border-left:3px solid transparent;}
+nav.toc a:hover{background:var(--purple-pale);border-left-color:var(--purple-light);color:var(--purple);}
+main{flex:1;padding:26px 5% 80px;min-width:0;}
+.hero{background:linear-gradient(135deg,var(--purple-pale),#fff);border:1px solid #ddd6fe;border-radius:16px;padding:28px;margin-bottom:28px;}
+.hero h2{margin-top:0;color:var(--purple-dark);font-size:1.5rem;line-height:1.3;}
+.tag-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;}
+.tag{background:var(--purple-pale);color:var(--purple);padding:4px 12px;border-radius:20px;font-size:.73rem;font-weight:600;}
+section{margin-bottom:32px;}
+.card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px 24px;box-shadow:var(--shadow);margin-bottom:16px;}
+h2.st{font-size:1.25rem;color:var(--purple-dark);border-bottom:3px solid var(--purple-light);padding-bottom:7px;margin-bottom:16px;}
+h3{color:var(--purple-dark);font-size:1.05rem;margin-top:18px;}
+.story-box{background:#fffbeb;border-left:4px solid var(--amber);border-radius:8px;padding:16px 20px;margin:14px 0;color:#78350f;}
+.story-box b{color:#92400e;}
+.tip-box{background:#ecfdf5;border-left:4px solid var(--green);border-radius:8px;padding:14px 18px;margin:12px 0;color:#064e3b;}
+.info-box{background:var(--purple-pale);border-left:4px solid var(--purple-light);border-radius:8px;padding:14px 18px;margin:12px 0;color:var(--purple-dark);}
+details{border:1px solid #ddd6fe;border-radius:10px;margin-bottom:10px;background:#faf9ff;overflow:hidden;}
+summary{padding:12px 16px;cursor:pointer;font-weight:600;color:var(--purple-dark);list-style:none;display:flex;justify-content:space-between;align-items:center;background:#f5f3ff;}
+summary::-webkit-details-marker{display:none;}
+summary::after{content:"+";font-size:1.1rem;font-weight:700;color:var(--purple-light);}
+details[open] summary::after{content:"−";}
+details>div.inner{padding:14px 16px;}
+table{border-collapse:collapse;width:100%;margin:12px 0;font-size:.86rem;}
+th,td{border:1px solid var(--border);padding:9px 12px;text-align:left;vertical-align:top;}
+th{background:var(--purple);color:#fff;font-weight:600;}
+tr:nth-child(even){background:#faf9ff;}
+.cw{position:relative;margin:14px 0;}
+.cl{background:#14102a;color:#a78bfa;padding:7px 14px;font-size:.72rem;font-family:'JetBrains Mono',monospace;border-radius:8px 8px 0 0;display:flex;justify-content:space-between;align-items:center;}
+pre{background:var(--code-bg);color:var(--code-text);padding:16px;border-radius:0 0 8px 8px;overflow-x:auto;margin:0;font-family:'JetBrains Mono',monospace;font-size:.82rem;line-height:1.6;}
+.cb{background:var(--purple-light);color:#fff;border:none;padding:3px 10px;border-radius:4px;font-size:.7rem;cursor:pointer;font-weight:600;}
+.cb:hover{background:var(--purple);}
+.fs{display:flex;gap:12px;padding:11px 0;border-bottom:1px dashed #e9d5ff;}
+.fn{background:var(--purple);color:#fff;width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;flex-shrink:0;font-size:.82rem;}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+@media(max-width:900px){.g2{grid-template-columns:1fr;}nav.toc{display:none;}}
+ul,ol{padding-left:22px;}li{margin-bottom:6px;}
+.ascii{background:#14102a;color:#a78bfa;font-family:'JetBrains Mono',monospace;padding:20px;border-radius:10px;font-size:.77rem;overflow-x:auto;line-height:1.45;}
+.fn-row{display:flex;justify-content:space-between;padding:20px 0;border-top:2px solid var(--border);margin-top:40px;}
+.btn{background:var(--purple);color:#fff;padding:10px 20px;border-radius:8px;text-decoration:none;font-weight:600;font-size:.86rem;}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <h1>🏦 Advanced Enterprise Ansible — BFSI Series</h1>
+  <div style="display:flex;gap:8px;">
+    <span class="badge">PROJECT 14 / 30</span>
+    <span class="badge" style="background:rgba(255,255,255,.15);">PostgreSQL | Streaming Replication | Patroni</span>
+  </div>
+</div>
+<div class="layout">
+<nav class="toc">
+  <h3>Table of Contents</h3>
+  <a href="#story">1. The Banking Story</a>
+  <a href="#concepts">2. PostgreSQL Replication Concepts</a>
+  <a href="#business">3. Business Requirements</a>
+  <a href="#design">4. Solution Design</a>
+  <a href="#arch">5. Architecture</a>
+  <a href="#structure">6. Project Structure</a>
+  <a href="#inventory">7. Inventory & Variables</a>
+  <a href="#roles">8. Roles & Tasks</a>
+  <a href="#slot">9. Replication Slot Monitoring</a>
+  <a href="#patroni">10. Patroni Cluster Health</a>
+  <a href="#playbooks">11. Master Playbooks</a>
+  <a href="#aap">12. AAP Configuration</a>
+  <a href="#flow">13. Execution Flow</a>
+  <a href="#lab">14. Lab Setup</a>
+  <a href="#interview">15. Interview Prep</a>
+</nav>
+<main>
+
+<div class="hero">
+  <h2>Project 14: PostgreSQL Streaming Replication Health Monitoring &amp; Failover Validation</h2>
+  <p>ABC Global Bank uses <strong>PostgreSQL 15</strong> for its Fraud Detection System (FDS), Regulatory Reporting Database (RRD), and Customer Master Data store — all running in high-availability configurations with Patroni-managed streaming replication. PostgreSQL replication lag means the standby is falling behind the primary — if primary fails when lag is 5 minutes, the bank loses 5 minutes of fraud alerts, regulatory data, or customer records. Replication slot bloat fills primary disk and causes crash. This project automates complete PostgreSQL replication health validation: streaming lag measurement, replication slot health, Patroni cluster state, WAL archiving, connection pool (PgBouncer) monitoring, and pre-failover readiness checks.</p>
+  <div class="tag-row">
+    <span class="tag">PostgreSQL 15</span><span class="tag">Streaming Replication</span>
+    <span class="tag">Patroni HA</span><span class="tag">WAL Archiving</span>
+    <span class="tag">PgBouncer</span><span class="tag">Replication Slots</span>
+    <span class="tag">Red Hat AAP 2.5</span><span class="tag">community.postgresql</span>
+  </div>
+</div>
+
+<!-- STORY -->
+<section id="story">
+<h2 class="st">🏦 1. The Banking Story</h2>
+<div class="card">
+<div class="story-box">
+<b>Setting:</b> The Fraud Detection System (FDS) runs on PostgreSQL 15 with a 3-node Patroni cluster: fds-pg-primary (leader), fds-pg-replica1 (sync standby), fds-pg-replica2 (async standby). FDS processes 2 million transactions per day in real-time fraud scoring. The standby is used for reporting queries (fraud analytics, regulatory reports) to offload the primary.<br><br>
+<b>Incident 1 — The Silent Lag:</b> A batch process on the reporting team ran 47 simultaneous analytical queries on fds-pg-replica1. The replica fell so far behind the primary that replication lag reached 4 minutes 23 seconds. Nobody noticed — replication lag was not monitored. The next morning, the fraud analytics team ran their daily report and found 4 minutes of transactions missing. It turned out the replica was serving stale data — the report showed fraud counts from 4 minutes before the query ran. The team reported the discrepancy to RBI as a "data integrity issue." A regulatory inquiry followed.<br><br>
+<b>Incident 2 — The Slot Bloat Disaster:</b> A reporting application that connected to the primary using a replication slot for logical decoding was decommissioned — but nobody dropped the replication slot. Over 3 weeks, PostgreSQL retained all WAL (Write-Ahead Log) files since the slot was last used — the slot was "inactive" but held WAL. The primary disk filled completely. PostgreSQL crashed with "no space left on device." Primary disk: 500GB — WAL accumulated: 487GB in 3 weeks from one stale slot. Full outage: 2 hours while engineers identified the slot and cleared space.<br><br>
+<b>Incident 3 — The Failed DR Drill:</b> During the quarterly DR drill, the Patroni failover was initiated. It should have promoted fds-pg-replica1 to leader in under 30 seconds. Instead: replica1 had fallen 12 minutes behind primary (due to the load from Incident 1 that was never resolved). Patroni promoted it but 12 minutes of data was missing. The DR drill was declared a failure. RBI mandates successful quarterly DR drills for critical banking systems.<br><br>
+<b>The Ask:</b> "Monitor PostgreSQL replication lag every 5 minutes. Alert on replication slot bloat before it fills the disk. Validate Patroni cluster health. Before any DR drill, run a pre-flight check that blocks the drill if lag > 30 seconds. Give the DBA team a daily replication health report."
+</div>
+</div>
+</section>
+
+<!-- CONCEPTS -->
+<section id="concepts">
+<h2 class="st">📚 2. PostgreSQL Replication Concepts</h2>
+<div class="card">
+<details><summary>Streaming Replication — How PostgreSQL HA Works</summary><div class="inner">
+PostgreSQL streaming replication works by streaming WAL (Write-Ahead Log) records from the primary to standbys in near-real-time:<br><br>
+<b>Primary:</b> Writes all changes to WAL first, then applies them. WAL is streamed to standbys.<br>
+<b>Standby (Hot Standby):</b> Continuously replays WAL from primary. Accepts read-only queries. Cannot accept writes.<br>
+<b>Synchronous standby:</b> Primary waits for standby to confirm WAL receipt before committing. Zero data loss but slight performance impact.<br>
+<b>Asynchronous standby:</b> Primary doesn't wait. Better performance but potential data loss if primary fails before WAL reaches standby.<br><br>
+Key views for monitoring:<br>
+<code>pg_stat_replication</code>: on primary — shows each standby's lag<br>
+<code>pg_stat_wal_receiver</code>: on standby — shows connection to primary<br>
+<code>pg_replication_slots</code>: on primary — shows all slots and retained WAL size
+</div></details>
+
+<details><summary>Replication Lag — What the Numbers Mean</summary><div class="inner">
+PostgreSQL reports replication lag in multiple ways — all from <code>pg_stat_replication</code>:<br><br>
+<b>write_lag:</b> Time between primary writing WAL and standby receiving it (network lag)<br>
+<b>flush_lag:</b> Time between primary writing and standby flushing to disk (I/O lag)<br>
+<b>replay_lag:</b> Time between primary writing and standby replaying the change (apply lag)<br>
+<b>sent_lsn - replay_lsn:</b> Bytes of WAL the standby has not yet replayed (byte lag)<br><br>
+In banking, <b>replay_lag</b> is the critical metric — it represents how old the standby's data is. If primary fails when replay_lag = 4 minutes, the standby will be missing 4 minutes of transactions after promotion.
+</div></details>
+
+<details><summary>Replication Slots — A Double-Edged Sword</summary><div class="inner">
+Replication slots guarantee that the primary retains WAL until every slot consumer has received it. This prevents the standby from falling too far behind and losing its replication connection.<br><br>
+<b>Physical slots:</b> Used by streaming standbys. Safe — standby continuously consumes WAL.<br>
+<b>Logical slots:</b> Used by logical replication (CDC tools like Debezium, pglogical). Dangerous if consumer disconnects — slot retains ALL WAL from disconnect point forever.<br><br>
+<b>The danger:</b> An inactive logical slot retains WAL indefinitely. The primary disk fills with WAL files. PostgreSQL crashes when disk is full. This is exactly Incident 2.<br><br>
+We monitor: <code>pg_replication_slots</code> — <code>active</code> (false = danger), <code>pg_current_wal_lsn() - restart_lsn</code> (bytes of retained WAL per slot). Alert when retained WAL > threshold.
+</div></details>
+
+<details><summary>Patroni — What It Adds on Top of Streaming Replication</summary><div class="inner">
+Patroni is a high-availability template for PostgreSQL that adds:<br>
+<b>Automatic failover:</b> If primary becomes unreachable, Patroni automatically promotes the best standby<br>
+<b>Leader election:</b> Uses DCS (Distributed Configuration Store — etcd/Consul/ZooKeeper) for consensus<br>
+<b>REST API:</b> <code>http://node:8008/</code> — returns cluster state as JSON<br>
+<b>patronictl:</b> CLI tool for cluster management and status<br><br>
+Patroni adds these monitoring checks beyond standard PostgreSQL:<br>
+• DCS connectivity (etcd/Consul must be reachable)<br>
+• Timeline divergence (split-brain detection)<br>
+• Switchover/failover history<br>
+• Cluster member count
+</div></details>
+</div>
+</section>
+
+<!-- BUSINESS -->
+<section id="business">
+<h2 class="st">📋 3. Business Requirements</h2>
+<div class="card">
+<table>
+<tr><th>Requirement</th><th>Detail</th><th>Threshold</th></tr>
+<tr><td>Replication lag monitoring</td><td>replay_lag on all standbys every 5 minutes</td><td>Warn 30s, Critical 60s, Emergency 120s</td></tr>
+<tr><td>Standby connectivity</td><td>All expected standbys connected to primary</td><td>Alert if any standby disconnected</td></tr>
+<tr><td>Replication slot health</td><td>No inactive slots retaining excessive WAL</td><td>Alert if inactive slot WAL > 10GB</td></tr>
+<tr><td>WAL archiving validation</td><td>WAL archive_status has no failed files</td><td>Alert if archive_status/failed/* exists</td></tr>
+<tr><td>Patroni cluster state</td><td>Leader exists, all members healthy, DCS reachable</td><td>Alert if no leader or member count drops</td></tr>
+<tr><td>PgBouncer pool health</td><td>Connection pool not saturated, idle connections available</td><td>Alert if pool exhausted</td></tr>
+<tr><td>Pre-DR drill check</td><td>Block DR drill if lag > 30s or standby not fully synced</td><td>All standbys within 30s of primary</td></tr>
+<tr><td>Daily replication report</td><td>DBA team report: lag history, slot status, Patroni state</td><td>Daily 06:00 AM</td></tr>
+</table>
+</div>
+</section>
+
+<!-- DESIGN -->
+<section id="design">
+<h2 class="st">🛠️ 4. Solution Design</h2>
+<div class="card">
+<table>
+<tr><th>Playbook</th><th>Schedule</th><th>Key Checks</th></tr>
+<tr><td>pg_replication_monitor.yml</td><td>Every 5 min</td><td>Lag, standby count, WAL receiver status</td></tr>
+<tr><td>pg_slot_monitor.yml</td><td>Every 15 min</td><td>Inactive slots, retained WAL size, slot bloat</td></tr>
+<tr><td>pg_patroni_health.yml</td><td>Every 5 min</td><td>Patroni REST API, leader election, DCS</td></tr>
+<tr><td>pg_wal_archive_check.yml</td><td>Every 15 min</td><td>WAL archive failures, archive directory size</td></tr>
+<tr><td>pg_dr_preflight.yml</td><td>On-demand (before DR drills)</td><td>All standbys synced, Patroni ready, lag = 0</td></tr>
+<tr><td>pg_replication_report.yml</td><td>Daily 06:00 AM</td><td>HTML dashboard for DBA team</td></tr>
+</table>
+
+<div class="info-box">
+<b>Two-Play Design:</b> PostgreSQL replication checks run as two plays in the same playbook — Play 1 runs on primary nodes (queries <code>pg_stat_replication</code>), Play 2 runs on standby nodes (queries <code>pg_stat_wal_receiver</code>). The primary sees the aggregate replica state; each replica sees its own connection to primary. Cross-referencing both gives a complete picture.
+</div>
+</div>
+</section>
+
+<!-- ARCH -->
+<section id="arch">
+<h2 class="st">🗺️ 5. Architecture</h2>
+<div class="card">
+<div class="ascii">
+<pre style="background:none;color:inherit;">
+              AAP CONTROLLER
+              Schedule: Every 5 min → pg_replication_monitor.yml
+                   │ SSH
+              ┌────┴──────────────────────────────────────────────────┐
+              │                                                         │
+       PLAY 1: PRIMARY NODES                PLAY 2: STANDBY NODES      │
+       ─────────────────────               ──────────────────────      │
+       fds-pg-primary                      fds-pg-replica1             │
+       rrd-pg-primary                      fds-pg-replica2             │
+       cmd-pg-primary                      rrd-pg-replica1             │
+                                                                         │
+       Query: pg_stat_replication          Query: pg_stat_wal_receiver  │
+       ┌──────────────────────┐            ┌──────────────────────┐    │
+       │ SELECT               │            │ SELECT               │    │
+       │   application_name,  │            │   status,            │    │
+       │   state,             │            │   receive_start_lsn, │    │
+       │   sent_lsn,          │            │   written_lsn,       │    │
+       │   write_lag,         │            │   flushed_lsn,       │    │
+       │   flush_lag,         │            │   replayed_lsn,      │    │
+       │   replay_lag,        │            │   last_msg_receipt_time, │ │
+       │   sync_state         │            │   sender_host        │    │
+       │ FROM pg_stat_         │            │ FROM pg_stat_        │    │
+       │   replication;       │            │   wal_receiver;      │    │
+       └──────────────────────┘            └──────────────────────┘    │
+                │                                   │                   │
+                └───────────────────────────────────┘                   │
+                              │ Results aggregated                        │
+                              ▼                                           │
+              ┌──────────────────────────────────────────────┐          │
+              │  CLASSIFICATION                               │          │
+              │  lag < 30s → GREEN   No alert                │          │
+              │  30s-60s  → WARN    Slack to #pg-dba         │          │
+              │  60s-120s → CRIT    PagerDuty P2             │          │
+              │  > 120s   → EMERG   PagerDuty P1             │          │
+              │  Disconnected → P1  PagerDuty                │          │
+              └──────────────────────────────────────────────┘          │
+              │                                                           │
+     ┌────────┼────────────────────────────────┐                        │
+     ▼        ▼                                ▼                        │
+Slot Monitor  WAL Archive Check           Patroni Health               │
+pg_replication_slots  archive_status/     REST API :8008               │
+inactive slots        failed/             patronictl list               │
+WAL retained bytes    failed count        DCS reachable?               │
+</pre>
+</div>
+</div>
+</section>
+
+<!-- STRUCTURE -->
+<section id="structure">
+<h2 class="st">📁 6. Project Structure</h2>
+<div class="card">
+<div class="ascii">
+<pre style="background:none;color:inherit;">
+pg-replication-automation/
+├── ansible.cfg
+├── inventory/
+│   └── production/
+│       ├── hosts.ini                        # PG primary, standby, PgBouncer nodes
+│       └── group_vars/
+│           ├── all.yml                      # Thresholds, cluster definitions
+│           ├── pg_primary.yml               # Primary-specific settings
+│           └── vault.yml                    # PG monitoring user password
+├── roles/
+│   ├── pg_replication_check/               # Role 1: Streaming lag monitoring
+│   │   └── tasks/
+│   │       ├── main.yml
+│   │       ├── query_primary_stats.yml      # pg_stat_replication on primary
+│   │       ├── query_standby_stats.yml      # pg_stat_wal_receiver on standby
+│   │       └── classify_lag.yml             # Severity classification
+│   │
+│   ├── pg_slot_monitor/                    # Role 2: Replication slot health
+│   │   └── tasks/
+│   │       ├── main.yml
+│   │       └── check_slot_bloat.yml         # Inactive slots + retained WAL
+│   │
+│   ├── pg_patroni_health/                  # Role 3: Patroni cluster validation
+│   │   └── tasks/
+│   │       ├── main.yml
+│   │       ├── check_patroni_api.yml        # REST API health check
+│   │       └── check_cluster_state.yml      # Leader, members, DCS
+│   │
+│   ├── pg_wal_archive/                     # Role 4: WAL archive validation
+│   │   └── tasks/
+│   │       ├── main.yml
+│   │       └── check_archive_failures.yml   # archive_status/failed/*
+│   │
+│   ├── pg_pgbouncer_check/                 # Role 5: PgBouncer pool health
+│   │   └── tasks/
+│   │       └── check_pool_stats.yml
+│   │
+│   └── pg_report/                          # Role 6: DBA daily report
+│       ├── tasks/main.yml
+│       └── templates/
+│           └── pg_replication_report.html.j2
+│
+├── playbooks/
+│   ├── pg_replication_monitor.yml          # Every 5 min
+│   ├── pg_slot_monitor.yml                 # Every 15 min
+│   ├── pg_patroni_health.yml               # Every 5 min
+│   ├── pg_wal_archive_check.yml            # Every 15 min
+│   ├── pg_dr_preflight.yml                 # On-demand
+│   └── pg_replication_report.yml          # Daily
+└── ansible.cfg</pre>
+</div>
+</div>
+</section>
+
+<!-- INVENTORY -->
+<section id="inventory">
+<h2 class="st">📂 7. Inventory &amp; Variables</h2>
+<div class="card">
+<div class="cw"><div class="cl"><span>inventory/production/hosts.ini</span><button class="cb" onclick="copyCode(this)">Copy</button></div>
+<pre><code># =====================================================================
+# PostgreSQL HA Cluster Inventory
+# =====================================================================
+
+[pg_primary]                                           # Current primary nodes
+fds-pg-primary.abcbank.in  ansible_host=10.30.4.10   pg_cluster=fds
+rrd-pg-primary.abcbank.in  ansible_host=10.30.5.10   pg_cluster=rrd
+cmd-pg-primary.abcbank.in  ansible_host=10.30.6.10   pg_cluster=cmd
+
+[pg_standby]                                           # Standby / replica nodes
+fds-pg-replica1.abcbank.in ansible_host=10.30.4.11   pg_cluster=fds  pg_role=sync
+fds-pg-replica2.abcbank.in ansible_host=10.30.4.12   pg_cluster=fds  pg_role=async
+rrd-pg-replica1.abcbank.in ansible_host=10.30.5.11   pg_cluster=rrd  pg_role=sync
+
+[pg_all:children]
+pg_primary
+pg_standby
+
+[pgbouncer_nodes]                                      # Connection pool nodes
+fds-pgb01.abcbank.in  ansible_host=10.30.4.20
+fds-pgb02.abcbank.in  ansible_host=10.30.4.21
+
+[pg_all:vars]
+ansible_user=ansible
+ansible_become=true
+pg_port=5432
+pg_monitor_user=pg_monitor                             # Read-only monitoring role
+# pg_monitor is a built-in PG role with access to monitoring views</code></pre></div>
+
+<div class="cw"><div class="cl"><span>inventory/production/group_vars/all.yml</span><button class="cb" onclick="copyCode(this)">Copy</button></div>
+<pre><code>---
+# ── Replication Lag Thresholds ────────────────────────────────────────
+pg_lag_warn_seconds: 30             # Slack warning at 30s lag
+pg_lag_critical_seconds: 60         # PagerDuty P2 at 60s
+pg_lag_emergency_seconds: 120       # PagerDuty P1 at 120s
+
+# ── Replication Slot Thresholds ───────────────────────────────────────
+pg_slot_retained_wal_warn_gb: 10    # Warn if inactive slot holds > 10GB WAL
+pg_slot_retained_wal_critical_gb: 50 # Critical if > 50GB (filling disk)
+
+# ── Expected Standby Count Per Cluster ───────────────────────────────
+pg_cluster_config:
+  fds:
+    expected_standbys: 2
+    expected_sync_standbys: 1
+    patroni_port: 8008
+    pg_data_dir: /var/lib/postgresql/15/fds
+    wal_archive_dir: /mnt/pg-wal-archive/fds
+  rrd:
+    expected_standbys: 1
+    expected_sync_standbys: 1
+    patroni_port: 8008
+    pg_data_dir: /var/lib/postgresql/15/rrd
+    wal_archive_dir: /mnt/pg-wal-archive/rrd
+  cmd:
+    expected_standbys: 1
+    expected_sync_standbys: 1
+    patroni_port: 8008
+    pg_data_dir: /var/lib/postgresql/15/cmd
+    wal_archive_dir: /mnt/pg-wal-archive/cmd
+
+# ── DR Drill Preflight Requirements ──────────────────────────────────
+pg_dr_max_lag_seconds: 30           # Block DR drill if any standby lag > 30s
+pg_dr_require_sync_standby: true    # Block if sync standby missing
+
+# ── PgBouncer Thresholds ──────────────────────────────────────────────
+pgbouncer_pool_warn_percent: 80     # Warn if 80% of pool used
+pgbouncer_port: 6432
+
+# ── Alerting ─────────────────────────────────────────────────────────
+pagerduty_integration_url: "https://events.pagerduty.com/v2/enqueue"
+slack_webhook_url: "{{ vault_slack_webhook_url }}"</code></pre></div>
+</div>
+</section>
+
+<!-- ROLES -->
+<section id="roles">
+<h2 class="st">💻 8. Roles &amp; Tasks — Complete Code</h2>
+
+<div class="card">
+<h3>Role 1: pg_replication_check — Primary View</h3>
+<div class="cw"><div class="cl"><span>roles/pg_replication_check/tasks/query_primary_stats.yml</span><button class="cb" onclick="copyCode(this)">Copy</button></div>
+<pre><code>---
+# =====================================================================
+# Query pg_stat_replication on primary node
+# This view shows all connected standbys and their lag from primary's view
+# =====================================================================
+
+- name: Query pg_stat_replication on primary
+  community.postgresql.postgresql_query:          # Module from community.postgresql
+    db: postgres                                  # Connect to postgres maintenance DB
+    login_user: "{{ pg_monitor_user }}"           # pg_monitor role — read-only monitoring
+    login_password: "{{ vault_pg_monitor_password }}"
+    login_host: localhost
+    port: "{{ pg_port }}"
+    query: |
+      SELECT
+        application_name,
+        client_addr::text          AS client_ip,
+        state,                     -- streaming / startup / catchup / backup / stopped
+        sync_state,                -- sync / async / quorum / potential
+        sent_lsn::text,            -- WAL position sent to standby
+        write_lsn::text,           -- WAL position written to standby disk
+        flush_lsn::text,           -- WAL position flushed on standby disk
+        replay_lsn::text,          -- WAL position replayed on standby
+        EXTRACT(EPOCH FROM write_lag)::numeric(10,2)  AS write_lag_sec,
+        EXTRACT(EPOCH FROM flush_lag)::numeric(10,2)  AS flush_lag_sec,
+        EXTRACT(EPOCH FROM replay_lag)::numeric(10,2) AS replay_lag_sec,
+        -- Byte lag: how many bytes of WAL standby has not yet replayed
+        (pg_current_wal_lsn() - replay_lsn)::bigint  AS replay_byte_lag
+      FROM pg_stat_replication
+      ORDER BY replay_lag DESC NULLS LAST;
+  register: pg_replication_stats
+  become: true
+  become_user: postgres
+  no_log: false
+
+- name: Set replication facts from primary query results
+  ansible.builtin.set_fact:
+    primary_replication_data:
+      cluster: "{{ pg_cluster }}"
+      host: "{{ inventory_hostname }}"
+      connected_standbys: "{{ pg_replication_stats.query_result | length }}"
+      expected_standbys: "{{ pg_cluster_config[pg_cluster].expected_standbys }}"
+      standbys: "{{ pg_replication_stats.query_result }}"
+      has_sync_standby: >-
+        {{ pg_replication_stats.query_result
+           | selectattr('sync_state', 'in', ['sync', 'quorum'])
+           | list | length > 0 }}
+      max_replay_lag_sec: >-
+        {{ pg_replication_stats.query_result
+           | map(attribute='replay_lag_sec')
+           | select('ne', none)
+           | map('float')
+           | max | default(0) | float | round(2) }}
+
+- name: Classify overall replication severity
+  ansible.builtin.set_fact:
+    replication_severity: >-
+      {{ 'DISCONNECTED' if primary_replication_data.connected_standbys | int
+                           < primary_replication_data.expected_standbys | int
+         else ('EMERGENCY' if primary_replication_data.max_replay_lag_sec | float
+                              >= pg_lag_emergency_seconds | float
+               else ('CRITICAL' if primary_replication_data.max_replay_lag_sec | float
+                                   >= pg_lag_critical_seconds | float
+                     else ('WARNING' if primary_replication_data.max_replay_lag_sec | float
+                                        >= pg_lag_warn_seconds | float
+                           else 'OK'))) }}
+
+- name: Log replication health summary
+  ansible.builtin.debug:
+    msg:
+      - "PostgreSQL Replication — {{ inventory_hostname }} ({{ pg_cluster }} primary)"
+      - "Connected standbys: {{ primary_replication_data.connected_standbys }}/{{ primary_replication_data.expected_standbys }}"
+      - "Sync standby present: {{ primary_replication_data.has_sync_standby }}"
+      - "Max replay lag: {{ primary_replication_data.max_replay_lag_sec }}s"
+      - "Severity: {{ replication_severity }}"
+      - "Standbys: {{ primary_replication_data.standbys | map(attribute='application_name') | list | join(', ') }}"
+
+- name: Alert on disconnected standbys
+  ansible.builtin.uri:
+    url: "{{ pagerduty_integration_url }}"
+    method: POST
+    body_format: json
+    body:
+      routing_key: "{{ vault_pagerduty_routing_key }}"
+      event_action: trigger
+      dedup_key: "pg-standby-disconnected-{{ inventory_hostname }}"
+      payload:
+        summary: >-
+          🔴 PostgreSQL STANDBY DISCONNECTED: {{ pg_cluster }} cluster on
+          {{ inventory_hostname }} has only {{ primary_replication_data.connected_standbys }}/
+          {{ primary_replication_data.expected_standbys }} standbys connected.
+          NO HIGH AVAILABILITY — if primary fails, data loss will occur!
+        severity: critical
+        source: ansible-pg-monitor
+        custom_details:
+          cluster: "{{ pg_cluster }}"
+          connected: "{{ primary_replication_data.connected_standbys }}"
+          expected: "{{ primary_replication_data.expected_standbys }}"
+          sync_standby: "{{ primary_replication_data.has_sync_standby }}"
+    status_code: [202]
+  delegate_to: localhost
+  when: replication_severity == 'DISCONNECTED'
+
+- name: Alert on high replication lag
+  ansible.builtin.uri:
+    url: "{{ pagerduty_integration_url }}"
+    method: POST
+    body_format: json
+    body:
+      routing_key: "{{ vault_pagerduty_routing_key }}"
+      event_action: trigger
+      dedup_key: "pg-lag-{{ replication_severity | lower }}-{{ inventory_hostname }}"
+      payload:
+        summary: >-
+          {{ '🚨 EMERGENCY' if replication_severity == 'EMERGENCY' else '⚠️ CRITICAL' }}:
+          PostgreSQL replication lag on {{ pg_cluster }} cluster —
+          {{ primary_replication_data.max_replay_lag_sec }}s behind primary.
+          Standby data is {{ primary_replication_data.max_replay_lag_sec }}s stale.
+          DR drill will FAIL if lag exceeds {{ pg_dr_max_lag_seconds }}s.
+        severity: "{{ 'critical' if replication_severity == 'EMERGENCY' else 'error' }}"
+        source: ansible-pg-monitor
+        custom_details:
+          cluster: "{{ pg_cluster }}"
+          max_lag_seconds: "{{ primary_replication_data.max_replay_lag_sec }}"
+          standbys: "{{ primary_replication_data.standbys | to_json }}"
+    status_code: [202]
+  delegate_to: localhost
+  when: replication_severity in ['CRITICAL', 'EMERGENCY']
+
+- name: Auto-resolve lag alert when replication is healthy
+  ansible.builtin.uri:
+    url: "{{ pagerduty_integration_url }}"
+    method: POST
+    body_format: json
+    body:
+      routing_key: "{{ vault_pagerduty_routing_key }}"
+      event_action: resolve
+      dedup_key: "pg-lag-critical-{{ inventory_hostname }}"
+    status_code: [202]
+  delegate_to: localhost
+  when: replication_severity == 'OK'</code></pre></div>
+
+<div class="cw"><div class="cl"><span>roles/pg_replication_check/tasks/query_standby_stats.yml</span><button class="cb" onclick="copyCode(this)">Copy</button></div>
+<pre><code>---
+# =====================================================================
+# Query pg_stat_wal_receiver on standby nodes
+# This is the standby's own view of its replication connection
+# =====================================================================
+
+- name: Query pg_stat_wal_receiver on standby
+  community.postgresql.postgresql_query:
+    db: postgres
+    login_user: "{{ pg_monitor_user }}"
+    login_password: "{{ vault_pg_monitor_password }}"
+    login_host: localhost
+    port: "{{ pg_port }}"
+    query: |
+      SELECT
+        status,                              -- streaming / startup / stopped
+        receive_start_lsn::text,
+        received_lsn::text,
+        last_msg_send_time,
+        last_msg_receipt_time,
+        EXTRACT(EPOCH FROM (now() - last_msg_receipt_time))::int
+          AS seconds_since_last_message,    -- Heartbeat freshness
+        sender_host,                         -- Primary hostname
+        sender_port,
+        conninfo
+      FROM pg_stat_wal_receiver;
+  register: wal_receiver_stats
+  become: true
+  become_user: postgres
+  no_log: false
+
+- name: Check if standby is actively streaming
+  ansible.builtin.set_fact:
+    standby_health:
+      host: "{{ inventory_hostname }}"
+      cluster: "{{ pg_cluster }}"
+      role: "{{ pg_role }}"
+      streaming: >-
+        {{ wal_receiver_stats.query_result | length > 0
+           and wal_receiver_stats.query_result[0].status == 'streaming' }}
+      seconds_since_heartbeat: >-
+        {{ wal_receiver_stats.query_result[0].seconds_since_last_message | default(9999) | int
+           if wal_receiver_stats.query_result | length > 0
+           else 9999 }}
+      sender_host: >-
+        {{ wal_receiver_stats.query_result[0].sender_host | default('DISCONNECTED')
+           if wal_receiver_stats.query_result | length > 0
+           else 'DISCONNECTED' }}
+
+- name: Alert if standby not streaming (from standby perspective)
+  ansible.builtin.uri:
+    url: "{{ pagerduty_integration_url }}"
+    method: POST
+    body_format: json
+    body:
+      routing_key: "{{ vault_pagerduty_routing_key }}"
+      event_action: trigger
+      dedup_key: "pg-standby-not-streaming-{{ inventory_hostname }}"
+      payload:
+        summary: >-
+          🔴 PostgreSQL STANDBY NOT STREAMING: {{ inventory_hostname }}
+          ({{ pg_cluster }} {{ pg_role }} standby) is not receiving WAL from primary.
+          Status: {{ wal_receiver_stats.query_result[0].status | default('NO RECEIVER') }}
+        severity: critical
+        source: ansible-pg-monitor
+    status_code: [202]
+  delegate_to: localhost
+  when: not standby_health.streaming | bool</code></pre></div>
+</div>
+
+<!-- SLOT MONITORING -->
+<section id="slot">
+<h2 class="st">🔌 9. Replication Slot Monitoring Role</h2>
+<div class="card">
+<div class="cw"><div class="cl"><span>roles/pg_slot_monitor/tasks/check_slot_bloat.yml</span><button class="cb" onclick="copyCode(this)">Copy</button></div>
+<pre><code>---
+# =====================================================================
+# Monitor replication slot health — prevent the disk-fill incident
+# Inactive slots + growing WAL retention = disk full + DB crash
+# =====================================================================
+
+- name: Query all replication slots with retained WAL size
+  community.postgresql.postgresql_query:
+    db: postgres
+    login_user: "{{ pg_monitor_user }}"
+    login_password: "{{ vault_pg_monitor_password }}"
+    login_host: localhost
+    port: "{{ pg_port }}"
+    query: |
+      SELECT
+        slot_name,
+        slot_type,                                      -- physical / logical
+        database,
+        active,                                         -- false = DANGER
+        active_pid,
+        restart_lsn::text,
+        confirmed_flush_lsn::text,
+        -- Bytes of WAL this slot is forcing the primary to retain
+        (pg_current_wal_lsn() - restart_lsn)::bigint
+          AS retained_wal_bytes,
+        -- Convert to GB for readability
+        round(
+          (pg_current_wal_lsn() - restart_lsn)::numeric / 1073741824,
+          2
+        ) AS retained_wal_gb,
+        -- Age in hours since slot was last used (for inactive slots)
+        CASE WHEN NOT active THEN
+          EXTRACT(EPOCH FROM (now() - pg_last_xact_replay_timestamp())) / 3600
+        ELSE 0 END AS inactive_hours
+      FROM pg_replication_slots
+      ORDER BY retained_wal_bytes DESC NULLS LAST;
+  register: slot_stats
+  become: true
+  become_user: postgres
+
+- name: Classify slots by health status
+  ansible.builtin.set_fact:
+    healthy_slots: >-
+      {{ slot_stats.query_result
+         | selectattr('active', 'equalto', true)
+         | list }}
+    inactive_slots: >-
+      {{ slot_stats.query_result
+         | selectattr('active', 'equalto', false)
+         | list }}
+    bloated_slots: >-
+      {{ slot_stats.query_result
+         | selectattr('retained_wal_gb', 'ge', pg_slot_retained_wal_warn_gb | float)
+         | list }}
+
+- name: Log slot health summary
+  ansible.builtin.debug:
+    msg:
+      - "Replication Slots — {{ inventory_hostname }}"
+      - "Total slots: {{ slot_stats.query_result | length }}"
+      - "Active: {{ healthy_slots | length }}"
+      - "INACTIVE: {{ inactive_slots | length }}"
+      - "Bloated (> {{ pg_slot_retained_wal_warn_gb }}GB): {{ bloated_slots | length }}"
+      - "{% for slot in bloated_slots %}"
+      - "  {{ slot.slot_name }}: {{ slot.retained_wal_gb }}GB retained, active={{ slot.active }}"
+      - "{% endfor %}"
+
+- name: Alert P1 on critically bloated inactive slots
+  ansible.builtin.uri:
+    url: "{{ pagerduty_integration_url }}"
+    method: POST
+    body_format: json
+    body:
+      routing_key: "{{ vault_pagerduty_routing_key }}"
+      event_action: trigger
+      dedup_key: "pg-slot-bloat-critical-{{ inventory_hostname }}-{{ item.slot_name }}"
+      payload:
+        summary: >-
+          🚨 REPLICATION SLOT BLOAT: Slot '{{ item.slot_name }}' on
+          {{ inventory_hostname }} is INACTIVE and retaining
+          {{ item.retained_wal_gb }}GB of WAL.
+          If disk fills, PostgreSQL will CRASH (Incident 2 repeating).
+          Action: DROP SLOT if consumer is decommissioned.
+        severity: "{{ 'critical' if item.retained_wal_gb | float >= pg_slot_retained_wal_critical_gb | float else 'error' }}"
+        source: ansible-pg-slot-monitor
+        custom_details:
+          slot_name: "{{ item.slot_name }}"
+          slot_type: "{{ item.slot_type }}"
+          retained_gb: "{{ item.retained_wal_gb }}"
+          active: "{{ item.active }}"
+          drop_command: "SELECT pg_drop_replication_slot('{{ item.slot_name }}');"
+    status_code: [202]
+  loop: >-
+    {{ bloated_slots
+       | selectattr('active', 'equalto', false)
+       | selectattr('retained_wal_gb', 'ge', pg_slot_retained_wal_warn_gb | float)
+       | list }}
+  loop_control:
+    label: "{{ item.slot_name }} ({{ item.retained_wal_gb }}GB)"
+  delegate_to: localhost
+  when: >
+    bloated_slots | selectattr('active', 'equalto', false) | list | length > 0</code></pre></div>
+</div>
+
+<!-- PATRONI -->
+<section id="patroni">
+<h2 class="st">🏛️ 10. Patroni Cluster Health Role</h2>
+<div class="card">
+<div class="cw"><div class="cl"><span>roles/pg_patroni_health/tasks/check_patroni_api.yml</span><button class="cb" onclick="copyCode(this)">Copy</button></div>
+<pre><code>---
+# =====================================================================
+# Patroni cluster health via REST API
+# Patroni exposes cluster state as JSON at http://node:8008/
+# =====================================================================
+
+- name: Query Patroni REST API on each cluster node
+  ansible.builtin.uri:
+    url: "http://{{ inventory_hostname }}:{{ pg_cluster_config[pg_cluster].patroni_port }}/"
+    method: GET
+    return_content: true
+    timeout: 5
+    status_code: [200, 503]            # 200=master/replica OK, 503=not master (still valid)
+  register: patroni_api_response
+  delegate_to: localhost
+  failed_when: false
+
+- name: Parse Patroni API response
+  ansible.builtin.set_fact:
+    patroni_node_state:
+      host: "{{ inventory_hostname }}"
+      cluster: "{{ pg_cluster }}"
+      api_reachable: "{{ patroni_api_response.status in [200, 503] }}"
+      is_leader: "{{ patroni_api_response.status == 200 }}"
+      role: "{{ patroni_api_response.json.role | default('unknown') }}"
+      state: "{{ patroni_api_response.json.state | default('unknown') }}"
+      timeline: "{{ patroni_api_response.json.timeline | default(0) }}"
+      patroni_version: "{{ patroni_api_response.json.patroni.version | default('unknown') }}"
+      pg_version: "{{ patroni_api_response.json.server_version | default(0) }}"
+      replication_state: "{{ patroni_api_response.json.replication | default([]) }}"
+  when: patroni_api_response.status is defined
+
+- name: Query full cluster state using patronictl (from primary)
+  ansible.builtin.command:
+    cmd: >
+      patronictl -c /etc/patroni/patroni.yml
+      list {{ pg_cluster }} --format json
+    # patronictl list: shows all cluster members, their roles, lag, timeline
+    # --format json: machine-readable output for parsing
+  register: patronictl_output
+  become: true
+  become_user: postgres
+  changed_when: false
+  failed_when: false
+  when: "'pg_primary' in group_names"
+
+- name: Parse patronictl cluster member list
+  ansible.builtin.set_fact:
+    cluster_members: "{{ patronictl_output.stdout | from_json }}"
+  when:
+    - "'pg_primary' in group_names"
+    - patronictl_output.rc == 0
+
+- name: Verify cluster has exactly one leader
+  ansible.builtin.set_fact:
+    cluster_leaders: >-
+      {{ cluster_members
+         | selectattr('Role', 'equalto', 'Leader')
+         | list }}
+    cluster_replicas: >-
+      {{ cluster_members
+         | rejectattr('Role', 'equalto', 'Leader')
+         | list }}
+  when:
+    - "'pg_primary' in group_names"
+    - cluster_members is defined
+
+- name: Alert if cluster has no leader (split-brain or full outage)
+  ansible.builtin.uri:
+    url: "{{ pagerduty_integration_url }}"
+    method: POST
+    body_format: json
+    body:
+      routing_key: "{{ vault_pagerduty_routing_key }}"
+      event_action: trigger
+      dedup_key: "patroni-no-leader-{{ pg_cluster }}"
+      payload:
+        summary: >-
+          🚨 PATRONI CLUSTER HAS NO LEADER: {{ pg_cluster }} cluster
+          has {{ cluster_leaders | length }} leader(s).
+          {{ 'Split-brain detected!' if cluster_leaders | length > 1
+             else 'Entire cluster may be down!' }}
+        severity: critical
+        source: ansible-patroni-monitor
+        custom_details:
+          cluster: "{{ pg_cluster }}"
+          leader_count: "{{ cluster_leaders | length }}"
+          members: "{{ cluster_members | to_json }}"
+    status_code: [202]
+  delegate_to: localhost
+  when:
+    - "'pg_primary' in group_names"
+    - cluster_leaders is defined
+    - cluster_leaders | length != 1</code></pre></div>
+</div>
+
+<!-- PLAYBOOKS -->
+<section id="playbooks">
+<h2 class="st">📜 11. Master Playbooks</h2>
+<div class="card">
+<div class="cw"><div class="cl"><span>playbooks/pg_replication_monitor.yml — Every 5 Minutes</span><button class="cb" onclick="copyCode(this)">Copy</button></div>
+<pre><code>---
+# =====================================================================
+# PostgreSQL Replication Monitor — Every 5 Minutes
+# Two-play design: primary view + standby view
+# =====================================================================
+
+# PLAY 1: Check from the PRIMARY's perspective
+- name: PostgreSQL Primary Replication Check
+  hosts: pg_primary
+  gather_facts: false
+  become: true
+  vars_files:
+    - "{{ inventory_dir }}/group_vars/all/vault.yml"
+
+  roles:
+    - role: pg_replication_check
+      tasks_from: query_primary_stats
+      tags: [primary, replication]
+
+# PLAY 2: Check from each STANDBY's perspective
+- name: PostgreSQL Standby WAL Receiver Check
+  hosts: pg_standby
+  gather_facts: false
+  become: true
+  vars_files:
+    - "{{ inventory_dir }}/group_vars/all/vault.yml"
+
+  roles:
+    - role: pg_replication_check
+      tasks_from: query_standby_stats
+      tags: [standby, replication]</code></pre></div>
+
+<div class="cw"><div class="cl"><span>playbooks/pg_dr_preflight.yml — On-Demand Before DR Drills</span><button class="cb" onclick="copyCode(this)">Copy</button></div>
+<pre><code>---
+# =====================================================================
+# PostgreSQL DR Drill Pre-flight Check
+# Blocks the drill if replication is not ready
+# This is the check that would have prevented the failed DR drill
+# =====================================================================
+- name: PostgreSQL DR Drill Pre-flight Validation
+  hosts: pg_primary
+  gather_facts: false
+  become: true
+  vars_files:
+    - "{{ inventory_dir }}/group_vars/all/vault.yml"
+
+  tasks:
+    - name: Query current replication lag
+      community.postgresql.postgresql_query:
+        db: postgres
+        login_user: "{{ pg_monitor_user }}"
+        login_password: "{{ vault_pg_monitor_password }}"
+        login_host: localhost
+        port: "{{ pg_port }}"
+        query: |
+          SELECT
+            application_name,
+            state,
+            sync_state,
+            EXTRACT(EPOCH FROM replay_lag)::numeric(10,2) AS replay_lag_sec,
+            (pg_current_wal_lsn() - replay_lsn)::bigint   AS replay_byte_lag
+          FROM pg_stat_replication
+          ORDER BY replay_lag DESC NULLS LAST;
+      register: preflight_lag
+      become_user: postgres
+
+    - name: Evaluate DR readiness — blocking check
+      ansible.builtin.set_fact:
+        dr_ready: >-
+          {{ preflight_lag.query_result | length > 0
+             and (preflight_lag.query_result
+                  | map(attribute='replay_lag_sec')
+                  | select('ne', none)
+                  | map('float')
+                  | max | default(9999) | float) <= pg_dr_max_lag_seconds | float
+             and (preflight_lag.query_result
+                  | selectattr('sync_state', 'in', ['sync', 'quorum'])
+                  | list | length > 0) }}
+        max_lag: >-
+          {{ preflight_lag.query_result
+             | map(attribute='replay_lag_sec')
+             | select('ne', none)
+             | map('float')
+             | max | default(9999) | float }}
+
+    - name: Print DR readiness result
+      ansible.builtin.debug:
+        msg:
+          - "╔═══════════════════════════════════════════════════╗"
+          - "║  DR DRILL PRE-FLIGHT: {{ pg_cluster | upper }} CLUSTER"
+          - "║  Status: {{ '✅ READY' if dr_ready else '❌ NOT READY — DRILL BLOCKED' }}"
+          - "║  Max replication lag: {{ max_lag }}s"
+          - "║  Required lag: ≤ {{ pg_dr_max_lag_seconds }}s"
+          - "║  Sync standby: {{ preflight_lag.query_result | selectattr('sync_state','in',['sync','quorum']) | list | length }} present"
+          - "╚═══════════════════════════════════════════════════╝"
+
+    - name: Fail and block DR drill if replication not ready
+      ansible.builtin.fail:
+        msg: >-
+          DR DRILL BLOCKED: Replication lag is {{ max_lag }}s
+          (maximum allowed: {{ pg_dr_max_lag_seconds }}s).
+          The standby is {{ max_lag }}s behind — promoting it would lose
+          {{ max_lag }} seconds of transactions.
+          Fix replication lag before proceeding with DR drill.
+      when: not dr_ready | bool
+      # Failing the playbook blocks the AAP workflow
+      # The DR drill workflow node will not proceed to the next step</code></pre></div>
+</div>
+</section>
+
+<!-- AAP -->
+<section id="aap">
+<h2 class="st">🔴 12. AAP Configuration</h2>
+<div class="card">
+<details><summary>Job Templates & DR Drill Workflow</summary><div class="inner">
+<table>
+<tr><th>Template</th><th>Schedule</th><th>Purpose</th></tr>
+<tr><td>PG-Replication-Monitor</td><td>Every 5 min</td><td>Streaming lag, standby count</td></tr>
+<tr><td>PG-Slot-Monitor</td><td>Every 15 min</td><td>Slot bloat, retained WAL</td></tr>
+<tr><td>PG-Patroni-Health</td><td>Every 5 min</td><td>Cluster state, leader election</td></tr>
+<tr><td>PG-WAL-Archive-Check</td><td>Every 15 min</td><td>Archive failures</td></tr>
+<tr><td>PG-DR-Preflight</td><td>On-demand (before DR drills)</td><td>Blocks drill if not ready</td></tr>
+<tr><td>PG-Replication-Report</td><td>Daily 06:00 AM</td><td>DBA team HTML dashboard</td></tr>
+</table>
+
+<h3>DR Drill Workflow</h3>
+<div class="ascii">
+<pre style="background:none;color:inherit;">
+WORKFLOW: PostgreSQL-DR-Drill (quarterly, on-demand)
+
+Node 1: PG-DR-Preflight
+   │ SUCCESS (lag < 30s, sync standby present)  FAIL → STOP (drill blocked)
+   ▼
+Node 2: Approval Node — "Pre-flight passed. Initiate Patroni failover?"
+   │ APPROVED by: DBA Lead + DR Coordinator
+   ▼
+Node 3: Patroni-Switchover (patronictl switchover {{ cluster }})
+   │ SUCCESS
+   ▼
+Node 4: PG-Replication-Monitor (verify new primary is replicating)
+   │ SUCCESS
+   ▼
+Node 5: PG-DR-Preflight (verify lag acceptable on new standby)
+</pre>
+</div>
+</div></details>
+</div>
+</section>
+
+<!-- FLOW -->
+<section id="flow">
+<h2 class="st">🔄 13. Execution Flow</h2>
+<div class="card">
+<div class="fs"><div class="fn">1</div><div>Every 5 min: pg_replication_monitor.yml runs. Play 1 SSHs to primary nodes and queries <code>pg_stat_replication</code> using the <code>pg_monitor</code> built-in role (read-only, no superuser needed). Returns per-standby lag in seconds and bytes.</div></div>
+<div class="fs"><div class="fn">2</div><div>Play 2 SSHs to standby nodes and queries <code>pg_stat_wal_receiver</code>. Checks streaming status, seconds since last heartbeat message. Disconnected or non-streaming standbys fire P1 PagerDuty from the standby's own perspective.</div></div>
+<div class="fs"><div class="fn">3</div><div>Every 15 min: pg_slot_monitor.yml queries <code>pg_replication_slots</code>. Inactive slots with retained WAL > 10GB → P2 alert with the DROP SLOT command included in the PagerDuty details. Slot > 50GB → P1. This is the proactive check that prevents Incident 2.</div></div>
+<div class="fs"><div class="fn">4</div><div>Every 5 min: Patroni REST API queried on all nodes. <code>patronictl list</code> parses cluster member count and roles. Zero leaders → P1 split-brain alert. More than one leader → P1 split-brain. Timeline divergence → investigated further.</div></div>
+<div class="fs"><div class="fn">5</div><div>Before quarterly DR drill: pg_dr_preflight.yml runs. Uses <code>ansible.builtin.fail</code> to hard-block the AAP workflow if lag > 30 seconds or sync standby missing. DBA Lead must see the preflight report before getting the approval node. The 12-minute lag from Incident 3 would have been caught here.</div></div>
+<div class="fs"><div class="fn">6</div><div>Daily 06:00 AM: pg_replication_report.yml generates HTML report for DBA team: per-cluster lag graph (trend over 24h), slot status table with WAL sizes, Patroni member list, WAL archive health. Archived for RBI inspection evidence.</div></div>
+</div>
+</section>
+
+<!-- LAB -->
+<section id="lab">
+<h2 class="st">🧪 14. Lab Setup</h2>
+<div class="card">
+<div class="cw"><div class="cl"><span>Lab: PostgreSQL streaming replication setup and monitoring test</span><button class="cb" onclick="copyCode(this)">Copy</button></div>
+<pre><code"># ── Install PostgreSQL 15 on two RHEL VMs (primary + standby) ─────────
+sudo yum install -y https://download.postgresql.org/pub/repos/yum/reporpms/EL-9-x86_64/pgdg-redhat-repo-latest.noarch.rpm
+sudo yum install -y postgresql15-server postgresql15
+sudo /usr/pgsql-15/bin/postgresql-15-setup initdb
+sudo systemctl start postgresql-15
+
+# ── On PRIMARY: configure for streaming replication ───────────────────
+# Edit /var/lib/pgsql/15/data/postgresql.conf:
+# wal_level = replica
+# max_wal_senders = 10
+# wal_keep_size = 1GB
+
+# Edit /var/lib/pgsql/15/data/pg_hba.conf:
+# host replication replicator standby_ip/32 scram-sha-256
+
+sudo -u postgres psql -c "CREATE ROLE replicator WITH LOGIN REPLICATION PASSWORD 'replpass';"
+sudo -u postgres psql -c "CREATE ROLE pg_monitor WITH LOGIN PASSWORD 'monpass';"
+sudo systemctl reload postgresql-15
+
+# ── On STANDBY: take base backup and start replica ────────────────────
+sudo -u postgres pg_basebackup -h primary_ip -U replicator \
+  -D /var/lib/pgsql/15/data -P -R -X stream
+sudo systemctl start postgresql-15
+
+# ── Install community.postgresql collection ───────────────────────────
+ansible-galaxy collection install community.postgresql
+pip install psycopg2-binary --break-system-packages
+
+# ── Test pg_stat_replication query manually ───────────────────────────
+sudo -u postgres psql -c "
+SELECT application_name, state, sync_state,
+       EXTRACT(EPOCH FROM replay_lag)::numeric(10,2) AS lag_sec
+FROM pg_stat_replication;"
+
+# ── Simulate replication lag ──────────────────────────────────────────
+# Pause WAL receiver on standby (simulates network issue):
+sudo -u postgres psql -c "SELECT pg_wal_replay_pause();"
+# On primary: generate some write activity
+sudo -u postgres pgbench -i -s 5 postgres
+sudo -u postgres pgbench -c 5 -T 30 postgres
+# Check lag:
+sudo -u postgres psql -c "SELECT EXTRACT(EPOCH FROM replay_lag) FROM pg_stat_replication;"
+# Resume:
+sudo -u postgres psql -c "SELECT pg_wal_replay_resume();"
+
+# ── Run monitoring playbook ───────────────────────────────────────────
+ansible-playbook playbooks/pg_replication_monitor.yml \
+  -i inventory/production/hosts.ini -v</code></pre></div>
+
+<h3>Troubleshooting</h3>
+<table>
+<tr><th>Issue</th><th>Cause</th><th>Fix</th></tr>
+<tr><td>community.postgresql not found</td><td>Collection not installed</td><td>ansible-galaxy collection install community.postgresql; pip install psycopg2-binary</td></tr>
+<tr><td>pg_stat_replication returns empty</td><td>No standbys connected, or querying standby instead of primary</td><td>Verify with: SELECT pg_is_in_recovery(); — should return 'f' on primary</td></tr>
+<tr><td>replay_lag is NULL</td><td>Standby just connected and hasn't fallen behind yet, or synchronous standby</td><td>NULL replay_lag means lag is effectively zero — treat as OK</td></tr>
+<tr><td>pg_monitor user can't query views</td><td>pg_monitor role not granted</td><td>GRANT pg_monitor TO pg_monitor_user; (PostgreSQL 10+ built-in role)</td></tr>
+<tr><td>patronictl not found</td><td>Patroni not installed or PATH issue</td><td>pip install patroni; verify /usr/local/bin/patronictl exists</td></tr>
+</table>
+</div>
+</section>
+
+<!-- INTERVIEW -->
+<section id="interview">
+<h2 class="st">🎯 15. Interview Prep</h2>
+<div class="card">
+<div class="g2">
+<div>
+<details><summary>Q: What is the difference between write_lag, flush_lag, and replay_lag in pg_stat_replication?</summary><div class="inner">
+All three measure different points in the WAL journey from primary to standby:<br><br>
+<b>write_lag:</b> Time from when primary writes WAL to when standby receives it and writes to its WAL buffer (memory). This is primarily network latency.<br>
+<b>flush_lag:</b> Time from primary write to standby flushing WAL to disk. Includes write_lag plus standby disk I/O time.<br>
+<b>replay_lag:</b> Time from primary write to standby applying (replaying) the WAL change to its data files. This is the most important — it represents how stale the standby's data is relative to the primary.<br><br>
+In banking, <b>replay_lag</b> is what we alert on — it directly answers "how old is the standby's data?" If replay_lag is 4 minutes and primary fails, the promoted standby will be missing 4 minutes of transactions.
+</div></details>
+<details><summary>Q: Why is an inactive replication slot dangerous and how do you detect it?</summary><div class="inner">
+PostgreSQL guarantees that WAL files needed by active replication slots will never be deleted. When a slot becomes inactive (its consumer disconnects — e.g., a Debezium CDC application is decommissioned), PostgreSQL continues to retain ALL WAL since the slot last consumed. As the primary generates new WAL, this retained WAL accumulates on disk indefinitely.<br><br>
+Detection via SQL: <code>SELECT slot_name, active, (pg_current_wal_lsn() - restart_lsn) / 1073741824.0 AS retained_gb FROM pg_replication_slots WHERE NOT active;</code><br><br>
+The formula <code>pg_current_wal_lsn() - restart_lsn</code> gives bytes of WAL the slot is forcing the primary to retain. Dividing by 1073741824 converts to GB. Alerting at 10GB gives the DBA team time to investigate and drop the slot before disk fills. The resolution is: <code>SELECT pg_drop_replication_slot('slot_name');</code>
+</div></details>
+</div>
+<div>
+<details><summary>Q: How does pg_monitor role enable secure monitoring without superuser?</summary><div class="inner">
+PostgreSQL 10+ includes a built-in role <code>pg_monitor</code> that grants read access to all monitoring views — <code>pg_stat_replication</code>, <code>pg_stat_wal_receiver</code>, <code>pg_replication_slots</code>, <code>pg_stat_activity</code>, and others — WITHOUT requiring superuser.<br><br>
+This follows the principle of least privilege: our Ansible monitoring user (<code>pg_monitor_user</code>) needs only <code>GRANT pg_monitor TO pg_monitor_user</code>. If this monitoring account is compromised, the attacker can only read monitoring data — they cannot modify data, drop tables, or execute commands.<br><br>
+Compare to the alternative of granting superuser to the monitoring account — a compromised superuser can read all data, drop all tables, and execute arbitrary OS commands via COPY TO/FROM PROGRAM. In banking, this is unacceptable for a monitoring account used by Ansible.
+</div></details>
+<details><summary>Q: How does your DR pre-flight check prevent a failed DR drill?</summary><div class="inner">
+The <code>pg_dr_preflight.yml</code> playbook queries <code>pg_stat_replication</code> and applies two blocking conditions via <code>ansible.builtin.fail</code>:<br>
+1. <b>Lag check:</b> max <code>replay_lag</code> across all standbys must be ≤ 30 seconds<br>
+2. <b>Sync standby check:</b> at least one standby with <code>sync_state = 'sync'</code> must be present<br><br>
+If either fails, the playbook fails with a clear message. In the AAP workflow, this failure blocks all subsequent nodes — the Patroni switchover never runs. The DBA Lead sees the failure reason immediately: "Replication lag is 720s — 12 minutes of transactions at risk." They fix the lag first, then re-run the pre-flight, then proceed with the drill.<br><br>
+This is the exact scenario from Incident 3 — 12-minute lag was present but undetected before the drill. Our automation would have caught it and blocked the drill until fixed.
+</div></details>
+</div>
+</div>
+</section>
+
+<div class="fn-row">
+  <span style="color:var(--text-dim);font-size:.85rem;">Advanced Series — Project 14 of 30 Complete</span>
+  <a class="btn" href="#">Request Project 15 →</a>
+</div>
+</main>
+</div>
+<script>
+function copyCode(btn){
+  const pre=btn.closest('.cw').querySelector('pre code')||btn.closest('.cw').querySelector('pre');
+  navigator.clipboard.writeText(pre.innerText).then(()=>{const o=btn.innerText;btn.innerText='Copied!';setTimeout(()=>btn.innerText=o,1500);});
+}
+</script>
+</body>
+</html>

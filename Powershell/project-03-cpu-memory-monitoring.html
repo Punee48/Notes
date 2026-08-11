@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Project 03 — CPU and Memory Monitoring | PowerShell Masterclass</title>
+<style>
+  :root{
+    --primary:#6D28D9; --secondary:#7C3AED; --light-purple:#EDE9FE; --xlight-purple:#F5F3FF;
+    --bg:#FFFFFF; --text:#1F2937; --muted:#6B7280; --border:#E5E1F5;
+    --success:#15803D; --warn:#B45309; --danger:#B91C1C;
+    --code-bg:#1E1B2E; --code-text:#E9E4FF;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0; font-family:"Segoe UI",Calibri,Roboto,Arial,sans-serif; background:var(--bg); color:var(--text); line-height:1.65;}
+  a{color:var(--primary);}
+  .layout{display:flex; max-width:1400px; margin:0 auto;}
+  nav.sidebar{width:270px; flex-shrink:0; position:sticky; top:0; height:100vh; overflow-y:auto; background:var(--xlight-purple); border-right:1px solid var(--border); padding:22px 16px;}
+  nav.sidebar h3{color:var(--primary); font-size:13px; text-transform:uppercase; letter-spacing:.06em; margin:18px 0 8px;}
+  nav.sidebar a{display:block; padding:7px 10px; border-radius:8px; color:var(--text); text-decoration:none; font-size:14px; margin-bottom:2px;}
+  nav.sidebar a:hover{background:var(--light-purple); color:var(--primary);}
+  #progressWrap{background:var(--light-purple); border-radius:10px; padding:10px; margin-bottom:8px;}
+  #progressBar{height:8px; background:var(--border); border-radius:6px; overflow:hidden;}
+  #progressFill{height:100%; width:0%; background:linear-gradient(90deg,var(--primary),var(--secondary)); transition:width .2s;}
+  #progressLabel{font-size:12px; color:var(--muted); margin-top:6px;}
+  main{flex:1; min-width:0; padding:0;}
+  .cover{background:linear-gradient(135deg,var(--primary),var(--secondary)); color:#fff; padding:60px 48px; position:relative; overflow:hidden;}
+  .cover::after{content:"";position:absolute;right:-80px;top:-80px;width:300px;height:300px;border-radius:50%;background:rgba(255,255,255,.08);}
+  .badge{display:inline-block; background:rgba(255,255,255,.18); padding:5px 14px; border-radius:20px; font-size:12px; letter-spacing:.05em; margin-right:8px; margin-bottom:14px;}
+  .cover h1{font-size:34px; margin:6px 0 10px; max-width:760px;}
+  .cover p.sub{font-size:16px; opacity:.92; max-width:640px;}
+  .cover-meta{display:flex; gap:28px; margin-top:26px; flex-wrap:wrap;}
+  .cover-meta div{background:rgba(255,255,255,.12); padding:12px 18px; border-radius:10px; min-width:140px;}
+  .cover-meta span{display:block; font-size:12px; opacity:.85;}
+  .cover-meta strong{font-size:16px;}
+  section{padding:34px 48px; border-bottom:1px solid var(--border);}
+  section h2{color:var(--primary); font-size:24px; border-left:5px solid var(--primary); padding-left:14px; margin-top:0;}
+  section h3{color:var(--secondary); font-size:18px; margin-top:26px;}
+  .story{background:var(--xlight-purple); border-left:5px solid var(--primary); padding:20px 24px; border-radius:0 10px 10px 0; font-size:15px;}
+  .story b{color:var(--primary);}
+  .callout{border-radius:10px; padding:16px 18px; margin:16px 0; font-size:14.5px;}
+  .callout.tip{background:#F0FDF4; border-left:5px solid var(--success);}
+  .callout.note{background:var(--xlight-purple); border-left:5px solid var(--secondary);}
+  .callout.warn{background:#FFFBEB; border-left:5px solid var(--warn);}
+  .callout.security{background:#FEF2F2; border-left:5px solid var(--danger);}
+  .callout .lbl{font-weight:700; display:block; margin-bottom:4px;}
+  table{width:100%; border-collapse:collapse; margin:16px 0; font-size:14px;}
+  th,td{border:1px solid var(--border); padding:9px 12px; text-align:left; vertical-align:top;}
+  th{background:var(--light-purple); color:var(--primary);}
+  tr:nth-child(even){background:var(--xlight-purple);}
+  .codewrap{position:relative; margin:16px 0;}
+  pre{background:var(--code-bg); color:var(--code-text); padding:18px 16px; border-radius:10px; overflow-x:auto; font-family:Consolas,"Cascadia Code",Menlo,monospace; font-size:13.5px; line-height:1.7;}
+  pre code{white-space:pre;}
+  .copybtn{position:absolute; top:10px; right:10px; background:var(--secondary); color:#fff; border:none; padding:6px 12px; border-radius:6px; font-size:12px; cursor:pointer;}
+  .copybtn:hover{background:var(--primary);}
+  .explain-list{list-style:none; padding:0; margin:14px 0;}
+  .explain-list li{background:var(--xlight-purple); border-radius:8px; padding:10px 14px; margin-bottom:6px; font-size:14.5px;}
+  .explain-list code{background:var(--light-purple); padding:2px 6px; border-radius:5px; color:var(--primary); font-weight:600;}
+  details{background:var(--xlight-purple); border-radius:10px; padding:12px 16px; margin:10px 0;}
+  details summary{cursor:pointer; font-weight:600; color:var(--primary);}
+  .diagram{background:var(--xlight-purple); border-radius:12px; padding:20px; margin:16px 0; overflow-x:auto;}
+  .flow{display:flex; flex-wrap:wrap; align-items:center; gap:10px; font-size:13.5px;}
+  .flow .box{background:#fff; border:2px solid var(--secondary); border-radius:8px; padding:8px 14px; font-weight:600; color:var(--primary);}
+  .flow .arrow{color:var(--secondary); font-size:18px;}
+  .steps{counter-reset:step;}
+  .steps .step{position:relative; padding-left:44px; margin-bottom:18px;}
+  .steps .step::before{counter-increment:step; content:counter(step); position:absolute; left:0; top:0; background:var(--primary); color:#fff; width:30px; height:30px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:700;}
+  .grid2{display:grid; grid-template-columns:1fr 1fr; gap:16px;}
+  @media(max-width:900px){.grid2{grid-template-columns:1fr;} nav.sidebar{display:none;} section{padding:26px 20px;} .cover{padding:36px 22px;}}
+  footer{padding:30px 48px; background:var(--xlight-purple); color:var(--muted); font-size:13px;}
+</style>
+</head>
+<body>
+
+<div class="layout">
+  <nav class="sidebar">
+    <div id="progressWrap">
+      <div id="progressLabel">Reading progress</div>
+      <div id="progressBar"><div id="progressFill"></div></div>
+    </div>
+    <h3>Project 03</h3>
+    <a href="#cover">Cover</a>
+    <a href="#recap1">Recap: Projects 1–2</a>
+    <a href="#story">The Story</a>
+    <a href="#concepts">Concepts First</a>
+    <a href="#lab">Hands-On Lab</a>
+    <a href="#script">Full Script</a>
+    <a href="#linebyline">Line-by-Line</a>
+    <a href="#architecture">Architecture</a>
+    <a href="#incident">Production Incident</a>
+    <a href="#troubleshoot">Troubleshooting</a>
+    <a href="#security">Security Notes</a>
+    <a href="#recap">Key Learnings</a>
+    <a href="#interview">Interview Prep</a>
+    <a href="#challenges">Coding Challenges</a>
+    <a href="#resume">Resume Points</a>
+    <a href="#assignment">Practice Assignment</a>
+    <a href="#next">Next Project</a>
+  </nav>
+
+  <main id="top">
+    <div class="cover" id="cover">
+      <span class="badge">PROJECT 03</span><span class="badge">BEGINNER</span><span class="badge">BFSI TRACK</span>
+      <h1>CPU and Memory Monitoring with Sampling</h1>
+      <p class="sub">A single snapshot lies. Learn why real monitoring samples CPU and memory over time, and build a script that does it properly using loops.</p>
+      <div class="cover-meta">
+        <div><span>Difficulty</span><strong>Beginner</strong></div>
+        <div><span>Estimated Lab Time</span><strong>60–75 min</strong></div>
+        <div><span>Concepts</span><strong>9 core concepts</strong></div>
+        <div><span>Track</span><strong>3 of 40</strong></div>
+      </div>
+    </div>
+
+    <section id="recap1">
+      <h2>Quick Recap of Projects 1–2</h2>
+      <p>We now know how to pull OS/hardware/disk data with <code>Get-CimInstance</code>, wrap results in
+      <code>[PSCustomObject]</code>, classify status with <code>if/elseif/else</code> inside a function, and export
+      to CSV. This project adds a new dimension: <b>data that changes from second to second</b>, which a single
+      snapshot can't represent honestly.</p>
+    </section>
+
+    <section id="story">
+      <h2>The Story — Why We're Building This</h2>
+      <div class="story">
+        A ticket lands on our desk: <b>WINAPP12</b> is "randomly slow" during the day, but every time the Operations
+        team checks Task Manager, everything looks fine. Our manager explains the problem:
+        <i>"CPU and memory usage spikes for a few seconds and then drops. A single check at 2:00 PM tells you
+        nothing about what happened at 1:47 PM. We need a script that samples usage over a window of time and
+        reports the pattern, not just one instant."</i><br><br>
+        Today we build a CPU and memory monitor that takes multiple samples over time, using our first real
+        <b>loop</b>.
+      </div>
+    </section>
+
+    <section id="concepts">
+      <h2>Concepts First — Before We Touch Code</h2>
+
+      <h3>1. Why a Single Reading Is Misleading</h3>
+      <div class="callout note"><span class="lbl">The core problem</span>CPU usage in particular can swing from 5%
+      to 95% within a second. A monitoring script that checks once and moves on can easily catch the calm moment and
+      miss the spike entirely — exactly what happened to Operations checking Task Manager manually.</div>
+
+      <h3>2. The <code>for</code> Loop</h3>
+      <p>A <code>for</code> loop repeats a block of code a known, fixed number of times — perfect for "take exactly
+      5 samples."</p>
+      <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code>for ($i = 1; $i -le 5; $i++) {   # Repeats the block for i = 1,2,3,4,5
+    Write-Host "Sample $i"        # Runs once per loop iteration
+}</code></pre></div>
+      <ul class="explain-list">
+        <li><code>$i = 1</code> — the <b>initializer</b>: runs once, before the loop starts, setting up a counter variable.</li>
+        <li><code>$i -le 5</code> — the <b>condition</b>: checked before every iteration; the loop continues only while this is true.</li>
+        <li><code>$i++</code> — the <b>incrementer</b>: runs after every iteration; <code>++</code> is shorthand for "add 1 to this variable".</li>
+      </ul>
+
+      <h3>3. Start-Sleep</h3>
+      <p><code>Start-Sleep -Seconds 2</code> pauses script execution for the given duration. We use it between
+      samples so our readings are spread out over real time, instead of firing instantly one after another.</p>
+
+      <h3>4. Growing an Array with <code>+=</code></h3>
+      <p><code>$Samples += $NewValue</code> appends a new item to an existing array. We'll use this to build up a
+      list of readings across our sampling loop.</p>
+      <div class="callout warn"><span class="lbl">Performance note</span>Behind the scenes, PowerShell arrays have a
+      fixed size — <code>+=</code> actually creates a brand-new array each time and copies everything over. For a
+      handful of samples like ours, this is completely fine. For thousands of items, a growable
+      <code>[System.Collections.Generic.List[object]]</code> is more efficient — worth knowing, not worth worrying
+      about yet.</div>
+
+      <h3>5. Measure-Object for Aggregation</h3>
+      <p><code>Measure-Object -Average -Maximum -Minimum</code> calculates statistics across a collection of
+      numbers — exactly what we need to summarize multiple CPU samples into one meaningful average and peak.</p>
+
+      <h3>6. The <code>switch</code> Statement — A Cleaner Alternative to if/elseif/else</h3>
+      <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code>switch ($true) {                      # Evaluates each condition below against $true
+    ($AvgCpu -ge 90) { "CRITICAL" }    # First matching condition wins
+    ($AvgCpu -ge 70) { "WARNING" }
+    default           { "HEALTHY" }    # Runs if nothing above matched
+}</code></pre></div>
+      <ul class="explain-list">
+        <li><code>switch ($true)</code> — an idiom: instead of switching on a single value, we switch on
+        <code>$true</code> and list boolean expressions as the cases, so whichever expression evaluates to
+        <code>$true</code> first is the one that runs. This reads almost like an if/elseif chain but is often
+        considered cleaner for many-branch logic.</li>
+        <li><code>default</code> — the fallback case, equivalent to <code>else</code>.</li>
+      </ul>
+      <div class="callout note"><span class="lbl">if/elseif vs switch</span>Both are valid; <code>switch</code>
+      tends to read better with many branches (4+), while <code>if/elseif</code> (from Project 2) is often clearer
+      for 2–3 branches. We're using <code>switch</code> here specifically so you're comfortable with both by the
+      time we reach more complex projects.</div>
+
+      <h3>7. CPU Load via CIM</h3>
+      <p><code>Get-CimInstance Win32_Processor</code> exposes a <code>LoadPercentage</code> property — a live
+      snapshot of current CPU utilization, ready to sample repeatedly.</p>
+    </section>
+
+    <section id="lab">
+      <h2>Hands-On Lab — Build It Yourself</h2>
+      <div class="steps">
+        <div class="step"><b>Create the project folder:</b>
+          <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code>New-Item -ItemType Directory -Path "C:\PS-Masterclass\Project03\reports" -Force
+Set-Location "C:\PS-Masterclass\Project03"</code></pre></div>
+        </div>
+        <div class="step"><b>Create <code>Get-CpuMemoryMonitor.ps1</code></b> in VS Code and paste the full script below.</div>
+        <div class="step"><b>Run it</b> — it will take 5 samples, 3 seconds apart (about 15 seconds total):
+          <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code>.\Get-CpuMemoryMonitor.ps1</code></pre></div>
+        </div>
+        <div class="step"><b>Optional stress test:</b> while the script is sampling, open a few heavy applications
+        or run a CPU-intensive task briefly, then check whether the Maximum reading in the summary reflects that
+        spike — proving why sampling beats a single check.</div>
+        <div class="step"><b>Validate:</b> confirm the console shows per-sample readings, a final averaged summary
+        with a status, and a CSV saved to <code>.\reports\</code>.</div>
+      </div>
+    </section>
+
+    <section id="script">
+      <h2>Full Script — Get-CpuMemoryMonitor.ps1</h2>
+      <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code># =====================================================================
+# Get-CpuMemoryMonitor.ps1
+# ABC Bank - Windows Infrastructure Automation Team
+# Purpose: Sample CPU and memory usage over time instead of a single snapshot
+# =====================================================================
+
+$ComputerName   = $env:COMPUTERNAME     # The server being monitored
+$SampleCount    = 5                     # How many samples to take
+$SampleInterval = 3                     # Seconds to wait between samples
+$CpuWarnLevel   = 70                    # CPU% average considered a warning
+$CpuCritLevel   = 90                    # CPU% average considered critical
+
+$CpuSamples = @()                        # Empty array that will hold each CPU reading
+$MemSamples = @()                        # Empty array that will hold each memory reading
+
+Write-Host "`n=== CPU & MEMORY MONITOR: $ComputerName ===" -ForegroundColor Magenta   # Section header
+Write-Host "Taking $SampleCount samples, $SampleInterval seconds apart...`n" -ForegroundColor Cyan
+
+# ---------------------------------------------------------------
+# STEP 1: Sampling loop - take multiple readings over time
+# ---------------------------------------------------------------
+for ($i = 1; $i -le $SampleCount; $i++) {          # Repeats once per sample, i goes 1 to SampleCount
+
+    $CpuInfo = Get-CimInstance -ClassName Win32_Processor          # Queries current CPU state
+    $CpuLoad = ($CpuInfo | Measure-Object -Property LoadPercentage -Average).Average   # Averages across logical processors if more than one
+
+    $OSInfo = Get-CimInstance -ClassName Win32_OperatingSystem      # Queries current memory state
+    $TotalMemKB = $OSInfo.TotalVisibleMemorySize                     # Total memory in KB
+    $FreeMemKB  = $OSInfo.FreePhysicalMemory                          # Free memory in KB
+    $UsedMemPercent = [math]::Round((($TotalMemKB - $FreeMemKB) / $TotalMemKB) * 100, 1)   # % of memory currently used
+
+    $CpuSamples += $CpuLoad            # Appends this sample's CPU reading to the array
+    $MemSamples += $UsedMemPercent     # Appends this sample's memory reading to the array
+
+    Write-Host ("Sample {0}/{1}  CPU: {2}%   Memory: {3}%" -f $i, $SampleCount, $CpuLoad, $UsedMemPercent)  # Shows this sample
+
+    if ($i -lt $SampleCount) {          # Don't sleep after the very last sample - no point waiting
+        Start-Sleep -Seconds $SampleInterval   # Pauses before taking the next sample
+    }
+}
+
+# ---------------------------------------------------------------
+# STEP 2: Aggregate the samples into meaningful statistics
+# ---------------------------------------------------------------
+$CpuStats = $CpuSamples | Measure-Object -Average -Maximum -Minimum   # Calculates avg/max/min across all CPU samples
+$MemStats = $MemSamples | Measure-Object -Average -Maximum -Minimum   # Calculates avg/max/min across all memory samples
+
+$AvgCpu = [math]::Round($CpuStats.Average, 1)   # Rounds the average CPU for display
+$MaxCpu = [math]::Round($CpuStats.Maximum, 1)   # Rounds the peak CPU seen during sampling
+
+# ---------------------------------------------------------------
+# STEP 3: Classify overall CPU status using a switch statement
+# ---------------------------------------------------------------
+$CpuStatus = switch ($true) {                    # Evaluates each case against $true; first match wins
+    ($AvgCpu -ge $CpuCritLevel) { "CRITICAL" }   # Average CPU at/above critical threshold
+    ($AvgCpu -ge $CpuWarnLevel) { "WARNING"  }   # Average CPU at/above warning threshold
+    default                      { "HEALTHY"  }   # Neither condition matched
+}
+
+# ---------------------------------------------------------------
+# STEP 4: Build the final summary object
+# ---------------------------------------------------------------
+$Summary = [PSCustomObject]@{
+    ServerName   = $ComputerName                              # Which server this summary is for
+    SampleCount  = $SampleCount                                # How many samples were taken
+    AvgCpuPct    = $AvgCpu                                      # Average CPU usage across all samples
+    MaxCpuPct    = $MaxCpu                                      # Peak CPU usage seen
+    AvgMemPct    = [math]::Round($MemStats.Average, 1)         # Average memory usage across all samples
+    MaxMemPct    = [math]::Round($MemStats.Maximum, 1)         # Peak memory usage seen
+    CpuStatus    = $CpuStatus                                   # HEALTHY / WARNING / CRITICAL
+    CheckedAt    = Get-Date -Format "yyyy-MM-dd HH:mm:ss"      # When this check completed
+}
+
+# ---------------------------------------------------------------
+# STEP 5: Display the summary, color-coded by status
+# ---------------------------------------------------------------
+Write-Host "`n=== SUMMARY ===" -ForegroundColor Magenta   # Section header
+$Summary | Format-List                                     # Prints every property on its own line
+
+$Color = switch ($CpuStatus) {                # A second switch, this time on an actual value instead of $true
+    "CRITICAL" { "Red" }                       # Maps each status string to a console color
+    "WARNING"  { "Yellow" }
+    default     { "Green" }
+}
+Write-Host "Overall CPU Status: $CpuStatus" -ForegroundColor $Color   # Final status line in the matching color
+
+# ---------------------------------------------------------------
+# STEP 6: Export to CSV
+# ---------------------------------------------------------------
+if (-not (Test-Path ".\reports")) {                          # Creates the reports folder if it doesn't exist yet
+    New-Item -ItemType Directory -Path ".\reports" | Out-Null
+}
+$Timestamp = Get-Date -Format "yyyyMMdd_HHmmss"               # Sortable timestamp for the filename
+$Summary | Export-Csv -Path ".\reports\CpuMem_$Timestamp.csv" -NoTypeInformation   # Saves the summary row
+
+Write-Host "`nReport saved to .\reports\" -ForegroundColor Green
+</code></pre></div>
+      </div>
+    </section>
+
+    <section id="linebyline">
+      <h2>Line-by-Line Explanation</h2>
+
+      <h3><code>for ($i = 1; $i -le $SampleCount; $i++) { ... }</code></h3>
+      <ul class="explain-list">
+        <li>Already covered the mechanics above — here <code>$SampleCount</code> is a variable instead of a
+        hardcoded number, so changing one setting at the top of the script changes how many times the loop runs.</li>
+      </ul>
+
+      <h3><code>($CpuInfo | Measure-Object -Property LoadPercentage -Average).Average</code></h3>
+      <ul class="explain-list">
+        <li><code>-Property LoadPercentage</code> — tells <code>Measure-Object</code> which property on each object
+        to do math on (a machine can report one <code>Win32_Processor</code> object per physical socket, so this
+        averages them if there's more than one).</li>
+        <li><code>-Average</code> — a switch parameter requesting the average be calculated.</li>
+        <li>The surrounding parentheses run the whole pipeline first, then <code>.Average</code> pulls just that one
+        number out of the result object <code>Measure-Object</code> returns.</li>
+      </ul>
+
+      <h3><code>$CpuSamples += $CpuLoad</code></h3>
+      <ul class="explain-list">
+        <li><code>+=</code> — "append this value to the existing array and store the result back in the same
+        variable." Combines addition and assignment in one operator, same idea as increment shorthand but for arrays.</li>
+      </ul>
+
+      <h3><code>if ($i -lt $SampleCount) { Start-Sleep -Seconds $SampleInterval }</code></h3>
+      <ul class="explain-list">
+        <li>This check prevents an unnecessary final sleep after the last sample — a small but real detail that
+        keeps the script from wasting time once there's nothing left to sample.</li>
+      </ul>
+
+      <h3><code>$CpuStatus = switch ($true) { (...) {"CRITICAL"} (...) {"WARNING"} default {"HEALTHY"} }</code></h3>
+      <ul class="explain-list">
+        <li>Just like an <code>if</code> statement can produce a value, a <code>switch</code> statement's matched
+        result can be assigned directly to a variable — <code>$CpuStatus</code> receives whichever branch's output
+        matched first.</li>
+      </ul>
+
+      <h3><code>$Color = switch ($CpuStatus) { "CRITICAL" {"Red"} "WARNING" {"Yellow"} default {"Green"} }</code></h3>
+      <ul class="explain-list">
+        <li>This is the more traditional form of <code>switch</code>: it compares <code>$CpuStatus</code> directly
+        against each literal case value ("CRITICAL", "WARNING") rather than evaluating boolean expressions — useful
+        to see both styles side by side in the same script.</li>
+      </ul>
+    </section>
+
+    <section id="architecture">
+      <h2>Architecture &amp; Sampling Flow</h2>
+      <div class="diagram">
+        <div class="flow">
+          <div class="box">for loop (5x)</div><div class="arrow">→</div>
+          <div class="box">Get-CimInstance (CPU + Memory)</div><div class="arrow">→</div>
+          <div class="box">Append to Sample Arrays</div><div class="arrow">→</div>
+          <div class="box">Start-Sleep</div><div class="arrow">→</div>
+          <div class="box">(repeat)</div>
+        </div>
+        <div class="flow" style="margin-top:12px;">
+          <div class="box">Sample Arrays</div><div class="arrow">→</div>
+          <div class="box">Measure-Object (Avg/Max/Min)</div><div class="arrow">→</div>
+          <div class="box">switch Classification</div><div class="arrow">→</div>
+          <div class="box">Console + CSV</div>
+        </div>
+      </div>
+      <p>Notice the two-phase shape: an inner loop that <b>collects over time</b>, followed by an aggregation step
+      that <b>summarizes after the fact</b>. This pattern reappears constantly in monitoring automation — collect
+      first, judge second.</p>
+    </section>
+
+    <section id="incident">
+      <h2>Production Incident Walkthrough</h2>
+      <div class="story">
+        Suppose our 5 samples come back as: 12%, 15%, 94%, 18%, 14%. A single check at almost any other moment would
+        have completely missed the 94% spike that's actually causing WINAPP12's slowness.
+      </div>
+      <ul class="explain-list">
+        <li><b>Why report both Average and Maximum?</b> Average (30.6% here) looks healthy and would hide the
+        problem; Maximum (94%) reveals the spike Operations actually needs to investigate. Reporting only one number
+        would mislead in one direction or the other.</li>
+        <li><b>Why not just increase SampleCount to something huge, like 1000?</b> More samples mean more accuracy,
+        but also a much longer-running script and more resource usage from the monitoring itself. In later projects
+        we'll discuss scheduled, shorter recurring checks instead of one giant sampling window.</li>
+      </ul>
+    </section>
+
+    <section id="troubleshoot">
+      <h2>Troubleshooting Cheat Sheet</h2>
+      <table>
+        <tr><th>Symptom</th><th>Likely Root Cause</th><th>Fix</th></tr>
+        <tr><td>CPU always reads exactly 0% or blank</td><td>Some virtual machines/containers don't populate <code>LoadPercentage</code> reliably</td><td>Cross-check with Task Manager; on VMs consider <code>Get-Counter '\Processor(_Total)\% Processor Time'</code> as an alternative in a later project</td></tr>
+        <tr><td>Script takes much longer than expected to finish</td><td>SampleInterval or SampleCount set too high</td><td>Confirm both values at the top of the script match your expectations</td></tr>
+        <tr><td>"Cannot convert value... to type System.Double"</td><td>A property came back <code>$null</code> (common if <code>LoadPercentage</code> isn't supported) and math was attempted on it</td><td>Check the raw object with <code>Get-Member</code> before assuming a property exists</td></tr>
+        <tr><td>Memory percentage looks wrong (way too high or negative)</td><td>Mixed up which value is Total vs Free before subtracting</td><td>Print <code>$TotalMemKB</code> and <code>$FreeMemKB</code> separately to confirm both are sane</td></tr>
+      </table>
+    </section>
+
+    <section id="security">
+      <h2>Security &amp; Best Practices</h2>
+      <div class="callout tip"><span class="lbl">Best practice reinforced here</span>All tunable values
+      (<code>$SampleCount</code>, <code>$SampleInterval</code>, thresholds) live in named variables at the top —
+      this is now the third project in a row following that pattern deliberately, because it's one of the habits
+      that separates maintainable scripts from write-once throwaway code.</div>
+      <div class="callout security"><span class="lbl">Still local-only</span>No credentials are needed yet; we're
+      still working against the local machine only.</div>
+    </section>
+
+    <section id="recap">
+      <h2>Key Learnings &amp; Recap</h2>
+      <div class="grid2">
+        <div>
+          <h3>Commands/Syntax Learned</h3>
+          <ul class="explain-list">
+            <li><code>for (...)</code> loop</li>
+            <li><code>Start-Sleep</code></li>
+            <li><code>+=</code> on arrays</li>
+            <li><code>switch</code> statement (both forms)</li>
+            <li><code>Measure-Object -Average -Maximum -Minimum</code></li>
+          </ul>
+        </div>
+        <div>
+          <h3>Concepts Learned</h3>
+          <ul class="explain-list">
+            <li>Why single-point checks miss transient spikes</li>
+            <li>Sampling over time vs one-shot snapshots</li>
+            <li>Collect-then-aggregate pattern</li>
+            <li>switch vs if/elseif — when each reads better</li>
+          </ul>
+        </div>
+      </div>
+      <h3>Common Mistakes to Avoid</h3>
+      <ul class="explain-list">
+        <li>Reporting only an average and hiding a dangerous spike.</li>
+        <li>Sleeping after the final sample for no reason, wasting time.</li>
+        <li>Assuming <code>LoadPercentage</code> is always populated without checking on unfamiliar hardware/VMs.</li>
+      </ul>
+    </section>
+
+    <section id="interview">
+      <h2>Interview Preparation</h2>
+      <details><summary>Q1. Why does this script report both average and maximum CPU instead of just one number?</summary>
+        <p><b>Answer:</b> Average can mask short spikes that are actually causing performance problems; maximum
+        reveals the peak. Reporting both gives a fuller picture than either alone.</p>
+        <p><b>Follow-up:</b> "What statistic would you add to catch a CPU that's consistently high, not just
+        spiky?" — Answer: Minimum — if the minimum sample is also high, that points to sustained load rather than a
+        brief spike.</p>
+      </details>
+      <details><summary>Q2. When would you choose a for loop over a foreach loop?</summary>
+        <p><b>Answer:</b> <code>for</code> fits when you know how many iterations you need up front and need a
+        counter (like taking exactly 5 timed samples); <code>foreach</code> fits when you're iterating over an
+        existing collection of items rather than counting repetitions.</p>
+        <p><b>Follow-up:</b> "Could you rewrite this sampling loop using while instead of for?" — Answer: yes, with
+        a counter variable incremented manually inside the loop and the condition checked at the top — functionally
+        equivalent, just different syntax emphasis.</p>
+      </details>
+      <details><summary>Q3. What's the practical difference between the two switch statements used in this script?</summary>
+        <p><b>Answer:</b> <code>switch ($true)</code> evaluates boolean expressions per case (good for range/threshold
+        logic); <code>switch ($CpuStatus)</code> matches a variable directly against literal case values (good for
+        simple value-to-value mapping, like status-to-color).</p>
+        <p><b>Follow-up:</b> "Could a hash table replace the second switch?" — Answer: yes —
+        <code>@{"CRITICAL"="Red";"WARNING"="Yellow"}["HEALTHY"]</code>-style lookups work too and can be more compact
+        for pure value mapping with no ranges involved.</p>
+      </details>
+    </section>
+
+    <section id="challenges">
+      <h2>Coding Challenges</h2>
+      <details><summary>Challenge 1: Add a memory-specific status alongside CpuStatus</summary>
+        <details><summary>Show answer</summary>
+        <pre><code>$MemStatus = switch ($true) {
+    ($Summary.AvgMemPct -ge 90) { "CRITICAL" }
+    ($Summary.AvgMemPct -ge 75) { "WARNING" }
+    default                      { "HEALTHY" }
+}</code></pre>
+        </details>
+      </details>
+      <details><summary>Challenge 2: Rewrite the sampling loop using while instead of for</summary>
+        <details><summary>Show answer</summary>
+        <pre><code>$i = 1                                # Manual counter, since while has no built-in one
+while ($i -le $SampleCount) {         # Loop continues while this condition is true
+    # ... same sampling code as before ...
+    $i++                               # Must increment manually or the loop never ends
+}</code></pre>
+        </details>
+      </details>
+      <details><summary>Challenge 3: Print "STABLE" or "VOLATILE" based on the gap between Max and Min CPU</summary>
+        <details><summary>Show answer</summary>
+        <pre><code>$Range = $MaxCpu - $CpuStats.Minimum        # How much CPU varied during sampling
+$Volatility = if ($Range -gt 40) { "VOLATILE" } else { "STABLE" }   # if can also produce a value directly
+Write-Host "Volatility: $Volatility (range: $Range%)"</code></pre>
+        </details>
+      </details>
+    </section>
+
+    <section id="resume">
+      <h2>Resume Points</h2>
+      <ul class="explain-list">
+        <li>Built a PowerShell CPU and memory monitoring script using time-based sampling to detect transient performance spikes missed by single-point checks.</li>
+        <li>Applied statistical aggregation (average, maximum, minimum) to summarize multi-sample monitoring data.</li>
+        <li>Implemented threshold-based status classification using switch statements with color-coded reporting.</li>
+      </ul>
+    </section>
+
+    <section id="assignment">
+      <h2>Practice Assignment</h2>
+      <div class="callout note">
+        Change <code>$SampleCount</code> to 10 and <code>$SampleInterval</code> to 1, then re-run the script.
+        Compare the Average and Maximum values to your first run. Write one sentence explaining why more frequent,
+        shorter-interval sampling might catch spikes that 5 samples at 3-second intervals could miss.
+      </div>
+    </section>
+
+    <section id="next">
+      <h2>Next Project Prerequisites</h2>
+      <p>Project 04 (Windows Service Monitoring) will introduce checking multiple named items (services) in a
+      collection and reporting per-item status — a direct extension of the loop and classification patterns you just
+      learned. When ready, say <b>"Next Project."</b></p>
+    </section>
+
+    <footer>
+      PowerShell Masterclass — ABC Bank Automation Track · Project 03 of 40 · Generated for offline, self-contained use.
+    </footer>
+  </main>
+</div>
+
+<script>
+function copyCode(btn){
+  const code = btn.parentElement.querySelector('pre').innerText;
+  navigator.clipboard.writeText(code).then(()=>{
+    const old = btn.innerText; btn.innerText = "Copied!";
+    setTimeout(()=>btn.innerText = old, 1200);
+  });
+}
+window.addEventListener('scroll', ()=>{
+  const h = document.documentElement;
+  const pct = (h.scrollTop) / (h.scrollHeight - h.clientHeight) * 100;
+  document.getElementById('progressFill').style.width = pct + '%';
+  document.getElementById('progressLabel').innerText = 'Reading progress: ' + Math.round(pct) + '%';
+});
+</script>
+</body>
+</html>

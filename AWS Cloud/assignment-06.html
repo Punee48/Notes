@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Assignment 06 — Highly Available Multi-AZ Application Architecture</title>
+<style>
+:root{
+  --bg:#0B1120; --bg-2:#111827; --card:#17202F; --card-2:#1C2536; --border:#26314A;
+  --orange:#FF9900; --orange-dim:#B96E00; --blue:#00A8E1; --green:#34D399;
+  --warning:#FBBF24; --error:#F87171; --text:#E5E9F0; --text-dim:#94A3B8;
+  --code-bg:#0A0E17; --code-text:#D1D9E6;
+  --mono:'JetBrains Mono','Fira Code',ui-monospace,monospace;
+  --sans:'Inter',-apple-system,sans-serif; --display:'Space Grotesk','Inter',sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html{scroll-behavior:smooth;}
+body{background:var(--bg);color:var(--text);font-family:var(--sans);line-height:1.65;font-size:16px;}
+a{color:var(--blue);text-decoration:none;} a:hover{text-decoration:underline;}
+::selection{background:var(--orange);color:#0B1120;}
+.shell{display:flex;min-height:100vh;}
+.sidebar{width:270px;flex-shrink:0;background:var(--bg-2);border-right:1px solid var(--border);
+  position:sticky;top:0;height:100vh;overflow-y:auto;padding:24px 0 60px;}
+.sidebar-brand{padding:0 20px 20px;border-bottom:1px solid var(--border);margin-bottom:12px;}
+.sidebar-brand .tag{font-family:var(--mono);font-size:11px;color:var(--orange);letter-spacing:.12em;text-transform:uppercase;}
+.sidebar-brand h1{font-family:var(--display);font-size:17px;margin-top:6px;line-height:1.3;}
+.sidebar nav a{display:block;padding:8px 20px;font-size:13.5px;color:var(--text-dim);border-left:2px solid transparent;}
+.sidebar nav a:hover{color:var(--text);text-decoration:none;background:var(--card);}
+.sidebar nav a.active{color:var(--orange);border-left-color:var(--orange);background:var(--card);}
+.main{flex:1;min-width:0;}
+.container{max-width:900px;margin:0 auto;padding:56px 40px 120px;}
+.cover{background:linear-gradient(160deg,#131C2E 0%, #0B1120 70%);border:1px solid var(--border);border-radius:14px;
+  padding:44px 40px;margin-bottom:48px;position:relative;overflow:hidden;}
+.cover::before{content:"";position:absolute;top:-60px;right:-60px;width:260px;height:260px;
+  background:radial-gradient(circle,rgba(255,153,0,.18),transparent 70%);}
+.cover .eyebrow{font-family:var(--mono);color:var(--orange);font-size:12px;letter-spacing:.14em;text-transform:uppercase;}
+.cover h1{font-family:var(--display);font-size:34px;margin:12px 0 14px;max-width:640px;position:relative;}
+.cover p.lede{color:var(--text-dim);max-width:560px;font-size:15px;position:relative;}
+.cover-meta{display:flex;flex-wrap:wrap;gap:10px;margin-top:24px;position:relative;}
+.chip{background:var(--card);border:1px solid var(--border);border-radius:999px;padding:6px 14px;font-size:12.5px;color:var(--text-dim);font-family:var(--mono);}
+.chip b{color:var(--text);}
+h2.section-title{font-family:var(--display);font-size:24px;margin:56px 0 18px;padding-bottom:10px;border-bottom:1px solid var(--border);
+  display:flex;align-items:center;gap:10px;scroll-margin-top:24px;}
+h2.section-title .num{font-family:var(--mono);color:var(--orange-dim);font-size:15px;}
+h3{font-family:var(--display);font-size:18px;margin:26px 0 10px;color:var(--text);}
+h4{font-size:15px;margin:18px 0 8px;color:var(--orange);font-family:var(--mono);}
+p{margin-bottom:14px;color:#C7CEDB;}
+ul,ol{margin:0 0 14px 22px;color:#C7CEDB;} li{margin-bottom:6px;}
+strong{color:var(--text);}
+.card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:20px 22px;margin:16px 0;}
+.story-card{background:linear-gradient(135deg,#1A2333,#161E2C);border-left:3px solid var(--orange);border-radius:8px;padding:22px 24px;margin:16px 0;}
+.story-card p{color:#D7DCE8;font-style:italic;} .story-card p:last-child{margin-bottom:0;}
+.role-tag{display:inline-block;font-family:var(--mono);font-size:11px;color:var(--orange);background:rgba(255,153,0,.1);
+  border:1px solid rgba(255,153,0,.3);border-radius:5px;padding:2px 8px;margin-bottom:10px;letter-spacing:.05em;}
+.box{border-radius:8px;padding:16px 18px;margin:16px 0;border:1px solid;}
+.box.tip{background:rgba(0,168,225,.07);border-color:rgba(0,168,225,.35);}
+.box.warn{background:rgba(251,191,36,.07);border-color:rgba(251,191,36,.35);}
+.box.security{background:rgba(248,113,113,.07);border-color:rgba(248,113,113,.35);}
+.box.win{background:rgba(52,211,153,.07);border-color:rgba(52,211,153,.35);}
+.box .label{font-family:var(--mono);font-size:11px;text-transform:uppercase;letter-spacing:.1em;display:block;margin-bottom:6px;}
+.box.tip .label{color:var(--blue);} .box.warn .label{color:var(--warning);}
+.box.security .label{color:var(--error);} .box.win .label{color:var(--green);}
+.box p:last-child{margin-bottom:0;}
+table{width:100%;border-collapse:collapse;margin:16px 0;font-size:14px;}
+th{background:var(--card-2);color:var(--orange);text-align:left;padding:10px 12px;font-family:var(--mono);
+  font-size:12px;text-transform:uppercase;letter-spacing:.04em;border-bottom:1px solid var(--border);}
+td{padding:10px 12px;border-bottom:1px solid var(--border);color:#C7CEDB;vertical-align:top;}
+tr:last-child td{border-bottom:none;} tr:hover td{background:rgba(255,255,255,.02);}
+.code-wrap{position:relative;margin:16px 0;border-radius:8px;overflow:hidden;border:1px solid var(--border);}
+.code-head{background:var(--card-2);padding:8px 14px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border);}
+.code-head span{font-family:var(--mono);font-size:11.5px;color:var(--text-dim);}
+.copy-btn{background:transparent;border:1px solid var(--border);color:var(--text-dim);font-family:var(--mono);font-size:11px;
+  padding:4px 10px;border-radius:5px;cursor:pointer;}
+.copy-btn:hover{border-color:var(--orange);color:var(--orange);}
+pre{background:var(--code-bg);padding:16px 18px;overflow-x:auto;font-family:var(--mono);font-size:13px;line-height:1.6;color:var(--code-text);}
+code{font-family:var(--mono);}
+p code, li code{background:var(--card-2);padding:1px 6px;border-radius:4px;font-size:13px;color:#FFC876;}
+.comment{color:#5E7099;} .kw{color:var(--blue);} .str{color:var(--green);}
+.diagram{background:var(--code-bg);border:1px solid var(--border);border-radius:10px;padding:28px;margin:20px 0;overflow-x:auto;}
+.vpc-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px;font-family:var(--mono);font-size:12.5px;}
+.az-col{border:1px dashed var(--border);border-radius:10px;padding:14px;}
+.az-col .az-label{color:var(--text-dim);font-size:11px;text-align:center;margin-bottom:10px;letter-spacing:.08em;}
+.subnet{border-radius:8px;padding:12px 14px;margin-bottom:10px;text-align:center;
+  opacity:0;transform:translateY(8px);animation:reveal .5s ease forwards;}
+.subnet.pub{background:rgba(0,168,225,.1);border:1px solid var(--blue);color:#BFE9FA;}
+.subnet.priv{background:rgba(52,211,153,.1);border:1px solid var(--green);color:#BFF5E2;}
+.subnet small{display:block;color:var(--text-dim);font-size:10.5px;margin-top:3px;}
+@keyframes reveal{to{opacity:1;transform:translateY(0);}}
+.top-row{display:flex;justify-content:center;gap:14px;margin-bottom:16px;font-family:var(--mono);font-size:12.5px;}
+.top-box{background:var(--card);border:1px solid var(--orange-dim);border-radius:8px;padding:10px 18px;color:var(--text);
+  opacity:0;animation:reveal .5s ease forwards;}
+details{background:var(--card);border:1px solid var(--border);border-radius:8px;margin:10px 0;padding:0;}
+details summary{cursor:pointer;padding:14px 18px;font-family:var(--mono);font-size:13.5px;color:var(--orange);
+  list-style:none;display:flex;justify-content:space-between;align-items:center;}
+details summary::-webkit-details-marker{display:none;}
+details summary::after{content:"+";color:var(--text-dim);font-size:16px;}
+details[open] summary::after{content:"–";}
+details .inner{padding:0 18px 16px;border-top:1px solid var(--border);padding-top:12px;}
+details .inner p:last-child{margin-bottom:0;}
+.qa{margin:14px 0;padding:16px 18px;background:var(--card-2);border-radius:8px;border:1px solid var(--border);}
+.qa .q{font-family:var(--display);font-size:14.5px;color:var(--text);margin-bottom:8px;}
+.qa .q .qn{color:var(--orange);font-family:var(--mono);margin-right:6px;}
+.qa .follow{margin-top:10px;padding-top:10px;border-top:1px dashed var(--border);color:var(--text-dim);font-size:13px;}
+.qa .follow b{color:var(--blue);}
+.resume-list{list-style:none;margin:14px 0;}
+.resume-list li{padding:12px 16px;background:var(--card);border-left:3px solid var(--green);border-radius:0 6px 6px 0;
+  margin-bottom:8px;font-size:14px;color:#D7DCE8;}
+.criteria{list-style:none;margin:14px 0;}
+.criteria li{padding-left:28px;position:relative;margin-bottom:8px;color:#C7CEDB;}
+.criteria li::before{content:"✓";position:absolute;left:0;color:var(--green);font-family:var(--mono);}
+.progress-bar{height:6px;background:var(--card-2);border-radius:999px;overflow:hidden;margin:14px 0 4px;}
+.progress-bar-fill{height:100%;width:24%;background:linear-gradient(90deg,var(--orange),var(--blue));}
+.progress-label{font-family:var(--mono);font-size:11px;color:var(--text-dim);}
+footer{text-align:center;padding:40px;color:#4B5875;font-family:var(--mono);font-size:12px;border-top:1px solid var(--border);margin-top:60px;}
+.steps{list-style:none;margin:16px 0;counter-reset:step;}
+.steps li{position:relative;padding:14px 18px 14px 52px;margin-bottom:10px;background:var(--card);border:1px solid var(--border);
+  border-radius:8px;counter-increment:step;}
+.steps li::before{content:counter(step);position:absolute;left:16px;top:14px;width:24px;height:24px;border-radius:50%;
+  background:var(--orange);color:#0B1120;font-family:var(--mono);font-weight:700;font-size:12px;
+  display:flex;align-items:center;justify-content:center;}
+.steps li b{color:var(--text);}
+@media(max-width:860px){
+  .sidebar{position:fixed;left:-270px;transition:left .2s;z-index:50;box-shadow:20px 0 40px rgba(0,0,0,.4);}
+  .sidebar.open{left:0;} .container{padding:24px 18px 100px;}
+  .vpc-grid{grid-template-columns:1fr;}
+  .mobile-toggle{position:fixed;bottom:20px;right:20px;z-index:60;background:var(--orange);color:#0B1120;border:none;
+    border-radius:50%;width:52px;height:52px;font-size:20px;cursor:pointer;box-shadow:0 6px 20px rgba(0,0,0,.4);}
+}
+@media(min-width:861px){.mobile-toggle{display:none;}}
+@media(prefers-reduced-motion:reduce){*{animation:none !important;transition:none !important;}}
+</style>
+</head>
+<body>
+<div class="shell">
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-brand">
+      <span class="tag">AWS Cloud Engineering</span>
+      <h1>Assignment 06<br>Intermediate Stage · Opens</h1>
+    </div>
+    <nav>
+      <a href="#story">Production Story</a>
+      <a href="#requirements">Requirements</a>
+      <a href="#architecture">Architecture</a>
+      <a href="#decisions">Architecture Decisions</a>
+      <a href="#console">Manual Console Steps</a>
+      <a href="#cli">AWS CLI</a>
+      <a href="#terraform">Terraform</a>
+      <a href="#validation">Validation &amp; Testing</a>
+      <a href="#monitoring">Monitoring</a>
+      <a href="#incident">Production Incident</a>
+      <a href="#troubleshooting">Troubleshooting Method</a>
+      <a href="#cost">Cost Awareness</a>
+      <a href="#review">Architecture Review</a>
+      <a href="#cleanup">Cleanup</a>
+      <a href="#acceptance">Acceptance Criteria</a>
+      <a href="#challenge">Practice Challenge</a>
+      <a href="#interview">Interview Prep</a>
+      <a href="#resume">Resume Points</a>
+      <a href="#next">Next Project</a>
+    </nav>
+  </aside>
+
+  <div class="main">
+    <div class="container">
+
+      <div class="cover">
+        <span class="eyebrow">Assignment 06 of 25 · Intermediate (opens)</span>
+        <h1>Building a Highly Available Multi-AZ Application Architecture</h1>
+        <p class="lede">The quote portal has been running fine on its single app instance — until AWS performs planned maintenance on the underlying host and that instance goes down for eleven minutes. Zero customers could get a quote. Priya wants to know why "AZ failure" was ever an acceptable risk we shipped with.</p>
+        <div class="cover-meta">
+          <span class="chip">Difficulty: <b>Intermediate</b></span>
+          <span class="chip">Domain: <b>Insurance</b></span>
+          <span class="chip">Services: <b>EC2 · ALB · Launch Template · Multi-AZ Targets</b></span>
+          <span class="chip">IaC: <b>Console + CLI + Terraform</b></span>
+          <span class="chip">Est. lab time: <b>2.5–3.5 hrs</b></span>
+        </div>
+        <div class="progress-bar"><div class="progress-bar-fill"></div></div>
+        <span class="progress-label">Progress: Assignment 6 of 25</span>
+      </div>
+
+      <!-- STORY -->
+      <h2 class="section-title" id="story"><span class="num">01</span> Production Story</h2>
+      <div class="story-card">
+        <span class="role-tag">Infrastructure Manager — Priya Nandan</span>
+        <p>"We flagged this risk back in Assignment 3 and I signed off on shipping it anyway to get something working — that was the right call then. It's not the right call anymore. We just had an eleven-minute outage because the single app instance sat on hardware that AWS decided to retire. I want the quote portal running from at least two Availability Zones, for real, today — not 'we'll add Auto Scaling eventually.' If one AZ disappears entirely, customers should not notice."</p>
+      </div>
+      <div class="box tip">
+        <span class="label">Why this is Assignment 6, not Assignment 7's Auto Scaling</span>
+        <p>It's tempting to jump straight to an Auto Scaling Group as "the" HA answer. But understanding what ASG actually automates requires first seeing what you'd otherwise do by hand: launch a second instance in a second AZ using the exact same configuration as the first, register both with the target group, and prove the ALB routes around a failure. We do that manually here — using a Launch Template so both instances are defined identically rather than hand-typed twice — and Assignment 7 replaces this manual multi-instance management with an ASG that does it automatically, including replacing a failed instance, which is the piece manual management can't do.</p>
+      </div>
+
+      <!-- REQUIREMENTS -->
+      <h2 class="section-title" id="requirements"><span class="num">02</span> Business &amp; Technical Requirements</h2>
+      <table>
+        <tr><th>Type</th><th>Requirement</th></tr>
+        <tr><td>Business</td><td>Loss of one entire Availability Zone must not cause a customer-visible outage.</td></tr>
+        <tr><td>Technical</td><td>At least one app instance running in each of the two AZs from Assignment 2's network, both registered to the existing target group.</td></tr>
+        <tr><td>Technical</td><td>Both instances must be defined identically — no configuration drift between "the AZ-A one" and "the AZ-B one."</td></tr>
+        <tr><td>Availability</td><td>ALB must continue routing successfully to the surviving instance the moment the other becomes unhealthy — no manual intervention required for that failover.</td></tr>
+        <tr><td>Application</td><td>The app must be stateless — no in-memory session data that would be lost if a customer's next request lands on a different instance than their last one.</td></tr>
+      </table>
+
+      <!-- ARCHITECTURE -->
+      <h2 class="section-title" id="architecture"><span class="num">03</span> Architecture Design</h2>
+      <div class="diagram">
+        <div class="top-row">
+          <div class="top-box" style="animation-delay:.05s">ALB — both public subnets</div>
+        </div>
+        <div class="vpc-grid">
+          <div class="az-col">
+            <div class="az-label">AZ-A · private-a</div>
+            <div class="subnet priv" style="animation-delay:.3s">App Instance 1<small>same Launch Template · target group member</small></div>
+          </div>
+          <div class="az-col">
+            <div class="az-label">AZ-B · private-b</div>
+            <div class="subnet priv" style="animation-delay:.5s">App Instance 2<small>same Launch Template · target group member</small></div>
+          </div>
+        </div>
+      </div>
+      <p>The ALB is already multi-AZ by nature (Assignment 3) — what was missing was anything for it to route <em>to</em> in the second AZ. This assignment adds a second app instance in <code>private-b</code>, built from the exact same Launch Template as the first, and registers both with the existing target group. The ALB's own health-check-driven routing (also built in Assignment 3) already knows how to stop sending traffic to an unhealthy target — we're not changing that logic, just finally giving it two targets to choose between instead of one.</p>
+
+      <h3>Why "Stateless" Matters Here</h3>
+      <p>If the app stored a customer's in-progress quote data only in that instance's local memory, losing that instance mid-session would lose their progress even though the ALB successfully failed over to the surviving instance — technically "available," but functionally broken for that customer. The requirement above exists specifically to catch that gap before it becomes a real incident; the actual data-layer fix (an external session store or database) comes with Assignment 8's database work.</p>
+
+      <!-- DECISIONS -->
+      <h2 class="section-title" id="decisions"><span class="num">04</span> Architecture Decision Making</h2>
+      <h3>Decision: Launch Template vs. Hand-Configuring Each Instance Separately</h3>
+      <p>We could launch the second instance through the console by hand, copying settings from the first. That's exactly how configuration drift starts — a slightly different AMI version, a forgotten security group, a typo in user data that only shows up on one of the two instances. A <strong>Launch Template</strong> captures the AMI, instance type, security groups, and user data once, as a versioned object; both instances reference the same template version, guaranteeing they're identical by construction rather than by careful copying. This also happens to be the exact object Assignment 7's Auto Scaling Group will consume directly — building it now isn't wasted work, it's the on-ramp to the next assignment.</p>
+
+      <h3>Decision: Manual Second Instance vs. Jumping Straight to Auto Scaling Group</h3>
+      <table>
+        <tr><th></th><th>Manual second instance (this assignment)</th><th>Auto Scaling Group (Assignment 7)</th></tr>
+        <tr><td>Handles AZ failure</td><td>Yes — surviving instance keeps serving</td><td>Yes</td></tr>
+        <tr><td>Replaces a failed instance automatically</td><td>No — an engineer has to notice and relaunch</td><td>Yes — this is ASG's core job</td></tr>
+        <tr><td>Scales with traffic</td><td>No — fixed at two instances regardless of load</td><td>Yes, with scaling policies</td></tr>
+      </table>
+      <p><strong>Decision: manual multi-AZ first.</strong> This satisfies Priya's immediate, specific requirement (survive an AZ failure) today, while making the automatic-replacement and traffic-based-scaling gap explicit and visible rather than silently deferred — the practice challenge below deliberately surfaces that exact gap.</p>
+
+      <!-- CONSOLE -->
+      <h2 class="section-title" id="console"><span class="num">05</span> AWS Console — Manual Steps</h2>
+      <ol class="steps">
+        <li><b>Create a Launch Template from the existing instance's configuration.</b> EC2 console → <em>Launch Templates → Create launch template</em> → AMI, instance type (t3.small, per Assignment 3's incident fix), security group <code>sg-app</code>, IAM instance profile <code>quote-portal-app-role</code>, and the same user data used for the original instance → name it <code>quote-portal-app-lt</code>.</li>
+        <li><b>Launch the second instance from the template, in the other AZ.</b> <em>Launch Templates</em> → select it → <em>Actions → Launch instance from template</em> → override subnet to <code>private-b</code> only (everything else inherited from the template) → launch.</li>
+        <li><b>Register the new instance with the existing target group.</b> Target Groups → <code>quote-portal-tg</code> → <em>Targets → Register targets</em> → select the new AZ-B instance, port 3000 → save.</li>
+        <li><b>Confirm both targets go healthy.</b> Wait for both to show <code>healthy</code> in the target group — the ALB now has two viable destinations for every incoming request.</li>
+        <li><b>(Recommended) Relaunch the original instance from the same Launch Template too.</b> So both instances are now genuinely defined by the same template rather than one being a legacy hand-configured instance and one being template-launched — eliminates any residual drift between them.</li>
+      </ol>
+
+      <!-- CLI -->
+      <h2 class="section-title" id="cli"><span class="num">06</span> AWS CLI</h2>
+      <div class="code-wrap">
+        <div class="code-head"><span>bash</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre><span class="comment"># Launch the second instance from the template into private-b</span>
+aws ec2 run-instances \
+  --launch-template LaunchTemplateName=quote-portal-app-lt,Version='$Latest' \
+  --subnet-id $PRIVATE_B_SUBNET_ID
+
+<span class="comment"># Register it with the existing target group</span>
+aws elbv2 register-targets \
+  --target-group-arn $TG_ARN \
+  --targets Id=$NEW_INSTANCE_ID,Port=3000
+
+<span class="comment"># Watch both targets' health transition to healthy</span>
+watch -n5 "aws elbv2 describe-target-health --target-group-arn $TG_ARN \
+  --query 'TargetHealthDescriptions[].[Target.Id,TargetHealth.State]' --output table"</pre>
+      </div>
+      <table>
+        <tr><th>Flag</th><th>Meaning</th></tr>
+        <tr><td><code>Version='$Latest'</code></td><td>Always launches from the most recently created version of the template, rather than pinning to a specific version number — appropriate while actively iterating; production would typically pin an explicit tested version</td></tr>
+        <tr><td><code>register-targets</code></td><td>Adds a target to an existing target group's tracked pool — does not affect the ALB's listener/routing configuration itself, only who's eligible to receive forwarded traffic</td></tr>
+      </table>
+
+      <!-- TERRAFORM -->
+      <h2 class="section-title" id="terraform"><span class="num">07</span> Terraform Implementation</h2>
+
+      <h3>main.tf — Launch Template</h3>
+      <div class="code-wrap">
+        <div class="code-head"><span>main.tf (part 1 of 2)</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre><span class="kw">resource</span> "aws_launch_template" "app" {
+  name_prefix   = "quote-portal-app-"
+  image_id      = "ami-0f5ee92e2d63afc18"
+  instance_type = "t3.small"  <span class="comment"># t3.small per Assignment 3's memory-sizing incident fix</span>
+
+  iam_instance_profile {
+    name = aws_iam_instance_profile.quote_portal_app.name
+    <span class="comment"># References the role from Assignment 5 that can read the rating-API secret</span>
+  }
+
+  vpc_security_group_ids = [aws_security_group.app.id]
+
+  user_data = base64encode(file("${path.module}/user_data.sh"))
+  <span class="comment"># Launch templates require user_data as base64 — Terraform's base64encode()</span>
+  <span class="comment"># handles the encoding; the underlying script content is unchanged from</span>
+  <span class="comment"># what the single instance in Assignment 3 used.</span>
+
+  tag_specifications {
+    resource_type = "instance"
+    tags          = { Name = "quote-portal-app", Tier = "app" }
+  }
+
+  lifecycle {
+    create_before_destroy = true
+    <span class="comment"># If this template is ever updated, Terraform creates the NEW version of</span>
+    <span class="comment"># the template before anything references the old one is torn down —</span>
+    <span class="comment"># relevant once instances/ASGs actually reference "$Latest" or a specific</span>
+    <span class="comment"># version and we don't want a gap with no valid template to launch from.</span>
+  }
+}
+
+<span class="kw">resource</span> "aws_iam_instance_profile" "quote_portal_app" {
+  name = "quote-portal-app-profile"
+  role = aws_iam_role.quote_portal_app.name  <span class="comment"># role defined in Assignment 5's Terraform</span>
+}</pre>
+      </div>
+
+      <h3>main.tf — Two Instances From the Template, Both Registered</h3>
+      <div class="code-wrap">
+        <div class="code-head"><span>main.tf (part 2 of 2)</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre><span class="kw">resource</span> "aws_instance" "app" {
+  count     = 2
+  subnet_id = aws_subnet.private[count.index].id
+  <span class="comment"># count.index 0 → private[0] (private-a), 1 → private[1] (private-b) —</span>
+  <span class="comment"># this single resource block, with count = 2, replaces both the original</span>
+  <span class="comment"># Assignment 3 single-instance resource AND the manual second instance —</span>
+  <span class="comment"># both now come from one identical definition, satisfying the</span>
+  <span class="comment"># no-configuration-drift requirement by construction.</span>
+
+  launch_template {
+    id      = aws_launch_template.app.id
+    version = "$Latest"
+  }
+
+  tags = { Name = "quote-portal-app-${count.index + 1}" }
+}
+
+<span class="kw">resource</span> "aws_lb_target_group_attachment" "app" {
+  count            = length(aws_instance.app)
+  target_group_arn = aws_lb_target_group.app.arn
+  target_id        = aws_instance.app[count.index].id
+  port             = 3000
+  <span class="comment"># One attachment resource per instance in the count — both get registered</span>
+  <span class="comment"># to the SAME target group created back in Assignment 3, so the ALB's</span>
+  <span class="comment"># listener and routing rules don't need to change at all.</span>
+}</pre>
+      </div>
+
+      <div class="box warn">
+        <span class="label">Note on replacing Assignment 3's single-instance resource</span>
+        <p>This Terraform replaces the single <code>aws_instance.app</code> resource from Assignment 3 with a <code>count = 2</code> version of the same name — <code>terraform plan</code> against a prior state will show this as one instance being left alone (index 0, if IDs line up) and one new instance being created (index 1), not a destroy-and-recreate of everything. Always review the plan output for exactly this kind of resource-count change before applying, per the Terraform habit established back in Assignment 1.</p>
+      </div>
+
+      <!-- VALIDATION -->
+      <h2 class="section-title" id="validation"><span class="num">08</span> Validation &amp; Testing</h2>
+      <ul>
+        <li><strong>Baseline test:</strong> both targets show <code>healthy</code> in the target group simultaneously.</li>
+        <li><strong>AZ failure simulation:</strong> stop the AZ-A instance entirely (simulating the AZ-A outage from the story) → confirm the target group marks it unhealthy within the configured threshold, and repeated <code>curl</code> requests to the ALB continue succeeding, now served entirely by the AZ-B instance.</li>
+        <li><strong>Recovery test:</strong> restart the AZ-A instance → confirm it rejoins as healthy and the ALB resumes distributing traffic across both.</li>
+        <li><strong>Statelessness spot-check:</strong> send a sequence of requests that would reveal server-side session state if any existed (e.g. repeated calls to an endpoint that would behave differently on a "second visit" if state were kept in memory) and confirm behavior is identical regardless of which instance answers.</li>
+      </ul>
+
+      <!-- MONITORING -->
+      <h2 class="section-title" id="monitoring"><span class="num">09</span> Monitoring &amp; Observability</h2>
+      <table>
+        <tr><th>Metric</th><th>Why it matters now specifically</th></tr>
+        <tr><td><code>HealthyHostCount</code> dropping to 1 (not 0)</td><td>The clearest signal that we're currently running on reduced redundancy — worth alerting on distinctly from "0 healthy," since 1 healthy means degraded-but-serving, not down</td></tr>
+        <tr><td>Per-AZ request distribution (via ALB access logs)</td><td>Confirms traffic is actually being split across both AZs under normal conditions, not accidentally favoring one</td></tr>
+      </table>
+      <div class="box tip">
+        <span class="label">A specific alarm worth adding</span>
+        <p>A CloudWatch alarm on <code>HealthyHostCount &lt; 2</code> (rather than only alarming at 0) gives the team advance warning the moment redundancy is lost — exactly the state that led to the original incident going unnoticed until it became a full outage.</p>
+      </div>
+
+      <!-- INCIDENT -->
+      <h2 class="section-title" id="incident"><span class="num">10</span> Production Incident</h2>
+      <div class="story-card">
+        <span class="role-tag">One week after go-live</span>
+        <p>A scheduled AWS maintenance event affects the AZ-B instance. This time, nobody notices anything — support tickets stay at zero, and the on-call engineer only learns about it the next morning from a CloudWatch alarm history, not from an angry customer.</p>
+      </div>
+      <h4>Investigation</h4>
+      <p>The <code>HealthyHostCount &lt; 2</code> alarm (added per the monitoring note above) fired at the time of the maintenance event and auto-resolved once AWS's maintenance completed and the instance came back healthy — exactly the intended behavior, functioning as designed rather than as an incident requiring intervention.</p>
+      <h4>Root Cause</h4>
+      <p>Not applicable in the traditional sense — this "incident" is included specifically because it demonstrates the fix working. The same category of event that caused an eleven-minute customer-visible outage in the story now resolves with zero customer impact and a clean audit trail.</p>
+      <h4>Lessons Learned</h4>
+      <ul>
+        <li>The real measure of whether an HA fix works isn't "did we build the failover mechanism" — it's "did a subsequent real failure event actually go unnoticed by customers," and this is the first evidence that it does.</li>
+        <li>An alarm on "degraded but still serving" (1 of 2 healthy) is what gave visibility into this event at all — without it, this recovery would have gone completely unlogged and unverified.</li>
+      </ul>
+
+      <!-- TROUBLESHOOTING -->
+      <h2 class="section-title" id="troubleshooting"><span class="num">11</span> Troubleshooting Methodology</h2>
+      <table>
+        <tr><th>Symptom</th><th>Check First</th><th>Likely Cause</th></tr>
+        <tr><td>Second instance launches but never appears in the target group</td><td>Whether a target_group_attachment (or manual registration) actually happened — launching an instance never auto-registers it</td><td>Missing registration step — a very easy thing to forget when doing this manually</td></tr>
+        <tr><td>Both instances behave differently despite the same Launch Template</td><td>Whether both are actually launched from the same template VERSION, and whether user_data ran identically on both</td><td>One instance predates the template and was hand-configured (drift), or a template version mismatch</td></tr>
+        <tr><td>Traffic seems to favor one AZ heavily</td><td>ALB access logs, and whether cross-zone load balancing is enabled</td><td>Cross-zone load balancing (on by default for ALB, but worth confirming) distributes evenly across ALL registered targets regardless of AZ; if disabled it would bias toward same-AZ targets</td></tr>
+      </table>
+
+      <!-- COST -->
+      <h2 class="section-title" id="cost"><span class="num">12</span> Cost Optimization</h2>
+      <table>
+        <tr><th>Resource</th><th>Cost Driver</th><th>Note</th></tr>
+        <tr><td>Second t3.small instance</td><td>Doubles compute cost versus the single-instance design</td><td>Direct, deliberate cost of the availability requirement — worth stating plainly rather than burying</td></tr>
+        <tr><td>Launch Template itself</td><td>No charge</td><td>Free — no reason not to use one even for just two instances</td></tr>
+      </table>
+      <div class="box warn">
+        <span class="label">Cost vs. Availability, again</span>
+        <p>Same pattern as Assignment 2's NAT Gateway decision: doubling compute cost is the visible price of "customers don't notice an AZ failure." Given the story's actual eleven-minute outage and its business impact, this is an easy trade-off to justify — but it should still be named explicitly in any cost review, not discovered later as an unexplained line-item increase.</p>
+      </div>
+
+      <!-- REVIEW -->
+      <h2 class="section-title" id="review"><span class="num">13</span> Solutions Architect Review</h2>
+      <table>
+        <tr><th>Lens</th><th>Assessment</th></tr>
+        <tr><td>Reliability</td><td>Survives a full AZ loss, verified by the follow-up maintenance event resolving with zero customer impact</td></tr>
+        <tr><td>Security</td><td>Unchanged from Assignment 5 — both instances inherit identical, already-reviewed IAM/security-group posture via the shared Launch Template</td></tr>
+        <tr><td>Cost</td><td>Doubled compute cost, explicitly justified against the actual outage that prompted this assignment</td></tr>
+        <tr><td>Operations</td><td>New alarm on degraded (not just zero) healthy hosts gives visibility a binary up/down alarm would have missed</td></tr>
+        <tr><td>Scalability</td><td>Still fixed at two instances regardless of traffic — the gap the practice challenge below surfaces, closed properly in Assignment 7</td></tr>
+        <tr><td>Maintainability</td><td>Single <code>count = 2</code> resource block is easier to reason about than two hand-maintained instance resources would have been</td></tr>
+      </table>
+
+      <!-- CLEANUP -->
+      <h2 class="section-title" id="cleanup"><span class="num">14</span> Cleanup</h2>
+      <div class="code-wrap">
+        <div class="code-head"><span>bash</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre>terraform destroy
+<span class="comment"># Deletes both instances, both target group attachments, and the launch</span>
+<span class="comment"># template. The target group and ALB themselves (from Assignment 3) remain</span>
+<span class="comment"># unless destroyed separately — they're reused as-is, not recreated here.</span></pre>
+      </div>
+
+      <!-- ACCEPTANCE -->
+      <h2 class="section-title" id="acceptance"><span class="num">15</span> Acceptance Criteria</h2>
+      <ul class="criteria">
+        <li>Two app instances running, one in each AZ, both launched from an identical Launch Template</li>
+        <li>Both instances registered and healthy in the existing target group simultaneously</li>
+        <li>Stopping either instance leaves the ALB serving successfully from the other, with no manual intervention</li>
+        <li>A CloudWatch alarm fires on <code>HealthyHostCount &lt; 2</code>, distinct from a full-outage alarm</li>
+        <li>Application confirmed stateless via the spot-check test above</li>
+        <li>Entire stack (both instances) managed as a single Terraform resource block, not hand-duplicated</li>
+      </ul>
+
+      <!-- CHALLENGE -->
+      <h2 class="section-title" id="challenge"><span class="num">16</span> Practice Challenge</h2>
+      <div class="card">
+        <p><strong>Priya comes back:</strong> "Good — AZ failure is handled. But Karthik just told me next month's marketing campaign could 10x our traffic for a few hours. Two fixed instances won't handle that, and I don't want to be manually launching a third and fourth instance at 11 PM the night before the campaign."</p>
+        <p><strong>Requirement:</strong> Identify exactly what manual step in today's design would have to happen for a traffic spike, and name the AWS feature that would remove the need for a human to do it.</p>
+        <p><strong>Acceptance Criteria:</strong> Correctly describe what's missing (not implement it yet — that's Assignment 7) and why today's fixed <code>count = 2</code> can't respond to a traffic spike on its own.</p>
+      </div>
+      <details>
+        <summary>Challenge Solution</summary>
+        <div class="inner">
+          <p>Today, "more capacity" means an engineer manually changing <code>count</code> from 2 to some higher number, running <code>terraform apply</code>, and hoping they did it before the traffic spike rather than during it — there is no mechanism watching load and reacting automatically, and no mechanism scaling back down afterward to avoid paying for capacity nobody needs at 2 AM. That's precisely what an <strong>Auto Scaling Group</strong> replaces: it manages a dynamic (not fixed) number of instances from the same Launch Template we already built here, driven by scaling policies tied to real metrics like CPU or request count, launching new instances automatically as load rises and terminating them as it falls — and, as a bonus we didn't get manually, automatically replacing any instance that fails a health check without anyone paging on-call to relaunch it by hand. That's the entirety of Assignment 7.</p>
+        </div>
+      </details>
+
+      <!-- INTERVIEW -->
+      <h2 class="section-title" id="interview"><span class="num">17</span> Interview Preparation</h2>
+
+      <div class="qa">
+        <div class="q"><span class="qn">Q1 · High Availability</span>Is an Application Load Balancer alone enough to make an application highly available?</div>
+        <p>No — the ALB itself is inherently multi-AZ and highly available, but it can only route to whatever targets are actually registered and healthy. If every registered target lives in one AZ, losing that AZ takes the application down regardless of how resilient the ALB is. HA requires both a resilient routing layer AND actual redundant capacity behind it in more than one failure domain — this assignment is entirely about the second half of that equation.</p>
+        <div class="follow"><b>Follow-up:</b> "What's the minimum number of AZs typically considered for production HA?" — Two is the common minimum baseline for surviving a single AZ failure; three is often preferred for workloads with quorum-based systems (like certain databases) that need a tie-breaking majority.</div>
+      </div>
+
+      <div class="qa">
+        <div class="q"><span class="qn">Q2 · AWS Fundamentals</span>What does a Launch Template actually solve that launching instances individually doesn't?</div>
+        <p>Consistency and versioning. It captures the full instance specification — AMI, instance type, security groups, IAM profile, user data — as a single, versioned, reusable object. Every instance launched from it is guaranteed identical by construction, and if the specification needs to change, you create a new template version rather than remembering to manually update every existing and future instance the same way.</p>
+        <div class="follow"><b>Follow-up:</b> "What's the difference between a Launch Template and the older Launch Configuration?" — Launch Configurations are immutable and legacy — they can't be modified or versioned, and AWS recommends Launch Templates for all new work; Launch Templates support versioning, mixed instance types/purchase options, and are the only option compatible with some newer EC2 features.</div>
+      </div>
+
+      <div class="qa">
+        <div class="q"><span class="qn">Q3 · Production Scenario</span>How would you verify an HA design actually works, rather than just assuming it does because you built it?</div>
+        <p>The same way this assignment did — deliberately induce the failure you're claiming to survive (stop an instance, simulate the AZ-down scenario) in a controlled way, and observe real behavior: does the target group actually detect it, does the ALB actually route around it, does the application actually keep responding successfully throughout. An HA claim that's never been tested by an actual induced failure is a hope, not a verified property.</p>
+        <div class="follow"><b>Follow-up:</b> "How would you do this safely in an actual production environment, not just a lab?" — Chaos-engineering-style controlled failure injection during a defined low-traffic maintenance window, with the team on standby and a clear rollback plan — the same principle at production scale, with appropriate blast-radius controls.</div>
+      </div>
+
+      <div class="qa">
+        <div class="q"><span class="qn">Q4 · Cost Optimization</span>Is doubling instance count always the right way to achieve AZ redundancy?</div>
+        <p>Not necessarily — it's the simplest and most predictable, but for workloads with genuinely variable load, right-sizing via Auto Scaling (Assignment 7) rather than a fixed doubled count can achieve the same redundancy at lower average cost, since it scales down during low-traffic periods instead of paying for two full-size instances around the clock. For workloads with flat, predictable load, a fixed multi-AZ count like this assignment's can be perfectly reasonable and simpler to reason about.</p>
+        <div class="follow"><b>Follow-up:</b> "When would you actually prefer the fixed-count approach even knowing ASG exists?" — When predictability and operational simplicity matter more than cost optimization — e.g. a workload with genuinely flat traffic where the added complexity of scaling policies wouldn't earn its keep.</div>
+      </div>
+
+      <div class="qa">
+        <div class="q"><span class="qn">Q5 · Terraform</span>Why use count = 2 with subnet indexing here instead of two separate named resource blocks?</div>
+        <p>Same reasoning as Assignment 2's subnet resources — one resource block scales cleanly (change count to 3 or 4 later without adding new blocks), and it structurally guarantees both instances share every other attribute, which is exactly the no-drift requirement from this assignment. Two separate named blocks would let them silently diverge over time as someone edits one and forgets the other.</p>
+        <div class="follow"><b>Follow-up:</b> "What breaks if you later want the two instances to have genuinely different configurations?" — That's a sign count is the wrong tool — at that point for_each with a map of per-instance overrides, or genuinely separate resource blocks, would better express "these are meaningfully different," rather than forcing artificial uniformity where it no longer fits.</div>
+      </div>
+
+      <div class="qa">
+        <div class="q"><span class="qn">Q6 · Manager Round</span>How would you explain to a non-technical stakeholder why this assignment cost twice as much as Assignment 3 to run?</div>
+        <p>I'd tie it directly to the incident that triggered it: an eleven-minute outage where customers couldn't get quotes, caused by depending on a single server. Doubling the compute cost buys the specific, measurable outcome that the exact same category of event — verified by the follow-up maintenance incident in this assignment — now resolves with zero customer impact. I'd frame it as the cost of the outage we already had, prevented from happening again, rather than an abstract "best practice" tax.</p>
+        <div class="follow"><b>Follow-up:</b> "What if they push back that the cost still feels too high?" — That's the moment to bring in Assignment 7's Auto Scaling as the next lever — the same redundancy without paying for two full-size instances at all times, by scaling down during low-traffic hours instead of staying fixed at two.</div>
+      </div>
+
+      <!-- RESUME -->
+      <h2 class="section-title" id="resume"><span class="num">18</span> Resume Points</h2>
+      <ul class="resume-list">
+        <li>Redesigned a single-instance production application into a highly available multi-AZ architecture, eliminating a demonstrated single-point-of-failure outage risk</li>
+        <li>Implemented EC2 Launch Templates to guarantee configuration consistency across redundant application instances, eliminating manual configuration drift</li>
+        <li>Built and validated Availability-Zone failure resilience through deliberate, controlled failure-injection testing rather than assuming architectural correctness</li>
+        <li>Configured degraded-state CloudWatch alerting (partial capacity loss, not just full outage) to surface redundancy loss before it becomes customer-visible</li>
+        <li>Verified HA design effectiveness against a real subsequent AWS maintenance event, confirming zero customer impact where a prior comparable event had caused an outage</li>
+      </ul>
+
+      <!-- NEXT -->
+      <h2 class="section-title" id="next"><span class="num">19</span> Next Project</h2>
+      <div class="box win">
+        <span class="label">When you're ready</span>
+        <p>Deploy the two-instance architecture, run the AZ-failure test, and say <strong>"Next Project"</strong> when ready. Assignment 7 replaces this manually-managed pair with a real Auto Scaling Group — automatic replacement of failed instances and automatic scaling for exactly the traffic-spike scenario the practice challenge just walked through.</p>
+      </div>
+
+    </div>
+    <footer>AWS Cloud Engineering Masterclass · Assignment 06 of 25 · Intermediate Stage</footer>
+  </div>
+</div>
+
+<button class="mobile-toggle" id="mobileToggle" aria-label="Toggle menu">☰</button>
+<script>
+const sections = document.querySelectorAll('h2.section-title[id]');
+const navLinks = document.querySelectorAll('.sidebar nav a');
+function onScroll(){
+  let current = '';
+  sections.forEach(s=>{ if(window.scrollY >= s.offsetTop - 80) current = s.id; });
+  navLinks.forEach(a=> a.classList.toggle('active', a.getAttribute('href') === '#'+current));
+}
+window.addEventListener('scroll', onScroll); onScroll();
+document.getElementById('mobileToggle').addEventListener('click', ()=> document.getElementById('sidebar').classList.toggle('open'));
+document.querySelectorAll('.sidebar nav a').forEach(a=> a.addEventListener('click', ()=> document.getElementById('sidebar').classList.remove('open')));
+function copyCode(btn){
+  const pre = btn.closest('.code-wrap').querySelector('pre');
+  navigator.clipboard.writeText(pre.innerText).then(()=>{
+    const orig = btn.textContent; btn.textContent = 'Copied!';
+    setTimeout(()=> btn.textContent = orig, 1500);
+  });
+}
+</script>
+</body>
+</html>

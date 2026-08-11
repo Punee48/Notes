@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Module 9 — Input Validation</title>
+<style>
+:root{
+  --blue:#1D4ED8; --blue-light:#DBEAFE; --blue-vlight:#EFF6FF;
+  --ink:#1F2937; --muted:#4B5563; --line:#E5E7EB; --ok:#047857; --warn:#B45309; --bad:#B91C1C;
+  --code-bg:#0F172A; --code-ink:#E2E8F0;
+}
+*{box-sizing:border-box}
+body{margin:0;font-family:Segoe UI, Arial, sans-serif;color:var(--ink);background:#fff;line-height:1.65;font-size:16px;}
+.layout{display:flex;min-height:100vh;}
+nav{width:280px;flex-shrink:0;background:var(--blue-vlight);border-right:1px solid var(--line);padding:24px 16px;position:sticky;top:0;height:100vh;overflow-y:auto;}
+nav h2{font-size:14px;text-transform:uppercase;letter-spacing:.05em;color:var(--blue);margin:0 0 12px;}
+nav a{display:block;padding:7px 10px;border-radius:6px;color:var(--ink);text-decoration:none;font-size:14px;margin-bottom:2px;}
+nav a:hover{background:var(--blue-light);}
+main{flex:1;padding:40px 60px;max-width:980px;}
+.badge{display:inline-block;background:var(--blue);color:#fff;font-size:12px;font-weight:600;padding:4px 10px;border-radius:999px;letter-spacing:.03em;}
+h1{font-size:30px;margin:14px 0 6px;color:var(--blue);}
+.subtitle{color:var(--muted);font-size:16px;margin-bottom:32px;}
+h2{font-size:22px;margin-top:48px;border-bottom:2px solid var(--blue-light);padding-bottom:8px;color:#111827;}
+h3{font-size:18px;margin-top:24px;color:#111827;}
+p{margin:12px 0;}
+.story{background:var(--blue-vlight);border-left:4px solid var(--blue);padding:16px 20px;border-radius:6px;margin:16px 0;}
+.why{background:#FFFBEB;border-left:4px solid var(--warn);padding:14px 20px;border-radius:6px;margin:14px 0;}
+.prod{background:#ECFDF5;border-left:4px solid var(--ok);padding:14px 20px;border-radius:6px;margin:14px 0;}
+.flow{background:#F9FAFB;border:1px solid var(--line);border-radius:8px;padding:18px 20px;margin:16px 0;font-family:Consolas,monospace;font-size:14px;white-space:pre;overflow-x:auto;color:#111827;}
+table{width:100%;border-collapse:collapse;margin:16px 0;font-size:14px;}
+th{background:var(--blue);color:#fff;text-align:left;padding:9px 11px;}
+td{padding:9px 11px;border-bottom:1px solid var(--line);vertical-align:top;}
+tr:nth-child(even) td{background:#F9FAFB;}
+details{border:1px solid var(--line);border-radius:8px;margin:14px 0;padding:0;}
+summary{cursor:pointer;padding:12px 16px;font-weight:600;background:#F9FAFB;border-radius:8px;}
+details[open] summary{border-bottom:1px solid var(--line);border-radius:8px 8px 0 0;}
+details .inner{padding:14px 18px;}
+.task{background:#ECFDF5;border:1px solid #A7F3D0;border-radius:8px;padding:18px 22px;margin:24px 0;}
+.task h3{margin-top:0;color:var(--ok);}
+.next{background:#111827;color:#fff;border-radius:8px;padding:20px 24px;margin-top:30px;}
+code{background:#F1F5F9;padding:1px 6px;border-radius:4px;font-size:13.5px;}
+pre{background:var(--code-bg);color:var(--code-ink);padding:16px 18px;border-radius:8px;overflow-x:auto;font-size:13.5px;margin:14px 0;}
+.line-note{font-size:14px;color:var(--muted);margin:4px 0 4px 18px;}
+footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);color:var(--muted);font-size:13px;}
+</style>
+</head>
+<body>
+<div class="layout">
+<nav>
+  <h2>Masterclass</h2>
+  <a href="#recap">1. Why Validate First</a>
+  <a href="#playbook">2. The Validation Playbook</a>
+  <a href="#linebyline">3. Line-by-Line Explanation</a>
+  <a href="#tools">4. The Validation Toolbox</a>
+  <a href="#task">5. Hands-On Task</a>
+  <a href="#next">6. What Comes Next</a>
+</nav>
+<main>
+  <span class="badge">MODULE 9</span>
+  <h1>Input Validation</h1>
+  <p class="subtitle">The gatekeeper role — rejecting bad requests before they ever touch a cloud API</p>
+
+  <h2 id="recap">1. Why Validate Before Doing Anything Else</h2>
+  <div class="story">
+    <p>Puneeth, imagine someone fat-fingers the Survey and types environment as <code>"Dev "</code> with a trailing space, or types <code>500</code> for CPU by mistake. Without validation, that request sails straight through to AWS, and either fails halfway through with a confusing API error, or worse — actually succeeds and creates a hugely oversized, expensive server nobody asked for. The <code>validate_request</code> role's entire job is to catch problems like this at the very first step, in plain, readable error messages, before any cloud resource is touched.</p>
+  </div>
+
+  <h2 id="playbook">2. The Validation Playbook</h2>
+  <pre>---
+# roles/validate_request/tasks/main.yml
+
+- name: Assert environment is one of the allowed values
+  ansible.builtin.assert:
+    that:
+      - environment in ['dev', 'qa', 'uat', 'prod']
+    fail_msg: "environment must be one of dev, qa, uat, prod — got '{{ environment }}'"
+    success_msg: "Environment '{{ environment }}' is valid"
+
+- name: Assert cloud_platform is supported
+  ansible.builtin.assert:
+    that:
+      - cloud_platform in ['aws', 'azure', 'openshift']
+    fail_msg: "cloud_platform must be aws, azure, or openshift — got '{{ cloud_platform }}'"
+
+- name: Assert CPU is within allowed range
+  ansible.builtin.assert:
+    that:
+      - cpu | int >= 1
+      - cpu | int <= 16
+    fail_msg: "cpu must be between 1 and 16 — got {{ cpu }}"
+
+- name: Assert hostname matches naming standard
+  ansible.builtin.assert:
+    that:
+      - vm_name is match('^[a-z]{3,10}-(dev|qa|uat|prod)-[a-z]{2,10}[0-9]{2}$')
+    fail_msg: "vm_name '{{ vm_name }}' does not match naming standard app-env-role01"
+
+- name: Fail explicitly if cost_center is missing
+  ansible.builtin.fail:
+    msg: "cost_center is required and cannot be empty"
+  when: cost_center is not defined or cost_center | length == 0</pre>
+
+  <h2 id="linebyline">3. Line-by-Line Explanation</h2>
+  <p class="line-note"><code>ansible.builtin.assert</code> — the FQCN of the built-in module that checks one or more conditions and stops the entire play immediately if any condition is false; we use the FQCN even for built-in modules, for the same consistency reason explained in Module 5.</p>
+  <p class="line-note"><code>that:</code> — a list of conditions; every single condition in the list must evaluate to true, otherwise the assertion fails. Using a list (instead of one long combined expression) also makes it much easier to read which specific rule failed.</p>
+  <p class="line-note"><code>environment in ['dev', 'qa', 'uat', 'prod']</code> — this is the "allowed-value list" pattern: rather than trying to catch every possible wrong value, we only allow a small, known-good set, and reject everything else automatically — including typos we never even thought of.</p>
+  <p class="line-note"><code>fail_msg:</code> — the exact human-readable message shown when the assertion fails; writing a clear message here (naming the actual bad value with <code>{{ environment }}</code>) saves the requester or engineer real debugging time later.</p>
+  <p class="line-note"><code>success_msg:</code> — optional, purely for a friendlier job log when validation passes; has no effect on logic.</p>
+  <p class="line-note"><code>cpu | int >= 1</code> — the <code>| int</code> is a Jinja2 filter that converts the value to an integer before comparing; without it, values coming from a Survey or extra_vars can sometimes arrive as strings, and comparing a string to a number can behave unpredictably.</p>
+  <p class="line-note"><code>vm_name is match('^[a-z]{3,10}-(dev|qa|uat|prod)-[a-z]{2,10}[0-9]{2}$')</code> — a regular expression check using the <code>match</code> Jinja2 test; it enforces our company's exact hostname pattern (application-environment-role, then two digits), rejecting anything that doesn't fit — like an uppercase letter or a missing environment segment.</p>
+  <p class="line-note"><code>ansible.builtin.fail</code> — used instead of <code>assert</code> here because we want a fully custom condition combining "is not defined OR is empty," which reads more naturally as an explicit <code>fail</code> with a <code>when</code> clause than forcing it into <code>assert</code>'s <code>that</code> list.</p>
+  <p class="line-note"><code>when: cost_center is not defined or cost_center | length == 0</code> — the task only runs (and fails the play) if this condition is true; note the two checks — first confirming the variable even exists, before trying to measure its length, otherwise Ansible would itself error out trying to check the length of something undefined.</p>
+
+  <h2 id="tools">4. The Validation Toolbox — Summary</h2>
+  <table>
+    <tr><th>Tool</th><th>Best used for</th></tr>
+    <tr><td><code>assert</code></td><td>Multiple related conditions, with a clear pass/fail message — our default choice</td></tr>
+    <tr><td><code>fail</code> + <code>when</code></td><td>A single custom condition that doesn't fit naturally into <code>assert</code>'s list style</td></tr>
+    <tr><td>Regex (<code>is match</code>, <code>is search</code>)</td><td>Enforcing naming standards, formats (like an email or a hostname pattern)</td></tr>
+    <tr><td>Allowed-value lists (<code>in [...]</code>)</td><td>Any field with a small, known set of valid options — environment, platform, OS family</td></tr>
+  </table>
+  <div class="why"><strong>Interview framing:</strong> If asked "how did you prevent bad requests from reaching AWS," the strong answer is: <em>"We built a dedicated validate_request role that runs first in every playbook, using assert with allowed-value lists and regex, so invalid input fails fast with a clear message instead of partially provisioning something wrong."</em></div>
+
+  <div class="task" id="task">
+    <h3>5. Hands-On Task</h3>
+    <p>Add one more <code>assert</code> task to the playbook above that validates <code>memory</code> is between 2 and 64 (GB). Write the full task exactly as it would appear in the file, including a clear <code>fail_msg</code>.</p>
+  </div>
+
+  <div class="next" id="next">
+    <strong>What comes next — Module 10: The AWS Master Playbook.</strong>
+    <p style="margin-bottom:0">With validated input in hand, we now build the real, complete AWS EC2 provisioning role — every task explained line by line, from authentication through to the final provisioning report.</p>
+  </div>
+
+  <footer>Enterprise Multi-Cloud Server Provisioning Masterclass — Module 9 of 30</footer>
+</main>
+</div>
+</body>
+</html>

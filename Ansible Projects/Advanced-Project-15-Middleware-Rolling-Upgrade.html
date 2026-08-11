@@ -1,0 +1,1187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Advanced Project 15: Middleware Rolling Upgrade — Ansible AAP</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--purple:#6d28d9;--purple-dark:#4c1d95;--purple-light:#8b5cf6;--purple-pale:#ede9fe;
+--bg:#fafafa;--card:#fff;--border:#e5e7eb;--text:#1f2937;--text-dim:#6b7280;
+--code-bg:#1e1b2e;--code-text:#e2d9f3;--green:#059669;--amber:#d97706;--red:#dc2626;
+--shadow:0 1px 3px rgba(109,40,217,.1);}
+*{box-sizing:border-box;}
+body{margin:0;font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);line-height:1.7;}
+.topbar{background:linear-gradient(135deg,var(--purple-dark),var(--purple));color:#fff;padding:22px 5%;
+position:sticky;top:0;z-index:100;box-shadow:0 2px 12px rgba(109,40,217,.3);display:flex;
+justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;}
+.topbar h1{margin:0;font-size:1.1rem;font-weight:800;}
+.badge{background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.3);padding:4px 14px;border-radius:20px;font-size:.73rem;font-weight:700;}
+.layout{display:flex;max-width:1500px;margin:0 auto;}
+nav.toc{width:270px;flex-shrink:0;padding:20px 14px;position:sticky;top:76px;align-self:flex-start;max-height:calc(100vh - 96px);overflow-y:auto;}
+nav.toc h3{font-size:.72rem;text-transform:uppercase;letter-spacing:1.2px;color:var(--text-dim);margin:0 0 10px 6px;}
+nav.toc a{display:block;padding:6px 12px;border-radius:8px;color:var(--text);text-decoration:none;font-size:.83rem;margin-bottom:2px;border-left:3px solid transparent;}
+nav.toc a:hover{background:var(--purple-pale);border-left-color:var(--purple-light);color:var(--purple);}
+main{flex:1;padding:26px 5% 80px;min-width:0;}
+.hero{background:linear-gradient(135deg,var(--purple-pale),#fff);border:1px solid #ddd6fe;border-radius:16px;padding:28px;margin-bottom:28px;}
+.hero h2{margin-top:0;color:var(--purple-dark);font-size:1.5rem;line-height:1.3;}
+.tag-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;}
+.tag{background:var(--purple-pale);color:var(--purple);padding:4px 12px;border-radius:20px;font-size:.73rem;font-weight:600;}
+section{margin-bottom:32px;}
+.card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px 24px;box-shadow:var(--shadow);margin-bottom:16px;}
+h2.st{font-size:1.25rem;color:var(--purple-dark);border-bottom:3px solid var(--purple-light);padding-bottom:7px;margin-bottom:16px;}
+h3{color:var(--purple-dark);font-size:1.05rem;margin-top:18px;}
+.story-box{background:#fffbeb;border-left:4px solid var(--amber);border-radius:8px;padding:16px 20px;margin:14px 0;color:#78350f;}
+.story-box b{color:#92400e;}
+.tip-box{background:#ecfdf5;border-left:4px solid var(--green);border-radius:8px;padding:14px 18px;margin:12px 0;color:#064e3b;}
+.info-box{background:var(--purple-pale);border-left:4px solid var(--purple-light);border-radius:8px;padding:14px 18px;margin:12px 0;color:var(--purple-dark);}
+.warn-box{background:#fef2f2;border-left:4px solid var(--red);border-radius:8px;padding:14px 18px;margin:12px 0;color:#7f1d1d;}
+details{border:1px solid #ddd6fe;border-radius:10px;margin-bottom:10px;background:#faf9ff;overflow:hidden;}
+summary{padding:12px 16px;cursor:pointer;font-weight:600;color:var(--purple-dark);list-style:none;display:flex;justify-content:space-between;align-items:center;background:#f5f3ff;}
+summary::-webkit-details-marker{display:none;}
+summary::after{content:"+";font-size:1.1rem;font-weight:700;color:var(--purple-light);}
+details[open] summary::after{content:"−";}
+details>div.inner{padding:14px 16px;}
+table{border-collapse:collapse;width:100%;margin:12px 0;font-size:.86rem;}
+th,td{border:1px solid var(--border);padding:9px 12px;text-align:left;vertical-align:top;}
+th{background:var(--purple);color:#fff;font-weight:600;}
+tr:nth-child(even){background:#faf9ff;}
+.cw{position:relative;margin:14px 0;}
+.cl{background:#14102a;color:#a78bfa;padding:7px 14px;font-size:.72rem;font-family:'JetBrains Mono',monospace;border-radius:8px 8px 0 0;display:flex;justify-content:space-between;align-items:center;}
+pre{background:var(--code-bg);color:var(--code-text);padding:16px;border-radius:0 0 8px 8px;overflow-x:auto;margin:0;font-family:'JetBrains Mono',monospace;font-size:.82rem;line-height:1.6;}
+.cb{background:var(--purple-light);color:#fff;border:none;padding:3px 10px;border-radius:4px;font-size:.7rem;cursor:pointer;font-weight:600;}
+.cb:hover{background:var(--purple);}
+.fs{display:flex;gap:12px;padding:11px 0;border-bottom:1px dashed #e9d5ff;}
+.fn{background:var(--purple);color:#fff;width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;flex-shrink:0;font-size:.82rem;}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+@media(max-width:900px){.g2{grid-template-columns:1fr;}nav.toc{display:none;}}
+ul,ol{padding-left:22px;}li{margin-bottom:6px;}
+.ascii{background:#14102a;color:#a78bfa;font-family:'JetBrains Mono',monospace;padding:20px;border-radius:10px;font-size:.77rem;overflow-x:auto;line-height:1.45;}
+.fn-row{display:flex;justify-content:space-between;padding:20px 0;border-top:2px solid var(--border);margin-top:40px;}
+.btn{background:var(--purple);color:#fff;padding:10px 20px;border-radius:8px;text-decoration:none;font-weight:600;font-size:.86rem;}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <h1>🏦 Advanced Enterprise Ansible — BFSI Series</h1>
+  <div style="display:flex;gap:8px;">
+    <span class="badge">PROJECT 15 / 30</span>
+    <span class="badge" style="background:rgba(255,255,255,.15);">Tomcat | JBoss | Rolling Upgrade | Zero Downtime</span>
+  </div>
+</div>
+<div class="layout">
+<nav class="toc">
+  <h3>Table of Contents</h3>
+  <a href="#story">1. The Banking Story</a>
+  <a href="#concepts">2. Rolling Upgrade Concepts</a>
+  <a href="#business">3. Business Requirements</a>
+  <a href="#design">4. Solution Design</a>
+  <a href="#arch">5. Architecture</a>
+  <a href="#structure">6. Project Structure</a>
+  <a href="#inventory">7. Inventory & Variables</a>
+  <a href="#roles">8. Roles & Tasks</a>
+  <a href="#rollback">9. Rollback Role</a>
+  <a href="#jboss">10. JBoss EAP Upgrade</a>
+  <a href="#playbooks">11. Master Playbooks</a>
+  <a href="#aap">12. AAP Configuration</a>
+  <a href="#flow">13. Execution Flow</a>
+  <a href="#lab">14. Lab Setup</a>
+  <a href="#interview">15. Interview Prep</a>
+</nav>
+<main>
+
+<div class="hero">
+  <h2>Project 15: Enterprise Middleware Rolling Upgrade Automation — Tomcat &amp; JBoss EAP</h2>
+  <p>Upgrading middleware (Apache Tomcat, JBoss EAP) across 180 application servers is one of the highest-risk activities in banking IT. A wrong version, a missed configuration file, a failed health check — any of these can take down the Core Banking System during business hours. Manual upgrades take 3 engineers × 8 hours per release cycle. This project automates the complete rolling upgrade lifecycle: <strong>pre-upgrade validation → LB drain → backup current version → upgrade → health check → LB re-add → rollback on failure</strong>. One server upgraded at a time (<code>serial: 1</code>), with automatic rollback if health checks fail, ensuring zero customer-facing downtime even when individual servers encounter issues.</p>
+  <div class="tag-row">
+    <span class="tag">Apache Tomcat 10</span><span class="tag">JBoss EAP 7.4</span>
+    <span class="tag">Rolling Upgrade</span><span class="tag">Zero Downtime</span>
+    <span class="tag">Auto-Rollback</span><span class="tag">HAProxy LB Drain</span>
+    <span class="tag">Red Hat AAP 2.5</span><span class="tag">Change Management</span>
+  </div>
+</div>
+
+<!-- STORY -->
+<section id="story">
+<h2 class="st">🏦 1. The Banking Story</h2>
+<div class="card">
+<div class="story-box">
+<b>Setting:</b> ABC Global Bank's Loan Management System (LMS) runs on 12 JBoss EAP 7.3 servers behind an HAProxy load balancer. The bank must upgrade to JBoss EAP 7.4 to address CVE-2023-3171 (a critical RCE vulnerability). The upgrade must happen within 30 days of the CVE disclosure (per RBI cybersecurity guidelines) and must not cause downtime during banking hours (09:00 – 18:00 IST).<br><br>
+<b>Incident 1 — The Manual Upgrade Disaster:</b> Six months ago, the team manually upgraded Tomcat from 9.0.70 to 9.0.75 on the CBS application cluster. Engineer A updated server 1-4. Engineer B updated server 5-8. Engineer C was supposed to update 9-12 but accidentally deployed the old application WAR file to the new Tomcat version (the WAR had a hard-coded path that changed between versions). Servers 9-12 ran the new Tomcat but with the old WAR config — causing inconsistent behavior where some customer requests succeeded (hitting servers 1-8) and some failed (hitting servers 9-12). The mixed-version state ran undetected for 3 days. 4,300 loan customers got incorrect EMI calculations during this window.<br><br>
+<b>Incident 2 — No Rollback Plan:</b> During a JBoss upgrade, server lms-app07's JVM ran out of PermGen space after the upgrade (the new version had slightly different memory requirements). JBoss crashed 4 minutes after startup. The engineer who did the upgrade had already moved on to the next server. Nobody had documented how to rollback. It took 45 minutes to identify the issue and manually restore the previous version from a backup that wasn't even current.<br><br>
+<b>Incident 3 — The Missing Config File:</b> A Tomcat upgrade on the payment gateway servers missed copying the custom <code>logging.properties</code> file. The new Tomcat used its default logging config, which rotated logs differently from the bank's log retention policy. An audit 3 months later found the gap in log retention — a PCI-DSS finding.<br><br>
+<b>The Ask:</b> "Automate middleware upgrades. Upgrade one server at a time. Drain LB before touching each server. Back up the current version before upgrading. Auto-rollback if health check fails. Validate all config files are present after upgrade. Alert the team with a detailed upgrade report."
+</div>
+</div>
+</section>
+
+<!-- CONCEPTS -->
+<section id="concepts">
+<h2 class="st">📚 2. Rolling Upgrade Concepts</h2>
+<div class="card">
+<details><summary>Rolling vs Big-Bang Upgrades</summary><div class="inner">
+<b>Big-Bang upgrade:</b> Upgrade all servers simultaneously during a maintenance window. Faster but: all servers down at once, single point of failure if upgrade fails, rollback requires reverting all servers.<br><br>
+<b>Rolling upgrade:</b> Upgrade one server (or one batch) at a time. The remaining servers continue serving traffic. If one server's upgrade fails, it's rolled back and only that server is affected — the cluster remains operational.<br><br>
+<b>serial: 1</b> in Ansible means: process exactly 1 server at a time. With 12 servers, Ansible completes the full upgrade-health_check-LB_re-add cycle on server 1 before starting server 2. This is the safest approach for banking — customers always have 11/12 servers available minimum.
+</div></details>
+
+<details><summary>max_fail_percentage — The Safety Valve</summary><div class="inner">
+<code>max_fail_percentage: 0</code> means: if ANY server fails during the rolling upgrade, Ansible stops processing remaining servers immediately. With 12 servers:<br>
+• Server 1 upgrades successfully → continue<br>
+• Server 2 upgrades successfully → continue<br>
+• Server 3 upgrade fails (health check fails) → STOP. Servers 4-12 remain on old version.<br><br>
+This prevents a cascading failure where a bad upgrade package takes down the entire cluster one server at a time. The cluster stays at partial capacity (servers 3-12 on old version, servers 1-2 on new) — fully operational, ready for manual investigation.<br><br>
+Combined with auto-rollback on the failed server, the cluster ends in a clean state: servers 1-2 on new version, servers 3-12 on old version, server 3 rolled back to old version.
+</div></details>
+
+<details><summary>HAProxy LB Drain — The Critical Step</summary><div class="inner">
+Before upgrading a server, it must be removed from the load balancer's active pool so no new connections are sent to it. HAProxy supports several methods:<br><br>
+<b>MAINT state:</b> Immediately stops all traffic — existing connections dropped. Too aggressive for banking.<br>
+<b>DRAIN state:</b> No new sessions assigned, but existing sessions continue until they complete. This is the correct approach — allows in-flight requests to finish before upgrade begins.<br><br>
+HAProxy stats socket command:<br>
+<code>echo "set server lms_backend/lms-app07 state drain" | socat stdio /var/run/haproxy/stats</code><br><br>
+We wait until the server's active connection count reaches 0 (with a configurable timeout) before proceeding with the upgrade. After upgrade and health check, we re-add the server:<br>
+<code>echo "set server lms_backend/lms-app07 state ready" | socat stdio /var/run/haproxy/stats</code>
+</div></details>
+</div>
+</section>
+
+<!-- BUSINESS -->
+<section id="business">
+<h2 class="st">📋 3. Business Requirements</h2>
+<div class="card">
+<table>
+<tr><th>Requirement</th><th>Detail</th><th>Standard</th></tr>
+<tr><td>Zero customer downtime</td><td>serial: 1 with LB drain before each server upgrade</td><td>Banking SLA</td></tr>
+<tr><td>Pre-upgrade backup</td><td>Full backup of current middleware version before touching any server</td><td>Change Management §4.2</td></tr>
+<tr><td>Config file validation</td><td>Post-upgrade: verify all required config files present and not default</td><td>PCI-DSS Req 6.5</td></tr>
+<tr><td>Health check gate</td><td>Application must respond HTTP 200 on /health within 120s</td><td>Internal SLA</td></tr>
+<tr><td>Auto-rollback</td><td>If health check fails → immediate rollback to previous version</td><td>Change Management §5.1</td></tr>
+<tr><td>max_fail_percentage: 0</td><td>Stop upgrade if any server fails — protect cluster stability</td><td>Risk Management</td></tr>
+<tr><td>Upgrade report</td><td>Per-server: old version, new version, upgrade time, health check result</td><td>Audit evidence</td></tr>
+<tr><td>Maintenance window enforcement</td><td>Block upgrade if outside approved window (only outside banking hours)</td><td>RBI IT Framework §7</td></tr>
+</table>
+</div>
+</section>
+
+<!-- DESIGN -->
+<section id="design">
+<h2 class="st">🛠️ 4. Solution Design — Per-Server Upgrade Lifecycle</h2>
+<div class="card">
+<div class="ascii">
+<pre style="background:none;color:inherit;">
+PER-SERVER UPGRADE SEQUENCE (runs for each server, serial: 1):
+
+┌──────────────────────────────────────────────────────────────┐
+│ STAGE 1: PRE-UPGRADE VALIDATION                               │
+│  ✓ Check current version matches expected_current_version    │
+│  ✓ Verify disk space (need 2× upgrade package size)          │
+│  ✓ Verify server is currently in LB pool (healthy)           │
+│  ✓ Check maintenance window is active                        │
+└──────────────────────────┬───────────────────────────────────┘
+                           │ PASS
+┌──────────────────────────▼───────────────────────────────────┐
+│ STAGE 2: LB DRAIN                                             │
+│  ✓ Set server to DRAIN state in HAProxy                      │
+│  ✓ Wait until active_connections = 0 (max wait: 5 min)       │
+│  ✓ Verify server removed from active pool                    │
+└──────────────────────────┬───────────────────────────────────┘
+                           │ DRAINED
+┌──────────────────────────▼───────────────────────────────────┐
+│ STAGE 3: BACKUP CURRENT VERSION                               │
+│  ✓ tar.gz current middleware dir → /opt/middleware-backups/  │
+│  ✓ Record current version number in backup manifest          │
+│  ✓ Verify backup file integrity (checksum)                   │
+└──────────────────────────┬───────────────────────────────────┘
+                           │ BACKED UP
+┌──────────────────────────▼───────────────────────────────────┐
+│ STAGE 4: UPGRADE                                              │
+│  ✓ Stop middleware service                                    │
+│  ✓ Extract new version package                               │
+│  ✓ Migrate configuration files from old to new               │
+│  ✓ Apply bank-specific JVM settings                          │
+│  ✓ Start middleware service                                   │
+└──────────────────────────┬───────────────────────────────────┘
+                           │ STARTED
+┌──────────────────────────▼───────────────────────────────────┐
+│ STAGE 5: HEALTH CHECK (120s timeout)                          │
+│  ✓ HTTP GET /health → must return 200                        │
+│  ✓ Verify new version in /version endpoint                   │
+│  ✓ Check JVM heap not immediately high (< 70%)               │
+│  ✓ Check application logs for SEVERE/ERROR patterns          │
+│       PASS ──────────────────────── FAIL                     │
+└──────────────┬────────────────────────┬──────────────────────┘
+               │                        │ TRIGGER ROLLBACK
+┌──────────────▼──────────┐  ┌──────────▼──────────────────────┐
+│ STAGE 6: LB RE-ADD       │  │ STAGE 6B: AUTO-ROLLBACK          │
+│  ✓ Set server READY in   │  │  ✓ Stop failed new version       │
+│    HAProxy               │  │  ✓ Restore from backup tar.gz    │
+│  ✓ Verify connections    │  │  ✓ Start old version             │
+│    resume to server      │  │  ✓ Health check old version      │
+│  ✓ Log upgrade success   │  │  ✓ Set server READY in HAProxy   │
+└─────────────────────────┘  │  ✓ Alert + FAIL playbook         │
+                              └──────────────────────────────────┘
+</pre>
+</div>
+</div>
+</section>
+
+<!-- ARCH -->
+<section id="arch">
+<h2 class="st">🗺️ 5. Architecture</h2>
+<div class="card">
+<div class="ascii">
+<pre style="background:none;color:inherit;">
+              AAP CONTROLLER
+              ─────────────────────────────────
+              On-demand (with CAB approval) → middleware_rolling_upgrade.yml
+              serial: 1 | max_fail_percentage: 0
+                   │
+              Batch 1: lms-app01 only
+              ┌────┴──────────────────────────────────────────────────────┐
+              │                                                             │
+              │  HAPROXY LB         lms-app01          lms-app02..12      │
+              │  ─────────          ─────────          ──────────────      │
+              │  drain app01 ──►    [UPGRADE            [SERVING           │
+              │                     IN PROGRESS]        TRAFFIC]          │
+              │                         │                                   │
+              │                    health check                             │
+              │                    PASS ──► ready                          │
+              │                    FAIL ──► rollback ──► ready (old ver)  │
+              └─────────────────────────────────────────────────────────┘
+              │ app01 done (or rolled back and playbook stopped)
+              Batch 2: lms-app02 only
+              ... (same cycle per server)
+              │
+              Batch 12: lms-app12 only (if all previous succeeded)
+                   │
+              UPGRADE COMPLETE REPORT
+              ┌────────────────────────────────────────────────────────┐
+              │  lms-app01: JBoss 7.3 → 7.4  ✅  Upgrade time: 4m23s │
+              │  lms-app02: JBoss 7.3 → 7.4  ✅  Upgrade time: 4m11s │
+              │  lms-app03: JBoss 7.3 → 7.4  ✅  Upgrade time: 4m45s │
+              │  ...                                                    │
+              │  lms-app12: JBoss 7.3 → 7.4  ✅  Upgrade time: 4m18s │
+              │  Total time: 53 minutes | All servers upgraded         │
+              └────────────────────────────────────────────────────────┘
+</pre>
+</div>
+</div>
+</section>
+
+<!-- STRUCTURE -->
+<section id="structure">
+<h2 class="st">📁 6. Project Structure</h2>
+<div class="card">
+<div class="ascii">
+<pre style="background:none;color:inherit;">
+middleware-upgrade-automation/
+├── ansible.cfg
+├── inventory/
+│   └── production/
+│       ├── hosts.ini
+│       └── group_vars/
+│           ├── all.yml                      # Upgrade params, health check URLs
+│           ├── tomcat_servers.yml           # Tomcat-specific paths
+│           ├── jboss_servers.yml            # JBoss-specific paths
+│           └── vault.yml                    # Encrypted credentials
+├── packages/                                # Middleware packages (on NFS)
+│   ├── tomcat/
+│   │   └── apache-tomcat-10.1.18.tar.gz
+│   └── jboss/
+│       └── jboss-eap-7.4.0.zip
+├── roles/
+│   ├── mw_preflight/                        # Role 1: Pre-upgrade validation
+│   │   └── tasks/
+│   │       ├── main.yml
+│   │       ├── check_current_version.yml    # Verify version before upgrade
+│   │       ├── check_disk_space.yml         # Enough space for upgrade?
+│   │       └── check_maintenance_window.yml # Within approved hours?
+│   │
+│   ├── mw_lb_drain/                         # Role 2: HAProxy LB management
+│   │   └── tasks/
+│   │       ├── main.yml
+│   │       ├── drain_server.yml             # Set DRAIN state
+│   │       ├── wait_connections_zero.yml    # Wait for graceful drain
+│   │       └── restore_server.yml           # Set READY state
+│   │
+│   ├── mw_backup/                           # Role 3: Pre-upgrade backup
+│   │   └── tasks/
+│   │       ├── main.yml
+│   │       └── backup_current_version.yml   # tar.gz backup
+│   │
+│   ├── mw_tomcat_upgrade/                   # Role 4a: Tomcat upgrade
+│   │   └── tasks/
+│   │       ├── main.yml
+│   │       ├── stop_tomcat.yml
+│   │       ├── extract_new_version.yml
+│   │       ├── migrate_config.yml           # Copy config from old to new
+│   │       └── start_tomcat.yml
+│   │
+│   ├── mw_jboss_upgrade/                    # Role 4b: JBoss EAP upgrade
+│   │   └── tasks/
+│   │       ├── main.yml
+│   │       ├── stop_jboss.yml
+│   │       ├── extract_new_version.yml
+│   │       ├── migrate_standalone_xml.yml   # Merge standalone.xml changes
+│   │       └── start_jboss.yml
+│   │
+│   ├── mw_health_check/                     # Role 5: Post-upgrade validation
+│   │   └── tasks/
+│   │       ├── main.yml
+│   │       ├── http_health_check.yml        # HTTP /health endpoint
+│   │       ├── version_check.yml            # Verify new version
+│   │       ├── log_error_check.yml          # No SEVERE in logs
+│   │       └── jvm_heap_check.yml           # Heap not immediately high
+│   │
+│   └── mw_rollback/                         # Role 6: Auto-rollback
+│       └── tasks/
+│           ├── main.yml
+│           └── restore_from_backup.yml      # Restore tar.gz backup
+│
+├── playbooks/
+│   ├── middleware_rolling_upgrade.yml       # Main rolling upgrade
+│   ├── middleware_rollback_all.yml          # Emergency: rollback all servers
+│   └── middleware_version_audit.yml        # Verify all servers on same version
+└── ansible.cfg</pre>
+</div>
+</div>
+</section>
+
+<!-- INVENTORY -->
+<section id="inventory">
+<h2 class="st">📂 7. Inventory &amp; Variables</h2>
+<div class="card">
+<div class="cw"><div class="cl"><span>inventory/production/group_vars/all.yml</span><button class="cb" onclick="copyCode(this)">Copy</button></div>
+<pre><code>---
+# ── Upgrade Target Versions ───────────────────────────────────────────
+middleware_type: jboss                       # tomcat or jboss
+current_version: "7.3.0"                    # Expected version BEFORE upgrade
+target_version: "7.4.0"                     # Version AFTER upgrade
+upgrade_package: "/mnt/packages/jboss/jboss-eap-7.4.0.zip"
+upgrade_package_checksum: "sha256:a1b2c3d4..." # Verify package integrity
+
+# ── Directory Paths ───────────────────────────────────────────────────
+middleware_home: /opt/jboss                  # Current middleware symlink
+middleware_install_dir: /opt/jboss-eap       # Base install directory
+middleware_backup_dir: /opt/middleware-backups
+middleware_log_dir: /opt/jboss/standalone/log
+
+# ── Service Settings ──────────────────────────────────────────────────
+middleware_service: jboss-eap               # systemd service name
+middleware_user: jboss                       # OS user running middleware
+startup_timeout_sec: 120                    # Wait this long for startup
+
+# ── HAProxy LB Settings ───────────────────────────────────────────────
+haproxy_servers:                            # HAProxy nodes for this cluster
+  - haproxy01.abcbank.in
+  - haproxy02.abcbank.in
+haproxy_stats_socket: /var/run/haproxy/stats
+haproxy_backend_name: lms_backend           # Backend name in haproxy.cfg
+haproxy_drain_timeout_sec: 300              # Max 5 min to drain connections
+
+# ── Health Check Settings ─────────────────────────────────────────────
+health_check_url: "http://localhost:8080/lms/health"
+health_check_timeout_sec: 120               # Wait up to 2 min for 200 OK
+health_check_retries: 12                    # Try 12 times (every 10 seconds)
+version_check_url: "http://localhost:8080/lms/version"
+expected_version_string: "7.4.0"            # Must appear in version response
+
+# ── Required Config Files (validate these exist post-upgrade) ─────────
+required_config_files:
+  - /opt/jboss/standalone/configuration/standalone.xml
+  - /opt/jboss/standalone/configuration/standalone-full.xml
+  - /opt/jboss/bin/standalone.conf            # JVM settings
+  - /opt/jboss/standalone/configuration/logging.properties
+
+# ── Maintenance Window ───────────────────────────────────────────────
+maintenance_window_start: "20:00"           # 8 PM IST
+maintenance_window_end: "06:00"             # 6 AM IST
+maintenance_window_days: [Monday, Tuesday, Wednesday, Thursday, Friday, Saturday]
+# Cannot run upgrade during banking hours (09:00-18:00)
+
+# ── JVM Settings (applied to new version) ────────────────────────────
+jvm_heap_min: 2g
+jvm_heap_max: 4g
+jvm_extra_opts: >
+  -XX:+UseG1GC
+  -XX:MaxGCPauseMillis=200
+  -XX:+HeapDumpOnOutOfMemoryError
+  -XX:HeapDumpPath=/opt/jvm-dumps
+
+# ── Alerting ─────────────────────────────────────────────────────────
+slack_webhook_url: "{{ vault_slack_webhook_url }}"
+pagerduty_integration_url: "https://events.pagerduty.com/v2/enqueue"</code></pre></div>
+</div>
+</section>
+
+<!-- ROLES -->
+<section id="roles">
+<h2 class="st">💻 8. Roles &amp; Tasks — Complete Code</h2>
+
+<div class="card">
+<h3>Role 1: mw_preflight — Pre-Upgrade Validation</h3>
+<div class="cw"><div class="cl"><span>roles/mw_preflight/tasks/check_current_version.yml</span><button class="cb" onclick="copyCode(this)">Copy</button></div>
+<pre><code>---
+# =====================================================================
+# Verify current middleware version before attempting upgrade
+# Prevents upgrading wrong version or already-upgraded servers
+# =====================================================================
+
+- name: Check current JBoss/Tomcat version
+  ansible.builtin.shell:
+    cmd: |
+      {% if middleware_type == 'jboss' %}
+      cat {{ middleware_home }}/version.txt 2>/dev/null \
+        || {{ middleware_home }}/bin/standalone.sh --version 2>&1 \
+        | grep -i "JBoss EAP" | head -1
+      {% elif middleware_type == 'tomcat' %}
+      {{ middleware_home }}/bin/version.sh 2>/dev/null \
+        | grep "Server version" | awk -F'/' '{print $2}'
+      {% endif %}
+    executable: /bin/bash
+  register: current_version_output
+  changed_when: false
+  become: true
+  become_user: "{{ middleware_user }}"
+
+- name: Set current version fact
+  ansible.builtin.set_fact:
+    detected_current_version: >-
+      {{ current_version_output.stdout
+         | regex_search('([0-9]+\.[0-9]+\.[0-9]+)', '\\1')
+         | first | default('UNKNOWN') }}
+
+- name: Fail if current version does not match expected
+  ansible.builtin.fail:
+    msg: >-
+      VERSION MISMATCH on {{ inventory_hostname }}:
+      Expected current version {{ current_version }},
+      found {{ detected_current_version }}.
+      This server may already be upgraded or on a different version.
+      Manual investigation required.
+  when: detected_current_version != current_version
+
+- name: Check maintenance window
+  ansible.builtin.fail:
+    msg: >-
+      MAINTENANCE WINDOW VIOLATION: Current time is {{ ansible_date_time.time }}.
+      Upgrades are only allowed between {{ maintenance_window_start }}
+      and {{ maintenance_window_end }}.
+      Do not upgrade during banking hours (09:00-18:00 IST).
+  when: >
+    (ansible_date_time.hour | int >= 9
+     and ansible_date_time.hour | int < 18)
+
+- name: Check available disk space for upgrade
+  ansible.builtin.shell:
+    cmd: "df -BG {{ middleware_install_dir }} | tail -1 | awk '{print $4}' | tr -d G"
+  register: available_gb
+  changed_when: false
+  become: true
+
+- name: Fail if insufficient disk space
+  ansible.builtin.fail:
+    msg: >-
+      INSUFFICIENT DISK SPACE on {{ inventory_hostname }}:
+      {{ available_gb.stdout | trim }}GB available,
+      need at least 5GB for upgrade package + backup.
+  when: available_gb.stdout | trim | int < 5
+
+- name: Log pre-flight success
+  ansible.builtin.debug:
+    msg:
+      - "✅ Pre-flight PASSED for {{ inventory_hostname }}"
+      - "  Current version: {{ detected_current_version }}"
+      - "  Target version: {{ target_version }}"
+      - "  Disk available: {{ available_gb.stdout | trim }}GB"</code></pre></div>
+</div>
+
+<div class="card">
+<h3>Role 2: mw_lb_drain — HAProxy Load Balancer Management</h3>
+<div class="cw"><div class="cl"><span>roles/mw_lb_drain/tasks/drain_server.yml</span><button class="cb" onclick="copyCode(this)">Copy</button></div>
+<pre><code>---
+# =====================================================================
+# Set server to DRAIN state in HAProxy before upgrade
+# DRAIN: no new sessions, existing sessions complete naturally
+# This ensures in-flight banking transactions are not interrupted
+# =====================================================================
+
+- name: Set server to DRAIN state in HAProxy
+  ansible.builtin.shell:
+    cmd: >
+      echo "set server {{ haproxy_backend_name }}/{{ inventory_hostname.split('.')[0] }}
+      state drain"
+      | socat stdio {{ haproxy_stats_socket }}
+    # socat: connects to HAProxy stats Unix socket
+    # "set server backend/server state drain": graceful drain
+    # inventory_hostname.split('.')[0]: extract short hostname (lms-app01 from FQDN)
+  delegate_to: "{{ item }}"
+  loop: "{{ haproxy_servers }}"
+  loop_control:
+    label: "Draining {{ inventory_hostname }} on {{ item }}"
+  become: true
+  register: drain_results
+
+- name: Wait for active connections to reach zero
+  ansible.builtin.shell:
+    cmd: >
+      echo "show stat" | socat stdio {{ haproxy_stats_socket }}
+      | grep "{{ haproxy_backend_name }},{{ inventory_hostname.split('.')[0] }}"
+      | cut -d',' -f18
+    # show stat: dumps HAProxy stats CSV
+    # column 18 is "scur" (sessions current) — active connections to this server
+  register: active_connections
+  delegate_to: "{{ haproxy_servers | first }}"
+  until: active_connections.stdout | trim == '0'
+  retries: "{{ (haproxy_drain_timeout_sec / 10) | int }}"
+  delay: 10                                  # Check every 10 seconds
+  become: true
+
+- name: Log server drain completion
+  ansible.builtin.debug:
+    msg: >-
+      ✅ {{ inventory_hostname }} drained from {{ haproxy_backend_name }}.
+      Active connections: {{ active_connections.stdout | trim }}
+      Server is safe to upgrade.</code></pre></div>
+
+<div class="cw"><div class="cl"><span>roles/mw_lb_drain/tasks/restore_server.yml</span><button class="cb" onclick="copyCode(this)">Copy</button></div>
+<pre><code>---
+# =====================================================================
+# Restore server to READY state in HAProxy after upgrade
+# Used both after successful upgrade AND after rollback
+# =====================================================================
+
+- name: Set server back to READY state in HAProxy
+  ansible.builtin.shell:
+    cmd: >
+      echo "set server {{ haproxy_backend_name }}/{{ inventory_hostname.split('.')[0] }}
+      state ready"
+      | socat stdio {{ haproxy_stats_socket }}
+  delegate_to: "{{ item }}"
+  loop: "{{ haproxy_servers }}"
+  loop_control:
+    label: "Re-adding {{ inventory_hostname }} on {{ item }}"
+  become: true
+
+- name: Verify connections resume to restored server
+  ansible.builtin.shell:
+    cmd: >
+      echo "show stat" | socat stdio {{ haproxy_stats_socket }}
+      | grep "{{ haproxy_backend_name }},{{ inventory_hostname.split('.')[0] }}"
+      | cut -d',' -f19
+    # column 19 is "stot" (total sessions) — should be incrementing
+  register: total_sessions
+  delegate_to: "{{ haproxy_servers | first }}"
+  become: true
+
+- name: Log LB restoration
+  ansible.builtin.debug:
+    msg: "✅ {{ inventory_hostname }} restored to {{ haproxy_backend_name }} — READY state"</code></pre></div>
+</div>
+
+<div class="card">
+<h3>Role 3: mw_backup + Role 4a: mw_tomcat_upgrade</h3>
+<div class="cw"><div class="cl"><span>roles/mw_backup/tasks/backup_current_version.yml</span><button class="cb" onclick="copyCode(this)">Copy</button></div>
+<pre><code>---
+# =====================================================================
+# Backup current middleware installation before upgrade
+# This backup enables auto-rollback if upgrade fails
+# =====================================================================
+
+- name: Create timestamped backup directory
+  ansible.builtin.file:
+    path: "{{ middleware_backup_dir }}"
+    state: directory
+    mode: '0755'
+    owner: "{{ middleware_user }}"
+  become: true
+
+- name: Create full backup of current middleware installation
+  ansible.builtin.archive:
+    path: "{{ middleware_home }}"                # Archive the full middleware dir
+    dest: >-
+      {{ middleware_backup_dir }}/
+      {{ middleware_type }}-{{ current_version }}-
+      {{ inventory_hostname }}-
+      {{ ansible_date_time.epoch }}.tar.gz
+    format: gz
+    owner: "{{ middleware_user }}"
+  register: backup_result
+  become: true
+
+- name: Store backup path as fact for rollback
+  ansible.builtin.set_fact:
+    backup_file_path: "{{ backup_result.dest }}"
+    pre_upgrade_version: "{{ current_version }}"
+
+- name: Verify backup file was created and has content
+  ansible.builtin.stat:
+    path: "{{ backup_file_path }}"
+  register: backup_stat
+  become: true
+
+- name: Fail if backup is empty or missing
+  ansible.builtin.fail:
+    msg: "BACKUP FAILED: {{ backup_file_path }} is empty or missing. Cannot proceed with upgrade."
+  when: not backup_stat.stat.exists or backup_stat.stat.size < 1024
+
+- name: Log backup success
+  ansible.builtin.debug:
+    msg:
+      - "✅ Backup created: {{ backup_file_path }}"
+      - "   Size: {{ (backup_stat.stat.size / 1048576) | round(1) }}MB"</code></pre></div>
+
+<div class="cw"><div class="cl"><span>roles/mw_tomcat_upgrade/tasks/migrate_config.yml</span><button class="cb" onclick="copyCode(this)">Copy</button></div>
+<pre><code>---
+# =====================================================================
+# Migrate configuration files from old Tomcat to new version
+# This is the critical step that prevented Incident 3 (missing logging.properties)
+# =====================================================================
+
+- name: Stop current Tomcat service
+  ansible.builtin.service:
+    name: "{{ middleware_service }}"
+    state: stopped
+  become: true
+
+- name: Extract new Tomcat version to install directory
+  ansible.builtin.unarchive:
+    src: "{{ upgrade_package }}"               # From NFS package store
+    dest: "{{ middleware_install_dir }}"
+    remote_src: false                          # Package is on AAP node → push to server
+    owner: "{{ middleware_user }}"
+    group: "{{ middleware_user }}"
+  become: true
+
+- name: Migrate all required configuration files from old to new version
+  ansible.builtin.copy:
+    src: >-
+      {{ middleware_install_dir }}/apache-tomcat-{{ current_version }}/conf/{{ item | basename }}
+    dest: >-
+      {{ middleware_install_dir }}/apache-tomcat-{{ target_version }}/conf/{{ item | basename }}
+    owner: "{{ middleware_user }}"
+    remote_src: true                           # Both src and dest are on the same server
+    backup: true                               # Keep new version's default as .backup
+  loop:
+    - server.xml                               # Connector config (ports, SSL)
+    - context.xml                              # JDBC datasources
+    - logging.properties                       # Log rotation config (Incident 3 prevention)
+    - catalina.properties                      # Custom system properties
+    - web.xml                                  # Global web.xml overrides
+  become: true
+
+- name: Update the middleware symlink to point to new version
+  ansible.builtin.file:
+    src: "{{ middleware_install_dir }}/apache-tomcat-{{ target_version }}"
+    dest: "{{ middleware_home }}"              # /opt/tomcat symlink
+    state: link
+    owner: "{{ middleware_user }}"
+    force: true                                # Force update existing symlink
+  become: true
+  # Using symlink: easy rollback = just repoint symlink to old version dir
+
+- name: Apply JVM settings to new Tomcat
+  ansible.builtin.template:
+    src: setenv.sh.j2                          # Template with JVM heap and GC settings
+    dest: "{{ middleware_home }}/bin/setenv.sh"
+    owner: "{{ middleware_user }}"
+    mode: '0755'
+  become: true
+
+- name: Start new Tomcat version
+  ansible.builtin.service:
+    name: "{{ middleware_service }}"
+    state: started
+  become: true</code></pre></div>
+</div>
+
+<div class="card">
+<h3>Role 5: mw_health_check — Post-Upgrade Validation</h3>
+<div class="cw"><div class="cl"><span>roles/mw_health_check/tasks/http_health_check.yml</span><button class="cb" onclick="copyCode(this)">Copy</button></div>
+<pre><code>---
+# =====================================================================
+# Post-upgrade health checks — must ALL pass before LB re-add
+# Any failure triggers auto-rollback
+# =====================================================================
+
+- name: Wait for middleware to fully start (HTTP health check)
+  ansible.builtin.uri:
+    url: "{{ health_check_url }}"
+    method: GET
+    status_code: [200]
+    timeout: 10
+  register: health_check_result
+  until: health_check_result.status == 200
+  retries: "{{ health_check_retries }}"       # 12 retries × 10s = 2 min max wait
+  delay: 10
+  failed_when: health_check_result.status != 200
+  delegate_to: "{{ inventory_hostname }}"
+
+- name: Verify new version is running via version endpoint
+  ansible.builtin.uri:
+    url: "{{ version_check_url }}"
+    method: GET
+    return_content: true
+    timeout: 10
+  register: version_response
+  delegate_to: "{{ inventory_hostname }}"
+  failed_when: expected_version_string not in version_response.content
+
+- name: Check application logs for SEVERE errors since startup
+  ansible.builtin.shell:
+    cmd: >
+      find {{ middleware_log_dir }} -newer /tmp/upgrade_start_{{ inventory_hostname }}
+        -name "*.log" -exec grep -l "SEVERE\|FATAL\|OutOfMemoryError" {} \;
+    # find: only check log files modified AFTER upgrade started
+    # Uses timestamp file created at upgrade start as reference
+  register: error_log_check
+  changed_when: false
+  become: true
+  failed_when: error_log_check.stdout | length > 0
+
+- name: Check JVM heap is not immediately overloaded
+  ansible.builtin.shell:
+    cmd: |
+      JVM_PID=$(jps | grep -i "{{ middleware_type }}" | awk '{print $1}')
+      if [ -n "$JVM_PID" ]; then
+        jstat -gcutil $JVM_PID 1 1 | tail -1 | awk '{print $4}'
+      else
+        echo "0"
+      fi
+  register: heap_check
+  changed_when: false
+  become: true
+  become_user: "{{ middleware_user }}"
+
+- name: Fail if heap is already high after startup
+  ansible.builtin.fail:
+    msg: >-
+      HEAP ALERT: New {{ middleware_type }} on {{ inventory_hostname }}
+      shows {{ heap_check.stdout | trim }}% Old Gen heap immediately after startup.
+      This may indicate a memory leak in the new version or insufficient heap config.
+      Triggering rollback.
+  when: heap_check.stdout | trim | float > 70.0
+
+- name: Verify all required config files are present
+  ansible.builtin.stat:
+    path: "{{ item }}"
+  register: config_file_checks
+  loop: "{{ required_config_files }}"
+  become: true
+
+- name: Fail if any required config file is missing
+  ansible.builtin.fail:
+    msg: >-
+      MISSING CONFIG: {{ item.item }} is missing on {{ inventory_hostname }}!
+      This is how the logging.properties incident (Incident 3) happened.
+      Triggering rollback.
+  loop: "{{ config_file_checks.results }}"
+  loop_control:
+    label: "{{ item.item }}"
+  when: not item.stat.exists
+
+- name: Log health check success
+  ansible.builtin.debug:
+    msg:
+      - "✅ Health checks PASSED for {{ inventory_hostname }}"
+      - "   HTTP health: {{ health_check_result.status }}"
+      - "   Version confirmed: {{ expected_version_string }}"
+      - "   Heap: {{ heap_check.stdout | trim }}%"
+      - "   Config files: all present"</code></pre></div>
+</div>
+
+<!-- ROLLBACK -->
+<section id="rollback">
+<h2 class="st">🔄 9. Auto-Rollback Role</h2>
+<div class="card">
+<div class="cw"><div class="cl"><span>roles/mw_rollback/tasks/restore_from_backup.yml</span><button class="cb" onclick="copyCode(this)">Copy</button></div>
+<pre><code>---
+# =====================================================================
+# Auto-rollback: restore previous middleware version from backup
+# Triggered by health check failure in main playbook
+# =====================================================================
+
+- name: Stop failed new middleware version
+  ansible.builtin.service:
+    name: "{{ middleware_service }}"
+    state: stopped
+    # Stop even if it failed to start — ensure clean state
+  become: true
+  failed_when: false                           # Don't fail if already stopped
+
+- name: Restore middleware from pre-upgrade backup
+  ansible.builtin.shell:
+    cmd: >
+      tar -xzf {{ backup_file_path }}
+          -C {{ middleware_install_dir | dirname }}
+          --overwrite
+    # -xzf: extract gzip tar
+    # -C: extract to parent directory
+    # --overwrite: overwrite existing files
+    executable: /bin/bash
+  become: true
+  register: restore_result
+
+- name: Repoint middleware symlink back to old version
+  ansible.builtin.file:
+    src: "{{ middleware_install_dir }}/{{ middleware_type }}-{{ pre_upgrade_version }}"
+    dest: "{{ middleware_home }}"
+    state: link
+    force: true
+  become: true
+
+- name: Start old middleware version
+  ansible.builtin.service:
+    name: "{{ middleware_service }}"
+    state: started
+  become: true
+
+- name: Verify old version health check passes after rollback
+  ansible.builtin.uri:
+    url: "{{ health_check_url }}"
+    method: GET
+    status_code: [200]
+    timeout: 10
+  register: rollback_health
+  until: rollback_health.status == 200
+  retries: 12
+  delay: 10
+  delegate_to: "{{ inventory_hostname }}"
+
+- name: Restore server to LB pool after rollback
+  ansible.builtin.include_role:
+    name: mw_lb_drain
+    tasks_from: restore_server
+
+- name: Send rollback notification to Slack and PagerDuty
+  ansible.builtin.uri:
+    url: "{{ slack_webhook_url }}"
+    method: POST
+    body_format: json
+    body:
+      text: >-
+        🔄 *Middleware Auto-Rollback Triggered*
+        *Server:* {{ inventory_hostname }}
+        *Failed version:* {{ target_version }}
+        *Rolled back to:* {{ pre_upgrade_version }}
+        *LB Status:* READY (old version serving traffic)
+        *Rollback health check:* {{ '✅ PASSED' if rollback_health.status == 200 else '❌ FAILED' }}
+        ⚠️ *Upgrade halted — remaining servers NOT upgraded (max_fail_percentage: 0)*
+        Investigate upgrade failure before retrying.
+    status_code: [200]
+  delegate_to: localhost
+
+- name: Fail the playbook after successful rollback
+  # Failing here stops the rolling upgrade from continuing to next servers
+  # max_fail_percentage: 0 ensures no more servers are upgraded after this
+  ansible.builtin.fail:
+    msg: >-
+      UPGRADE FAILED AND ROLLED BACK on {{ inventory_hostname }}.
+      {{ middleware_type }} {{ target_version }} failed health checks.
+      Server restored to {{ pre_upgrade_version }} and returned to LB.
+      Upgrade halted — investigate before retrying.</code></pre></div>
+</div>
+
+<!-- PLAYBOOKS -->
+<section id="playbooks">
+<h2 class="st">📜 11. Master Playbooks</h2>
+<div class="card">
+<div class="cw"><div class="cl"><span>playbooks/middleware_rolling_upgrade.yml</span><button class="cb" onclick="copyCode(this)">Copy</button></div>
+<pre><code>---
+# =====================================================================
+# Middleware Rolling Upgrade — Zero Downtime
+# serial: 1 + max_fail_percentage: 0 = safest possible rolling upgrade
+# =====================================================================
+- name: Middleware Rolling Upgrade — ABC Global Bank
+  hosts: "{{ target_hosts | default('lms_app_servers') }}"
+  gather_facts: true
+  become: true
+  serial: 1                                  # ONE server at a time
+  max_fail_percentage: 0                     # STOP if ANY server fails
+  # max_fail_percentage: 0 means: 0% failures allowed
+  # Even 1 failed server (out of 12) = stop upgrading the rest
+
+  vars_files:
+    - "{{ inventory_dir }}/group_vars/all/vault.yml"
+
+  pre_tasks:
+    - name: Create upgrade start timestamp file
+      ansible.builtin.file:
+        path: "/tmp/upgrade_start_{{ inventory_hostname }}"
+        state: touch
+        mode: '0644'
+      become: true
+
+  roles:
+    - role: mw_preflight                       # Stage 1: Validate before touching server
+      tags: [preflight, always]
+
+    - role: mw_lb_drain                        # Stage 2: Drain LB
+      tasks_from: drain_server
+      tags: [lb_drain]
+
+    - role: mw_backup                          # Stage 3: Backup current version
+      tags: [backup]
+
+  tasks:
+    - name: Execute middleware-specific upgrade
+      ansible.builtin.include_role:
+        name: "mw_{{ middleware_type }}_upgrade"  # Selects mw_tomcat_upgrade or mw_jboss_upgrade
+      tags: [upgrade]
+
+    - name: Run post-upgrade health checks
+      ansible.builtin.include_role:
+        name: mw_health_check
+      tags: [health_check]
+      rescue:                                  # rescue: runs if any task in the block fails
+        - name: Trigger auto-rollback on health check failure
+          ansible.builtin.include_role:
+            name: mw_rollback
+
+    - name: Restore server to LB pool (only if health check passed)
+      ansible.builtin.include_role:
+        name: mw_lb_drain
+        tasks_from: restore_server
+      tags: [lb_restore]
+
+  post_tasks:
+    - name: Record upgrade result for this server
+      ansible.builtin.set_fact:
+        server_upgrade_result:
+          hostname: "{{ inventory_hostname }}"
+          from_version: "{{ current_version }}"
+          to_version: "{{ target_version }}"
+          status: "SUCCESS"
+          upgrade_time_sec: >-
+            {{ ansible_date_time.epoch | int
+               - (lookup('file', '/tmp/upgrade_start_' + inventory_hostname) | default(ansible_date_time.epoch)) | int }}"
+      delegate_to: localhost
+      delegate_facts: true</code></pre></div>
+
+<div class="cw"><div class="cl"><span>playbooks/middleware_version_audit.yml — Verify Fleet Consistency</span><button class="cb" onclick="copyCode(this)">Copy</button></div>
+<pre><code>---
+# =====================================================================
+# Middleware Version Audit — Run after upgrade to verify consistency
+# All servers in the cluster MUST be on the same version
+# Mixed-version state (like Incident 1) is detected and alerted
+# =====================================================================
+- name: Middleware Version Consistency Audit
+  hosts: "{{ target_hosts | default('lms_app_servers') }}"
+  gather_facts: false
+  become: true
+
+  tasks:
+    - name: Detect current middleware version on each server
+      ansible.builtin.shell:
+        cmd: |
+          {% if middleware_type == 'jboss' %}
+          cat {{ middleware_home }}/version.txt
+          {% else %}
+          {{ middleware_home }}/bin/version.sh | grep "Server version" | awk -F'/' '{print $2}'
+          {% endif %}
+      register: version_outputs
+      changed_when: false
+
+    - name: Compare all versions — detect mixed-version cluster
+      ansible.builtin.set_fact:
+        all_versions: >-
+          {{ groups[target_hosts | default('lms_app_servers')]
+             | map('extract', hostvars, ['version_outputs', 'stdout'])
+             | map('trim')
+             | list | unique }}
+
+    - name: Alert if mixed versions detected in cluster
+      ansible.builtin.uri:
+        url: "{{ slack_webhook_url }}"
+        method: POST
+        body_format: json
+        body:
+          text: >-
+            🔴 *MIXED VERSION CLUSTER DETECTED*
+            {{ target_hosts }} cluster has multiple middleware versions:
+            {{ all_versions | join(', ') }}
+            This is how Incident 1 occurred (inconsistent behavior).
+            All servers must run the same version.
+        status_code: [200]
+      delegate_to: localhost
+      when: all_versions | length > 1</code></pre></div>
+</div>
+</section>
+
+<!-- AAP -->
+<section id="aap">
+<h2 class="st">🔴 12. AAP Configuration</h2>
+<div class="card">
+<details><summary>Upgrade Workflow with CAB Approval</summary><div class="inner">
+<div class="ascii">
+<pre style="background:none;color:inherit;">
+WORKFLOW: Middleware-Rolling-Upgrade-Workflow
+
+Node 1: Middleware-Version-Audit (pre-check: confirm current version)
+   │ All servers on expected current_version → SUCCESS
+   ▼
+APPROVAL NODE: "Upgrade {{ cluster }} from {{ current_version }} to
+               {{ target_version }}. {{ server_count }} servers.
+               Estimated time: {{ server_count * 5 }} minutes.
+               Approve to proceed?"
+   │ APPROVED by: Release Manager + IT Infrastructure Lead
+   ▼
+Node 2: Middleware-Rolling-Upgrade (serial: 1, max_fail: 0)
+   │ SUCCESS (all servers upgraded)  │  FAILURE (rollback triggered)
+   ▼                                 ▼
+Node 3: Middleware-Version-Audit    Node 3: Alert-On-Failure
+  (post-check: all on target)        (PagerDuty P2, stop here)
+   ▼
+Node 4: Notify-Completion
+  (Slack: all 12 servers upgraded, total time)
+</pre>
+</div>
+</div></details>
+
+<details><summary>Survey Fields for On-Demand Upgrade</summary><div class="inner">
+<table>
+<tr><th>Survey Field</th><th>Type</th><th>Purpose</th></tr>
+<tr><td>target_hosts</td><td>Text</td><td>Which server group to upgrade (lms_app_servers, cbs_app_servers)</td></tr>
+<tr><td>middleware_type</td><td>Choice: tomcat/jboss</td><td>Which middleware to upgrade</td></tr>
+<tr><td>current_version</td><td>Text</td><td>Version currently running (safety check)</td></tr>
+<tr><td>target_version</td><td>Text</td><td>Version to upgrade to</td></tr>
+<tr><td>upgrade_package</td><td>Text</td><td>Path to upgrade package on NFS</td></tr>
+<tr><td>dry_run</td><td>Boolean</td><td>Run pre-flight checks only — do not upgrade</td></tr>
+</table>
+</div></details>
+</div>
+</section>
+
+<!-- FLOW -->
+<section id="flow">
+<h2 class="st">🔄 13. Execution Flow</h2>
+<div class="card">
+<div class="fs"><div class="fn">1</div><div>CAB-approved upgrade initiated. Version audit confirms all 12 servers on JBoss 7.3. Approval node presented to Release Manager. On approval, rolling upgrade begins with serial: 1.</div></div>
+<div class="fs"><div class="fn">2</div><div>Server lms-app01: preflight checks current version (7.3 detected), maintenance window active (21:30 IST), disk space 48GB free. Timestamp file created at /tmp/upgrade_start_lms-app01.</div></div>
+<div class="fs"><div class="fn">3</div><div>LB drain: HAProxy socat command sets lms-app01 to DRAIN. Polling every 10 seconds until active connections = 0. Takes ~45 seconds as in-flight LMS loan calculation requests complete.</div></div>
+<div class="fs"><div class="fn">4</div><div>Backup: full tar.gz of /opt/jboss-eap/7.3 directory. 1.2GB compressed, verified non-empty. backup_file_path stored as fact for rollback use.</div></div>
+<div class="fs"><div class="fn">5</div><div>Upgrade: JBoss stopped. New 7.4 package extracted. standalone.xml, standalone-full.xml, logging.properties, standalone.conf all migrated from old dir. JVM settings applied via template. Symlink /opt/jboss updated to 7.4 dir. JBoss started.</div></div>
+<div class="fs"><div class="fn">6</div><div>Health check: /health returns 200 after 23 seconds. /version confirms "7.4.0". No SEVERE in logs since timestamp file. Heap = 34%. All 5 required config files verified present. Server re-added to HAProxy READY state. Upgrade succeeds. Next server starts.</div></div>
+</div>
+</section>
+
+<!-- LAB -->
+<section id="lab">
+<h2 class="st">🧪 14. Lab Setup</h2>
+<div class="card">
+<div class="cw"><div class="cl"><span>Lab: Tomcat rolling upgrade test</span><button class="cb" onclick="copyCode(this)">Copy</button></div>
+<pre><code"># ── Install two versions of Tomcat for lab ────────────────────────────
+cd /opt
+sudo wget https://archive.apache.org/dist/tomcat/tomcat-10/v10.1.15/bin/apache-tomcat-10.1.15.tar.gz
+sudo wget https://archive.apache.org/dist/tomcat/tomcat-10/v10.1.18/bin/apache-tomcat-10.1.18.tar.gz
+sudo tar -xzf apache-tomcat-10.1.15.tar.gz
+sudo tar -xzf apache-tomcat-10.1.18.tar.gz
+sudo ln -s /opt/apache-tomcat-10.1.15 /opt/tomcat
+sudo useradd -r tomcat
+sudo chown -R tomcat:tomcat /opt/apache-tomcat-10.1.15 /opt/apache-tomcat-10.1.18 /opt/tomcat
+
+# Add a simple health endpoint:
+cat > /opt/tomcat/webapps/ROOT/health.jsp << 'EOF'
+<%@ page contentType="text/plain" %>OK
+EOF
+
+cat > /opt/tomcat/webapps/ROOT/version.jsp << 'EOF'
+<%@ page contentType="text/plain" %>10.1.15
+EOF
+
+# Create systemd service:
+sudo systemctl start tomcat
+
+# ── Install socat for HAProxy simulation ─────────────────────────────
+sudo yum install -y socat
+
+# ── Run upgrade in dry_run mode first ─────────────────────────────────
+ansible-playbook playbooks/middleware_rolling_upgrade.yml \
+  -i inventory/production/hosts.ini \
+  -e "dry_run=true middleware_type=tomcat
+      current_version=10.1.15 target_version=10.1.18" \
+  --tags preflight -v
+
+# ── Run actual upgrade ─────────────────────────────────────────────────
+ansible-playbook playbooks/middleware_rolling_upgrade.yml \
+  -i inventory/production/hosts.ini \
+  -e "middleware_type=tomcat current_version=10.1.15 target_version=10.1.18" -v
+
+# ── Verify upgrade ─────────────────────────────────────────────────────
+ls -la /opt/tomcat                   # Should point to 10.1.18
+curl http://localhost:8080/version   # Should return 10.1.18
+
+# ── Test rollback: break the health check ────────────────────────────
+# Before running upgrade, edit health_check_url to a non-existent path:
+# health_check_url: "http://localhost:8080/will-never-exist"
+# Run upgrade — should fail health check and rollback to 10.1.15
+ls -la /opt/tomcat                   # Should revert to 10.1.15</code></pre></div>
+
+<h3>Troubleshooting</h3>
+<table>
+<tr><th>Issue</th><th>Cause</th><th>Fix</th></tr>
+<tr><td>socat command not found</td><td>socat not installed on HAProxy server</td><td>yum install -y socat on HAProxy nodes</td></tr>
+<tr><td>HAProxy socket not found</td><td>stats socket not configured in haproxy.cfg</td><td>Add: stats socket /var/run/haproxy/stats mode 660 to haproxy.cfg global section</td></tr>
+<tr><td>rescue block not triggering</td><td>rescue only runs for tasks inside the same block</td><td>Wrap include_role: mw_health_check inside a block: … rescue: section</td></tr>
+<tr><td>symlink update fails "file exists"</td><td>Previous symlink exists</td><td>Add force: true to ansible.builtin.file symlink task</td></tr>
+<tr><td>Config migration fails "file not found"</td><td>Old version dir name doesn't match pattern</td><td>Use ansible.builtin.find to detect actual directory name instead of assuming naming pattern</td></tr>
+</table>
+</div>
+</section>
+
+<!-- INTERVIEW -->
+<section id="interview">
+<h2 class="st">🎯 15. Interview Prep</h2>
+<div class="card">
+<div class="g2">
+<div>
+<details><summary>Q: Why use serial: 1 with max_fail_percentage: 0 for middleware upgrades?</summary><div class="inner">
+<b>serial: 1</b> ensures only one server is being upgraded at any moment. The remaining N-1 servers continue serving all customer traffic through the load balancer. If something goes wrong, 100% of traffic can be served by the healthy servers — the customer impact is zero.<br><br>
+<b>max_fail_percentage: 0</b> means: if the upgrade fails on any single server (health check fails, rollback triggered), Ansible immediately stops processing ALL remaining servers. This prevents a bad upgrade package from progressively taking down the entire cluster one server at a time. With 12 servers, a bad upgrade could otherwise take down servers 1 through 12 sequentially — each one degrading capacity further until total outage.<br><br>
+The combination is the safest possible approach: one at a time, stop everything if anything fails.
+</div></details>
+<details><summary>Q: How does the rescue block enable automatic rollback?</summary><div class="inner">
+Ansible's <code>block/rescue/always</code> structure mirrors try/catch/finally in programming. The <code>rescue</code> section runs ONLY if any task in the associated <code>block</code> fails:<br><br>
+<pre style="background:#1e1b2e;color:#e2d9f3;padding:8px;border-radius:4px;font-size:.78rem;">
+tasks:
+  - block:
+      - include_role: name=mw_health_check
+    rescue:
+      - include_role: name=mw_rollback
+</pre>
+If any health check task fails (HTTP returns non-200, version mismatch, config file missing, heap too high), the rescue block immediately runs the rollback role — stopping the failed new version, restoring from the tar.gz backup, restarting the old version, re-adding to HAProxy.<br><br>
+The rollback role ends with <code>ansible.builtin.fail</code> — which ensures the server is counted as failed, triggering <code>max_fail_percentage: 0</code> to stop the upgrade on remaining servers.
+</div></details>
+</div>
+<div>
+<details><summary>Q: What is the difference between HAProxy DRAIN and MAINT states?</summary><div class="inner">
+<b>MAINT (Maintenance):</b> Server is immediately removed from the pool. All existing connections are dropped instantly. New health checks stop. Use case: emergency removal when server is completely broken.<br><br>
+<b>DRAIN:</b> Server is removed from rotation for NEW sessions only. Existing sessions (in-flight requests) continue until they complete naturally. Health checks continue. Use case: graceful upgrade — allows a customer's loan calculation request to complete before the server is taken offline.<br><br>
+For banking upgrades, DRAIN is mandatory. Dropping mid-transaction connections could result in partial writes (loan approved in app but not committed to DB), which are extremely difficult to reconcile and can cause regulatory issues. We poll the active connection count every 10 seconds and only proceed with the upgrade when connections = 0 — guaranteeing every in-flight transaction has completed.
+</div></details>
+<details><summary>Q: How do you prevent a mixed-version cluster (like Incident 1)?</summary><div class="inner">
+Two mechanisms:<br><br>
+1. <b>Pre-upgrade version check:</b> Before upgrading each server, we detect the current version using the middleware's version command. If it doesn't match <code>current_version</code>, the preflight check fails and the upgrade is blocked for that server. This prevents accidentally upgrading a server that's already at a different version.<br><br>
+2. <b>Post-upgrade version audit:</b> After the rolling upgrade completes, <code>middleware_version_audit.yml</code> queries ALL servers and collects their versions into a list. Using Jinja2's <code>| unique</code> filter, if the list has more than one element, a mixed-version state exists and a Slack alert fires.<br><br>
+This audit uses <code>hostvars</code> — each server stores its detected version as a host fact during the play, and the aggregation play on localhost accesses all hosts' facts via <code>hostvars[hostname].version_outputs.stdout</code> — the same cross-host comparison technique used in DNS consistency checking (Project 10).
+</div></details>
+</div>
+</div>
+</section>
+
+<div class="fn-row">
+  <span style="color:var(--text-dim);font-size:.85rem;">Advanced Series — Project 15 of 30 Complete</span>
+  <a class="btn" href="#">Request Project 16 →</a>
+</div>
+</main>
+</div>
+<script>
+function copyCode(btn){
+  const pre=btn.closest('.cw').querySelector('pre code')||btn.closest('.cw').querySelector('pre');
+  navigator.clipboard.writeText(pre.innerText).then(()=>{const o=btn.innerText;btn.innerText='Copied!';setTimeout(()=>btn.innerText=o,1500);});
+}
+</script>
+</body>
+</html>

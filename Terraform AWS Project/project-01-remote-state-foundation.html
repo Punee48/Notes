@@ -1,0 +1,715 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Project 1: Multi-Environment Terraform Foundation with Remote State on S3 + DynamoDB Locking</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --bg-panel: #161b22;
+    --bg-code: #0a0e14;
+    --border: #30363d;
+    --text: #c9d1d9;
+    --text-dim: #8b949e;
+    --accent: #58a6ff;
+    --accent2: #79c0ff;
+    --green: #7ee787;
+    --orange: #ffa657;
+    --pink: #ff7b72;
+    --purple: #d2a8ff;
+    --yellow: #e3b341;
+  }
+  * { box-sizing: border-box; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    line-height: 1.65;
+    margin: 0;
+    padding: 0;
+  }
+  .wrap { max-width: 980px; margin: 0 auto; padding: 40px 24px 100px; }
+  header.hero {
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 28px;
+    margin-bottom: 36px;
+  }
+  .kicker {
+    color: var(--accent);
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    font-size: 13px;
+    font-weight: 600;
+  }
+  h1 {
+    font-size: 32px;
+    margin: 10px 0 12px;
+    color: #fff;
+    line-height: 1.25;
+  }
+  .subtitle { color: var(--text-dim); font-size: 16px; }
+  .badges { margin-top: 18px; display: flex; flex-wrap: wrap; gap: 8px; }
+  .badge {
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
+    color: var(--accent2);
+    font-size: 12.5px;
+    padding: 4px 10px;
+    border-radius: 999px;
+  }
+  h2 {
+    color: #fff;
+    font-size: 23px;
+    margin-top: 52px;
+    margin-bottom: 16px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border);
+  }
+  h2 .num {
+    color: var(--accent);
+    font-family: "SFMono-Regular", Consolas, monospace;
+    margin-right: 10px;
+  }
+  h3 { color: var(--accent2); font-size: 18px; margin-top: 28px; }
+  p { margin: 12px 0; }
+  a { color: var(--accent); }
+  .story {
+    background: linear-gradient(135deg, #1a1f2b, #14181f);
+    border-left: 3px solid var(--orange);
+    padding: 20px 22px;
+    border-radius: 6px;
+    font-size: 15.5px;
+    color: #dcdfe4;
+  }
+  .story .tag {
+    color: var(--orange);
+    font-weight: 700;
+    font-size: 12px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    display: block;
+    margin-bottom: 8px;
+  }
+  .callout {
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent);
+    padding: 16px 20px;
+    border-radius: 6px;
+    margin: 18px 0;
+  }
+  .callout.warn { border-left-color: var(--pink); }
+  .callout.tip { border-left-color: var(--green); }
+  .callout .label {
+    font-weight: 700;
+    font-size: 12px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+    display: block;
+  }
+  .callout.warn .label { color: var(--pink); }
+  .callout.tip .label { color: var(--green); }
+  .callout .label.info { color: var(--accent); }
+  pre {
+    background: var(--bg-code);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 18px 20px;
+    overflow-x: auto;
+    font-size: 13.2px;
+    line-height: 1.55;
+    margin: 16px 0;
+  }
+  code {
+    font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  }
+  .filename {
+    font-family: "SFMono-Regular", Consolas, monospace;
+    color: var(--yellow);
+    font-size: 12.5px;
+    background: var(--bg-panel);
+    display: inline-block;
+    padding: 4px 10px;
+    border: 1px solid var(--border);
+    border-bottom: none;
+    border-radius: 6px 6px 0 0;
+    margin-top: 16px;
+  }
+  .filename + pre { margin-top: 0; border-radius: 0 6px 6px 6px; }
+  .kw { color: var(--pink); }
+  .str { color: var(--green); }
+  .cmt { color: var(--text-dim); font-style: italic; }
+  .type { color: var(--purple); }
+  .fn { color: var(--accent2); }
+  .num-lit { color: var(--orange); }
+  .walkthrough {
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 18px 20px;
+    margin: 16px 0;
+  }
+  .walkthrough h4 {
+    margin-top: 0;
+    color: var(--accent2);
+    font-size: 14px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+  ul, ol { padding-left: 22px; }
+  li { margin: 8px 0; }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 16px 0;
+    font-size: 14px;
+  }
+  th, td {
+    border: 1px solid var(--border);
+    padding: 10px 14px;
+    text-align: left;
+  }
+  th {
+    background: var(--bg-panel);
+    color: var(--accent2);
+    font-size: 12.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  tr:nth-child(even) td { background: #12161d; }
+  .diagram {
+    background: var(--bg-code);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 20px;
+    font-family: "SFMono-Regular", Consolas, monospace;
+    font-size: 12.5px;
+    color: var(--accent2);
+    white-space: pre;
+    overflow-x: auto;
+    line-height: 1.4;
+  }
+  .interview-q {
+    background: var(--bg-panel);
+    border-radius: 6px;
+    padding: 14px 18px;
+    margin: 10px 0;
+    border: 1px solid var(--border);
+  }
+  .interview-q .q { color: var(--yellow); font-weight: 600; margin-bottom: 6px; }
+  footer {
+    margin-top: 60px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border);
+    color: var(--text-dim);
+    font-size: 13px;
+    text-align: center;
+  }
+  .progress {
+    display: flex;
+    gap: 4px;
+    margin-top: 18px;
+  }
+  .progress .seg {
+    height: 5px;
+    flex: 1;
+    background: var(--border);
+    border-radius: 3px;
+  }
+  .progress .seg.done { background: var(--accent); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="hero">
+  <span class="kicker">Terraform on AWS &middot; Project 1 of 25</span>
+  <h1>Multi-Environment Terraform Foundation with Remote State on S3 + DynamoDB Locking</h1>
+  <p class="subtitle">Foundational-Intermediate &middot; The bedrock every later project in this handbook is built on top of.</p>
+  <div class="badges">
+    <span class="badge">Remote Backend</span>
+    <span class="badge">State Locking</span>
+    <span class="badge">S3</span>
+    <span class="badge">DynamoDB</span>
+    <span class="badge">Bootstrap Pattern</span>
+    <span class="badge">Multi-Env Layout</span>
+    <span class="badge">terraform state mv</span>
+  </div>
+  <div class="progress" title="Handbook progress: Project 1 of 25">
+    <div class="seg done"></div>
+    <div class="seg"></div><div class="seg"></div><div class="seg"></div><div class="seg"></div>
+    <div class="seg"></div><div class="seg"></div><div class="seg"></div><div class="seg"></div><div class="seg"></div>
+    <div class="seg"></div><div class="seg"></div><div class="seg"></div><div class="seg"></div><div class="seg"></div>
+    <div class="seg"></div><div class="seg"></div><div class="seg"></div><div class="seg"></div><div class="seg"></div>
+    <div class="seg"></div><div class="seg"></div><div class="seg"></div><div class="seg"></div><div class="seg"></div>
+  </div>
+</header>
+
+<h2><span class="num">01</span>The Enterprise Problem This Solves</h2>
+<p>
+Every Terraform engineer starts the same way: <code>terraform init</code> with the default local backend, a
+<code>terraform.tfstate</code> file sitting quietly next to their <code>.tf</code> files. That works fine for a solo
+learning project. It falls apart the moment more than one person, or more than one CI job, needs to run
+<code>terraform apply</code> against the same infrastructure. Two engineers running <code>apply</code> at the same
+moment can corrupt or overwrite each other's state. A laptop that dies mid-apply can take the only copy of the
+state file with it. A state file committed to Git (which people do, and regret) leaks database passwords and
+resource IDs into version control history forever.
+</p>
+<p>
+This project builds the thing that has to exist before literally anything else in this handbook can exist: a
+production-grade <strong>remote state backend</strong> — an S3 bucket that stores the state file centrally, with
+versioning and encryption turned on, and a DynamoDB table that enforces a lock so only one <code>apply</code> can
+run at a time. On top of that, we build the directory structure and workspace conventions that let the same
+Terraform code manage completely isolated <code>dev</code>, <code>qa</code>, <code>staging</code>, and
+<code>prod</code> environments without ever risking one environment's state touching another's.
+</p>
+
+<h2><span class="num">02</span>The Story: 2:14 AM, Two Engineers, One State File</h2>
+<div class="story">
+<span class="tag">Production Incident Replay</span>
+It's a Tuesday night. Priya is in Bangalore finishing up a security-group fix before she logs off. Marcus is in
+Austin, just starting his day, picking up a ticket to resize an RDS instance. Neither of them knows the other is
+touching Terraform right now. Both of them are working out of the same cloned repo, both still using the
+<em>default local backend</em> because "we'll set up remote state later" — a sentence every senior engineer has
+heard right before a 2 AM page.
+<br><br>
+Priya runs <code>terraform apply</code>. It's mid-flight, waiting on a security group rule to propagate. At the
+exact same moment, Marcus — completely unaware — runs <code>terraform apply</code> on his machine, against his own
+local copy of <code>terraform.tfstate</code>, which is already stale because it doesn't have Priya's in-flight
+change reflected in it. Marcus's apply succeeds first and overwrites the shared remote... except there is no
+shared remote. There are now <em>two different state files on two different laptops</em>, each one convinced it
+owns the source of truth for the same VPC. Priya's apply finishes a few seconds later and pushes her local state
+to the shared drive the team was using as a poor-man's "remote backend." Marcus's changes are gone from the state
+file, even though the actual AWS resources still reflect what he changed. The state and reality have now
+diverged — this is <strong>drift</strong>, and it happened not because someone made a mistake, but because the
+tooling had no locking mechanism at all.
+<br><br>
+The on-call engineer who gets paged three hours later doesn't know any of this history. All they see is a
+<code>terraform plan</code> that wants to destroy and recreate half the VPC. That's the failure mode this project
+exists to make structurally impossible.
+</div>
+
+<h2><span class="num">03</span>Deep Technical Explanation</h2>
+
+<h3>What Terraform state actually is, and why it's dangerous unmanaged</h3>
+<p>
+Terraform state (<code>terraform.tfstate</code>) is a JSON file that is Terraform's <em>only</em> record of the
+mapping between your HCL configuration and real-world resource IDs. When you write <code>aws_instance.web</code>,
+Terraform doesn't know that maps to <code>i-0abc123...</code> in AWS — it knows that only because state says so.
+Lose the state file, and Terraform has no idea those resources exist; it will try to create duplicates. Corrupt
+the state file, and Terraform may try to destroy resources it thinks are orphaned. State is simultaneously the
+most important and most fragile file in the entire Terraform workflow, which is exactly why enterprise teams never
+let it live on a single laptop or get committed to Git.
+</p>
+
+<h3>Remote backends: centralizing the single source of truth</h3>
+<p>
+A <strong>backend</strong> in Terraform defines <em>where</em> state is stored and how operations against it are
+executed. The <code>s3</code> backend stores the JSON state object as a single object inside an S3 bucket. Because
+S3 is durable, versioned, and centrally accessible, every engineer and every CI job reading that backend
+configuration talks to the exact same state, instead of a local file that only one machine can see.
+</p>
+
+<h3>State locking: the mechanism that would have saved Priya and Marcus</h3>
+<p>
+S3 alone solves "where is the one true state file," but not "what happens when two applies run at the same
+instant." That's what <strong>state locking</strong> solves. Before Terraform mutates state, it must first acquire
+a lock. With the S3 backend, that lock is implemented as a conditional write to a <strong>DynamoDB table</strong>:
+Terraform writes a row keyed by the state file's path, and DynamoDB's strong consistency guarantees that only one
+writer can successfully insert that row at a time. If Priya's apply has the lock, Marcus's apply doesn't silently
+proceed on stale state — it fails immediately with a clear "state is locked" error, telling him exactly who holds
+it and when they acquired it. Locking doesn't prevent conflicts by being clever; it prevents them by making
+concurrent applies structurally impossible.
+</p>
+
+<h3>The bootstrap chicken-and-egg problem</h3>
+<p>
+Here's a detail almost every tutorial skips and almost every real engineer trips over once: you can't tell
+Terraform to store its state in an S3 bucket and DynamoDB table <em>that don't exist yet</em>, using a backend
+config that depends on resources Terraform itself would need to create. This project solves that with the
+standard enterprise pattern — a small, separate <strong>bootstrap</strong> root module that provisions the S3
+bucket and DynamoDB table using nothing but the default <em>local</em> backend, applied exactly once, by hand,
+outside of CI. Every other environment and every other project in this handbook then points its backend
+configuration at the bucket and table this bootstrap module created.
+</p>
+
+<h3>Environment isolation: separate state files, not separate resources in one state</h3>
+<p>
+The other core decision in this project is <em>how</em> dev, qa, staging, and prod stay isolated. We use separate
+state file <strong>keys</strong> per environment inside the same bucket (<code>env:/dev/network/terraform.tfstate</code>,
+etc.), driven by a directory-per-environment layout rather than a single shared root module toggled by variables.
+This is a deliberate enterprise choice: a bug in a prod <code>.tfvars</code> file should never be able to touch
+dev's state, and a `terraform destroy` run from inside the dev directory should be physically incapable of
+reaching prod resources, because it's pointed at a completely different state key from the start.
+</p>
+
+<h2><span class="num">04</span>Architecture</h2>
+<p>
+In words: one AWS account (this project assumes a single account for now — multi-account landing zones arrive in
+Project 13) hosts one S3 bucket dedicated to Terraform state, versioning and default encryption enabled, public
+access fully blocked. Alongside it, one DynamoDB table with a single primary key (<code>LockID</code>) handles
+locking for every state file in the bucket — the lock table is shared across all environments and all future
+projects in this handbook, since DynamoDB locks are scoped per state-file-key automatically. Four environment
+directories (<code>dev</code>, <code>qa</code>, <code>staging</code>, <code>prod</code>) each carry their own
+backend configuration pointing at the same bucket and table, but a different state <code>key</code>, so their
+state objects never collide.
+</p>
+<div class="diagram">
+┌──────────────────────────────────────────────────────────────────┐
+│                        AWS Account (shared)                       │
+│                                                                    │
+│   ┌────────────────────────────┐     ┌──────────────────────┐    │
+│   │  S3: acme-tfstate-<acct>   │     │ DynamoDB: tf-lock-tbl │    │
+│   │  versioning: ON            │     │ PK: LockID            │    │
+│   │  encryption: SSE-KMS       │     │ billing: PAY_PER_REQ  │    │
+│   │  public access: BLOCKED    │     └──────────┬────────────┘    │
+│   │                            │                │ lock/unlock     │
+│   │  env:/dev/.../tfstate      │◄───────────────┤                 │
+│   │  env:/qa/.../tfstate       │◄───────────────┤                 │
+│   │  env:/staging/.../tfstate  │◄───────────────┤                 │
+│   │  env:/prod/.../tfstate     │◄───────────────┘                 │
+│   └────────────────────────────┘                                  │
+└──────────────────────────────────────────────────────────────────┘
+        ▲                ▲                 ▲                ▲
+        │                │                 │                │
+   envs/dev/        envs/qa/         envs/staging/     envs/prod/
+   (backend.tf      (backend.tf      (backend.tf       (backend.tf
+    key=dev/...)     key=qa/...)      key=staging/...)  key=prod/...)
+</div>
+
+<h2><span class="num">05</span>Step-by-Step Implementation</h2>
+
+<h3>5.1 — Repository layout</h3>
+<p class="filename">directory structure</p>
+<pre><code><span class="cmt"># This is the convention every later project in the handbook assumes.</span>
+<span class="cmt"># "bootstrap" is applied once, by hand, before anything else.</span>
+<span class="cmt"># "envs/&lt;name&gt;" are independent root modules with their own state.</span>
+terraform-foundation/
+├── bootstrap/
+│   ├── main.tf
+│   ├── variables.tf
+│   ├── outputs.tf
+│   └── versions.tf
+├── envs/
+│   ├── dev/
+│   │   ├── backend.tf
+│   │   ├── main.tf
+│   │   ├── variables.tf
+│   │   └── terraform.tfvars
+│   ├── qa/
+│   │   └── (same shape as dev)
+│   ├── staging/
+│   │   └── (same shape as dev)
+│   └── prod/
+│       └── (same shape as dev)
+└── modules/
+    └── (shared modules land here starting in Project 2)
+</code></pre>
+
+<h3>5.2 — Bootstrap: the S3 bucket and DynamoDB lock table</h3>
+<p>This root module is applied exactly once, using the local backend, before any environment exists.</p>
+
+<span class="filename">bootstrap/versions.tf</span>
+<pre><code><span class="kw">terraform</span> {
+  <span class="cmt"># Pin the Terraform CLI version range so every engineer and every CI</span>
+  <span class="cmt"># runner resolves providers identically. Enterprise teams pin this hard.</span>
+  required_version = <span class="str">"&gt;= 1.7.0, &lt; 2.0.0"</span>
+
+  required_providers {
+    aws = {
+      source  = <span class="str">"hashicorp/aws"</span>
+      version = <span class="str">"~&gt; 5.0"</span> <span class="cmt"># AWS provider major version 5.x</span>
+    }
+  }
+  <span class="cmt"># No "backend" block here on purpose — bootstrap uses the implicit</span>
+  <span class="cmt"># local backend because the remote backend doesn't exist yet.</span>
+}
+</code></pre>
+
+<span class="filename">bootstrap/main.tf</span>
+<pre><code><span class="kw">provider</span> <span class="str">"aws"</span> {
+  region = var.aws_region <span class="cmt"># injected via variables.tf, no hardcoded region</span>
+}
+
+<span class="cmt"># --- S3 bucket that will hold every environment's state object ---</span>
+<span class="kw">resource</span> <span class="type">"aws_s3_bucket"</span> <span class="str">"tf_state"</span> {
+  bucket = var.state_bucket_name <span class="cmt"># must be globally unique across all of AWS</span>
+
+  <span class="cmt"># Prevents "terraform destroy" from ever silently deleting the</span>
+  <span class="cmt"># bucket that holds every environment's state. This is a real</span>
+  <span class="cmt"># enterprise guardrail, not decoration.</span>
+  lifecycle {
+    prevent_destroy = <span class="kw">true</span>
+  }
+}
+
+<span class="cmt"># --- Versioning: every prior state object is retained, so a bad</span>
+<span class="cmt"># apply that corrupts state can be rolled back to the last-known-good</span>
+<span class="cmt"># version straight from the S3 console or CLI. ---</span>
+<span class="kw">resource</span> <span class="type">"aws_s3_bucket_versioning"</span> <span class="str">"tf_state"</span> {
+  bucket = aws_s3_bucket.tf_state.<span class="fn">id</span>
+  versioning_configuration {
+    status = <span class="str">"Enabled"</span>
+  }
+}
+
+<span class="cmt"># --- Default encryption at rest for every state object written. ---</span>
+<span class="kw">resource</span> <span class="type">"aws_s3_bucket_server_side_encryption_configuration"</span> <span class="str">"tf_state"</span> {
+  bucket = aws_s3_bucket.tf_state.<span class="fn">id</span>
+  rule {
+    apply_server_side_encryption_by_default {
+      sse_algorithm = <span class="str">"aws:kms"</span>
+    }
+    bucket_key_enabled = <span class="kw">true</span> <span class="cmt"># cuts KMS API call costs at scale</span>
+  }
+}
+
+<span class="cmt"># --- Block every form of public access. State files contain secrets. ---</span>
+<span class="kw">resource</span> <span class="type">"aws_s3_bucket_public_access_block"</span> <span class="str">"tf_state"</span> {
+  bucket                  = aws_s3_bucket.tf_state.<span class="fn">id</span>
+  block_public_acls       = <span class="kw">true</span>
+  block_public_policy     = <span class="kw">true</span>
+  ignore_public_acls      = <span class="kw">true</span>
+  restrict_public_buckets = <span class="kw">true</span>
+}
+
+<span class="cmt"># --- DynamoDB table used purely for the state lock. One item per</span>
+<span class="cmt"># in-flight operation, keyed by the state file's path. ---</span>
+<span class="kw">resource</span> <span class="type">"aws_dynamodb_table"</span> <span class="str">"tf_lock"</span> {
+  name         = var.lock_table_name
+  billing_mode = <span class="str">"PAY_PER_REQUEST"</span> <span class="cmt"># no capacity planning for a low-volume lock table</span>
+  hash_key     = <span class="str">"LockID"</span> <span class="cmt"># the S3 backend always uses this exact key name</span>
+
+  attribute {
+    name = <span class="str">"LockID"</span>
+    type = <span class="str">"S"</span> <span class="cmt"># string</span>
+  }
+}
+</code></pre>
+
+<span class="filename">bootstrap/variables.tf</span>
+<pre><code><span class="kw">variable</span> <span class="str">"aws_region"</span> {
+  <span class="fn">description</span> = <span class="str">"AWS region hosting the state bucket and lock table"</span>
+  <span class="fn">type</span>        = string
+  default     = <span class="str">"us-east-1"</span>
+}
+
+<span class="kw">variable</span> <span class="str">"state_bucket_name"</span> {
+  <span class="fn">description</span> = <span class="str">"Globally-unique S3 bucket name for Terraform state"</span>
+  <span class="fn">type</span>        = string
+}
+
+<span class="kw">variable</span> <span class="str">"lock_table_name"</span> {
+  <span class="fn">description</span> = <span class="str">"DynamoDB table name used for state locking"</span>
+  <span class="fn">type</span>        = string
+  default     = <span class="str">"terraform-lock-table"</span>
+}
+</code></pre>
+
+<span class="filename">bootstrap/outputs.tf</span>
+<pre><code><span class="kw">output</span> <span class="str">"state_bucket_name"</span> {
+  value = aws_s3_bucket.tf_state.bucket <span class="cmt"># copy this into every env's backend.tf</span>
+}
+
+<span class="kw">output</span> <span class="str">"lock_table_name"</span> {
+  value = aws_dynamodb_table.tf_lock.name
+}
+</code></pre>
+
+<div class="walkthrough">
+<h4>Plain-English walkthrough</h4>
+<p>
+This module has no backend block, meaning Terraform stores <em>its own</em> state locally on the engineer's
+machine — deliberately, since the whole point of this apply is to create the very bucket and table every other
+project will use remotely. The <code>prevent_destroy</code> lifecycle rule on the bucket is the single most
+important line in this file: it makes a future <code>terraform destroy</code> against this module fail loudly
+instead of quietly deleting the state of every environment at once. Versioning plus default encryption plus a
+public-access block are the three non-negotiable settings any auditor at a fintech or healthcare company will ask
+about on day one. This module is applied exactly once by a human with elevated permissions, and after that, no
+one touches it again except to widen locking or add replication in Project 17.
+</p>
+</div>
+
+<h3>5.3 — Per-environment backend configuration</h3>
+<p>
+Every environment directory is its own root module with an identical shape, differing only in the
+<code>key</code> that isolates its state, and the values in its <code>.tfvars</code> file.
+</p>
+
+<span class="filename">envs/dev/backend.tf</span>
+<pre><code><span class="kw">terraform</span> {
+  backend <span class="str">"s3"</span> {
+    <span class="cmt"># Bucket and table names come from bootstrap's outputs — copy the</span>
+    <span class="cmt"># exact values, this block cannot use variables or interpolation.</span>
+    bucket         = <span class="str">"acme-tfstate-123456789012"</span>
+    key            = <span class="str">"env:/dev/network/terraform.tfstate"</span> <span class="cmt"># unique per environment</span>
+    region         = <span class="str">"us-east-1"</span>
+    dynamodb_table = <span class="str">"terraform-lock-table"</span> <span class="cmt"># enables locking for this state key</span>
+    encrypt        = <span class="kw">true</span> <span class="cmt"># belt-and-suspenders on top of bucket default encryption</span>
+  }
+}
+</code></pre>
+
+<span class="filename">envs/prod/backend.tf</span>
+<pre><code><span class="kw">terraform</span> {
+  backend <span class="str">"s3"</span> {
+    bucket         = <span class="str">"acme-tfstate-123456789012"</span> <span class="cmt"># same bucket, same account</span>
+    key            = <span class="str">"env:/prod/network/terraform.tfstate"</span> <span class="cmt"># different key = different state</span>
+    region         = <span class="str">"us-east-1"</span>
+    dynamodb_table = <span class="str">"terraform-lock-table"</span>
+    encrypt        = <span class="kw">true</span>
+  }
+}
+</code></pre>
+
+<div class="walkthrough">
+<h4>Plain-English walkthrough</h4>
+<p>
+Notice that <code>dev</code> and <code>prod</code> point at the <em>same</em> bucket and the <em>same</em> lock
+table — that's fine and expected, because the <code>key</code> is what actually separates their state objects
+inside the bucket, and DynamoDB locks are scoped per state key automatically via the composite lock ID S3 writes
+internally. This is why a stuck lock in dev can never block an apply in prod: they're different rows in the same
+table. Backend blocks cannot reference variables, so these values are copy-pasted deliberately per environment —
+that rigidity is a feature here, since it means no clever variable logic can accidentally point a prod apply at
+dev's state key.
+</p>
+</div>
+
+<h3>5.4 — Minimal environment root module (dev shown, others identical in shape)</h3>
+<span class="filename">envs/dev/main.tf</span>
+<pre><code><span class="kw">terraform</span> {
+  required_version = <span class="str">"&gt;= 1.7.0, &lt; 2.0.0"</span>
+  required_providers {
+    aws = {
+      source  = <span class="str">"hashicorp/aws"</span>
+      version = <span class="str">"~&gt; 5.0"</span>
+    }
+  }
+}
+
+<span class="kw">provider</span> <span class="str">"aws"</span> {
+  region = var.aws_region
+
+  <span class="cmt"># default_tags apply to every resource this environment creates,</span>
+  <span class="cmt"># without repeating tags{} blocks on every single resource.</span>
+  default_tags {
+    tags = {
+      Environment = var.environment_name
+      ManagedBy   = <span class="str">"terraform"</span>
+      Project     = <span class="str">"foundation"</span>
+    }
+  }
+}
+
+<span class="cmt"># A placeholder resource proving the wiring end-to-end. Real network</span>
+<span class="cmt"># resources arrive with the reusable VPC module in Project 2 —</span>
+<span class="cmt"># this project's job is state plumbing, not networking.</span>
+<span class="kw">resource</span> <span class="type">"aws_s3_bucket"</span> <span class="str">"env_marker"</span> {
+  bucket = <span class="str">"acme-${var.environment_name}-foundation-marker"</span>
+}
+</code></pre>
+
+<span class="filename">envs/dev/variables.tf</span>
+<pre><code><span class="kw">variable</span> <span class="str">"aws_region"</span> {
+  <span class="fn">type</span>    = string
+  default = <span class="str">"us-east-1"</span>
+}
+
+<span class="kw">variable</span> <span class="str">"environment_name"</span> {
+  <span class="fn">type</span>    = string
+  default = <span class="str">"dev"</span> <span class="cmt"># the one line that differs meaningfully between env folders</span>
+}
+</code></pre>
+
+<h3>5.5 — Running it</h3>
+<pre><code><span class="cmt"># Step 1 — bootstrap, once, by hand, with local state</span>
+<span class="fn">cd</span> bootstrap
+terraform init
+terraform apply -var=<span class="str">"state_bucket_name=acme-tfstate-123456789012"</span>
+
+<span class="cmt"># Step 2 — every environment, from here on, uses the remote backend</span>
+<span class="fn">cd</span> ../envs/dev
+terraform init   <span class="cmt"># reads backend.tf, connects to the S3 bucket + DynamoDB table</span>
+terraform plan
+terraform apply
+</code></pre>
+
+<h2><span class="num">06</span>Failure Scenarios — What Breaks in Real Life</h2>
+
+<div class="callout warn">
+<span class="label">Failure: stuck lock after a killed process</span>
+An engineer Ctrl-C's an <code>apply</code>, or their laptop loses network mid-operation. The DynamoDB lock row
+never gets deleted, and every subsequent <code>plan</code>/<code>apply</code> fails with
+<code>Error acquiring the state lock</code>. <strong>Debug:</strong> the error message includes the Lock ID,
+who holds it, and when it was created — verify with the team that no apply is actually still running, then
+force-release it with <code>terraform force-unlock &lt;LOCK_ID&gt;</code>. Never do this without confirming first;
+force-unlocking during a genuinely in-flight apply is how you get real corruption.
+</div>
+
+<div class="callout warn">
+<span class="label">Failure: someone commits the local .tfstate before backend migration</span>
+Before the backend block existed, a state file with real resource IDs and possibly plaintext secrets in resource
+attributes got committed to Git history. Switching to the remote backend does not remove it from history.
+<strong>Debug:</strong> this requires a history rewrite (<code>git filter-repo</code> or BFG) plus rotating any
+credential that may have been exposed, treated as a genuine security incident, not a cleanup task.
+</div>
+
+<div class="callout warn">
+<span class="label">Failure: wrong state key copy-pasted into a new environment</span>
+A new <code>staging</code> environment is bootstrapped by copying <code>envs/prod/backend.tf</code> and someone
+forgets to change the <code>key</code>. The first <code>terraform apply</code> in "staging" silently reads and
+writes to prod's state file. <strong>Debug:</strong> this is why S3 bucket versioning from Step 5.2 matters —
+recover the last-known-good version of the prod state object from the S3 console immediately, before running
+anything else, and only then fix the offending backend.tf.
+</div>
+
+<div class="callout warn">
+<span class="label">Failure: DynamoDB throttling under high CI concurrency</span>
+Dozens of pipeline jobs firing <code>terraform plan</code> at once against a table provisioned with fixed
+capacity start throwing <code>ProvisionedThroughputExceededException</code>. <strong>Debug:</strong> this is
+exactly why the table above uses <code>PAY_PER_REQUEST</code> billing instead of fixed read/write capacity units —
+if you inherit a table using provisioned capacity, this is the first thing to fix before scaling CI concurrency.
+</div>
+
+<h2><span class="num">07</span>Interview Talking Points</h2>
+
+<div class="interview-q">
+<div class="q">"Walk me through how you'd set up Terraform state management for a new team."</div>
+Describe the bootstrap chicken-and-egg problem specifically — that you can't use the S3 backend to create the S3
+backend, so you provision the bucket and lock table with local state first, applied once, then every subsequent
+environment points at it remotely. Mentioning this detail signals you've actually done it, not just read about it.
+</div>
+
+<div class="interview-q">
+<div class="q">"How does Terraform prevent two engineers from corrupting state at the same time?"</div>
+Explain the DynamoDB conditional-write lock mechanism concretely, and connect it to a real failure story (like
+Priya and Marcus above) rather than a definition — interviewers are testing whether you've felt the pain, not
+whether you memorized the docs.
+</div>
+
+<div class="interview-q">
+<div class="q">"Why separate state per environment instead of one state file with environment as a variable?"</div>
+Blast-radius reasoning: a bug or a stray <code>destroy</code> targeting the wrong resource in a shared state file
+can reach every environment at once; separate state keys make that structurally impossible, at the cost of a
+little duplication in backend config.
+</div>
+
+<h2><span class="num">08</span>Skills Gained Checklist</h2>
+<table>
+<tr><th>Skill</th><th>YOE-Equivalent Signal</th></tr>
+<tr><td>Remote backend design (S3 + DynamoDB)</td><td>Can architect state storage for a new team from scratch</td></tr>
+<tr><td>State locking mechanics</td><td>Can debug and safely resolve a stuck lock in production</td></tr>
+<tr><td>Bootstrap pattern for backend infra</td><td>Understands and can explain the local→remote chicken-and-egg problem</td></tr>
+<tr><td>Multi-environment directory conventions</td><td>Can design isolation boundaries that prevent cross-env accidents</td></tr>
+<tr><td>S3 hardening (versioning, encryption, public access block)</td><td>Meets baseline security expectations for regulated industries</td></tr>
+<tr><td>Backend recovery from S3 versioning</td><td>Can recover from a corrupted or overwritten state file under pressure</td></tr>
+</table>
+
+<footer>
+Project 1 of 25 &middot; HashiCorp Terraform on AWS Handbook &middot; Say <strong>"next project"</strong> to generate Project 2: Reusable VPC Module Library for Multi-Tier Enterprise Network.
+</footer>
+
+</div>
+</body>
+</html>

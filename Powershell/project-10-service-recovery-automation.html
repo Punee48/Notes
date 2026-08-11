@@ -1,0 +1,601 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Project 10 — Windows Service Recovery Automation | PowerShell Masterclass</title>
+<style>
+  :root{
+    --primary:#6D28D9; --secondary:#7C3AED; --light-purple:#EDE9FE; --xlight-purple:#F5F3FF;
+    --bg:#FFFFFF; --text:#1F2937; --muted:#6B7280; --border:#E5E1F5;
+    --success:#15803D; --warn:#B45309; --danger:#B91C1C;
+    --code-bg:#1E1B2E; --code-text:#E9E4FF;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0; font-family:"Segoe UI",Calibri,Roboto,Arial,sans-serif; background:var(--bg); color:var(--text); line-height:1.65;}
+  a{color:var(--primary);}
+  .layout{display:flex; max-width:1400px; margin:0 auto;}
+  nav.sidebar{width:270px; flex-shrink:0; position:sticky; top:0; height:100vh; overflow-y:auto; background:var(--xlight-purple); border-right:1px solid var(--border); padding:22px 16px;}
+  nav.sidebar h3{color:var(--primary); font-size:13px; text-transform:uppercase; letter-spacing:.06em; margin:18px 0 8px;}
+  nav.sidebar a{display:block; padding:7px 10px; border-radius:8px; color:var(--text); text-decoration:none; font-size:14px; margin-bottom:2px;}
+  nav.sidebar a:hover{background:var(--light-purple); color:var(--primary);}
+  #progressWrap{background:var(--light-purple); border-radius:10px; padding:10px; margin-bottom:8px;}
+  #progressBar{height:8px; background:var(--border); border-radius:6px; overflow:hidden;}
+  #progressFill{height:100%; width:0%; background:linear-gradient(90deg,var(--primary),var(--secondary)); transition:width .2s;}
+  #progressLabel{font-size:12px; color:var(--muted); margin-top:6px;}
+  main{flex:1; min-width:0; padding:0;}
+  .cover{background:linear-gradient(135deg,var(--primary),var(--secondary)); color:#fff; padding:60px 48px; position:relative; overflow:hidden;}
+  .cover::after{content:"";position:absolute;right:-80px;top:-80px;width:300px;height:300px;border-radius:50%;background:rgba(255,255,255,.08);}
+  .badge{display:inline-block; background:rgba(255,255,255,.18); padding:5px 14px; border-radius:20px; font-size:12px; letter-spacing:.05em; margin-right:8px; margin-bottom:14px;}
+  .cover h1{font-size:34px; margin:6px 0 10px; max-width:760px;}
+  .cover p.sub{font-size:16px; opacity:.92; max-width:640px;}
+  .cover-meta{display:flex; gap:28px; margin-top:26px; flex-wrap:wrap;}
+  .cover-meta div{background:rgba(255,255,255,.12); padding:12px 18px; border-radius:10px; min-width:140px;}
+  .cover-meta span{display:block; font-size:12px; opacity:.85;}
+  .cover-meta strong{font-size:16px;}
+  section{padding:34px 48px; border-bottom:1px solid var(--border);}
+  section h2{color:var(--primary); font-size:24px; border-left:5px solid var(--primary); padding-left:14px; margin-top:0;}
+  section h3{color:var(--secondary); font-size:18px; margin-top:26px;}
+  .story{background:var(--xlight-purple); border-left:5px solid var(--primary); padding:20px 24px; border-radius:0 10px 10px 0; font-size:15px;}
+  .story b{color:var(--primary);}
+  .callout{border-radius:10px; padding:16px 18px; margin:16px 0; font-size:14.5px;}
+  .callout.tip{background:#F0FDF4; border-left:5px solid var(--success);}
+  .callout.note{background:var(--xlight-purple); border-left:5px solid var(--secondary);}
+  .callout.warn{background:#FFFBEB; border-left:5px solid var(--warn);}
+  .callout.security{background:#FEF2F2; border-left:5px solid var(--danger);}
+  .callout .lbl{font-weight:700; display:block; margin-bottom:4px;}
+  table{width:100%; border-collapse:collapse; margin:16px 0; font-size:14px;}
+  th,td{border:1px solid var(--border); padding:9px 12px; text-align:left; vertical-align:top;}
+  th{background:var(--light-purple); color:var(--primary);}
+  tr:nth-child(even){background:var(--xlight-purple);}
+  .codewrap{position:relative; margin:16px 0;}
+  pre{background:var(--code-bg); color:var(--code-text); padding:18px 16px; border-radius:10px; overflow-x:auto; font-family:Consolas,"Cascadia Code",Menlo,monospace; font-size:13.5px; line-height:1.7;}
+  pre code{white-space:pre;}
+  .copybtn{position:absolute; top:10px; right:10px; background:var(--secondary); color:#fff; border:none; padding:6px 12px; border-radius:6px; font-size:12px; cursor:pointer;}
+  .copybtn:hover{background:var(--primary);}
+  .explain-list{list-style:none; padding:0; margin:14px 0;}
+  .explain-list li{background:var(--xlight-purple); border-radius:8px; padding:10px 14px; margin-bottom:6px; font-size:14.5px;}
+  .explain-list code{background:var(--light-purple); padding:2px 6px; border-radius:5px; color:var(--primary); font-weight:600;}
+  details{background:var(--xlight-purple); border-radius:10px; padding:12px 16px; margin:10px 0;}
+  details summary{cursor:pointer; font-weight:600; color:var(--primary);}
+  .diagram{background:var(--xlight-purple); border-radius:12px; padding:20px; margin:16px 0; overflow-x:auto;}
+  .flow{display:flex; flex-wrap:wrap; align-items:center; gap:10px; font-size:13.5px;}
+  .flow .box{background:#fff; border:2px solid var(--secondary); border-radius:8px; padding:8px 14px; font-weight:600; color:var(--primary);}
+  .flow .arrow{color:var(--secondary); font-size:18px;}
+  .steps{counter-reset:step;}
+  .steps .step{position:relative; padding-left:44px; margin-bottom:18px;}
+  .steps .step::before{counter-increment:step; content:counter(step); position:absolute; left:0; top:0; background:var(--primary); color:#fff; width:30px; height:30px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:700;}
+  .grid2{display:grid; grid-template-columns:1fr 1fr; gap:16px;}
+  @media(max-width:900px){.grid2{grid-template-columns:1fr;} nav.sidebar{display:none;} section{padding:26px 20px;} .cover{padding:36px 22px;}}
+  footer{padding:30px 48px; background:var(--xlight-purple); color:var(--muted); font-size:13px;}
+</style>
+</head>
+<body>
+
+<div class="layout">
+  <nav class="sidebar">
+    <div id="progressWrap">
+      <div id="progressLabel">Reading progress</div>
+      <div id="progressBar"><div id="progressFill"></div></div>
+    </div>
+    <h3>Project 10</h3>
+    <a href="#cover">Cover</a>
+    <a href="#recap1">Recap: Projects 1–9</a>
+    <a href="#story">The Story</a>
+    <a href="#concepts">Concepts First</a>
+    <a href="#lab">Hands-On Lab</a>
+    <a href="#script">Full Script</a>
+    <a href="#linebyline">Line-by-Line</a>
+    <a href="#architecture">Architecture</a>
+    <a href="#incident">Production Incident</a>
+    <a href="#troubleshoot">Troubleshooting</a>
+    <a href="#security">Security Notes</a>
+    <a href="#recap">Key Learnings</a>
+    <a href="#interview">Interview Prep</a>
+    <a href="#challenges">Coding Challenges</a>
+    <a href="#resume">Resume Points</a>
+    <a href="#assignment">Practice Assignment</a>
+    <a href="#next">Next Project</a>
+  </nav>
+
+  <main id="top">
+    <div class="cover" id="cover">
+      <span class="badge">PROJECT 10</span><span class="badge">INTERMEDIATE</span><span class="badge">BFSI TRACK</span>
+      <h1>Windows Service Recovery Automation</h1>
+      <p class="sub">Move from detecting problems to safely fixing them — with your own -WhatIf/-Confirm-aware function, idempotent checks, retry logic, and a full audit trail.</p>
+      <div class="cover-meta">
+        <div><span>Difficulty</span><strong>Intermediate</strong></div>
+        <div><span>Estimated Lab Time</span><strong>75–90 min</strong></div>
+        <div><span>Concepts</span><strong>9 core concepts</strong></div>
+        <div><span>Track</span><strong>10 of 40</strong></div>
+      </div>
+    </div>
+
+    <section id="recap1">
+      <h2>Quick Recap of Projects 1–9</h2>
+      <p>Every script so far has been read-only, or in Project 6's case, destructive but manually re-run with
+      <code>-WhatIf:$false</code>. This project builds our <b>first function that supports -WhatIf and -Confirm the
+      real, built-in way</b> — the same mechanism native cmdlets like <code>Remove-Item</code> use — and takes the
+      logical next step after Project 4's detection: actually fixing what we find, safely and with a full log trail.</p>
+    </section>
+
+    <section id="story">
+      <h2>The Story — Why We're Building This</h2>
+      <div class="story">
+        Remember Project 4's "Automatic but Stopped" detection? It's been running daily for a few weeks now, and
+        it's caught the same problem twice: a service crashes, gets flagged, and then sits stopped for hours until
+        someone manually restarts it during business hours. Our manager wants the obvious next step:
+        <i>"If we already know a service should be running and isn't, why are we waiting for a human to click
+        Start? Automate the restart — but I want to see exactly what it does, be able to preview it first, and have
+        a complete log of every action for our audit trail."</i>
+      </div>
+    </section>
+
+    <section id="concepts">
+      <h2>Concepts First — Before We Touch Code</h2>
+
+      <h3>1. Detection vs Remediation — Why We Waited Until Now</h3>
+      <div class="callout warn"><span class="lbl">Why Projects 2, 4, 5, and 7 stayed read-only</span>Every prior
+      monitoring project deliberately stopped at reporting. Taking automated action requires more safety machinery —
+      proper -WhatIf support, logging, idempotency, retry limits — which is exactly what this project adds. Never
+      jump straight to automated remediation without those safety layers in place first.</p></div>
+
+      <h3>2. Building Your Own -WhatIf/-Confirm Support: SupportsShouldProcess</h3>
+      <p>Project 6 relied on <code>Move-Item</code>'s <i>built-in</i> support for <code>-WhatIf</code>. Now we're
+      writing our own function that performs a real action (<code>Restart-Service</code>) — to get proper
+      <code>-WhatIf</code>/<code>-Confirm</code> support on our <i>own</i> function, we opt in explicitly:</p>
+      <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code>function Repair-CriticalService {
+    [CmdletBinding(SupportsShouldProcess)]     # Opts this function into -WhatIf/-Confirm support
+    param([string]$ServiceName)
+
+    if ($PSCmdlet.ShouldProcess($ServiceName, "Restart Service")) {   # Asks: "should this action actually happen?"
+        Restart-Service -Name $ServiceName      # Only reached if ShouldProcess returned $true
+    }
+}</code></pre></div>
+      <ul class="explain-list">
+        <li><code>[CmdletBinding(SupportsShouldProcess)]</code> — an attribute placed above <code>param()</code> that
+        tells PowerShell "this function supports the standard risk-management switches." It automatically adds
+        <code>-WhatIf</code> and <code>-Confirm</code> as available parameters — we don't declare them ourselves.</li>
+        <li><code>$PSCmdlet.ShouldProcess($Target, $Action)</code> — the automatic variable
+        <code>$PSCmdlet</code> becomes available once <code>CmdletBinding</code> is present.
+        <code>ShouldProcess</code> checks whether <code>-WhatIf</code> or <code>-Confirm</code> was passed by the
+        caller and handles the preview/prompt automatically — it returns <code>$true</code> only when the real
+        action should actually run.</li>
+      </ul>
+      <div class="callout note"><span class="lbl">This is the real mechanism behind every built-in -WhatIf</span>
+      Every cmdlet that supports <code>-WhatIf</code> — <code>Remove-Item</code>, <code>Stop-Service</code>,
+      <code>Restart-Service</code> — is built exactly this way internally. You're not learning a workaround; you're
+      learning the actual pattern PowerShell itself uses.</div>
+
+      <h3>3. Idempotency — Don't Fix What Isn't Broken</h3>
+      <div class="callout tip"><span class="lbl">Recall from earlier projects</span>An idempotent script checks
+      current state <i>before</i> making a change, and does nothing if the desired state already exists. Here: if a
+      service is already Running, restarting it anyway would cause an unnecessary (and potentially disruptive)
+      interruption — we check first, and only act if actually needed.</div>
+
+      <h3>4. Structured Logging</h3>
+      <p>ABC Bank wants an audit trail — a format like <code>Timestamp | Server | Operation | Status | Message</code>
+      appended to a log file, so every automated action taken is reviewable later, not just visible in a console
+      window that closes when the script finishes.</p>
+      <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code>function Write-Log {
+    param([string]$Message, [string]$Status = "INFO")
+    $Line = "{0} | {1} | {2} | {3}" -f (Get-Date -Format "yyyy-MM-dd HH:mm:ss"), $env:COMPUTERNAME, $Status, $Message
+    Add-Content -Path $LogPath -Value $Line   # Appends one line to the log file without overwriting existing content
+}</code></pre></div>
+      <ul class="explain-list">
+        <li><code>Add-Content</code> — appends text to a file, creating it if it doesn't exist yet, unlike
+        <code>Set-Content</code>/<code>Out-File</code> (used in earlier projects) which overwrite the file's entire
+        contents each time.</li>
+      </ul>
+
+      <h3>5. Retry Logic with a Hard Limit</h3>
+      <p>A restarted service doesn't always come up instantly or successfully on the first try. We'll attempt up to
+      a fixed number of retries, with a short pause between attempts, and give up (loudly, not silently) if it never
+      recovers — an unlimited retry loop is a production hazard, not a safety feature.</p>
+    </section>
+
+    <section id="lab">
+      <h2>Hands-On Lab — Build It Yourself</h2>
+      <div class="steps">
+        <div class="step"><b>Create the project structure:</b>
+          <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code>New-Item -ItemType Directory -Path "C:\PS-Masterclass\Project10\logs" -Force
+New-Item -ItemType Directory -Path "C:\PS-Masterclass\Project10\reports" -Force
+Set-Location "C:\PS-Masterclass\Project10"</code></pre></div>
+        </div>
+        <div class="step"><b>Create <code>Repair-ServiceHealth.ps1</code></b> in VS Code and paste the full script below.</div>
+        <div class="step"><b>Run it in preview mode first</b> (the script defaults to WhatIf, same safe-by-default
+        philosophy as Project 6):
+          <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code>.\Repair-ServiceHealth.ps1</code></pre></div>
+        </div>
+        <div class="step"><b>Test a real recovery (as Administrator):</b> stop a safe test service, then run the
+        script for real:
+          <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code>Stop-Service -Name "Spooler"                       # Deliberately stop a service to test recovery
+.\Repair-ServiceHealth.ps1 -WhatIf:$false           # Run for real this time</code></pre></div>
+        </div>
+        <div class="step"><b>Validate:</b> confirm Spooler is running again, the console showed the restart happen,
+        <code>.\logs\ServiceRecovery.log</code> contains a timestamped entry, and a CSV summary was saved.</div>
+      </div>
+    </section>
+
+    <section id="script">
+      <h2>Full Script — Repair-ServiceHealth.ps1</h2>
+      <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code># =====================================================================
+# Repair-ServiceHealth.ps1
+# ABC Bank - Windows Infrastructure Automation Team
+# Purpose: Detect and safely auto-recover critical services, with full audit logging
+# =====================================================================
+
+[CmdletBinding(SupportsShouldProcess)]     # Makes the WHOLE SCRIPT support -WhatIf/-Confirm, not just a function
+param(
+    [switch]$WhatIf = $true                  # Safe by default, same philosophy as Project 6
+)
+
+$CriticalServices = @("Spooler", "BITS")   # The services we're responsible for keeping healthy
+$LogPath          = ".\logs\ServiceRecovery.log"
+$MaxRetries       = 3                        # Never retry forever
+$RetryDelaySeconds = 5                        # Pause between retry attempts
+
+# ---------------------------------------------------------------
+# FUNCTION: Structured audit logging
+# ---------------------------------------------------------------
+function Write-Log {
+    param(
+        [string]$Message,                     # What happened
+        [string]$Status = "INFO"                # INFO / SUCCESS / WARNING / ERROR
+    )
+    $Line = "{0} | {1} | {2} | {3}" -f `                                  # Builds one structured log line
+                (Get-Date -Format "yyyy-MM-dd HH:mm:ss"), $env:COMPUTERNAME, $Status, $Message
+    Add-Content -Path $LogPath -Value $Line     # Appends without overwriting previous entries
+}
+
+# ---------------------------------------------------------------
+# FUNCTION: Idempotent, WhatIf-aware, retry-capable service recovery
+# ---------------------------------------------------------------
+function Repair-CriticalService {
+    [CmdletBinding(SupportsShouldProcess)]      # This function ALSO supports -WhatIf/-Confirm independently
+    param(
+        [string]$ServiceName                      # Which service to check and, if needed, recover
+    )
+
+    try {
+        $Service = Get-Service -Name $ServiceName -ErrorAction Stop   # Attempt to find the service
+
+        # --- Idempotency check: is action even needed? ---
+        if ($Service.Status -eq "Running") {          # Already healthy - nothing to do
+            Write-Log -Status "INFO" -Message "$ServiceName already running - no action needed"
+            return [PSCustomObject]@{ ServiceName = $ServiceName; Action = "NONE (already running)"; Success = $true }
+        }
+
+        # --- Action needed: attempt recovery, respecting -WhatIf ---
+        if ($PSCmdlet.ShouldProcess($ServiceName, "Restart Service")) {   # Checks -WhatIf/-Confirm before acting
+
+            $Attempt = 0                                 # Tracks how many attempts we've made
+            $Recovered = $false                            # Tracks whether we succeeded
+
+            while (-not $Recovered -and $Attempt -lt $MaxRetries) {   # Retry loop with a hard ceiling
+                $Attempt++                                              # Counts this attempt
+                Write-Log -Status "INFO" -Message "$ServiceName is $($Service.Status) - restart attempt $Attempt of $MaxRetries"
+
+                try {
+                    Start-Service -Name $ServiceName -ErrorAction Stop    # Attempts to start the service
+                    Start-Sleep -Seconds 2                                  # Brief pause before checking status
+                    $Service = Get-Service -Name $ServiceName               # Re-reads the current status
+                    if ($Service.Status -eq "Running") {                     # Confirms it actually came up
+                        $Recovered = $true
+                    }
+                }
+                catch {
+                    Write-Log -Status "WARNING" -Message "$ServiceName restart attempt $Attempt failed: $($_.Exception.Message)"
+                }
+
+                if (-not $Recovered -and $Attempt -lt $MaxRetries) {        # Only sleep if we're going to retry again
+                    Start-Sleep -Seconds $RetryDelaySeconds
+                }
+            }
+
+            if ($Recovered) {
+                Write-Log -Status "SUCCESS" -Message "$ServiceName successfully recovered after $Attempt attempt(s)"
+                return [PSCustomObject]@{ ServiceName = $ServiceName; Action = "RESTARTED"; Success = $true }
+            }
+            else {
+                Write-Log -Status "ERROR" -Message "$ServiceName FAILED to recover after $MaxRetries attempt(s) - manual intervention required"
+                return [PSCustomObject]@{ ServiceName = $ServiceName; Action = "RESTART FAILED"; Success = $false }
+            }
+        }
+        else {
+            # ShouldProcess returned $false - meaning -WhatIf was specified, so nothing actually happened
+            return [PSCustomObject]@{ ServiceName = $ServiceName; Action = "PREVIEWED (WhatIf)"; Success = $null }
+        }
+    }
+    catch {
+        Write-Log -Status "ERROR" -Message "$ServiceName not found: $($_.Exception.Message)"
+        return [PSCustomObject]@{ ServiceName = $ServiceName; Action = "NOT FOUND"; Success = $false }
+    }
+}
+
+# ---------------------------------------------------------------
+# MAIN: Check and repair every critical service
+# ---------------------------------------------------------------
+Write-Host "`n=== SERVICE RECOVERY: $env:COMPUTERNAME ===" -ForegroundColor Magenta
+$Results = @()
+
+foreach ($SvcName in $CriticalServices) {                     # Loops through our list of critical services
+    Write-Host "`nChecking $SvcName..." -ForegroundColor Cyan
+    $Result = Repair-CriticalService -ServiceName $SvcName -WhatIf:$WhatIf   # Passes WhatIf through explicitly
+    $Results += $Result
+
+    $Color = if ($Result.Success -eq $true) { "Green" } elseif ($Result.Success -eq $false) { "Red" } else { "Yellow" }
+    Write-Host "  $($Result.Action)" -ForegroundColor $Color
+}
+
+# ---------------------------------------------------------------
+# Export summary and finish
+# ---------------------------------------------------------------
+if (-not (Test-Path ".\reports")) { New-Item -ItemType Directory -Path ".\reports" | Out-Null }
+$Timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
+$Results | Export-Csv -Path ".\reports\ServiceRecovery_$Timestamp.csv" -NoTypeInformation
+
+Write-Host "`nFull audit log: $LogPath" -ForegroundColor Cyan
+Write-Host "Report saved to .\reports\" -ForegroundColor Green
+</code></pre></div>
+      </div>
+    </section>
+
+    <section id="linebyline">
+      <h2>Line-by-Line Explanation</h2>
+
+      <h3><code>[CmdletBinding(SupportsShouldProcess)]</code> at both script level and function level</h3>
+      <ul class="explain-list">
+        <li>Placing this at the very top of the script (before the script's own <code>param()</code>) makes
+        <code>-WhatIf</code> a recognized parameter for the whole script, not just one function inside it. We also
+        placed it on <code>Repair-CriticalService</code> so that function is independently well-behaved even if
+        called from somewhere else later.</li>
+      </ul>
+
+      <h3><code>if ($Service.Status -eq "Running") { ... return ... }</code></h3>
+      <ul class="explain-list">
+        <li>This is the idempotency check happening <i>before</i> <code>ShouldProcess</code> is even called — if
+        nothing needs to change, we don't ask "should I restart this?" at all, because the answer is "there's
+        nothing to restart." Early <code>return</code> here keeps the function's logic simple by exiting before
+        the rest of the recovery logic runs.</li>
+      </ul>
+
+      <h3><code>if ($PSCmdlet.ShouldProcess($ServiceName, "Restart Service")) { ... } else { ... }</code></h3>
+      <ul class="explain-list">
+        <li>When <code>-WhatIf</code> was passed, PowerShell automatically prints a "What if: Performing the
+        operation Restart Service on target ServiceName" message and <code>ShouldProcess</code> returns
+        <code>$false</code> — the <code>else</code> branch runs instead of the real recovery logic, which is exactly
+        how <code>Move-Item -WhatIf</code> behaved back in Project 6, just implemented in code we wrote ourselves
+        this time.</li>
+      </ul>
+
+      <h3><code>while (-not $Recovered -and $Attempt -lt $MaxRetries) { ... }</code></h3>
+      <ul class="explain-list">
+        <li>A <code>while</code> loop (new keyword, though conceptually related to Project 3's Challenge 2 rewrite)
+        continues as long as its condition stays true. Here that means "keep trying until we've recovered, OR we've
+        hit the retry ceiling" — both conditions matter, since either one becoming true should stop the loop.</li>
+      </ul>
+
+      <h3><code>return [PSCustomObject]@{ ServiceName = $ServiceName; Action = "NONE (already running)"; Success = $true }</code></h3>
+      <ul class="explain-list">
+        <li>Every exit path from this function — already healthy, successfully recovered, failed after retries, not
+        found, or previewed — returns the <i>same shape</i> of object (ServiceName/Action/Success). This consistency
+        is what makes it safe to collect every result into one <code>$Results</code> array and treat them uniformly
+        afterward, regardless of which path was taken.</li>
+      </ul>
+
+      <h3><code>Success = $null</code> (in the WhatIf preview branch)</h3>
+      <ul class="explain-list">
+        <li>Deliberately different from <code>$true</code>/<code>$false</code> — a preview didn't succeed <i>or</i>
+        fail, it simply didn't happen. Using <code>$null</code> here lets later code (like the color-coding logic)
+        distinguish "this was only previewed" from an actual pass/fail result.</li>
+      </ul>
+    </section>
+
+    <section id="architecture">
+      <h2>Architecture &amp; Safety Flow</h2>
+      <div class="diagram">
+        <div class="flow">
+          <div class="box">Get-Service</div><div class="arrow">→</div>
+          <div class="box">Already Running?</div><div class="arrow">→</div>
+          <div class="box">Yes → Log + Exit (idempotent)</div>
+        </div>
+        <div class="flow" style="margin-top:12px;">
+          <div class="box">Not Running</div><div class="arrow">→</div>
+          <div class="box">ShouldProcess Check</div><div class="arrow">→</div>
+          <div class="box">-WhatIf? → Preview Only</div>
+        </div>
+        <div class="flow" style="margin-top:12px;">
+          <div class="box">Real Run</div><div class="arrow">→</div>
+          <div class="box">Retry Loop (max 3)</div><div class="arrow">→</div>
+          <div class="box">Recovered or Failed</div><div class="arrow">→</div>
+          <div class="box">Log + Report</div>
+        </div>
+      </div>
+      <p>Every layer in this flow exists to answer one safety question before acting: <i>is action even needed</i>
+      (idempotency), <i>is this actually supposed to happen right now</i> (ShouldProcess), and <i>how many times
+      should we reasonably try before giving up and alerting a human</i> (retry ceiling).</p>
+    </section>
+
+    <section id="incident">
+      <h2>Production Incident Walkthrough</h2>
+      <div class="story">
+        Three weeks after this script goes live, it silently and successfully recovers Spooler on WINAPP22 at 3 AM —
+        nobody had to wake up, and the audit log shows exactly when it happened and how many attempts it took.
+        Separately, on WINAPP31, the same service fails to recover after 3 attempts; the script logs an ERROR entry
+        and exits without endlessly retrying, and Operations investigates a deeper issue during business hours
+        instead of the automation looping forever in the background.
+      </div>
+      <ul class="explain-list">
+        <li><b>Why cap retries instead of trying indefinitely?</b> A service that won't recover after 3 reasonable
+        attempts likely has a real underlying problem (corrupt files, a dependency also down, a resource conflict)
+        that blind retrying won't fix — an endless retry loop wastes resources and delays the human escalation that's
+        actually needed.</li>
+        <li><b>Why is the audit log as important as the fix itself?</b> In a banking environment, "something changed
+        a production service automatically" must always be traceable — who/what did it, when, and why — both for
+        troubleshooting and for compliance review.</li>
+      </ul>
+    </section>
+
+    <section id="troubleshoot">
+      <h2>Troubleshooting Cheat Sheet</h2>
+      <table>
+        <tr><th>Symptom</th><th>Likely Root Cause</th><th>Fix</th></tr>
+        <tr><td>"Access is denied" on Start-Service</td><td>VS Code/terminal not running as Administrator</td><td>Re-open your terminal with "Run as Administrator" for the real-run test</td></tr>
+        <tr><td>Script always shows "PREVIEWED (WhatIf)" even after adding -WhatIf:$false</td><td>Forgot to pass -WhatIf:$false on the outer script call, only tested the function directly</td><td>Confirm the exact command from the lab: <code>.\Repair-ServiceHealth.ps1 -WhatIf:$false</code></td></tr>
+        <tr><td>Log file never gets created</td><td>The <code>.\logs</code> folder doesn't exist</td><td>Re-run the folder creation step from the lab</td></tr>
+        <tr><td>Retry loop seems to run forever</td><td>$MaxRetries was accidentally changed to something very large, or the while condition was mistyped</td><td>Confirm $MaxRetries is a small number and the loop condition includes both the -not $Recovered and $Attempt -lt $MaxRetries checks</td></tr>
+      </table>
+    </section>
+
+    <section id="security">
+      <h2>Security &amp; Best Practices</h2>
+      <div class="callout security"><span class="lbl">Least privilege still applies</span>Restarting services
+      typically requires local administrator rights. In a real enterprise environment, this script would run under
+      a dedicated service account with just enough delegated permission to manage the specific services it's
+      responsible for (a preview of the JEA - Just Enough Administration - concept we'll cover formally in the
+      Security stage), not a full admin account.</div>
+      <div class="callout tip"><span class="lbl">Best practice reinforced here</span>The audit log captures every
+      outcome — including "already healthy, did nothing" — not just failures or successful fixes. A complete audit
+      trail proves what the automation checked, not only what it changed.</div>
+    </section>
+
+    <section id="recap">
+      <h2>Key Learnings &amp; Recap</h2>
+      <div class="grid2">
+        <div>
+          <h3>Commands/Syntax Learned</h3>
+          <ul class="explain-list">
+            <li><code>[CmdletBinding(SupportsShouldProcess)]</code></li>
+            <li><code>$PSCmdlet.ShouldProcess()</code></li>
+            <li><code>while (...)</code> loop</li>
+            <li><code>Add-Content</code></li>
+            <li><code>Start-Service</code> / <code>Restart-Service</code></li>
+          </ul>
+        </div>
+        <div>
+          <h3>Concepts Learned</h3>
+          <ul class="explain-list">
+            <li>Building real -WhatIf/-Confirm support into your own functions</li>
+            <li>Idempotency check-before-change, applied in code</li>
+            <li>Retry logic with a hard ceiling, never unlimited</li>
+            <li>Structured, appendable audit logging</li>
+            <li>Consistent return-object shape across every code path</li>
+          </ul>
+        </div>
+      </div>
+      <h3>Common Mistakes to Avoid</h3>
+      <ul class="explain-list">
+        <li>Restarting a service that's already running, causing unnecessary disruption.</li>
+        <li>Writing a retry loop with no maximum attempt count.</li>
+        <li>Logging only failures, leaving no record of successful or no-action-needed checks.</li>
+        <li>Returning differently-shaped objects from different code paths, breaking downstream reporting.</li>
+      </ul>
+    </section>
+
+    <section id="interview">
+      <h2>Interview Preparation</h2>
+      <details><summary>Q1. What does SupportsShouldProcess actually add to a function, mechanically?</summary>
+        <p><b>Answer:</b> It adds automatic <code>-WhatIf</code> and <code>-Confirm</code> parameters and makes the
+        <code>$PSCmdlet.ShouldProcess()</code> method available. Calling <code>ShouldProcess</code> checks whether
+        those switches were used and handles the preview message or confirmation prompt automatically, returning a
+        boolean the function then uses to decide whether to actually perform the action.</p>
+        <p><b>Follow-up:</b> "What happens if you forget to check ShouldProcess's return value and just always run the action?"
+        — Answer: -WhatIf would print the preview message but the destructive action would still execute anyway —
+        the attribute alone doesn't enforce safety; the code must actually branch on the result.</p>
+      </details>
+      <details><summary>Q2. Why check idempotency before calling ShouldProcess, rather than after?</summary>
+        <p><b>Answer:</b> If no action is needed, there's nothing meaningful to preview or confirm — asking "should
+        I restart this?" when the service is already healthy would be misleading and would clutter -WhatIf output
+        with no-op previews.</p>
+        <p><b>Follow-up:</b> "Would the script behave differently if you checked ShouldProcess first?" — Answer: a
+        -WhatIf run would show "What if: Restart Service" even for services that didn't need it at all, which
+        misrepresents what a real run would actually do.</p>
+      </details>
+      <details><summary>Q3. Why does the retry loop have both a success condition and an attempt-count condition?</summary>
+        <p><b>Answer:</b> Either condition alone is insufficient: checking only success could loop forever on a
+        service that never recovers; checking only attempt count would keep retrying even after success, wasting
+        time and potentially restarting an already-healthy service again.</p>
+        <p><b>Follow-up:</b> "How would you add exponential backoff instead of a fixed delay between retries?" —
+        Answer: multiply <code>$RetryDelaySeconds</code> by the attempt number (or by 2 each time) before each
+        <code>Start-Sleep</code> call, so later retries wait progressively longer — useful when a service needs more
+        time to stabilize with each attempt.</p>
+      </details>
+    </section>
+
+    <section id="challenges">
+      <h2>Coding Challenges</h2>
+      <details><summary>Challenge 1: Add a -Force switch parameter that skips the ShouldProcess confirmation entirely</summary>
+        <details><summary>Show answer</summary>
+        <pre><code>param([switch]$WhatIf = $true, [switch]$Force)
+# ...
+if ($Force -or $PSCmdlet.ShouldProcess($ServiceName, "Restart Service")) {
+    # proceeds without prompting when -Force is used
+}</code></pre>
+        </details>
+      </details>
+      <details><summary>Challenge 2: Send a summary email-style message (just Write-Host for now) listing only services that FAILED to recover</summary>
+        <details><summary>Show answer</summary>
+        <pre><code>$Failed = $Results | Where-Object { $_.Success -eq $false }
+if ($Failed.Count -gt 0) {
+    Write-Host "`nALERT: $($Failed.Count) service(s) need manual attention: $($Failed.ServiceName -join ', ')" -ForegroundColor Red
+}</code></pre>
+        </details>
+      </details>
+      <details><summary>Challenge 3: Add exponential backoff to the retry delay (grows each attempt instead of staying fixed)</summary>
+        <details><summary>Show answer</summary>
+        <pre><code>$DynamicDelay = $RetryDelaySeconds * $Attempt   # Delay grows with each attempt: 5s, 10s, 15s...
+Start-Sleep -Seconds $DynamicDelay</code></pre>
+        </details>
+      </details>
+    </section>
+
+    <section id="resume">
+      <h2>Resume Points</h2>
+      <ul class="explain-list">
+        <li>Developed a self-healing PowerShell service recovery automation with native -WhatIf/-Confirm support via SupportsShouldProcess.</li>
+        <li>Implemented idempotent, retry-limited remediation logic with a complete structured audit log for compliance review.</li>
+        <li>Designed consistent, uniformly-shaped result objects across all execution paths for reliable downstream reporting.</li>
+      </ul>
+    </section>
+
+    <section id="assignment">
+      <h2>Practice Assignment</h2>
+      <div class="callout note">
+        Add a third service to <code>$CriticalServices</code> that doesn't exist on your machine (a fake name), run
+        the script for real, and confirm the log file shows an ERROR entry for it while the other real services are
+        still handled normally — proving one bad entry doesn't stop the rest of the run.
+      </div>
+    </section>
+
+    <section id="next">
+      <h2>Next Project Prerequisites</h2>
+      <p>Project 11 (Scheduled Task Management) will use this same SupportsShouldProcess pattern while creating and
+      managing Windows Scheduled Tasks — including scheduling this very recovery script to run automatically. Be
+      comfortable with ShouldProcess, idempotency, and retry loops before moving on. When ready, say
+      <b>"Next Project."</b></p>
+    </section>
+
+    <footer>
+      PowerShell Masterclass — ABC Bank Automation Track · Project 10 of 40 · Generated for offline, self-contained use.
+    </footer>
+  </main>
+</div>
+
+<script>
+function copyCode(btn){
+  const code = btn.parentElement.querySelector('pre').innerText;
+  navigator.clipboard.writeText(code).then(()=>{
+    const old = btn.innerText; btn.innerText = "Copied!";
+    setTimeout(()=>btn.innerText = old, 1200);
+  });
+}
+window.addEventListener('scroll', ()=>{
+  const h = document.documentElement;
+  const pct = (h.scrollTop) / (h.scrollHeight - h.clientHeight) * 100;
+  document.getElementById('progressFill').style.width = pct + '%';
+  document.getElementById('progressLabel').innerText = 'Reading progress: ' + Math.round(pct) + '%';
+});
+</script>
+</body>
+</html>

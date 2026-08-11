@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Project 9 — Multi-NIC Linux Server Routing</title>
+<style>
+:root{
+  --blue:#2563EB; --blue-bg:#EFF6FF;
+  --purple:#7C3AED; --purple-bg:#F5F3FF;
+  --teal:#0F766E; --teal-bg:#F0FDFA;
+  --green:#16A34A; --green-bg:#F0FDF4;
+  --orange:#EA580C; --orange-bg:#FFF7ED;
+  --red:#DC2626; --red-bg:#FEF2F2;
+  --bg:#FFFFFF; --text:#1F2937; --muted:#6B7280;
+  --border:#E5E7EB; --sidebar-w:280px;
+}
+*{box-sizing:border-box;}
+body{margin:0;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--text);line-height:1.65;}
+a{color:var(--blue);text-decoration:none;}
+a:hover{text-decoration:underline;}
+code{font-family:"SFMono-Regular",Consolas,"Liberation Mono",Menlo,monospace;}
+
+.cover{padding:60px 24px 40px;background:linear-gradient(135deg,var(--blue-bg),var(--purple-bg));border-bottom:1px solid var(--border);}
+.cover-inner{max-width:900px;margin:0 auto;}
+.badge-row{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:18px;}
+.badge{font-size:12.5px;font-weight:600;padding:5px 12px;border-radius:20px;letter-spacing:.02em;}
+.badge.blue{background:var(--blue);color:#fff;}
+.badge.purple{background:var(--purple);color:#fff;}
+.badge.teal{background:var(--teal);color:#fff;}
+.badge.orange{background:var(--orange);color:#fff;}
+.cover h1{font-size:2.1rem;margin:0 0 8px;color:#111827;}
+.cover .subtitle{font-size:1.05rem;color:var(--muted);margin-bottom:26px;}
+.cover-meta{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;}
+.meta-card{background:#fff;border:1px solid var(--border);border-radius:10px;padding:12px 14px;}
+.meta-card .label{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:700;}
+.meta-card .value{font-size:14.5px;font-weight:600;margin-top:2px;}
+
+.layout{display:flex;max-width:1400px;margin:0 auto;}
+.sidebar{width:var(--sidebar-w);flex-shrink:0;position:sticky;top:0;align-self:flex-start;height:100vh;overflow-y:auto;border-right:1px solid var(--border);padding:22px 14px;}
+.sidebar h4{font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin:18px 0 6px 10px;}
+.sidebar h4:first-child{margin-top:0;}
+.sidebar a{display:block;padding:7px 10px;border-radius:8px;font-size:13.5px;color:#374151;margin-bottom:1px;}
+.sidebar a:hover{background:var(--blue-bg);text-decoration:none;color:var(--blue);}
+.progress-wrap{margin:10px 10px 4px;}
+.progress-bar{height:6px;background:var(--border);border-radius:4px;overflow:hidden;}
+.progress-fill{height:100%;width:0%;background:linear-gradient(90deg,var(--blue),var(--purple));transition:width .2s;}
+.progress-label{font-size:11px;color:var(--muted);margin-top:4px;}
+
+.content{flex:1;min-width:0;padding:34px 40px 100px;}
+section{margin-bottom:48px;scroll-margin-top:20px;}
+h2.sec-title{font-size:1.5rem;border-bottom:2px solid var(--border);padding-bottom:10px;margin-bottom:18px;display:flex;align-items:center;gap:10px;}
+h2.sec-title .num{background:var(--blue);color:#fff;width:30px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;}
+h3{font-size:1.15rem;margin-top:28px;color:#111827;}
+
+.box{border-radius:10px;padding:16px 18px;margin:16px 0;border:1px solid transparent;}
+.box .box-title{font-weight:700;font-size:13px;text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px;display:flex;align-items:center;gap:6px;}
+.box.concept{background:var(--blue-bg);border-color:#BFDBFE;}
+.box.concept .box-title{color:var(--blue);}
+.box.architecture{background:var(--purple-bg);border-color:#DDD6FE;}
+.box.architecture .box-title{color:var(--purple);}
+.box.success{background:var(--green-bg);border-color:#BBF7D0;}
+.box.success .box-title{color:var(--green);}
+.box.warning{background:var(--orange-bg);border-color:#FED7AA;}
+.box.warning .box-title{color:var(--orange);}
+.box.failure{background:var(--red-bg);border-color:#FECACA;}
+.box.failure .box-title{color:var(--red);}
+.box.bestpractice{background:var(--teal-bg);border-color:#99F6E4;}
+.box.bestpractice .box-title{color:var(--teal);}
+.box.story{background:#F9FAFB;border-color:var(--border);border-left:4px solid var(--purple);}
+
+.story p{margin:0 0 10px;}
+.story .quote{font-style:italic;color:#374151;border-left:3px solid var(--purple);padding-left:12px;margin:10px 0;}
+
+.term{background:#0F172A;color:#E2E8F0;border-radius:10px;margin:14px 0;overflow:hidden;border:1px solid #1E293B;}
+.term-header{display:flex;justify-content:space-between;align-items:center;background:#1E293B;padding:8px 14px;font-size:12px;color:#94A3B8;}
+.copy-btn{background:#334155;color:#E2E8F0;border:none;border-radius:6px;padding:4px 10px;font-size:11.5px;cursor:pointer;}
+.copy-btn:hover{background:#475569;}
+.term pre{margin:0;padding:14px 16px;overflow-x:auto;font-size:13.5px;line-height:1.6;}
+.term .cmdno{color:#64748B;margin-right:8px;}
+.term .cmd{color:#7DD3FC;}
+.term .out{color:#CBD5E1;}
+.term .out-err{color:#FCA5A5;}
+.term .out-ok{color:#86EFAC;}
+.term .comment{color:#64748B;}
+
+table.breakdown{width:100%;border-collapse:collapse;margin:12px 0 20px;font-size:14px;}
+table.breakdown th{background:#F3F4F6;text-align:left;padding:8px 10px;font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);}
+table.breakdown td{padding:9px 10px;border-top:1px solid var(--border);vertical-align:top;}
+table.breakdown td.token{font-family:monospace;color:var(--blue);font-weight:700;white-space:nowrap;}
+
+details.collapse{border:1px solid var(--border);border-radius:10px;margin:14px 0;overflow:hidden;}
+details.collapse summary{cursor:pointer;padding:12px 16px;font-weight:600;background:#F9FAFB;list-style:none;display:flex;align-items:center;gap:8px;}
+details.collapse summary::-webkit-details-marker{display:none;}
+details.collapse summary:before{content:"▶";font-size:11px;color:var(--muted);transition:transform .15s;}
+details.collapse[open] summary:before{transform:rotate(90deg);}
+details.collapse .collapse-body{padding:4px 16px 16px;}
+
+.diagram-frame{background:#FAFAFA;border:1px solid var(--border);border-radius:12px;padding:18px;margin:16px 0;overflow-x:auto;}
+.diagram-caption{font-size:12.5px;color:var(--muted);text-align:center;margin-top:8px;}
+
+table.ref{width:100%;border-collapse:collapse;font-size:14px;margin:14px 0;}
+table.ref th{background:#F3F4F6;padding:8px 10px;text-align:left;font-size:12.5px;}
+table.ref td{padding:8px 10px;border-top:1px solid var(--border);}
+
+.dtree{list-style:none;padding-left:0;font-size:14px;}
+.dtree li{padding:8px 12px;margin-bottom:6px;border-radius:8px;border:1px solid var(--border);position:relative;}
+.dtree li.q{background:var(--blue-bg);}
+.dtree li.ok{background:var(--green-bg);}
+.dtree li.bad{background:var(--red-bg);}
+.dtree .arrow{text-align:center;color:var(--muted);font-size:12px;margin:2px 0;}
+
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin:16px 0;}
+.card{border:1px solid var(--border);border-radius:10px;padding:14px 16px;}
+.card h4{margin:0 0 6px;font-size:14.5px;}
+.card p{margin:0;font-size:13.5px;color:var(--muted);}
+
+.qa{border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin:12px 0;background:#FCFCFD;}
+.qa .q{font-weight:700;color:#111827;margin-bottom:6px;}
+.qa .q .qtag{background:var(--purple);color:#fff;font-size:10.5px;padding:2px 8px;border-radius:10px;margin-right:8px;text-transform:uppercase;}
+.qa .followup{margin-top:8px;padding-top:8px;border-top:1px dashed var(--border);font-size:13.5px;color:var(--muted);}
+
+.top-link{position:fixed;bottom:22px;right:22px;background:var(--blue);color:#fff;width:42px;height:42px;border-radius:50%;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(0,0,0,.15);font-size:18px;}
+.top-link:hover{text-decoration:none;background:#1D4ED8;}
+
+@media (max-width:900px){
+  .sidebar{display:none;}
+  .content{padding:22px 18px 80px;}
+}
+</style>
+</head>
+<body>
+
+<div class="cover">
+  <div class="cover-inner">
+    <div class="badge-row">
+      <span class="badge blue">Project 9 of ~38</span>
+      <span class="badge purple">Linux Networking Masterclass</span>
+      <span class="badge teal">Domain: Telecom / Enterprise Infra</span>
+      <span class="badge orange">Difficulty: Advanced</span>
+    </div>
+    <h1>Multi-NIC Linux Server Routing</h1>
+    <div class="subtitle">A bastion host with three interfaces — management, production, and a disaster-recovery link — needs strict per-interface routing that Project 2's basic default-route fixes can't handle. Time to build real policy routing from the ground up.</div>
+    <div class="cover-meta">
+      <div class="meta-card"><div class="label">Estimated Lab Time</div><div class="value">3.5 hours</div></div>
+      <div class="meta-card"><div class="label">Prerequisites</div><div class="value">Project 2 (routing) and Project 8 (NAT) completed</div></div>
+      <div class="meta-card"><div class="label">Lab Environment</div><div class="value">1 three-NIC namespace + 3 upstream gateway namespaces</div></div>
+      <div class="meta-card"><div class="label">Concepts Learned</div><div class="value">ip rule, custom routing tables, built-in local/main/default tables, source address selection</div></div>
+    </div>
+  </div>
+</div>
+
+<div class="layout">
+  <nav class="sidebar" id="sidebar">
+    <div class="progress-wrap">
+      <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+      <div class="progress-label" id="progressLabel">0% through Project 9</div>
+    </div>
+    <h4>Orientation</h4>
+    <a href="#story">1. The Incident</a>
+    <a href="#foundation">2. Policy Routing Foundation</a>
+    <a href="#architecture">3. Architecture — Three Networks, One Server</a>
+    <a href="#builtin">4. The Built-In Tables You Didn't Know Existed</a>
+    <a href="#methodology">5. Troubleshooting Method</a>
+    <h4>Hands-On Lab</h4>
+    <a href="#labsetup">6. Lab Setup (Three Upstream Networks)</a>
+    <a href="#verify">7. Verify Baseline Policy Routing</a>
+    <h4>Break / Fix (4 Incidents)</h4>
+    <a href="#break1">8. Missing ip rule Entirely</a>
+    <a href="#break2">9. Wrong Rule Priority Order</a>
+    <a href="#break3">10. Source Address Not Explicitly Bound</a>
+    <a href="#break4">11. Local Table Precedence Surprise</a>
+    <h4>Wrap-Up</h4>
+    <a href="#bestpractices">12. Best Practices</a>
+    <a href="#cheatsheet">13. Cheat Sheet</a>
+    <a href="#interview">14. Interview Prep</a>
+    <a href="#practice">15. Practice Tasks</a>
+    <a href="#resume">16. Resume Points</a>
+    <a href="#next">17. Next Project</a>
+  </nav>
+
+  <main class="content">
+
+  <section id="story">
+    <h2 class="sec-title"><span class="num">1</span>The Incident</h2>
+    <div class="box story">
+      <p>We're supporting a telecom company's core infrastructure bastion host, <code>bastion-core-01</code>, deliberately built with three NICs: one for management (SSH/monitoring), one for production traffic, and one for a disaster-recovery link to a secondary site. Each network has its own gateway and must never mix traffic with the others — compliance and security require strict, guaranteed separation.</p>
+      <p class="quote">"We configured routes for all three networks, but traffic sourced from the DR interface is randomly going out the production interface instead — inconsistent, hard to reproduce, and our DR failover tests keep failing intermittently. Project 2's fix — checking metrics and specific routes — doesn't fully explain it this time."</p>
+      <p>With three (or more) interfaces and a requirement that traffic STAY on the interface it's associated with, a single shared routing table — no matter how carefully you tune metrics — eventually breaks down. This is exactly the scenario policy routing (ip rule + multiple routing tables) was built to solve properly, rather than as the "advanced preview" we glimpsed in Project 2.</p>
+    </div>
+    <div class="box concept">
+      <div class="box-title">🔵 Why this project matters</div>
+      <p>Bastion hosts, NAT gateways, and any server with 3+ NICs in an enterprise, telecom, or banking environment need this exact skill — full policy-based routing, not just static routes with careful metrics. It's also the direct conceptual ancestor of VRF (Virtual Routing and Forwarding), which we'll touch on in the Advanced Networking phase later in this masterclass.</p>
+    </div>
+  </section>
+
+  <section id="foundation">
+    <h2 class="sec-title"><span class="num">2</span>Policy Routing Foundation</h2>
+
+    <h3>2.1 One routing table isn't enough when interfaces must never mix</h3>
+    <div class="box concept">
+      <div class="box-title">🔵 Concept</div>
+      <p>A normal (single, "main") routing table only looks at the destination IP to decide where a packet goes. But our requirement is different: traffic sourced from the DR interface's IP must ALWAYS leave via the DR interface, regardless of destination, and must never accidentally be routed out production just because production's route table entry happened to match more specifically. This requires deciding the outgoing path based on SOURCE, which the main table alone cannot express cleanly for three or more interfaces at once.</p>
+    </div>
+
+    <h3>2.2 ip rule — the policy database that picks WHICH table to use</h3>
+    <div class="box concept">
+      <div class="box-title">🔵 Concept</div>
+      <p><code>ip rule</code> manages the kernel's Routing Policy Database (RPDB) — an ordered list of rules, each with a priority (lower number = evaluated first), that decide WHICH routing table to consult for a given packet, based on criteria like source address, incoming interface, or firewall mark. Once a rule matches, the kernel looks up that specific table and stops evaluating further rules — the exact same "first match wins" logic from firewall chains, applied one level up, at the table-selection stage.</p>
+    </div>
+
+    <h3>2.3 Named custom tables via /etc/iproute2/rt_tables</h3>
+    <div class="box concept">
+      <div class="box-title">🔵 Concept</div>
+      <p>Beyond the built-in tables, you can define your own named tables (like "mgmt-table", "prod-table", "dr-table") in <code>/etc/iproute2/rt_tables</code>, each holding its OWN independent default route and any other routes specific to that interface's network. This is what lets each interface have a genuinely separate view of "how do I reach the world" instead of fighting over one shared table.</p>
+    </div>
+  </section>
+
+  <section id="architecture">
+    <h2 class="sec-title"><span class="num">3</span>Architecture — Three Networks, One Server</h2>
+    <div class="diagram-frame">
+<svg viewBox="0 0 900 320" xmlns="http://www.w3.org/2000/svg" width="100%">
+<style>.lbl{font:600 12.5px sans-serif;fill:#1F2937;} .sub{font:10.5px sans-serif;fill:#6B7280;} .box{fill:#EFF6FF;stroke:#2563EB;stroke-width:1.5;rx:8;} .box2{fill:#F5F3FF;stroke:#7C3AED;stroke-width:1.5;rx:8;} .box3{fill:#F0FDFA;stroke:#0F766E;stroke-width:1.5;rx:8;}</style>
+<rect x="10" y="30" width="170" height="70" class="box"/><text x="95" y="58" text-anchor="middle" class="lbl">Management Net</text><text x="95" y="76" text-anchor="middle" class="sub">10.70.1.0/24, gw .1.1</text>
+<rect x="10" y="130" width="170" height="70" class="box2"/><text x="95" y="158" text-anchor="middle" class="lbl">Production Net</text><text x="95" y="176" text-anchor="middle" class="sub">10.70.2.0/24, gw .2.1</text>
+<rect x="10" y="230" width="170" height="70" class="box3"/><text x="95" y="258" text-anchor="middle" class="lbl">DR Link Net</text><text x="95" y="276" text-anchor="middle" class="sub">10.70.3.0/24, gw .3.1</text>
+
+<rect x="330" y="110" width="240" height="110" fill="#FFF7ED" stroke="#EA580C" stroke-width="1.5" rx="8"/>
+<text x="450" y="140" text-anchor="middle" class="lbl">bastion-core-01</text>
+<text x="450" y="160" text-anchor="middle" class="sub">eth-mgmt: 10.70.1.10</text>
+<text x="450" y="176" text-anchor="middle" class="sub">eth-prod: 10.70.2.10</text>
+<text x="450" y="192" text-anchor="middle" class="sub">eth-dr: 10.70.3.10</text>
+
+<line x1="180" y1="65" x2="330" y2="140" stroke="#374151" stroke-width="1.6"/>
+<line x1="180" y1="165" x2="330" y2="165" stroke="#374151" stroke-width="1.6"/>
+<line x1="180" y1="265" x2="330" y2="190" stroke="#374151" stroke-width="1.6"/>
+</svg>
+    </div>
+    <div class="diagram-caption">Figure 1 — Each interface must route independently: traffic sourced from 10.70.3.10 (DR) must always exit via eth-dr, never eth-prod, regardless of destination.</div>
+  </section>
+
+  <section id="builtin">
+    <h2 class="sec-title"><span class="num">4</span>The Built-In Tables You Didn't Know Existed</h2>
+    <div class="box concept">
+      <div class="box-title">🔵 Concept — this trips up almost everyone the first time</div>
+      <p>Even before you add any custom tables, Linux already has THREE built-in routing tables, evaluated by built-in ip rules with these default priorities: <code>local</code> (priority 0 — highest, contains routes for the server's own addresses, always wins), <code>main</code> (priority 32766 — the "normal" table you've used since Project 2), and <code>default</code> (priority 32767 — lowest, rarely used). Custom rules you add typically need priorities BETWEEN 0 and 32766 to actually take effect before the main table gets a chance — and the local table's priority-0 position means it always wins for anything matching the server's own addresses, no matter what custom rules you add.</p>
+    </div>
+    <div class="term">
+      <div class="term-header"><span>bash — see the built-in rules that already exist on every Linux host</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button></div>
+      <pre><span class="cmdno">1</span><span class="cmd">ip rule show</span>
+<span class="out">    0:      from all lookup local
+    32766:  from all lookup main
+    32767:  from all lookup default</span></pre>
+    </div>
+  </section>
+
+  <section id="methodology">
+    <h2 class="sec-title"><span class="num">5</span>Troubleshooting Method for Multi-NIC Policy Routing</h2>
+    <ul class="dtree">
+      <li class="q">1. List ip rule show — are the expected custom rules present, and in the right priority order?</li>
+      <div class="arrow">↓</div>
+      <li class="q">2. For the specific source IP in question, test with ip route get &lt;dest&gt; from &lt;source&gt; — does it select the table/interface you expect?</li>
+      <div class="arrow">↓</div>
+      <li class="q">3. Inspect the specific custom table directly: ip route show table &lt;name&gt; — is its default route correct?</li>
+      <div class="arrow">↓</div>
+      <li class="q">4. Is the application actually binding to (sourcing from) the intended interface's IP, or letting the kernel pick automatically?</li>
+      <div class="arrow">↓</div>
+      <li class="ok">Confirm no built-in table (especially local) is unexpectedly intercepting traffic before your custom rules get a chance</li>
+    </ul>
+    <div class="box warning"><div class="box-title">🟠 Warning</div><p><code>ip route get</code> without an explicit <code>from &lt;source&gt;</code> uses the server's default source-selection logic, which may NOT be the source address you actually care about — always specify <code>from</code> explicitly when testing policy routing, or you may be testing the wrong scenario entirely.</p></div>
+  </section>
+
+  <section id="labsetup">
+    <h2 class="sec-title"><span class="num">6</span>Lab Setup — Three Upstream Networks</h2>
+    <div class="term">
+      <div class="term-header"><span>bash — run as root/sudo</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button></div>
+      <pre><span class="cmdno">1</span><span class="cmd">sudo ip netns add ns-bastion</span>
+<span class="cmdno">2</span><span class="cmd">for zone in mgmt prod dr; do sudo ip netns add ns-$zone-gw; done</span>
+<span class="cmdno">3</span><span class="cmd">sudo ip link add eth-mgmt type veth peer name gw-mgmt-in</span>
+<span class="cmdno">4</span><span class="cmd">sudo ip link add eth-prod type veth peer name gw-prod-in</span>
+<span class="cmdno">5</span><span class="cmd">sudo ip link add eth-dr type veth peer name gw-dr-in</span>
+<span class="cmdno">6</span><span class="cmd">for i in mgmt prod dr; do sudo ip link set eth-$i netns ns-bastion; sudo ip link set gw-$i-in netns ns-$i-gw; done</span>
+<span class="cmdno">7</span><span class="cmd">sudo ip netns exec ns-bastion ip addr add 10.70.1.10/24 dev eth-mgmt</span>
+<span class="cmdno">8</span><span class="cmd">sudo ip netns exec ns-bastion ip addr add 10.70.2.10/24 dev eth-prod</span>
+<span class="cmdno">9</span><span class="cmd">sudo ip netns exec ns-bastion ip addr add 10.70.3.10/24 dev eth-dr</span>
+<span class="cmdno">10</span><span class="cmd">sudo ip netns exec ns-mgmt-gw ip addr add 10.70.1.1/24 dev gw-mgmt-in</span>
+<span class="cmdno">11</span><span class="cmd">sudo ip netns exec ns-prod-gw ip addr add 10.70.2.1/24 dev gw-prod-in</span>
+<span class="cmdno">12</span><span class="cmd">sudo ip netns exec ns-dr-gw ip addr add 10.70.3.1/24 dev gw-dr-in</span>
+<span class="cmdno">13</span><span class="cmd">sudo ip netns exec ns-bastion bash -c "ip link set eth-mgmt up; ip link set eth-prod up; ip link set eth-dr up; ip link set lo up"</span>
+<span class="cmdno">14</span><span class="cmd">for i in mgmt prod dr; do sudo ip netns exec ns-$i-gw bash -c "ip link set gw-$i-in up; ip link set lo up"; done</span>
+<span class="cmdno">15</span><span class="cmd">for i in mgmt prod dr; do sudo ip netns exec ns-$i-gw python3 -m http.server 80 --bind 10.70.$([ $i = mgmt ] && echo 1 || ([ $i = prod ] && echo 2 || echo 3)).1 &amp; done</span></pre>
+    </div>
+
+    <h3>6.1 Define the custom tables</h3>
+    <div class="term">
+      <div class="term-header"><span>bash — on ns-bastion</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button></div>
+      <pre><span class="cmdno">1</span><span class="cmd">sudo ip netns exec ns-bastion bash -c "echo '100 mgmt-table' &gt;&gt; /etc/iproute2/rt_tables"</span>
+<span class="cmdno">2</span><span class="cmd">sudo ip netns exec ns-bastion bash -c "echo '200 prod-table' &gt;&gt; /etc/iproute2/rt_tables"</span>
+<span class="cmdno">3</span><span class="cmd">sudo ip netns exec ns-bastion bash -c "echo '300 dr-table' &gt;&gt; /etc/iproute2/rt_tables"</span></pre>
+    </div>
+    <p class="diagram-caption" style="text-align:left">Note: network namespaces share the host's /etc/iproute2/rt_tables in some setups; if `ip netns exec` doesn't isolate this file for you, just use the numeric table IDs (100/200/300) directly in the commands below — the behavior is identical either way.</p>
+
+    <h3>6.2 Give each table its own default route out its own interface</h3>
+    <div class="term">
+      <div class="term-header"><span>bash — on ns-bastion</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button></div>
+      <pre><span class="cmdno">1</span><span class="cmd">sudo ip netns exec ns-bastion ip route add default via 10.70.1.1 dev eth-mgmt table mgmt-table</span>
+<span class="cmdno">2</span><span class="cmd">sudo ip netns exec ns-bastion ip route add default via 10.70.2.1 dev eth-prod table prod-table</span>
+<span class="cmdno">3</span><span class="cmd">sudo ip netns exec ns-bastion ip route add default via 10.70.3.1 dev eth-dr table dr-table</span></pre>
+    </div>
+
+    <h3>6.3 Add policy rules binding SOURCE address to the matching table</h3>
+    <div class="term">
+      <div class="term-header"><span>bash — on ns-bastion</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button></div>
+      <pre><span class="cmdno">1</span><span class="cmd">sudo ip netns exec ns-bastion ip rule add from 10.70.1.10 table mgmt-table priority 100</span>
+<span class="cmdno">2</span><span class="cmd">sudo ip netns exec ns-bastion ip rule add from 10.70.2.10 table prod-table priority 200</span>
+<span class="cmdno">3</span><span class="cmd">sudo ip netns exec ns-bastion ip rule add from 10.70.3.10 table dr-table priority 300</span></pre>
+    </div>
+    <table class="breakdown">
+      <tr><th>Token</th><th>Meaning</th></tr>
+      <tr><td class="token">ip rule add from 10.70.3.10 table dr-table priority 300</td><td>Adds an entry to the RPDB: "for any packet SOURCED from 10.70.3.10, use dr-table instead of main" — with priority 300, meaning it's evaluated before the built-in main table's priority 32766, but after local's priority 0.</td></tr>
+    </table>
+  </section>
+
+  <section id="verify">
+    <h2 class="sec-title"><span class="num">7</span>Verify Baseline Policy Routing</h2>
+    <div class="term">
+      <div class="term-header"><span>bash — on ns-bastion, test each source explicitly</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button></div>
+      <pre><span class="cmdno">1</span><span class="cmd">sudo ip netns exec ns-bastion ip route get 8.8.8.8 from 10.70.3.10</span>
+<span class="out-ok">    8.8.8.8 from 10.70.3.10 via 10.70.3.1 dev eth-dr table dr-table</span>
+<span class="cmdno">2</span><span class="cmd">sudo ip netns exec ns-bastion ip route get 8.8.8.8 from 10.70.2.10</span>
+<span class="out-ok">    8.8.8.8 from 10.70.2.10 via 10.70.2.1 dev eth-prod table prod-table</span></pre>
+    </div>
+    <div class="box success"><div class="box-title">🟢 Validation</div><p>Even though both queries ask about the SAME destination (8.8.8.8), the kernel selects a completely different table and exit interface purely based on source address — exactly the guarantee our compliance requirement needed. This is our working baseline.</p></div>
+  </section>
+
+  <!-- BREAK 1 -->
+  <section id="break1">
+    <h2 class="sec-title"><span class="num">8</span>Break-Fix #1 — Missing ip rule Entirely</h2>
+    <div class="box failure"><div class="box-title">🔴 Break It</div><p>Remove the DR interface's policy rule, simulating a config management run that only templated two of the three rules.</p></div>
+    <div class="term">
+      <div class="term-header"><span>bash — on ns-bastion</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button></div>
+      <pre><span class="cmdno">1</span><span class="cmd">sudo ip netns exec ns-bastion ip rule del from 10.70.3.10 table dr-table priority 300</span></pre>
+    </div>
+    <h3>Observe</h3>
+    <div class="term">
+      <div class="term-header"><span>bash — on ns-bastion</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button></div>
+      <pre><span class="cmdno">1</span><span class="cmd">sudo ip netns exec ns-bastion ip route get 8.8.8.8 from 10.70.3.10</span>
+<span class="out-err">    8.8.8.8 from 10.70.3.10 via 10.70.2.1 dev eth-prod table main</span></pre>
+    </div>
+    <div class="box concept"><div class="box-title">🔵 Reading the symptom</div><p>With no rule sending DR-sourced traffic to dr-table, it falls through to the built-in main table — which only has ONE default route configured (whichever was added last, or whichever has the best metric), and here that happens to be via eth-prod. DR traffic is now leaking out the PRODUCTION interface — precisely the compliance violation and intermittent DR-test failure from the incident report. "Intermittent" here really means "whichever default route happens to exist in main at the time," which is exactly the kind of fragile, order-dependent behavior policy routing is meant to eliminate.</p></div>
+    <div class="box failure"><div class="box-title">🔴 Root Cause</div><p>The policy rule binding the DR source address to its dedicated table was missing, so that traffic fell through to the shared main table instead of being guaranteed isolation.</p></div>
+    <div class="term">
+      <div class="term-header"><span>bash — fix</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button></div>
+      <pre><span class="cmdno">1</span><span class="cmd">sudo ip netns exec ns-bastion ip rule add from 10.70.3.10 table dr-table priority 300</span></pre>
+    </div>
+  </section>
+
+  <!-- BREAK 2 -->
+  <section id="break2">
+    <h2 class="sec-title"><span class="num">9</span>Break-Fix #2 — Wrong Rule Priority Order</h2>
+    <div class="box failure"><div class="box-title">🔴 Break It</div><p>Add a broad, catch-all rule at a LOWER priority number (meaning it's evaluated FIRST) than our specific per-interface rules — simulating a rule added without checking existing priorities.</p></div>
+    <div class="term">
+      <div class="term-header"><span>bash — on ns-bastion</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button></div>
+      <pre><span class="cmdno">1</span><span class="cmd">sudo ip netns exec ns-bastion ip rule add from 10.70.0.0/16 table prod-table priority 50</span></pre>
+    </div>
+    <h3>Observe</h3>
+    <div class="term">
+      <div class="term-header"><span>bash — on ns-bastion</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button></div>
+      <pre><span class="cmdno">1</span><span class="cmd">sudo ip netns exec ns-bastion ip rule show</span>
+<span class="out">    0:      from all lookup local
+    50:     from 10.70.0.0/16 lookup prod-table
+    100:    from 10.70.1.10 lookup mgmt-table
+    200:    from 10.70.2.10 lookup prod-table
+    300:    from 10.70.3.10 lookup dr-table
+    32766:  from all lookup main</span>
+<span class="cmdno">2</span><span class="cmd">sudo ip netns exec ns-bastion ip route get 8.8.8.8 from 10.70.3.10</span>
+<span class="out-err">    8.8.8.8 from 10.70.3.10 via 10.70.2.1 dev eth-prod table prod-table</span></pre>
+    </div>
+    <div class="box concept"><div class="box-title">🔵 Reading the symptom</div><p>Our correctly-configured priority-300 DR rule is still sitting right there in the list — but it never gets a chance to run, because the new priority-50 rule matches the entire 10.70.0.0/16 supernet FIRST (lower priority number = evaluated earlier) and sends everything to prod-table before the kernel ever reaches rule 300. This is the exact same "first match wins, position matters more than existence" lesson from firewall rule ordering in Project 7, now applied to the routing policy database instead of a firewall chain.</p></div>
+    <div class="box failure"><div class="box-title">🔴 Root Cause</div><p>A broad policy rule was added with a lower priority number (higher precedence) than the specific per-interface rules, shadowing all of them for any matching source.</p></div>
+    <div class="term">
+      <div class="term-header"><span>bash — fix: remove the overly broad rule</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button></div>
+      <pre><span class="cmdno">1</span><span class="cmd">sudo ip netns exec ns-bastion ip rule del from 10.70.0.0/16 table prod-table priority 50</span></pre>
+    </div>
+    <div class="box bestpractice"><div class="box-title">🟦 Production Best Practice</div><p>Always run <code>ip rule show</code> before AND after adding a new policy rule, and think in terms of "lower priority number = evaluated first" — the same discipline used for firewall rule ordering applies directly here.</p></div>
+  </section>
+
+  <!-- BREAK 3 -->
+  <section id="break3">
+    <h2 class="sec-title"><span class="num">10</span>Break-Fix #3 — Application Not Binding to the Intended Source Address</h2>
+    <div class="box failure"><div class="box-title">🔴 Break It</div><p>Our ip rule setup only works if traffic is actually SOURCED from the right interface's IP in the first place. If an application doesn't explicitly bind to a specific local address before connecting, the kernel's own source-address-selection algorithm picks one for it — which may not be the one you intended.</p></div>
+    <div class="term">
+      <div class="term-header"><span>bash — on ns-bastion, a naive curl WITHOUT specifying a source interface</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button></div>
+      <pre><span class="cmdno">1</span><span class="cmd">sudo ip netns exec ns-bastion curl -s -o /dev/null -w "%{local_ip}\n" http://10.70.1.1/</span>
+<span class="out-err">    10.70.2.10   (NOT the mgmt IP we might have expected — the kernel chose based on its own routing logic for this destination)</span></pre>
+    </div>
+    <div class="box concept"><div class="box-title">🔵 Reading the symptom</div><p>Without an explicit source binding, the kernel picks a source address by first making a normal destination-based routing decision (in this test, toward 10.70.1.1, which is directly reachable, so main/local logic applies) and then uses whatever address belongs to the chosen outgoing interface — it does NOT know "this application conceptually belongs to the DR network" unless you tell it. Our entire policy-routing setup depends on the SOURCE address already being correct; it does nothing to help you pick one in the first place.</p></div>
+    <div class="box failure"><div class="box-title">🔴 Root Cause</div><p>The application/tool made no explicit choice of local source address, so the outcome depended on the kernel's default source-selection behavior rather than the operator's intended network segregation.</p></div>
+    <div class="term">
+      <div class="term-header"><span>bash — fix: force the correct source address explicitly</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button></div>
+      <pre><span class="cmdno">1</span><span class="cmd">sudo ip netns exec ns-bastion curl -s --interface eth-dr -o /dev/null -w "%{local_ip}\n" http://10.70.1.1/</span>
+<span class="out-ok">    10.70.3.10</span></pre>
+    </div>
+    <table class="breakdown">
+      <tr><th>Token</th><th>Meaning</th></tr>
+      <tr><td class="token">curl --interface eth-dr</td><td>Explicitly tells curl to bind its outgoing connection to this interface (and therefore its address) — forcing the correct source address so our ip rule policy actually applies as intended.</td></tr>
+    </table>
+    <div class="box bestpractice"><div class="box-title">🟦 Production Best Practice</div><p>On multi-NIC hosts with policy routing, applications and scripts that need guaranteed interface segregation must explicitly bind their source address/interface (via application config, <code>SO_BINDTODEVICE</code>, or tool-specific flags) — never assume the kernel will "figure out" which network a given piece of traffic conceptually belongs to.</p></div>
+  </section>
+
+  <!-- BREAK 4 -->
+  <section id="break4">
+    <h2 class="sec-title"><span class="num">11</span>Break-Fix #4 — The Local Table's Silent Precedence</h2>
+    <div class="box failure"><div class="box-title">🔴 Break It</div><p>Simulate a well-intentioned but misguided attempt to "fix" routing for the bastion's own IP by adding a custom rule for traffic sourced from 10.70.3.10 destined back to itself — expecting it to change behavior.</p></div>
+    <div class="term">
+      <div class="term-header"><span>bash — on ns-bastion</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button></div>
+      <pre><span class="cmdno">1</span><span class="cmd">sudo ip netns exec ns-bastion ip rule add from 10.70.3.10 to 10.70.3.10 table dr-table priority 10</span>
+<span class="cmdno">2</span><span class="cmd">sudo ip netns exec ns-bastion ip route get 10.70.3.10 from 10.70.3.10</span>
+<span class="out">    local 10.70.3.10 from 10.70.3.10 dev lo table local</span></pre>
+    </div>
+    <div class="box concept"><div class="box-title">🔵 Reading the symptom</div><p>No matter what priority we give our new rule, traffic destined for the server's OWN address is always intercepted first by the built-in <code>local</code> table at priority 0 — nothing we add can ever have a lower (earlier) priority than 0. The output confirms it: the kernel resolves this as a local delivery via the loopback interface, never even considering our dr-table rule. This isn't a bug to fix — it's expected, correct behavior — but it's a common source of confusion when someone expects a custom rule to affect traffic destined to the host's own addresses.</p></div>
+    <div class="box failure"><div class="box-title">🔴 Root Cause</div><p>Not actually a fault — a misunderstanding that a custom policy rule could override the built-in local table's priority-0 handling of the server's own addresses, which is architecturally impossible.</p></div>
+    <div class="term">
+      <div class="term-header"><span>bash — cleanup: remove the unnecessary rule</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button></div>
+      <pre><span class="cmdno">1</span><span class="cmd">sudo ip netns exec ns-bastion ip rule del from 10.70.3.10 to 10.70.3.10 table dr-table priority 10</span></pre>
+    </div>
+    <div class="box bestpractice"><div class="box-title">🟦 Production Best Practice</div><p>Policy routing governs how traffic LEAVES a host toward other destinations — it has no effect on traffic destined for the host's own addresses, which the local table always claims first, unconditionally. Don't spend time debugging "why doesn't my rule affect traffic to my own IP" — by design, it never will.</p></div>
+  </section>
+
+  <section id="bestpractices">
+    <h2 class="sec-title"><span class="num">12</span>Production Best Practices</h2>
+    <div class="cards">
+      <div class="card"><h4>🟦 Always specify "from" when testing</h4><p>ip route get without an explicit source tests the wrong scenario for policy routing — always include from &lt;address&gt;.</p></div>
+      <div class="card"><h4>🟦 Priority numbers: lower = first</h4><p>Same discipline as firewall rule ordering — audit ip rule show for unintentionally broad or low-priority rules shadowing specific ones.</p></div>
+      <div class="card"><h4>🟦 Applications must bind explicitly</h4><p>Policy routing only works if the source address is already correct — make sure applications/tools explicitly bind to the intended interface rather than trusting kernel defaults.</p></div>
+      <div class="card"><h4>🟦 The local table is untouchable</h4><p>Traffic to the host's own addresses always resolves via the built-in local table at priority 0 — no custom rule can or should try to override this.</p></div>
+      <div class="card"><h4>🟦 Give every custom table its own complete default route</h4><p>A custom table with no default route of its own will fail for any destination outside its directly-connected subnet.</p></div>
+    </div>
+  </section>
+
+  <section id="cheatsheet">
+    <h2 class="sec-title"><span class="num">13</span>Troubleshooting Cheat Sheet</h2>
+    <table class="ref">
+      <tr><th>Symptom</th><th>Likely Cause</th><th>Command to Confirm</th></tr>
+      <tr><td>Traffic from a specific interface leaks out a different one</td><td>Missing ip rule for that source</td><td><code>ip rule show</code>; <code>ip route get &lt;dest&gt; from &lt;source&gt;</code></td></tr>
+      <tr><td>Correct rule exists but still doesn't apply</td><td>A broader/lower-priority rule matches first</td><td><code>ip rule show</code> — check priority order top to bottom</td></tr>
+      <tr><td>Policy routing "randomly" doesn't apply for an app</td><td>App didn't bind to the intended source interface/address</td><td>Check the app's actual local_ip with curl -w or ss -tnp</td></tr>
+      <tr><td>Custom rule seems to have zero effect on traffic to the host itself</td><td>Expected — local table (priority 0) always wins for the host's own addresses</td><td><code>ip route get &lt;own-ip&gt; from &lt;source&gt;</code> shows "local ... table local"</td></tr>
+    </table>
+  </section>
+
+  <section id="interview">
+    <h2 class="sec-title"><span class="num">14</span>Interview Preparation</h2>
+
+    <div class="qa"><div class="q"><span class="qtag">Scenario</span>A server with three NICs needs to guarantee traffic from each interface never crosses over to another. How would you implement and verify this?</div>
+    <p>I'd use policy-based routing — separate named routing tables per interface, each with its own default route, and ip rule entries binding each interface's source address to its matching table with an appropriate priority. To verify, I'd never rely on eyeballing the config — I'd use ip route get with an explicit from address for each interface's IP and confirm it resolves through the correct table and device.</p>
+    <div class="followup">Interviewer follow-up: "What if the rule is correctly configured but traffic still leaks?" — Answer: I'd check whether the application generating that traffic is actually binding to the intended source address at all — policy routing only works if the source is already correct; if the app lets the kernel pick a source automatically, it might not use the address your rule is keyed on.</div>
+    </div>
+
+    <div class="qa"><div class="q"><span class="qtag">Concept</span>What are the three built-in Linux routing tables, and why does it matter?</div>
+    <p>local, main, and default, evaluated in that priority order — local at priority 0, main at 32766, default at 32767. It matters because local always wins for traffic to the host's own addresses regardless of any custom rules you add, and any custom rule needs a priority number between 0 and 32766 to actually take effect before the main table would otherwise handle it.</p>
+    </div>
+
+    <div class="qa"><div class="q"><span class="qtag">Troubleshooting</span>You added a policy rule for a specific source address but it doesn't seem to be taking effect. What would you check?</div>
+    <p>First I'd run ip rule show and check the full priority-ordered list for a broader or lower-priority-number rule that might be matching the same traffic first — since rules are evaluated in priority order and the first match wins, a rule can exist correctly and still never be reached. I'd also confirm with ip route get using an explicit from address exactly which table and interface the kernel is actually selecting.</p>
+    </div>
+
+    <div class="qa"><div class="q"><span class="qtag">DevOps</span>How does this concept relate to more modern infrastructure?</div>
+    <p>This is the direct conceptual foundation of VRF (Virtual Routing and Forwarding), which extends the same idea further for stricter isolation, and it's conceptually similar to what cloud providers do internally with multiple ENIs and route tables per subnet on multi-homed instances — understanding ip rule and custom tables at the Linux level makes those higher-level abstractions much easier to reason about.</p>
+    </div>
+  </section>
+
+  <section id="practice">
+    <h2 class="sec-title"><span class="num">15</span>Practice Tasks &amp; Break-Fix Challenge</h2>
+    <div class="box warning">
+      <div class="box-title">🟠 Practice Tasks</div>
+      <ol>
+        <li>Rebuild the three-NIC bastion lab from memory, including all three custom tables and policy rules.</li>
+        <li>Reproduce all 4 break-fix scenarios and, for each, use ip rule show and ip route get with explicit from addresses to prove your diagnosis before checking this file's answer.</li>
+        <li>Add a fourth interface and table to the lab on your own, without instructions, and verify full isolation for all four sources.</li>
+      </ol>
+    </div>
+    <div class="box failure">
+      <div class="box-title">🔴 Break-Fix Challenge</div>
+      <p>Have someone else apply exactly one of the four breaks without telling you which. Diagnose it cold using only <code>ip rule show</code> and <code>ip route get &lt;dest&gt; from &lt;source&gt;</code> — state your root cause before undoing the break.</p>
+    </div>
+  </section>
+
+  <section id="resume">
+    <h2 class="sec-title"><span class="num">16</span>Resume Points &amp; How to Explain This Project</h2>
+    <div class="box bestpractice">
+      <div class="box-title">🟦 Realistic resume bullet points</div>
+      <ul>
+        <li>Designed and implemented full policy-based routing on a three-NIC Linux bastion host using custom routing tables and ip rule, guaranteeing strict per-interface traffic isolation for a compliance-driven network segmentation requirement.</li>
+        <li>Diagnosed a routing policy priority-ordering issue where a broad rule silently shadowed specific per-interface rules, applying the same first-match-wins discipline used in firewall troubleshooting to the kernel's routing policy database.</li>
+        <li>Identified and resolved an application source-binding gap that caused policy routing to be bypassed despite a fully correct rule and table configuration.</li>
+      </ul>
+    </div>
+    <div class="box concept">
+      <div class="box-title">🔵 Natural spoken interview answer</div>
+      <p>"I built a lab simulating a three-NIC bastion host — management, production, and a disaster-recovery link — each needing guaranteed traffic isolation, and implemented that using custom routing tables and ip rule policy routing instead of just static routes and metrics. I practiced diagnosing four real problems: a missing policy rule that let DR traffic silently leak out the production interface, a broad rule added at too high a priority that shadowed the correct specific rules, an application that didn't explicitly bind its source address so the kernel picked the wrong interface on its own, and a case where a custom rule couldn't work at all because traffic to the host's own address always goes through the built-in local table first. The biggest lesson was realizing policy routing follows the exact same first-match-wins, priority-ordered logic as firewall rules, just one layer earlier in a packet's journey — deciding which table to consult in the first place."</p>
+    </div>
+  </section>
+
+  <section id="next">
+    <h2 class="sec-title"><span class="num">17</span>Next Project Prerequisites</h2>
+    <div class="box architecture">
+      <div class="box-title">🟣 Coming up in Project 10 — Linux Bridge Network</div>
+      <p>We'll shift from routing between separate namespaces to building a Layer 2 Linux bridge that connects multiple interfaces into a single broadcast domain — the direct foundation for how Docker's default bridge networking works, which we'll build on in Project 11.</p>
+      <p>Say <b>"Next Project"</b> when you're ready to continue.</p>
+    </div>
+  </section>
+
+  </main>
+</div>
+
+<a href="#" class="top-link" title="Back to top">↑</a>
+
+<script>
+function copyBlock(btn){
+  const pre = btn.closest('.term').querySelector('pre');
+  const text = pre.innerText;
+  navigator.clipboard.writeText(text).then(()=>{
+    const old = btn.textContent;
+    btn.textContent = "Copied!";
+    setTimeout(()=>btn.textContent = old, 1400);
+  });
+}
+window.addEventListener('scroll', function(){
+  const sections = document.querySelectorAll('section');
+  const total = document.body.scrollHeight - window.innerHeight;
+  const pct = Math.min(100, Math.round((window.scrollY/total)*100));
+  document.getElementById('progressFill').style.width = pct + '%';
+  document.getElementById('progressLabel').textContent = pct + '% through Project 9';
+
+  let current = '';
+  sections.forEach(sec=>{
+    const rect = sec.getBoundingClientRect();
+    if(rect.top <= 120) current = sec.id;
+  });
+  document.querySelectorAll('.sidebar a').forEach(a=>{
+    a.style.background = '';
+    a.style.color = '';
+    a.style.fontWeight = '';
+    if(a.getAttribute('href') === '#'+current){
+      a.style.background = 'var(--blue-bg)';
+      a.style.color = 'var(--blue)';
+      a.style.fontWeight = '700';
+    }
+  });
+});
+</script>
+</body>
+</html>

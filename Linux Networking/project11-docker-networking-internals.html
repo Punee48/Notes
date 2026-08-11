@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Project 11 — Docker Networking Internals</title>
+<style>
+:root{
+  --blue:#2563EB; --blue-bg:#EFF6FF;
+  --purple:#7C3AED; --purple-bg:#F5F3FF;
+  --teal:#0F766E; --teal-bg:#F0FDFA;
+  --green:#16A34A; --green-bg:#F0FDF4;
+  --orange:#EA580C; --orange-bg:#FFF7ED;
+  --red:#DC2626; --red-bg:#FEF2F2;
+  --bg:#FFFFFF; --text:#1F2937; --muted:#6B7280;
+  --border:#E5E7EB; --sidebar-w:280px;
+}
+*{box-sizing:border-box;}
+body{margin:0;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--text);line-height:1.65;}
+a{color:var(--blue);text-decoration:none;}
+a:hover{text-decoration:underline;}
+code{font-family:"SFMono-Regular",Consolas,"Liberation Mono",Menlo,monospace;}
+
+.cover{padding:60px 24px 40px;background:linear-gradient(135deg,var(--blue-bg),var(--purple-bg));border-bottom:1px solid var(--border);}
+.cover-inner{max-width:900px;margin:0 auto;}
+.badge-row{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:18px;}
+.badge{font-size:12.5px;font-weight:600;padding:5px 12px;border-radius:20px;letter-spacing:.02em;}
+.badge.blue{background:var(--blue);color:#fff;}
+.badge.purple{background:var(--purple);color:#fff;}
+.badge.teal{background:var(--teal);color:#fff;}
+.badge.orange{background:var(--orange);color:#fff;}
+.cover h1{font-size:2.1rem;margin:0 0 8px;color:#111827;}
+.cover .subtitle{font-size:1.05rem;color:var(--muted);margin-bottom:26px;}
+.cover-meta{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;}
+.meta-card{background:#fff;border:1px solid var(--border);border-radius:10px;padding:12px 14px;}
+.meta-card .label{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:700;}
+.meta-card .value{font-size:14.5px;font-weight:600;margin-top:2px;}
+
+.layout{display:flex;max-width:1400px;margin:0 auto;}
+.sidebar{width:var(--sidebar-w);flex-shrink:0;position:sticky;top:0;align-self:flex-start;height:100vh;overflow-y:auto;border-right:1px solid var(--border);padding:22px 14px;}
+.sidebar h4{font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin:18px 0 6px 10px;}
+.sidebar h4:first-child{margin-top:0;}
+.sidebar a{display:block;padding:7px 10px;border-radius:8px;font-size:13.5px;color:#374151;margin-bottom:1px;}
+.sidebar a:hover{background:var(--blue-bg);text-decoration:none;color:var(--blue);}
+.progress-wrap{margin:10px 10px 4px;}
+.progress-bar{height:6px;background:var(--border);border-radius:4px;overflow:hidden;}
+.progress-fill{height:100%;width:0%;background:linear-gradient(90deg,var(--blue),var(--purple));transition:width .2s;}
+.progress-label{font-size:11px;color:var(--muted);margin-top:4px;}
+
+.content{flex:1;min-width:0;padding:34px 40px 100px;}
+section{margin-bottom:48px;scroll-margin-top:20px;}
+h2.sec-title{font-size:1.5rem;border-bottom:2px solid var(--border);padding-bottom:10px;margin-bottom:18px;display:flex;align-items:center;gap:10px;}
+h2.sec-title .num{background:var(--blue);color:#fff;width:30px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;}
+h3{font-size:1.15rem;margin-top:28px;color:#111827;}
+
+.box{border-radius:10px;padding:16px 18px;margin:16px 0;border:1px solid transparent;}
+.box .box-title{font-weight:700;font-size:13px;text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px;display:flex;align-items:center;gap:6px;}
+.box.concept{background:var(--blue-bg);border-color:#BFDBFE;}
+.box.concept .box-title{color:var(--blue);}
+.box.architecture{background:var(--purple-bg);border-color:#DDD6FE;}
+.box.architecture .box-title{color:var(--purple);}
+.box.success{background:var(--green-bg);border-color:#BBF7D0;}
+.box.success .box-title{color:var(--green);}
+.box.warning{background:var(--orange-bg);border-color:#FED7AA;}
+.box.warning .box-title{color:var(--orange);}
+.box.failure{background:var(--red-bg);border-color:#FECACA;}
+.box.failure .box-title{color:var(--red);}
+.box.bestpractice{background:var(--teal-bg);border-color:#99F6E4;}
+.box.bestpractice .box-title{color:var(--teal);}
+.box.story{background:#F9FAFB;border-color:var(--border);border-left:4px solid var(--purple);}
+.box.docker{background:#ECFEFF;border-color:#A5F3FC;}
+.box.docker .box-title{color:#0891B2;}
+
+.story p{margin:0 0 10px;}
+.story .quote{font-style:italic;color:#374151;border-left:3px solid var(--purple);padding-left:12px;margin:10px 0;}
+
+.term{background:#0F172A;color:#E2E8F0;border-radius:10px;margin:14px 0;overflow:hidden;border:1px solid #1E293B;}
+.term-header{display:flex;justify-content:space-between;align-items:center;background:#1E293B;padding:8px 14px;font-size:12px;color:#94A3B8;}
+.copy-btn{background:#334155;color:#E2E8F0;border:none;border-radius:6px;padding:4px 10px;font-size:11.5px;cursor:pointer;}
+.copy-btn:hover{background:#475569;}
+.term pre{margin:0;padding:14px 16px;overflow-x:auto;font-size:13.5px;line-height:1.6;}
+.term .cmdno{color:#64748B;margin-right:8px;}
+.term .cmd{color:#7DD3FC;}
+.term .out{color:#CBD5E1;}
+.term .out-err{color:#FCA5A5;}
+.term .out-ok{color:#86EFAC;}
+.term .comment{color:#64748B;}
+
+table.breakdown{width:100%;border-collapse:collapse;margin:12px 0 20px;font-size:14px;}
+table.breakdown th{background:#F3F4F6;text-align:left;padding:8px 10px;font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);}
+table.breakdown td{padding:9px 10px;border-top:1px solid var(--border);vertical-align:top;}
+table.breakdown td.token{font-family:monospace;color:var(--blue);font-weight:700;white-space:nowrap;}
+
+details.collapse{border:1px solid var(--border);border-radius:10px;margin:14px 0;overflow:hidden;}
+details.collapse summary{cursor:pointer;padding:12px 16px;font-weight:600;background:#F9FAFB;list-style:none;display:flex;align-items:center;gap:8px;}
+details.collapse summary::-webkit-details-marker{display:none;}
+details.collapse summary:before{content:"▶";font-size:11px;color:var(--muted);transition:transform .15s;}
+details.collapse[open] summary:before{transform:rotate(90deg);}
+details.collapse .collapse-body{padding:4px 16px 16px;}
+
+.diagram-frame{background:#FAFAFA;border:1px solid var(--border);border-radius:12px;padding:18px;margin:16px 0;overflow-x:auto;}
+.diagram-caption{font-size:12.5px;color:var(--muted);text-align:center;margin-top:8px;}
+
+table.ref{width:100%;border-collapse:collapse;font-size:14px;margin:14px 0;}
+table.ref th{background:#F3F4F6;padding:8px 10px;text-align:left;font-size:12.5px;}
+table.ref td{padding:8px 10px;border-top:1px solid var(--border);}
+
+.dtree{list-style:none;padding-left:0;font-size:14px;}
+.dtree li{padding:8px 12px;margin-bottom:6px;border-radius:8px;border:1px solid var(--border);position:relative;}
+.dtree li.q{background:var(--blue-bg);}
+.dtree li.ok{background:var(--green-bg);}
+.dtree li.bad{background:var(--red-bg);}
+.dtree .arrow{text-align:center;color:var(--muted);font-size:12px;margin:2px 0;}
+
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin:16px 0;}
+.card{border:1px solid var(--border);border-radius:10px;padding:14px 16px;}
+.card h4{margin:0 0 6px;font-size:14.5px;}
+.card p{margin:0;font-size:13.5px;color:var(--muted);}
+
+.qa{border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin:12px 0;background:#FCFCFD;}
+.qa .q{font-weight:700;color:#111827;margin-bottom:6px;}
+.qa .q .qtag{background:var(--purple);color:#fff;font-size:10.5px;padding:2px 8px;border-radius:10px;margin-right:8px;text-transform:uppercase;}
+.qa .followup{margin-top:8px;padding-top:8px;border-top:1px dashed var(--border);font-size:13.5px;color:var(--muted);}
+
+.top-link{position:fixed;bottom:22px;right:22px;background:var(--blue);color:#fff;width:42px;height:42px;border-radius:50%;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(0,0,0,.15);font-size:18px;}
+.top-link:hover{text-decoration:none;background:#1D4ED8;}
+
+@media (max-width:900px){
+  .sidebar{display:none;}
+  .content{padding:22px 18px 80px;}
+}
+</style>
+</head>
+<body>
+
+<div class="cover">
+  <div class="cover-inner">
+    <div class="badge-row">
+      <span class="badge blue">Project 11 of ~38</span>
+      <span class="badge purple">Linux Networking Masterclass</span>
+      <span class="badge teal">Domain: DevOps / Containers</span>
+      <span class="badge orange">Difficulty: Advanced</span>
+    </div>
+    <h1>Docker Networking Internals</h1>
+    <div class="subtitle">What does `docker run -p 8080:80 nginx` actually DO? We already built every single piece of the answer by hand in Projects 8 and 10 — this project just shows you where Docker hid them.</div>
+    <div class="cover-meta">
+      <div class="meta-card"><div class="label">Estimated Lab Time</div><div class="value">3 hours</div></div>
+      <div class="meta-card"><div class="label">Prerequisites</div><div class="value">Project 8 (NAT) and Project 10 (bridges) completed</div></div>
+      <div class="meta-card"><div class="label">Lab Environment</div><div class="value">Manually reconstructed "Docker" using ip netns/bridge/iptables — plus real docker commands for reference</div></div>
+      <div class="meta-card"><div class="label">Concepts Learned</div><div class="value">docker0 bridge, per-container netns, port publishing = DNAT, container DNS on user-defined networks</div></div>
+    </div>
+  </div>
+</div>
+
+<div class="layout">
+  <nav class="sidebar" id="sidebar">
+    <div class="progress-wrap">
+      <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+      <div class="progress-label" id="progressLabel">0% through Project 11</div>
+    </div>
+    <h4>Orientation</h4>
+    <a href="#story">1. The Task</a>
+    <a href="#foundation">2. Docker Networking Foundation</a>
+    <a href="#architecture">3. Architecture — What -p Really Does</a>
+    <a href="#methodology">4. Troubleshooting Method</a>
+    <h4>Hands-On Lab</h4>
+    <a href="#labsetup">5. Build "Docker" by Hand</a>
+    <a href="#verify">6. Verify Baseline</a>
+    <h4>Break / Fix (4 Incidents)</h4>
+    <a href="#break1">7. Published Port, Nothing Listening Inside</a>
+    <a href="#break2">8. Container-to-Container DNS Fails (Default Bridge)</a>
+    <a href="#break3">9. Missing Outbound MASQUERADE</a>
+    <a href="#break4">10. Host Port Already in Use</a>
+    <h4>Wrap-Up</h4>
+    <a href="#bestpractices">11. Best Practices</a>
+    <a href="#cheatsheet">12. Cheat Sheet</a>
+    <a href="#interview">13. Interview Prep</a>
+    <a href="#practice">14. Practice Tasks</a>
+    <a href="#resume">15. Resume Points</a>
+    <a href="#next">16. Next Project</a>
+  </nav>
+
+  <main class="content">
+
+  <section id="story">
+    <h2 class="sec-title"><span class="num">1</span>The Task</h2>
+    <div class="box story">
+      <p>The platform team is finally rolling containers out for real. Before anyone starts running <code>docker run</code> in production, our manager wants the Linux infra team to be able to explain — and debug — exactly what Docker does to the network stack, instead of treating it as a black box that either "just works" or mysteriously doesn't.</p>
+      <p class="quote">"When someone comes to us saying 'my published port isn't reachable' or 'my containers can't find each other by name,' I want us diagnosing it the same way we'd diagnose any other Linux networking incident — not restarting Docker and hoping."</p>
+      <p>Here's the good news: we've already built every single mechanism Docker uses. Project 10 gave us the bridge. Project 8 gave us DNAT and MASQUERADE. Project 1 gave us network namespaces. Docker's default networking is simply these exact primitives, wired together and automated — nothing new to learn, just recognizing what you already know underneath the <code>docker</code> CLI.</p>
+    </div>
+    <div class="box concept">
+      <div class="box-title">🔵 Why this project matters</div>
+      <p>Container networking problems are hugely common in modern DevOps roles, and most engineers who haven't built the underlying pieces by hand end up guessing or restarting things. Understanding that "publish a port" is just a DNAT rule and "container network" is just a bridge with veth pairs turns Docker networking troubleshooting into ordinary Linux networking troubleshooting.</p>
+    </div>
+  </section>
+
+  <section id="foundation">
+    <h2 class="sec-title"><span class="num">2</span>Docker Networking Foundation</h2>
+
+    <h3>2.1 A container is a network namespace (plus more)</h3>
+    <div class="box concept">
+      <div class="box-title">🔵 Concept</div>
+      <p>From a pure networking standpoint, a Docker container is exactly what we've been calling <code>ns-something</code> throughout this entire masterclass — a network namespace with its own interfaces, routing table, and iptables rules, isolated from the host and other containers. Docker just creates and manages that namespace for you automatically instead of you typing <code>ip netns add</code>.</p>
+    </div>
+
+    <h3>2.2 docker0 is a Linux bridge — literally, exactly like Project 10</h3>
+    <div class="box concept">
+      <div class="box-title">🔵 Concept</div>
+      <p>By default, Docker creates a bridge device named <code>docker0</code> (you can see it with plain <code>ip link show</code> on any Docker host) and gives it an address like 172.17.0.1/16. Every container on the default network gets a veth pair, exactly like we built by hand in Project 10 — one end stays on the host attached to docker0, the other end is moved into the container's network namespace and typically renamed <code>eth0</code> inside the container.</p>
+    </div>
+
+    <h3>2.3 Publishing a port (-p) is a DNAT rule — literally, exactly like Project 8</h3>
+    <div class="box concept">
+      <div class="box-title">🔵 Concept</div>
+      <p>When you run <code>docker run -p 8080:80 nginx</code>, Docker adds an iptables rule to a chain it manages (named <code>DOCKER</code>) in the nat table's PREROUTING chain: traffic arriving on the host's port 8080 gets DNAT'd to the container's internal IP on port 80 — precisely the pattern we built by hand for the settlement API in Project 8. Docker also adds the matching FORWARD allow rule and a MASQUERADE rule for the container's outbound traffic, automating exactly the rule PAIRS we had to remember to add ourselves in that project.</p>
+    </div>
+
+    <h3>2.4 Container-to-container name resolution depends on WHICH network you use</h3>
+    <div class="box concept">
+      <div class="box-title">🔵 Concept</div>
+      <p>Docker's DEFAULT bridge network (the one named "bridge", auto-created) does NOT provide automatic DNS resolution between containers by name — only user-defined bridge networks (created with <code>docker network create</code>) get Docker's embedded DNS server, letting containers reach each other by container name instead of only by IP. This single fact explains an enormous number of "why can't my containers find each other" tickets.</p>
+    </div>
+  </section>
+
+  <section id="architecture">
+    <h2 class="sec-title"><span class="num">3</span>Architecture — What -p Really Does</h2>
+    <div class="diagram-frame">
+<svg viewBox="0 0 900 320" xmlns="http://www.w3.org/2000/svg" width="100%">
+<style>.lbl{font:600 12px sans-serif;fill:#1F2937;} .sub{font:10.5px sans-serif;fill:#6B7280;} .box{fill:#EFF6FF;stroke:#2563EB;stroke-width:1.5;rx:8;} .box2{fill:#F5F3FF;stroke:#7C3AED;stroke-width:1.5;rx:8;} .box3{fill:#ECFEFF;stroke:#0891B2;stroke-width:1.5;rx:8;} .arr{stroke:#374151;stroke-width:2;marker-end:url(#a11);}</style>
+<defs><marker id="a11" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#374151"/></marker></defs>
+
+<rect x="10" y="130" width="140" height="50" class="box"/><text x="80" y="160" text-anchor="middle" class="lbl">External client</text>
+
+<rect x="200" y="130" width="170" height="50" class="box3"/><text x="285" y="150" text-anchor="middle" class="lbl">Host NIC :8080</text><text x="285" y="168" text-anchor="middle" class="sub">nat PREROUTING → DOCKER chain</text>
+
+<rect x="420" y="60" width="170" height="200" class="box2"/>
+<text x="505" y="85" text-anchor="middle" class="lbl">docker0 bridge</text>
+<text x="505" y="103" text-anchor="middle" class="sub">172.17.0.1/16</text>
+<rect x="440" y="130" width="130" height="50" class="box"/><text x="505" y="150" text-anchor="middle" class="lbl">veth (host side)</text><text x="505" y="168" text-anchor="middle" class="sub">attached to docker0</text>
+
+<rect x="650" y="130" width="200" height="90" class="box"/>
+<text x="750" y="155" text-anchor="middle" class="lbl">Container netns</text>
+<text x="750" y="173" text-anchor="middle" class="sub">eth0: 172.17.0.2</text>
+<text x="750" y="191" text-anchor="middle" class="sub">nginx listening on :80</text>
+
+<line x1="150" y1="155" x2="198" y2="155" class="arr"/>
+<line x1="370" y1="155" x2="438" y2="155" class="arr"/>
+<line x1="570" y1="155" x2="648" y2="175" class="arr"/>
+</svg>
+    </div>
+    <div class="diagram-caption">Figure 1 — DNAT rewrites the destination from host:8080 to container-IP:80 before routing, then the routing decision + docker0 bridge deliver the frame straight to the container's veth, exactly like our manual Project 8 + Project 10 labs combined.</div>
+  </section>
+
+  <section id="methodology">
+    <h2 class="sec-title"><span class="num">4</span>Troubleshooting Method for Docker Networking Incidents</h2>
+    <ul class="dtree">
+      <li class="q">1. Is the container actually listening on the expected port INSIDE its own namespace? (this is Project 1's method, just applied inside a container)</li>
+      <div class="arrow">↓</div>
+      <li class="q">2. Does the DNAT rule exist and match? (iptables -t nat -L DOCKER -n -v)</li>
+      <div class="arrow">↓</div>
+      <li class="q">3. Is the FORWARD chain allowing traffic to the container's IP? (Project 7/8's exact lesson)</li>
+      <div class="arrow">↓</div>
+      <li class="q">4. For container-to-container: are both containers on the SAME network, and is it a user-defined bridge (for DNS) or the default bridge (IP only)?</li>
+      <div class="arrow">↓</div>
+      <li class="ok">Once you're checking bridges, veths, DNAT rules, and namespaces, you're using exactly the same toolkit as every prior project in this masterclass</li>
+    </ul>
+    <div class="box bestpractice"><div class="box-title">🟦 Production Best Practice</div><p>When a Docker networking problem seems mysterious, mentally translate it back to primitives: "the container" → a network namespace, "the published port" → a DNAT rule, "the container network" → a bridge. Every tool from Projects 1, 7, 8, and 10 still applies directly.</p></div>
+  </section>
+
+  <section id="labsetup">
+    <h2 class="sec-title"><span class="num">5</span>Build "Docker" by Hand</h2>
+    <div class="box docker"><div class="box-title">🐳 Note on this lab</div><p>If you have real Docker installed, run the equivalent <code>docker</code> commands shown alongside each step and compare — <code>ip link show</code>, <code>iptables -t nat -L DOCKER -n -v</code>, and <code>docker network inspect bridge</code> will show you the real thing. This lab rebuilds the same mechanism manually with tools you already know, so it works everywhere and makes the internals explicit.</p></div>
+    <div class="term">
+      <div class="term-header"><span>bash — build our own "docker0"-equivalent bridge and two "containers"</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button></div>
+      <pre><span class="cmdno">1</span><span class="cmd">sudo ip netns add ns-dockerhost</span>
+<span class="cmdno">2</span><span class="cmd">sudo ip netns exec ns-dockerhost ip link add docker0-lab type bridge</span>
+<span class="cmdno">3</span><span class="cmd">sudo ip netns exec ns-dockerhost ip addr add 172.17.0.1/16 dev docker0-lab</span>
+<span class="cmdno">4</span><span class="cmd">sudo ip netns exec ns-dockerhost ip link set docker0-lab up</span>
+<span class="cmdno">5</span><span class="cmd">sudo ip netns exec ns-dockerhost sysctl -w net.ipv4.ip_forward=1</span>
+<span class="cmdno">6</span><span class="comment"># "container" 1: nginx-like web container</span>
+<span class="cmdno">7</span><span class="cmd">sudo ip netns add ns-web-container</span>
+<span class="cmdno">8</span><span class="cmd">sudo ip link add veth-web type veth peer name veth-web-br</span>
+<span class="cmdno">9</span><span class="cmd">sudo ip link set veth-web netns ns-web-container</span>
+<span class="cmdno">10</span><span class="cmd">sudo ip link set veth-web-br netns ns-dockerhost</span>
+<span class="cmdno">11</span><span class="cmd">sudo ip netns exec ns-dockerhost ip link set veth-web-br master docker0-lab</span>
+<span class="cmdno">12</span><span class="cmd">sudo ip netns exec ns-dockerhost ip link set veth-web-br up</span>
+<span class="cmdno">13</span><span class="cmd">sudo ip netns exec ns-web-container bash -c "ip addr add 172.17.0.2/16 dev veth-web; ip link set veth-web up; ip link set lo up; ip route add default via 172.17.0.1"</span>
+<span class="cmdno">14</span><span class="cmd">sudo ip netns exec ns-web-container python3 -m http.server 80 --bind 172.17.0.2 &amp;</span></pre>
+    </div>
+    <table class="breakdown">
+      <tr><th>Our Manual Step</th><th>Real Docker Equivalent</th></tr>
+      <tr><td class="token">ip link add docker0-lab type bridge</td><td>Automatically created the first time the Docker daemon starts, named docker0</td></tr>
+      <tr><td class="token">ip netns add ns-web-container</td><td>Automatically created by <code>docker run</code> — you never see the namespace name directly, but <code>docker inspect &lt;container&gt; --format '{{.State.Pid}}'</code> lets you find and enter it manually</td></tr>
+      <tr><td class="token">veth pair + master docker0-lab</td><td>Automatically created and attached for you as part of container startup on the default bridge network</td></tr>
+    </table>
+
+    <h3>5.1 Publish a port — the manual DNAT equivalent of "-p"</h3>
+    <div class="term">
+      <div class="term-header"><span>bash — on ns-dockerhost, simulate `docker run -p 8080:80 nginx`</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button></div>
+      <pre><span class="cmdno">1</span><span class="cmd">sudo ip netns exec ns-dockerhost iptables -t nat -N DOCKER-LAB</span>
+<span class="cmdno">2</span><span class="cmd">sudo ip netns exec ns-dockerhost iptables -t nat -A PREROUTING -m addrtype --dst-type LOCAL -j DOCKER-LAB</span>
+<span class="cmdno">3</span><span class="cmd">sudo ip netns exec ns-dockerhost iptables -t nat -A DOCKER-LAB -p tcp --dport 8080 -j DNAT --to-destination 172.17.0.2:80</span>
+<span class="cmdno">4</span><span class="cmd">sudo ip netns exec ns-dockerhost iptables -A FORWARD -d 172.17.0.2 -p tcp --dport 80 -j ACCEPT</span>
+<span class="cmdno">5</span><span class="cmd">sudo ip netns exec ns-dockerhost iptables -t nat -A POSTROUTING -s 172.17.0.0/16 -j MASQUERADE</span></pre>
+    </div>
+    <table class="breakdown">
+      <tr><th>Token</th><th>Meaning</th></tr>
+      <tr><td class="token">-N DOCKER-LAB</td><td>Creates a new, separate chain — real Docker does exactly this with a chain literally named DOCKER, keeping its auto-managed rules cleanly separated from any rules you add yourself.</td></tr>
+      <tr><td class="token">-m addrtype --dst-type LOCAL -j DOCKER-LAB</td><td>Jumps to our custom chain only for traffic destined to a LOCAL address (i.e., the host itself) — this is exactly the pattern real Docker uses to hand off port-published traffic to its own management chain.</td></tr>
+      <tr><td class="token">DNAT --to-destination 172.17.0.2:80</td><td>The exact same DNAT concept from Project 8 — rewrite host:8080 traffic to the container's real internal address and port.</td></tr>
+    </table>
+  </section>
+
+  <section id="verify">
+    <h2 class="sec-title"><span class="num">6</span>Verify the Baseline</h2>
+    <div class="term">
+      <div class="term-header"><span>bash — simulate an external client reaching the published port</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button></div>
+      <pre><span class="cmdno">1</span><span class="cmd">sudo ip netns exec ns-dockerhost curl -s -o /dev/null -w "%{http_code}\n" http://172.17.0.1:8080/</span>
+<span class="out-ok">    200</span></pre>
+    </div>
+    <div class="box success"><div class="box-title">🟢 Validation</div><p>Traffic to the "host's" published port 8080 correctly reaches the container's nginx-equivalent on port 80 — this is our working baseline, and it's mechanically identical to what <code>docker port &lt;container&gt;</code> would show you on a real Docker host.</p></div>
+  </section>
+
+  <!-- BREAK 1 -->
+  <section id="break1">
+    <h2 class="sec-title"><span class="num">7</span>Break-Fix #1 — Published Port, but Nothing Listening Inside</h2>
+    <div class="box failure"><div class="box-title">🔴 Break It</div><p>Kill the "container's" web server, simulating an application crash inside a container while the container itself (namespace) stays running.</p></div>
+    <div class="term">
+      <div class="term-header"><span>bash</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button></div>
+      <pre><span class="cmdno">1</span><span class="cmd">sudo ip netns exec ns-web-container pkill -f "http.server 80"</span></pre>
+    </div>
+    <h3>Observe</h3>
+    <div class="term">
+      <div class="term-header"><span>bash</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button></div>
+      <pre><span class="cmdno">1</span><span class="cmd">sudo ip netns exec ns-dockerhost curl --max-time 3 http://172.17.0.1:8080/</span>
+<span class="out-err">    curl: (56) Recv failure: Connection reset by peer</span>
+<span class="cmdno">2</span><span class="cmd">sudo ip netns exec ns-web-container ss -tlnp</span>
+<span class="out-err">    (empty — nothing listening on port 80 anymore)</span></pre>
+    </div>
+    <div class="box concept"><div class="box-title">🔵 Reading the symptom</div><p>This is Project 1's very first lesson, now applied one layer deeper: the DNAT translation happens correctly (you'd see the counter incrementing on the DNAT rule), but once the packet arrives inside the container's namespace, there's nobody home. On a real Docker host, this looks like "the published port doesn't work" but the real cause is entirely inside the container — check the application/process, not Docker's networking, first.</p></div>
+    <div class="box failure"><div class="box-title">🔴 Root Cause</div><p>The application inside the container crashed or stopped, so nothing was listening on the port the DNAT rule was correctly forwarding to.</p></div>
+    <div class="term">
+      <div class="term-header"><span>bash — fix</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button></div>
+      <pre><span class="cmdno">1</span><span class="cmd">sudo ip netns exec ns-web-container python3 -m http.server 80 --bind 172.17.0.2 &amp;</span></pre>
+    </div>
+    <div class="box bestpractice"><div class="box-title">🟦 Production Best Practice</div><p>On real Docker, <code>docker logs &lt;container&gt;</code> and <code>docker exec &lt;container&gt; ss -tlnp</code> are your equivalent first checks — always confirm the process inside the container before assuming Docker's networking is at fault.</p></div>
+  </section>
+
+  <!-- BREAK 2 -->
+  <section id="break2">
+    <h2 class="sec-title"><span class="num">8</span>Break-Fix #2 — Container-to-Container "DNS" Fails on the Default Bridge</h2>
+    <div class="box failure"><div class="box-title">🔴 Break It</div><p>Add a second "container" (an app server) on the same bridge, and try to reach the web container BY NAME rather than by IP — exactly like an application configured with a hostname instead of a hardcoded address.</p></div>
+    <div class="term">
+      <div class="term-header"><span>bash — add a second container</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button></div>
+      <pre><span class="cmdno">1</span><span class="cmd">sudo ip netns add ns-app-container</span>
+<span class="cmdno">2</span><span class="cmd">sudo ip link add veth-app type veth peer name veth-app-br</span>
+<span class="cmdno">3</span><span class="cmd">sudo ip link set veth-app netns ns-app-container</span>
+<span class="cmdno">4</span><span class="cmd">sudo ip link set veth-app-br netns ns-dockerhost</span>
+<span class="cmdno">5</span><span class="cmd">sudo ip netns exec ns-dockerhost bash -c "ip link set veth-app-br master docker0-lab; ip link set veth-app-br up"</span>
+<span class="cmdno">6</span><span class="cmd">sudo ip netns exec ns-app-container bash -c "ip addr add 172.17.0.3/16 dev veth-app; ip link set veth-app up; ip link set lo up"</span></pre>
+    </div>
+    <h3>Observe</h3>
+    <div class="term">
+      <div class="term-header"><span>bash — on ns-app-container, try reaching the web container by NAME (like a real container would use)</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button></div>
+      <pre><span class="cmdno">1</span><span class="cmd">sudo ip netns exec ns-app-container curl --max-time 3 http://web-container/</span>
+<span class="out-err">    curl: (6) Could not resolve host: web-container</span>
+<span class="cmdno">2</span><span class="cmd">sudo ip netns exec ns-app-container curl -s -o /dev/null -w "%{http_code}\n" http://172.17.0.2/</span>
+<span class="out-ok">    200</span></pre>
+    </div>
+    <div class="box concept"><div class="box-title">🔵 Reading the symptom</div><p>By IP, everything works perfectly — the bridge, veths, and connectivity are all fine. By NAME, resolution fails outright, exactly matching Section 2.4's warning: the default bridge network provides NO automatic name-to-IP resolution between containers. This is one of the single most common real-world Docker networking complaints, and it's not a bug — the default bridge was simply never designed to include an embedded DNS server; only user-defined networks (created with <code>docker network create</code>) get that feature.</p></div>
+    <div class="box failure"><div class="box-title">🔴 Root Cause</div><p>The containers were using Docker's default bridge network, which does not provide automatic container-name DNS resolution, causing hostname-based connections to fail while IP-based connections succeeded.</p></div>
+    <div class="box bestpractice">
+      <div class="box-title">🟦 Fix — on real Docker, use a user-defined network</div>
+      <p>The real fix isn't a networking patch — it's using the right kind of network: <code>docker network create my-app-net</code>, then run both containers with <code>--network my-app-net</code> instead of the default bridge. Docker's embedded DNS then resolves container names automatically. In our manual lab, this is equivalent to standing up a small DNS server (as we did with dnsmasq in Project 3) serving the bridge segment — which is genuinely close to what Docker does internally.</p>
+    </div>
+  </section>
+
+  <!-- BREAK 3 -->
+  <section id="break3">
+    <h2 class="sec-title"><span class="num">9</span>Break-Fix #3 — Missing Outbound MASQUERADE</h2>
+    <div class="box failure"><div class="box-title">🔴 Break It</div><p>Remove the MASQUERADE rule, simulating a custom iptables cleanup script that accidentally flushed Docker's own NAT rules — a genuinely common real-world incident when other automation touches iptables without care.</p></div>
+    <div class="term">
+      <div class="term-header"><span>bash</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button></div>
+      <pre><span class="cmdno">1</span><span class="cmd">sudo ip netns exec ns-dockerhost iptables -t nat -D POSTROUTING -s 172.17.0.0/16 -j MASQUERADE</span></pre>
+    </div>
+    <h3>Observe</h3>
+    <div class="box concept"><div class="box-title">🔵 Reading the symptom</div><p>This reproduces Break-Fix #1 from Project 8 exactly, in a Docker context: containers can reach each other on the bridge fine (that's pure L2/L3 connectivity, unaffected), but any container trying to reach the internet or another external network will fail, because its private 172.17.x.x source address leaks out untranslated and external hosts have no route back to it. This is precisely why real Docker installs a MASQUERADE rule for its whole subnet automatically — without it, containers would be isolated from everything except the bridge and the host.</p></div>
+    <div class="box failure"><div class="box-title">🔴 Root Cause</div><p>The MASQUERADE rule for the container subnet was missing, so container-originated traffic leaving toward external networks kept its private, non-routable source address.</p></div>
+    <div class="term">
+      <div class="term-header"><span>bash — fix</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button></div>
+      <pre><span class="cmdno">1</span><span class="cmd">sudo ip netns exec ns-dockerhost iptables -t nat -A POSTROUTING -s 172.17.0.0/16 -j MASQUERADE</span></pre>
+    </div>
+    <div class="box bestpractice"><div class="box-title">🟦 Production Best Practice</div><p>Never run generic iptables "cleanup" or "flush all rules" scripts on a Docker host without accounting for the rules Docker itself manages — this is a well-known, recurring category of self-inflicted outage. Docker actually re-adds its own rules on daemon restart specifically because other tooling sometimes wipes them.</p></div>
+  </section>
+
+  <!-- BREAK 4 -->
+  <section id="break4">
+    <h2 class="sec-title"><span class="num">10</span>Break-Fix #4 — Host Port Already in Use</h2>
+    <div class="box failure"><div class="box-title">🔴 Break It</div><p>Simulate another process already bound to the host port you're trying to publish a container on — a very common "works on one host, fails on another" issue.</p></div>
+    <div class="term">
+      <div class="term-header"><span>bash — on ns-dockerhost, something else grabs port 8080 first</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button></div>
+      <pre><span class="cmdno">1</span><span class="cmd">sudo ip netns exec ns-dockerhost python3 -m http.server 8080 --bind 172.17.0.1 &amp;</span>
+<span class="cmdno">2</span><span class="comment"># now imagine trying to "docker run -p 8080:80" a second time on this host</span></pre>
+    </div>
+    <h3>Observe</h3>
+    <div class="term">
+      <div class="term-header"><span>bash</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button></div>
+      <pre><span class="cmdno">1</span><span class="cmd">sudo ip netns exec ns-dockerhost ss -tlnp | grep 8080</span>
+<span class="out-err">    LISTEN 0 5 172.17.0.1:8080 ... users:(("python3",pid=...))</span></pre>
+    </div>
+    <table class="breakdown">
+      <tr><th>Real Docker error you'd see</th><th>Meaning</th></tr>
+      <tr><td class="token">Error starting userland proxy: listen tcp 0.0.0.0:8080: bind: address already in use</td><td>Docker's own port-publishing mechanism (a small "userland proxy" process, plus the DNAT rule) can't bind to a host port that's already claimed by something else — this is a straightforward, ordinary "port already in use" condition, no different from any other Linux service failing to bind a busy port.</td></tr>
+    </table>
+    <div class="box concept"><div class="box-title">🔵 Reading the symptom</div><p>This isn't really a "Docker networking" problem at all — it's the exact same port-conflict situation any two ordinary Linux processes would have trying to bind the same port. The Docker-specific part is only that the error message comes from Docker's startup process instead of a generic "bind" failure, which can make it feel more mysterious than it is.</p></div>
+    <div class="box failure"><div class="box-title">🔴 Root Cause</div><p>Another process was already bound to the host port the new container tried to publish on.</p></div>
+    <div class="term">
+      <div class="term-header"><span>bash — fix: identify and free the port, or choose a different one</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button></div>
+      <pre><span class="cmdno">1</span><span class="cmd">sudo ip netns exec ns-dockerhost pkill -f "http.server 8080"</span></pre>
+    </div>
+    <div class="box bestpractice"><div class="box-title">🟦 Production Best Practice</div><p>Before publishing a port, check <code>ss -tlnp</code> on the host for existing binders — this is ordinary Linux port-conflict triage (same skill from Project 1), Docker doesn't change the fundamentals at all.</p></div>
+  </section>
+
+  <section id="bestpractices">
+    <h2 class="sec-title"><span class="num">11</span>Production Best Practices</h2>
+    <div class="cards">
+      <div class="card"><h4>🟦 Translate Docker terms to primitives</h4><p>Container = namespace, published port = DNAT rule, container network = bridge — every tool from earlier projects still applies.</p></div>
+      <div class="card"><h4>🟦 Check inside the container first</h4><p>A working DNAT rule with nothing listening inside looks identical from outside to a broken DNAT rule — verify the process, not just the network.</p></div>
+      <div class="card"><h4>🟦 Default bridge ≠ user-defined bridge for DNS</h4><p>Container-name resolution only works on user-defined networks — this single fact resolves a huge share of "containers can't find each other" tickets.</p></div>
+      <div class="card"><h4>🟦 Don't blindly flush iptables on Docker hosts</h4><p>Generic rule-cleanup scripts can silently break every published port and all outbound container traffic by removing Docker's managed rules.</p></div>
+      <div class="card"><h4>🟦 Port conflicts are ordinary Linux port conflicts</h4><p>"Address already in use" from Docker is the same bind() failure any two processes would have — check ss -tlnp on the host.</p></div>
+    </div>
+  </section>
+
+  <section id="cheatsheet">
+    <h2 class="sec-title"><span class="num">13</span>Troubleshooting Cheat Sheet</h2>
+    <table class="ref">
+      <tr><th>Symptom</th><th>Likely Cause</th><th>Command to Confirm</th></tr>
+      <tr><td>Published port reachable but connection resets/refused</td><td>Nothing listening inside the container</td><td><code>docker exec &lt;c&gt; ss -tlnp</code> or <code>docker logs &lt;c&gt;</code></td></tr>
+      <tr><td>Containers reach each other by IP but not by name</td><td>Using the default bridge network instead of a user-defined one</td><td><code>docker network inspect bridge</code> vs a user-defined network</td></tr>
+      <tr><td>Containers can't reach the internet/external hosts</td><td>Missing MASQUERADE for the container subnet</td><td><code>iptables -t nat -L POSTROUTING -n -v</code></td></tr>
+      <tr><td>Container fails to start / "address already in use"</td><td>Host port already bound by another process</td><td><code>ss -tlnp</code> on the host for that port</td></tr>
+    </table>
+  </section>
+
+  <section id="interview">
+    <h2 class="sec-title"><span class="num">14</span>Interview Preparation</h2>
+
+    <div class="qa"><div class="q"><span class="qtag">Scenario</span>A container's published port isn't reachable from outside. How do you troubleshoot it?</div>
+    <p>I'd break it into the same layers I'd use for any Linux networking issue. First, inside the container, is anything actually listening on the expected port — docker exec and ss -tlnp. If yes, I'd check the DNAT rule Docker manages in the nat table's DOCKER chain to confirm it's translating to the right container IP and port. If that's correct too, I'd check the FORWARD chain allows traffic to that container IP, since Docker manages that too but it can still be affected by other firewall rules or automation on the host.</p>
+    <div class="followup">Interviewer follow-up: "What if it worked yesterday and broke today with no deployment?" — Answer: I'd suspect something external modified iptables — a cleanup script, a security tool, or manual intervention that flushed or altered Docker's managed NAT/filter rules — since Docker doesn't typically change its own rules without a container lifecycle event.</div>
+    </div>
+
+    <div class="qa"><div class="q"><span class="qtag">Concept</span>Why can't my containers reach each other by name on Docker's default bridge network?</div>
+    <p>Docker's default bridge network doesn't run an embedded DNS server for container name resolution — that feature only exists on user-defined networks created with docker network create. On the default bridge, containers can only reach each other by IP address unless you switch to a user-defined network.</p>
+    </div>
+
+    <div class="qa"><div class="q"><span class="qtag">Concept</span>What actually happens when you run docker run -p 8080:80 nginx?</div>
+    <p>Docker creates a network namespace for the container, attaches a veth pair to it with one end on the docker0 bridge, assigns the container an internal IP, and adds an iptables DNAT rule in its own DOCKER chain so traffic to the host's port 8080 gets rewritten to the container's internal IP on port 80 — plus a FORWARD rule allowing that traffic and a MASQUERADE rule for the container's outbound connections. It's the same namespace, bridge, and NAT mechanisms available in plain Linux, just automated.</p>
+    </div>
+
+    <div class="qa"><div class="q"><span class="qtag">Production</span>Why should you be careful running generic iptables cleanup or flush scripts on a Docker host?</div>
+    <p>Docker manages its own iptables rules — DNAT for published ports, FORWARD rules for container traffic, and MASQUERADE for outbound connectivity — in its own chains. A generic flush can wipe those out, silently breaking every published port and all container internet access at once, without any container itself actually changing or restarting.</p>
+    </div>
+  </section>
+
+  <section id="practice">
+    <h2 class="sec-title"><span class="num">15</span>Practice Tasks &amp; Break-Fix Challenge</h2>
+    <div class="box warning">
+      <div class="box-title">🟠 Practice Tasks</div>
+      <ol>
+        <li>Rebuild the manual "Docker" lab from memory, including the custom DOCKER-LAB chain.</li>
+        <li>If you have real Docker available, run docker run -p 8080:80 nginx and compare iptables -t nat -L DOCKER -n -v against our manual rules — they should look remarkably similar.</li>
+        <li>Reproduce all 4 break-fix scenarios and, for each, identify which earlier masterclass project's exact troubleshooting method applies before checking this file's answer.</li>
+      </ol>
+    </div>
+    <div class="box failure">
+      <div class="box-title">🔴 Break-Fix Challenge</div>
+      <p>Have someone else apply exactly one of the four breaks without telling you which. Diagnose it cold using the same tools you've used since Project 1 — ss, iptables -t nat -L, iptables -L FORWARD — and state your root cause before undoing the break.</p>
+    </div>
+  </section>
+
+  <section id="resume">
+    <h2 class="sec-title"><span class="num">16</span>Resume Points &amp; How to Explain This Project</h2>
+    <div class="box bestpractice">
+      <div class="box-title">🟦 Realistic resume bullet points</div>
+      <ul>
+        <li>Reverse-engineered Docker's default networking model by manually reconstructing its bridge, veth, and iptables DNAT/MASQUERADE mechanisms using plain Linux primitives.</li>
+        <li>Diagnosed container networking incidents including crashed in-container services masking as network failures, default-bridge DNS resolution gaps, and iptables rule loss from external automation.</li>
+        <li>Established a Docker networking troubleshooting method built entirely on standard Linux tools (ss, iptables, ip link) rather than Docker-specific black-box debugging.</li>
+      </ul>
+    </div>
+    <div class="box concept">
+      <div class="box-title">🔵 Natural spoken interview answer</div>
+      <p>"I manually rebuilt Docker's default networking model — the docker0 bridge, per-container network namespaces, veth pairs, and the DNAT rule that makes port publishing work — using the exact same primitives from earlier in a broader Linux networking project, just to prove to myself it wasn't magic. I practiced diagnosing four realistic container networking problems: a published port that looked broken but was actually just a crashed process inside the container, containers failing to resolve each other by name because they were on the default bridge instead of a user-defined network, missing outbound internet access from a MASQUERADE rule getting wiped by an unrelated cleanup script, and an ordinary host port conflict that had nothing to do with Docker specifically. The main lesson was that Docker networking troubleshooting is just regular Linux networking troubleshooting with different terminology on top."</p>
+    </div>
+  </section>
+
+  <section id="next">
+    <h2 class="sec-title"><span class="num">17</span>Next Project Prerequisites</h2>
+    <div class="box architecture">
+      <div class="box-title">🟣 Coming up in Project 12 — Network Performance Investigation</div>
+      <p>We'll step back from specific technologies (DNS, firewall, NAT, Docker) and focus purely on performance — latency, throughput, packet loss, and interface errors — using ethtool, iperf3, sar, and the /proc/net counters, tying together the diagnostic instincts built across every project so far.</p>
+      <p>Say <b>"Next Project"</b> when you're ready to continue.</p>
+    </div>
+  </section>
+
+  </main>
+</div>
+
+<a href="#" class="top-link" title="Back to top">↑</a>
+
+<script>
+function copyBlock(btn){
+  const pre = btn.closest('.term').querySelector('pre');
+  const text = pre.innerText;
+  navigator.clipboard.writeText(text).then(()=>{
+    const old = btn.textContent;
+    btn.textContent = "Copied!";
+    setTimeout(()=>btn.textContent = old, 1400);
+  });
+}
+window.addEventListener('scroll', function(){
+  const sections = document.querySelectorAll('section');
+  const total = document.body.scrollHeight - window.innerHeight;
+  const pct = Math.min(100, Math.round((window.scrollY/total)*100));
+  document.getElementById('progressFill').style.width = pct + '%';
+  document.getElementById('progressLabel').textContent = pct + '% through Project 11';
+
+  let current = '';
+  sections.forEach(sec=>{
+    const rect = sec.getBoundingClientRect();
+    if(rect.top <= 120) current = sec.id;
+  });
+  document.querySelectorAll('.sidebar a').forEach(a=>{
+    a.style.background = '';
+    a.style.color = '';
+    a.style.fontWeight = '';
+    if(a.getAttribute('href') === '#'+current){
+      a.style.background = 'var(--blue-bg)';
+      a.style.color = 'var(--blue)';
+      a.style.fontWeight = '700';
+    }
+  });
+});
+</script>
+</body>
+</html>

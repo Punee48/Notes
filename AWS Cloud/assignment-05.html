@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Assignment 05 — IAM, Encryption, Secrets &amp; Secure Access Patterns</title>
+<style>
+:root{
+  --bg:#0B1120; --bg-2:#111827; --card:#17202F; --card-2:#1C2536; --border:#26314A;
+  --orange:#FF9900; --orange-dim:#B96E00; --blue:#00A8E1; --green:#34D399;
+  --warning:#FBBF24; --error:#F87171; --text:#E5E9F0; --text-dim:#94A3B8;
+  --code-bg:#0A0E17; --code-text:#D1D9E6;
+  --mono:'JetBrains Mono','Fira Code',ui-monospace,monospace;
+  --sans:'Inter',-apple-system,sans-serif; --display:'Space Grotesk','Inter',sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html{scroll-behavior:smooth;}
+body{background:var(--bg);color:var(--text);font-family:var(--sans);line-height:1.65;font-size:16px;}
+a{color:var(--blue);text-decoration:none;} a:hover{text-decoration:underline;}
+::selection{background:var(--orange);color:#0B1120;}
+.shell{display:flex;min-height:100vh;}
+.sidebar{width:270px;flex-shrink:0;background:var(--bg-2);border-right:1px solid var(--border);
+  position:sticky;top:0;height:100vh;overflow-y:auto;padding:24px 0 60px;}
+.sidebar-brand{padding:0 20px 20px;border-bottom:1px solid var(--border);margin-bottom:12px;}
+.sidebar-brand .tag{font-family:var(--mono);font-size:11px;color:var(--orange);letter-spacing:.12em;text-transform:uppercase;}
+.sidebar-brand h1{font-family:var(--display);font-size:17px;margin-top:6px;line-height:1.3;}
+.sidebar nav a{display:block;padding:8px 20px;font-size:13.5px;color:var(--text-dim);border-left:2px solid transparent;}
+.sidebar nav a:hover{color:var(--text);text-decoration:none;background:var(--card);}
+.sidebar nav a.active{color:var(--orange);border-left-color:var(--orange);background:var(--card);}
+.main{flex:1;min-width:0;}
+.container{max-width:900px;margin:0 auto;padding:56px 40px 120px;}
+.cover{background:linear-gradient(160deg,#131C2E 0%, #0B1120 70%);border:1px solid var(--border);border-radius:14px;
+  padding:44px 40px;margin-bottom:48px;position:relative;overflow:hidden;}
+.cover::before{content:"";position:absolute;top:-60px;right:-60px;width:260px;height:260px;
+  background:radial-gradient(circle,rgba(255,153,0,.18),transparent 70%);}
+.cover .eyebrow{font-family:var(--mono);color:var(--orange);font-size:12px;letter-spacing:.14em;text-transform:uppercase;}
+.cover h1{font-family:var(--display);font-size:34px;margin:12px 0 14px;max-width:640px;position:relative;}
+.cover p.lede{color:var(--text-dim);max-width:560px;font-size:15px;position:relative;}
+.cover-meta{display:flex;flex-wrap:wrap;gap:10px;margin-top:24px;position:relative;}
+.chip{background:var(--card);border:1px solid var(--border);border-radius:999px;padding:6px 14px;font-size:12.5px;color:var(--text-dim);font-family:var(--mono);}
+.chip b{color:var(--text);}
+h2.section-title{font-family:var(--display);font-size:24px;margin:56px 0 18px;padding-bottom:10px;border-bottom:1px solid var(--border);
+  display:flex;align-items:center;gap:10px;scroll-margin-top:24px;}
+h2.section-title .num{font-family:var(--mono);color:var(--orange-dim);font-size:15px;}
+h3{font-family:var(--display);font-size:18px;margin:26px 0 10px;color:var(--text);}
+h4{font-size:15px;margin:18px 0 8px;color:var(--orange);font-family:var(--mono);}
+p{margin-bottom:14px;color:#C7CEDB;}
+ul,ol{margin:0 0 14px 22px;color:#C7CEDB;} li{margin-bottom:6px;}
+strong{color:var(--text);}
+.card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:20px 22px;margin:16px 0;}
+.story-card{background:linear-gradient(135deg,#1A2333,#161E2C);border-left:3px solid var(--orange);border-radius:8px;padding:22px 24px;margin:16px 0;}
+.story-card p{color:#D7DCE8;font-style:italic;} .story-card p:last-child{margin-bottom:0;}
+.role-tag{display:inline-block;font-family:var(--mono);font-size:11px;color:var(--orange);background:rgba(255,153,0,.1);
+  border:1px solid rgba(255,153,0,.3);border-radius:5px;padding:2px 8px;margin-bottom:10px;letter-spacing:.05em;}
+.box{border-radius:8px;padding:16px 18px;margin:16px 0;border:1px solid;}
+.box.tip{background:rgba(0,168,225,.07);border-color:rgba(0,168,225,.35);}
+.box.warn{background:rgba(251,191,36,.07);border-color:rgba(251,191,36,.35);}
+.box.security{background:rgba(248,113,113,.07);border-color:rgba(248,113,113,.35);}
+.box.win{background:rgba(52,211,153,.07);border-color:rgba(52,211,153,.35);}
+.box .label{font-family:var(--mono);font-size:11px;text-transform:uppercase;letter-spacing:.1em;display:block;margin-bottom:6px;}
+.box.tip .label{color:var(--blue);} .box.warn .label{color:var(--warning);}
+.box.security .label{color:var(--error);} .box.win .label{color:var(--green);}
+.box p:last-child{margin-bottom:0;}
+table{width:100%;border-collapse:collapse;margin:16px 0;font-size:14px;}
+th{background:var(--card-2);color:var(--orange);text-align:left;padding:10px 12px;font-family:var(--mono);
+  font-size:12px;text-transform:uppercase;letter-spacing:.04em;border-bottom:1px solid var(--border);}
+td{padding:10px 12px;border-bottom:1px solid var(--border);color:#C7CEDB;vertical-align:top;}
+tr:last-child td{border-bottom:none;} tr:hover td{background:rgba(255,255,255,.02);}
+.code-wrap{position:relative;margin:16px 0;border-radius:8px;overflow:hidden;border:1px solid var(--border);}
+.code-head{background:var(--card-2);padding:8px 14px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border);}
+.code-head span{font-family:var(--mono);font-size:11.5px;color:var(--text-dim);}
+.copy-btn{background:transparent;border:1px solid var(--border);color:var(--text-dim);font-family:var(--mono);font-size:11px;
+  padding:4px 10px;border-radius:5px;cursor:pointer;}
+.copy-btn:hover{border-color:var(--orange);color:var(--orange);}
+pre{background:var(--code-bg);padding:16px 18px;overflow-x:auto;font-family:var(--mono);font-size:13px;line-height:1.6;color:var(--code-text);}
+code{font-family:var(--mono);}
+p code, li code{background:var(--card-2);padding:1px 6px;border-radius:4px;font-size:13px;color:#FFC876;}
+.comment{color:#5E7099;} .kw{color:var(--blue);} .str{color:var(--green);}
+.diagram{background:var(--code-bg);border:1px solid var(--border);border-radius:10px;padding:28px;margin:20px 0;overflow-x:auto;}
+.flow{display:flex;flex-direction:column;align-items:center;gap:0;font-family:var(--mono);font-size:13px;}
+.flow-box{background:var(--card);border:1px solid var(--orange-dim);border-radius:8px;padding:12px 22px;min-width:260px;
+  text-align:center;color:var(--text);opacity:0;transform:translateY(8px);animation:reveal .5s ease forwards;}
+.flow-box.public{border-color:var(--blue);} .flow-box.private{border-color:var(--green);}
+.flow-arrow{color:#4B5875;font-size:18px;padding:6px 0;opacity:0;animation:reveal .5s ease forwards;}
+@keyframes reveal{to{opacity:1;transform:translateY(0);}}
+.flow-box small, .flow-arrow small{display:block;color:var(--text-dim);font-size:10.5px;margin-top:3px;}
+details{background:var(--card);border:1px solid var(--border);border-radius:8px;margin:10px 0;padding:0;}
+details summary{cursor:pointer;padding:14px 18px;font-family:var(--mono);font-size:13.5px;color:var(--orange);
+  list-style:none;display:flex;justify-content:space-between;align-items:center;}
+details summary::-webkit-details-marker{display:none;}
+details summary::after{content:"+";color:var(--text-dim);font-size:16px;}
+details[open] summary::after{content:"–";}
+details .inner{padding:0 18px 16px;border-top:1px solid var(--border);padding-top:12px;}
+details .inner p:last-child{margin-bottom:0;}
+.qa{margin:14px 0;padding:16px 18px;background:var(--card-2);border-radius:8px;border:1px solid var(--border);}
+.qa .q{font-family:var(--display);font-size:14.5px;color:var(--text);margin-bottom:8px;}
+.qa .q .qn{color:var(--orange);font-family:var(--mono);margin-right:6px;}
+.qa .follow{margin-top:10px;padding-top:10px;border-top:1px dashed var(--border);color:var(--text-dim);font-size:13px;}
+.qa .follow b{color:var(--blue);}
+.resume-list{list-style:none;margin:14px 0;}
+.resume-list li{padding:12px 16px;background:var(--card);border-left:3px solid var(--green);border-radius:0 6px 6px 0;
+  margin-bottom:8px;font-size:14px;color:#D7DCE8;}
+.criteria{list-style:none;margin:14px 0;}
+.criteria li{padding-left:28px;position:relative;margin-bottom:8px;color:#C7CEDB;}
+.criteria li::before{content:"✓";position:absolute;left:0;color:var(--green);font-family:var(--mono);}
+.progress-bar{height:6px;background:var(--card-2);border-radius:999px;overflow:hidden;margin:14px 0 4px;}
+.progress-bar-fill{height:100%;width:20%;background:linear-gradient(90deg,var(--orange),var(--blue));}
+.progress-label{font-family:var(--mono);font-size:11px;color:var(--text-dim);}
+footer{text-align:center;padding:40px;color:#4B5875;font-family:var(--mono);font-size:12px;border-top:1px solid var(--border);margin-top:60px;}
+.steps{list-style:none;margin:16px 0;counter-reset:step;}
+.steps li{position:relative;padding:14px 18px 14px 52px;margin-bottom:10px;background:var(--card);border:1px solid var(--border);
+  border-radius:8px;counter-increment:step;}
+.steps li::before{content:counter(step);position:absolute;left:16px;top:14px;width:24px;height:24px;border-radius:50%;
+  background:var(--orange);color:#0B1120;font-family:var(--mono);font-weight:700;font-size:12px;
+  display:flex;align-items:center;justify-content:center;}
+.steps li b{color:var(--text);}
+@media(max-width:860px){
+  .sidebar{position:fixed;left:-270px;transition:left .2s;z-index:50;box-shadow:20px 0 40px rgba(0,0,0,.4);}
+  .sidebar.open{left:0;} .container{padding:24px 18px 100px;}
+  .mobile-toggle{position:fixed;bottom:20px;right:20px;z-index:60;background:var(--orange);color:#0B1120;border:none;
+    border-radius:50%;width:52px;height:52px;font-size:20px;cursor:pointer;box-shadow:0 6px 20px rgba(0,0,0,.4);}
+}
+@media(min-width:861px){.mobile-toggle{display:none;}}
+@media(prefers-reduced-motion:reduce){*{animation:none !important;transition:none !important;}}
+</style>
+</head>
+<body>
+<div class="shell">
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-brand">
+      <span class="tag">AWS Cloud Engineering</span>
+      <h1>Assignment 05<br>Foundation Stage · Final</h1>
+    </div>
+    <nav>
+      <a href="#story">Production Story</a>
+      <a href="#requirements">Requirements</a>
+      <a href="#architecture">Architecture</a>
+      <a href="#decisions">Architecture Decisions</a>
+      <a href="#console">Manual Console Steps</a>
+      <a href="#cli">AWS CLI</a>
+      <a href="#terraform">Terraform</a>
+      <a href="#validation">Validation &amp; Testing</a>
+      <a href="#monitoring">Monitoring</a>
+      <a href="#incident">Production Incident</a>
+      <a href="#troubleshooting">Troubleshooting Method</a>
+      <a href="#cost">Cost Awareness</a>
+      <a href="#review">Architecture Review</a>
+      <a href="#cleanup">Cleanup</a>
+      <a href="#acceptance">Acceptance Criteria</a>
+      <a href="#challenge">Practice Challenge</a>
+      <a href="#interview">Interview Prep</a>
+      <a href="#resume">Resume Points</a>
+      <a href="#next">Next Project</a>
+    </nav>
+  </aside>
+
+  <div class="main">
+    <div class="container">
+
+      <div class="cover">
+        <span class="eyebrow">Assignment 05 of 25 · Foundation (closing)</span>
+        <h1>IAM, Encryption, Secrets, and Secure Access Patterns</h1>
+        <p class="lede">Karthik's team just told Ananya's security review that the quote portal calls a third-party insurance-rating API, and the API key is sitting in plaintext in the EC2 user data script from Assignment 3. That one finding turns into a full pass across every IAM role, credential, and access pattern built in Assignments 1–4.</p>
+        <div class="cover-meta">
+          <span class="chip">Difficulty: <b>Foundation</b></span>
+          <span class="chip">Domain: <b>Insurance</b></span>
+          <span class="chip">Services: <b>IAM · Secrets Manager · KMS · Access Analyzer · MFA</b></span>
+          <span class="chip">IaC: <b>Console + CLI + Terraform</b></span>
+          <span class="chip">Est. lab time: <b>2.5–3.5 hrs</b></span>
+        </div>
+        <div class="progress-bar"><div class="progress-bar-fill"></div></div>
+        <span class="progress-label">Progress: Assignment 5 of 25 — Foundation stage complete after this one</span>
+      </div>
+
+      <!-- STORY -->
+      <h2 class="section-title" id="story"><span class="num">01</span> Production Story</h2>
+      <div class="story-card">
+        <span class="role-tag">Security Team — Ananya Reddy</span>
+        <p>"Found it during a routine review of the app instance's user data: a third-party rating-API key, in plaintext, baked right into the launch script. Anyone with <code>ec2:DescribeInstanceAttribute</code> permission — which is a lot of people in a growing account — can read it. That's the immediate fire. But while I'm here: I want a full pass. Every IAM role we've created since Assignment 1 — reconcile-job-role, the ALB/app security groups' implicit trust, the DLM role — I want to know exactly what each one can do and whether it's the minimum necessary. And human users logging into this account need MFA. Non-negotiable, starting now."</p>
+      </div>
+      <div class="box tip">
+        <span class="label">Why this closes the Foundation stage</span>
+        <p>Every prior assignment has quietly practiced pieces of this — IAM instance roles instead of access keys (Assignment 1), least-privilege S3 policies (Assignments 1 and 4), security-group chaining (Assignment 3). This assignment makes IAM, secrets, and encryption the explicit subject rather than a supporting detail, and fixes the one real gap that slipped through: a secret that was never a secret at all.</p>
+      </div>
+
+      <!-- REQUIREMENTS -->
+      <h2 class="section-title" id="requirements"><span class="num">02</span> Business &amp; Technical Requirements</h2>
+      <table>
+        <tr><th>Type</th><th>Requirement</th></tr>
+        <tr><td>Security</td><td>The rating-API key must never appear in plaintext in user data, source control, or any instance metadata field readable without an explicit Secrets Manager permission.</td></tr>
+        <tr><td>Security</td><td>All human IAM users must have MFA enforced before they can perform any action beyond managing their own MFA device.</td></tr>
+        <tr><td>Security</td><td>Every IAM role created so far must be reviewed against actual usage and tightened to least privilege where it isn't already.</td></tr>
+        <tr><td>Compliance</td><td>IAM Access Analyzer must run continuously, flagging any resource unintentionally shared outside the account.</td></tr>
+        <tr><td>Technical</td><td>Secret rotation must be possible without redeploying the application or changing code.</td></tr>
+      </table>
+
+      <!-- ARCHITECTURE -->
+      <h2 class="section-title" id="architecture"><span class="num">03</span> Architecture Design</h2>
+      <div class="diagram">
+        <div class="flow">
+          <div class="flow-box private" style="animation-delay:.05s">App Instance (sg-app)<small>assumes reconcile/app IAM role</small></div>
+          <div class="flow-arrow" style="animation-delay:.25s">↓ secretsmanager:GetSecretValue only</div>
+          <div class="flow-box" style="animation-delay:.35s">Secrets Manager<small>rating-api-key, encrypted with a customer-managed KMS key</small></div>
+          <div class="flow-arrow" style="animation-delay:.55s">↓ decrypt permission via key policy + IAM</div>
+          <div class="flow-box" style="animation-delay:.65s">KMS CMK<small>rating-api-key-cmk — controls who can decrypt, independent of Secrets Manager access</small></div>
+        </div>
+      </div>
+      <p>Two independent layers of access control here, deliberately: the IAM policy decides who can <em>call</em> <code>GetSecretValue</code>, and the KMS key policy separately decides who can <em>decrypt</em> the resulting ciphertext. Both must allow the caller — this is why a customer-managed key, not the AWS-managed default, is worth the extra setup: it gives Security a second, independently auditable control point over exactly this kind of sensitive credential.</p>
+
+      <!-- DECISIONS -->
+      <h2 class="section-title" id="decisions"><span class="num">04</span> Architecture Decision Making</h2>
+
+      <h3>Decision: Secrets Manager vs. Systems Manager Parameter Store (SecureString)</h3>
+      <table>
+        <tr><th></th><th>Parameter Store (SecureString)</th><th>Secrets Manager</th></tr>
+        <tr><td>Cost</td><td>Free for standard parameters</td><td>Per-secret monthly charge</td></tr>
+        <tr><td>Automatic rotation</td><td>Not built in — requires a custom Lambda + scheduling yourself</td><td>Native rotation scheduling, with built-in rotation Lambdas for RDS/common services</td></tr>
+        <tr><td>Fits this need</td><td>Workable, but rotation has to be hand-built</td><td>Purpose-built for exactly "credential that should rotate on a schedule"</td></tr>
+      </table>
+      <p><strong>Decision: Secrets Manager</strong> for the rating-API key, specifically because Ananya's requirement includes rotation without a redeploy — that's Secrets Manager's core value proposition. Parameter Store SecureString remains the right, cheaper choice for static configuration values that don't need rotation (revisit case by case, not a blanket either/or).</p>
+
+      <h3>Decision: AWS-Managed KMS Key vs. Customer-Managed Key (CMK)</h3>
+      <p>The AWS-managed key (<code>aws/secretsmanager</code>) works with zero setup but its key policy can't be customized — access is governed entirely by IAM. A customer-managed key adds its own key policy as a second, independent control: even someone with a broad IAM policy can't decrypt this specific secret unless the CMK's key policy also names them. <strong>Decision: customer-managed key</strong>, specifically for this one sensitive external credential — not applied blanket to every secret in the account, since that would add operational overhead with no proportional security gain for lower-sensitivity values.</p>
+
+      <!-- CONSOLE -->
+      <h2 class="section-title" id="console"><span class="num">05</span> AWS Console — Manual Steps</h2>
+      <ol class="steps">
+        <li><b>Create the customer-managed KMS key.</b> KMS console → <em>Customer managed keys → Create key</em> → symmetric, "Encrypt and decrypt" → key administrators: your security/platform team → key usage permissions: leave empty for now, added explicitly per-role below rather than granted broadly.</li>
+        <li><b>Create the secret in Secrets Manager.</b> Secrets Manager console → <em>Store a new secret</em> → "Other type of secret" → key/value: <code>api_key</code> = the actual rating-API key → encryption key: select the CMK from step 1 → name it <code>quote-portal/rating-api-key</code>.</li>
+        <li><b>Grant the app's IAM role access.</b> IAM console → find <code>reconcile-job-role</code>'s sibling app role (or create <code>quote-portal-app-role</code> if the app instance is still using the security-group-only setup from Assignment 3) → attach an inline policy allowing <code>secretsmanager:GetSecretValue</code> scoped to exactly that one secret's ARN.</li>
+        <li><b>Update the CMK's key policy.</b> Back in KMS → the key from step 1 → <em>Key policy</em> → add a statement allowing <code>kms:Decrypt</code> for the app role's ARN specifically — this is the second, independent control described in the architecture section.</li>
+        <li><b>Enable IAM Access Analyzer.</b> IAM console → <em>Access Analyzer → Create analyzer</em> → type "Account" → this continuously scans for resources (S3 buckets, IAM roles, KMS keys) shared with anyone outside the account and surfaces findings automatically.</li>
+        <li><b>Enforce MFA for human users.</b> IAM console → <em>Policies → Create policy</em> using a standard AWS-provided "deny all actions except managing your own MFA device unless MFA is present" JSON template → attach to the group all human IAM users belong to.</li>
+        <li><b>Remove the plaintext key from user data.</b> Update the app instance's launch configuration to fetch the secret at boot via the AWS CLI/SDK instead of embedding it — redeploy the instance so the new user data takes effect (a stopped instance's user data change doesn't apply until it's actually relaunched from an updated launch configuration or template).</li>
+      </ol>
+
+      <!-- CLI -->
+      <h2 class="section-title" id="cli"><span class="num">06</span> AWS CLI</h2>
+      <div class="code-wrap">
+        <div class="code-head"><span>bash</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre><span class="comment"># Create the secret, encrypted with the CMK</span>
+aws secretsmanager create-secret \
+  --name quote-portal/rating-api-key \
+  --kms-key-id alias/rating-api-key-cmk \
+  --secret-string '{"api_key":"REPLACE_ME"}'
+
+<span class="comment"># From INSIDE the app instance, at boot — retrieve the secret via its role</span>
+aws secretsmanager get-secret-value \
+  --secret-id quote-portal/rating-api-key \
+  --query SecretString --output text
+
+<span class="comment"># Check IAM Access Analyzer findings — read-only, safe to run any time</span>
+aws accessanalyzer list-findings \
+  --analyzer-arn &lt;analyzer-arn&gt; \
+  --query "findings[?status=='ACTIVE']" --output table</pre>
+      </div>
+      <table>
+        <tr><th>Command</th><th>Meaning</th><th>Reversible?</th></tr>
+        <tr><td><code>create-secret</code></td><td>Stores the value encrypted at rest under the specified CMK; the plaintext is only ever visible via an authorized <code>get-secret-value</code> call</td><td>Yes — <code>delete-secret</code>, with an optional recovery window before permanent deletion</td></tr>
+        <tr><td><code>get-secret-value</code></td><td>Retrieves and decrypts the secret — requires both the IAM permission AND the KMS key policy to allow the caller</td><td>N/A — read-only</td></tr>
+        <tr><td><code>list-findings</code></td><td>Read-only — lists resources Access Analyzer has flagged as accessible from outside the account</td><td>N/A</td></tr>
+      </table>
+
+      <!-- TERRAFORM -->
+      <h2 class="section-title" id="terraform"><span class="num">07</span> Terraform Implementation</h2>
+
+      <h3>main.tf — KMS Key &amp; Secret</h3>
+      <div class="code-wrap">
+        <div class="code-head"><span>main.tf (part 1 of 3)</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre><span class="kw">resource</span> "aws_kms_key" "rating_api_key_cmk" {
+  description             = "CMK for the quote portal rating-API secret"
+  deletion_window_in_days = 30
+  <span class="comment"># deletion_window_in_days gives a mandatory recovery period before a key</span>
+  <span class="comment"># deletion is irreversible — protects against an accidental "destroy" from</span>
+  <span class="comment"># permanently locking out access to everything encrypted under this key.</span>
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid       = "AllowAccountRootFullAccess"
+        Effect    = "Allow"
+        Principal = { AWS = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:root" }
+        Action    = "kms:*"
+        Resource  = "*"
+        <span class="comment"># Standard baseline statement so the account's admins can still manage the</span>
+        <span class="comment"># key via IAM policy — without this, ONLY statements explicitly listed</span>
+        <span class="comment"># here would ever be able to touch the key, including root/admins.</span>
+      },
+      {
+        Sid       = "AllowAppRoleDecrypt"
+        Effect    = "Allow"
+        Principal = { AWS = aws_iam_role.quote_portal_app.arn }
+        Action    = ["kms:Decrypt", "kms:DescribeKey"]
+        Resource  = "*"
+        <span class="comment"># This is the SECOND independent control described in the architecture</span>
+        <span class="comment"># section — the app role must be named HERE, in the key policy, not just</span>
+        <span class="comment"># granted broad IAM permissions, to actually decrypt this secret.</span>
+      }
+    ]
+  })
+}
+
+<span class="kw">resource</span> "aws_kms_alias" "rating_api_key" {
+  name          = "alias/rating-api-key-cmk"
+  target_key_id = aws_kms_key.rating_api_key_cmk.key_id
+}
+
+<span class="kw">resource</span> "aws_secretsmanager_secret" "rating_api_key" {
+  name       = "quote-portal/rating-api-key"
+  kms_key_id = aws_kms_key.rating_api_key_cmk.arn
+}
+
+<span class="kw">resource</span> "aws_secretsmanager_secret_version" "rating_api_key" {
+  secret_id     = aws_secretsmanager_secret.rating_api_key.id
+  secret_string = jsonencode({ api_key = var.rating_api_key })
+  <span class="comment"># var.rating_api_key is marked sensitive = true below — Terraform will</span>
+  <span class="comment"># redact it from plan/apply console output, though it's still visible in</span>
+  <span class="comment"># state, which is why the state file itself must be stored encrypted with</span>
+  <span class="comment"># restricted access (covered when we introduce remote state in Assignment 12).</span>
+}</pre>
+      </div>
+
+      <h3>variables.tf — Sensitive Variable</h3>
+      <div class="code-wrap">
+        <div class="code-head"><span>variables.tf</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre><span class="kw">variable</span> "rating_api_key" {
+  description = "Third-party rating API key — never committed to source control"
+  type        = string
+  sensitive   = true
+  <span class="comment"># sensitive = true redacts the value from Terraform's own CLI output. The</span>
+  <span class="comment"># actual value is supplied at apply time via a gitignored .tfvars file or</span>
+  <span class="comment"># an environment variable — never hardcoded into any .tf file itself.</span>
+}</pre>
+      </div>
+
+      <h3>main.tf — App Role, Least-Privilege Secret Access, MFA Policy</h3>
+      <div class="code-wrap">
+        <div class="code-head"><span>main.tf (part 2 of 3)</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre><span class="kw">resource</span> "aws_iam_role" "quote_portal_app" {
+  name = "quote-portal-app-role"
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Action    = "sts:AssumeRole"
+      Effect    = "Allow"
+      Principal = { Service = "ec2.amazonaws.com" }
+    }]
+  })
+}
+
+<span class="kw">resource</span> "aws_iam_role_policy" "quote_portal_secret_access" {
+  name = "read-rating-api-secret-only"
+  role = aws_iam_role.quote_portal_app.id
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect   = "Allow"
+      Action   = "secretsmanager:GetSecretValue"
+      Resource = aws_secretsmanager_secret.rating_api_key.arn
+      <span class="comment"># Scoped to ONE secret's exact ARN, and ONLY GetSecretValue — this role</span>
+      <span class="comment"># cannot list other secrets, create new ones, or modify this one.</span>
+    }]
+  })
+}
+
+<span class="kw">data</span> "aws_iam_policy_document" "require_mfa" {
+  statement {
+    sid       = "DenyAllExceptListedIfNoMFA"
+    effect    = "Deny"
+    actions   = ["*"]
+    resources = ["*"]
+    condition {
+      test     = "BoolIfExists"
+      variable = "aws:MultiFactorAuthPresent"
+      values   = ["false"]
+    }
+    not_action = [
+      "iam:CreateVirtualMFADevice", "iam:EnableMFADevice",
+      "iam:ListMFADevices", "iam:ListVirtualMFADevices",
+      "iam:ResyncMFADevice", "sts:GetSessionToken"
+    ]
+    <span class="comment"># not_action carves out the handful of actions a user genuinely needs to</span>
+    <span class="comment"># SET UP their own MFA device in the first place — without this carve-out,</span>
+    <span class="comment"># a user with no MFA yet would be locked out of ever enabling it.</span>
+  }
+}
+
+<span class="kw">resource</span> "aws_iam_policy" "require_mfa" {
+  name   = "require-mfa-for-console-users"
+  policy = data.aws_iam_policy_document.require_mfa.json
+}</pre>
+      </div>
+
+      <h3>main.tf — Access Analyzer</h3>
+      <div class="code-wrap">
+        <div class="code-head"><span>main.tf (part 3 of 3)</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre><span class="kw">resource</span> "aws_accessanalyzer_analyzer" "account" {
+  analyzer_name = "quote-portal-account-analyzer"
+  type          = "ACCOUNT"
+  <span class="comment"># ACCOUNT scope watches every resource in this single account for external</span>
+  <span class="comment"># sharing. ORGANIZATION scope (watching across every account in an AWS</span>
+  <span class="comment"># Organization) becomes relevant once Assignment 21's multi-account setup</span>
+  <span class="comment"># exists — not needed yet with a single account.</span>
+}</pre>
+      </div>
+
+      <!-- VALIDATION -->
+      <h2 class="section-title" id="validation"><span class="num">08</span> Validation &amp; Testing</h2>
+      <ul>
+        <li><strong>Secret retrieval test:</strong> from the app instance, confirm <code>get-secret-value</code> succeeds using the instance role — no access keys involved anywhere in the process.</li>
+        <li><strong>Negative test:</strong> from an unrelated IAM role/instance, attempt the same call — must fail with <code>AccessDenied</code> at the IAM layer even before KMS is evaluated.</li>
+        <li><strong>KMS independence test:</strong> temporarily grant a role broad <code>secretsmanager:*</code> IAM permissions but do NOT add it to the CMK's key policy — confirm it still can't decrypt the secret, proving the two layers are genuinely independent.</li>
+        <li><strong>MFA test:</strong> attempt any non-MFA-setup console action as a human user without an MFA device registered — must be denied.</li>
+        <li><strong>No-plaintext test:</strong> <code>aws ec2 describe-instance-attribute --attribute userData</code> against the app instance, decode the base64 output, and confirm no API key string appears anywhere in it.</li>
+      </ul>
+
+      <!-- MONITORING -->
+      <h2 class="section-title" id="monitoring"><span class="num">09</span> Monitoring &amp; Observability</h2>
+      <table>
+        <tr><th>What</th><th>Why</th></tr>
+        <tr><td>IAM Access Analyzer findings</td><td>Continuous, automatic detection of any resource unintentionally exposed outside the account — the exact class of mistake a point-in-time manual review can miss</td></tr>
+        <tr><td>CloudTrail on <code>secretsmanager:GetSecretValue</code></td><td>An audit trail of every single time this specific secret was actually read, and by what identity</td></tr>
+      </table>
+
+      <!-- INCIDENT -->
+      <h2 class="section-title" id="incident"><span class="num">10</span> Production Incident</h2>
+      <div class="story-card">
+        <span class="role-tag">During the review itself</span>
+        <p>While auditing existing roles, Ananya's team finds that the <code>reconcile-job-role</code> from Assignment 1 was, at some point, manually granted <code>s3:*</code> on the whole account by an engineer troubleshooting an unrelated access issue months ago — and never scoped back down. It was never exploited, but it sat there as a standing, unnecessarily broad grant for months.</p>
+      </div>
+      <h4>Investigation</h4>
+      <div class="code-wrap">
+        <div class="code-head"><span>bash</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre>aws iam list-role-policies --role-name reconcile-job-role
+aws iam get-role-policy --role-name reconcile-job-role --policy-name &lt;name&gt;
+aws iam get-account-authorization-details --filter Role \
+  --query "RoleDetailList[?RoleName=='reconcile-job-role']"</pre>
+      </div>
+      <p>Confirms an inline policy separate from the one Terraform manages — proof this was a manual, out-of-band grant, echoing the exact drift pattern from Assignment 2's incident.</p>
+      <h4>Root Cause</h4>
+      <p>An engineer, while debugging an unrelated access-denied error under time pressure, widened the policy as a fast fix and never narrowed it back — a common, human pattern, not a one-off mistake by a careless engineer.</p>
+      <h4>Immediate Fix</h4>
+      <p>Removed the manually-added inline policy, confirming via the Assignment-1 acceptance tests that the reconciliation job still functions correctly with only its original least-privilege Terraform-managed policy.</p>
+      <h4>Permanent Fix</h4>
+      <p>Restricted <code>iam:PutRolePolicy</code> and <code>iam:AttachRolePolicy</code> to a small platform-team group for roles tagged as Terraform-managed, so "quick manual fix under pressure" is no longer even possible for most engineers — they have to go through the Terraform change instead, which forces the change to be reviewed and eventually reconciled with code.</p>
+      <h4>Monitoring Improvement</h4>
+      <p>Added the scheduled drift-detection job (same mechanism introduced in Assignment 2) to specifically flag IAM policy drift, not just network drift.</p>
+      <h4>Lessons Learned</h4>
+      <ul>
+        <li>"Temporary" broad grants made under pressure are the most common source of standing over-permission — the fix has to make the safe path (going through Terraform) faster or at least not much slower than the unsafe one, or people will keep taking the shortcut.</li>
+        <li>A least-privilege policy defined in Terraform is only as good as the account's actual IAM permissions preventing someone from manually widening it outside that code.</li>
+      </ul>
+
+      <!-- TROUBLESHOOTING -->
+      <h2 class="section-title" id="troubleshooting"><span class="num">11</span> Troubleshooting Methodology</h2>
+      <table>
+        <tr><th>Symptom</th><th>Check First</th><th>Likely Cause</th></tr>
+        <tr><td>App can't retrieve the secret — AccessDenied</td><td>IAM policy first, then the KMS key policy separately</td><td>Either layer alone being correct isn't enough — both must explicitly allow the caller</td></tr>
+        <tr><td>Access Analyzer shows an unexpected "external access" finding</td><td>Which specific resource and principal it names</td><td>Often a resource policy (e.g. an S3 bucket policy or IAM role trust policy) that's broader than intended, not necessarily malicious</td></tr>
+        <tr><td>Console user locked out after MFA policy applied</td><td>Whether the not_action carve-out actually covers the MFA-setup actions their console flow needs</td><td>Incomplete carve-out list — a legitimate first-time MFA enrollment step wasn't excluded from the deny</td></tr>
+      </table>
+
+      <!-- COST -->
+      <h2 class="section-title" id="cost"><span class="num">12</span> Cost Optimization</h2>
+      <table>
+        <tr><th>Resource</th><th>Cost Driver</th><th>Note</th></tr>
+        <tr><td>Secrets Manager secret</td><td>Flat per-secret monthly charge + per-API-call charge</td><td>Roughly $0.40/month per secret in ap-south-1 plus a small per-10,000-calls charge — negligible for one credential</td></tr>
+        <tr><td>Customer-managed KMS key</td><td>Flat monthly charge per key + per-API-call charge</td><td>Roughly $1/month — the cost of the second independent access-control layer described above</td></tr>
+        <tr><td>IAM Access Analyzer</td><td>No charge for the account-scope analyzer itself</td><td>Free — no reason not to enable it</td></tr>
+      </table>
+
+      <!-- REVIEW -->
+      <h2 class="section-title" id="review"><span class="num">13</span> Solutions Architect Review</h2>
+      <table>
+        <tr><th>Lens</th><th>Assessment</th></tr>
+        <tr><td>Security</td><td>Plaintext secret eliminated; two independent access-control layers (IAM + KMS key policy) for the most sensitive credential; MFA enforced; IAM drift incident found and closed</td></tr>
+        <tr><td>Cost</td><td>Total added cost is a few dollars a month — proportionate to the sensitivity of what's being protected</td></tr>
+        <tr><td>Operations</td><td>Secret rotation is now possible without a redeploy — a real operational improvement, not just a compliance checkbox</td></tr>
+        <tr><td>Maintainability</td><td>IAM permission changes are now gated through Terraform for most engineers, closing the exact drift pattern seen twice now (Assignment 2 and this one)</td></tr>
+      </table>
+
+      <!-- CLEANUP -->
+      <h2 class="section-title" id="cleanup"><span class="num">14</span> Cleanup</h2>
+      <div class="code-wrap">
+        <div class="code-head"><span>bash</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre>terraform destroy
+<span class="comment"># Secrets Manager secrets aren't deleted immediately even on destroy — they</span>
+<span class="comment"># enter a recovery window (default 30 days) before permanent deletion. Use</span>
+<span class="comment"># --force-delete-without-recovery only in a genuine throwaway lab account.</span></pre>
+      </div>
+
+      <!-- ACCEPTANCE -->
+      <h2 class="section-title" id="acceptance"><span class="num">15</span> Acceptance Criteria</h2>
+      <ul class="criteria">
+        <li>No plaintext secret exists anywhere in user data, source code, or committed Terraform files</li>
+        <li>Rating-API key is stored in Secrets Manager, encrypted under a customer-managed KMS key</li>
+        <li>App role can retrieve only that one secret — verified by a negative test from an unrelated role</li>
+        <li>KMS key policy independently restricts decrypt access, verified as a separate control from IAM</li>
+        <li>All human console users are denied non-MFA-setup actions until MFA is enabled</li>
+        <li>IAM Access Analyzer is enabled and returns zero unexpected active findings</li>
+        <li>The out-of-band <code>reconcile-job-role</code> permission grant has been identified and removed</li>
+      </ul>
+
+      <!-- CHALLENGE -->
+      <h2 class="section-title" id="challenge"><span class="num">16</span> Practice Challenge</h2>
+      <div class="card">
+        <p><strong>Ananya comes back:</strong> "Good. Now — the third-party rating API rotates their keys quarterly and emails us the new one. Right now that means someone manually updating Secrets Manager and hoping they remember. Can we make rotation itself less error-prone, even if we can't fully automate against a third party we don't control?"</p>
+        <p><strong>Requirement:</strong> Reduce the manual-error surface of quarterly key rotation without requiring the third party to support any AWS-native rotation protocol.</p>
+        <p><strong>Acceptance Criteria:</strong> Old and new key versions are both auditable. A rotation should never involve editing application code or redeploying the instance.</p>
+        <p><strong>Hints:</strong> Secrets Manager supports "rotation" as a concept even for secrets whose rotation logic can't be fully automated against an external, uncooperative third party.</p>
+      </div>
+      <details>
+        <summary>Challenge Solution</summary>
+        <div class="inner">
+          <p>Because the application already reads the secret at boot/runtime via <code>GetSecretValue</code> rather than having it baked into an image, rotation only ever requires calling <code>aws secretsmanager put-secret-value</code> with the new key — the app already fetches whatever the current value is, so no code change or redeploy is needed. For the "less error-prone" half: write a small custom Lambda rotation function (Secrets Manager supports custom rotation Lambdas, not just its built-in ones for RDS-style services) that's triggered manually by an engineer pasting the new key into a parameter, rather than editing the secret directly in the console — this gives a single, auditable, logged entry point for the rotation action instead of an ad hoc console edit, and Secrets Manager automatically retains the previous version so the old key remains inspectable during the transition window.</p>
+        </div>
+      </details>
+
+      <!-- INTERVIEW -->
+      <h2 class="section-title" id="interview"><span class="num">17</span> Interview Preparation</h2>
+
+      <div class="qa">
+        <div class="q"><span class="qn">Q1 · Security</span>Why have both an IAM policy and a KMS key policy control access to the same secret — isn't that redundant?</div>
+        <p>It's defense in depth, not redundancy — they're independently controlled and can be managed by different teams. IAM controls "who can call this API"; the KMS key policy controls "who can decrypt data under this specific key," and both must agree. A mistake widening one (like the IAM drift incident in this assignment) doesn't automatically expose the secret if the key policy is still tight — which is exactly why the incident here didn't turn into an actual breach.</p>
+        <div class="follow"><b>Follow-up:</b> "What's the downside of always using a customer-managed key for everything?" — Operational overhead — you now own key policy management, rotation scheduling (if desired), and cost per key; appropriate for high-sensitivity secrets, unnecessary overhead for low-sensitivity configuration values.</div>
+      </div>
+
+      <div class="qa">
+        <div class="q"><span class="qn">Q2 · IAM</span>What's a permission boundary and how is it different from a regular IAM policy attached to a role?</div>
+        <p>A permission boundary sets the maximum possible permissions a role or user can ever have, regardless of what identity-based policies are later attached to it — it's a ceiling, not a grant. A role can have a permission boundary allowing up to <code>s3:*</code> and an attached policy granting <code>s3:*</code>, but the effective permission is always the intersection of the two. It's most useful for letting less-privileged engineers create IAM roles themselves without risking privilege escalation, since anything they create is capped by the boundary regardless of what policy they attach.</p>
+        <div class="follow"><b>Follow-up:</b> "Would a permission boundary have prevented this assignment's incident?" — Yes, potentially — if <code>reconcile-job-role</code> had a permission boundary capping it well below <code>s3:*</code>, the manual over-grant would have been ineffective even after being applied, since the boundary would have capped the effective permission regardless.</div>
+      </div>
+
+      <div class="qa">
+        <div class="q"><span class="qn">Q3 · Production Scenario</span>How would you find every place a specific secret has actually been accessed from, after the fact?</div>
+        <p>CloudTrail logs every <code>secretsmanager:GetSecretValue</code> call with the calling identity, source IP, and timestamp — filter events by that specific secret's ARN and event name to build a full access history, which is exactly the audit trail Ananya's compliance requirement depends on.</p>
+        <div class="follow"><b>Follow-up:</b> "What if CloudTrail wasn't enabled at the time?" — Then that access history is simply unavailable — which is itself the argument for CloudTrail being on by default from account creation, not something enabled reactively after an incident prompts the question.</div>
+      </div>
+
+      <div class="qa">
+        <div class="q"><span class="qn">Q4 · Cost Optimization</span>When would Parameter Store be preferable to Secrets Manager purely on cost grounds?</div>
+        <p>For a large number of low-sensitivity configuration values that don't need rotation — Parameter Store's standard tier is free, while Secrets Manager charges per secret. A team with hundreds of config values would see a meaningful cost difference; the right split is Secrets Manager for values that genuinely need rotation or the extra access controls, Parameter Store SecureString for everything else.</p>
+        <div class="follow"><b>Follow-up:</b> "Can Parameter Store use a customer-managed KMS key too?" — Yes — SecureString parameters can be encrypted under a CMK exactly like Secrets Manager secrets; the main functional gap versus Secrets Manager is native rotation scheduling, not encryption capability.</div>
+      </div>
+
+      <div class="qa">
+        <div class="q"><span class="qn">Q5 · Terraform</span>Why mark a variable sensitive = true if it's still visible in the Terraform state file regardless?</div>
+        <p><code>sensitive = true</code> only redacts the value from CLI output (plan/apply logs, which often end up in CI logs, terminal scrollback, or screen shares) — a very real and common leak vector. It does nothing to protect the state file itself, which is why state must separately be stored in an encrypted, access-controlled remote backend (introduced properly in Assignment 12) — the two protections address different exposure points and neither substitutes for the other.</p>
+        <div class="follow"><b>Follow-up:</b> "So how would you actually supply this variable's value safely?" — Via a gitignored <code>.tfvars</code> file, an environment variable set at apply time, or pulled from Secrets Manager/Parameter Store itself via a data source — never hardcoded into a committed <code>.tf</code> file.</div>
+      </div>
+
+      <div class="qa">
+        <div class="q"><span class="qn">Q6 · Manager Round</span>Security wants MFA enforced for everyone immediately. Engineering is worried about being locked out mid-sprint. How do you roll this out?</div>
+        <p>I wouldn't flip the enforcing policy on for everyone in one shot. I'd first identify anyone without MFA already registered, give them a defined window with clear self-service instructions to enroll (the carve-out policy above already allows enrollment actions without MFA present, so nobody's locked out of setting it up), confirm coverage, and only then attach the enforcing policy account-wide — with a clear rollback plan if something legitimate breaks. The goal is getting to Ananya's non-negotiable requirement without an avoidable, disruptive outage caused by the rollout itself.</p>
+        <div class="follow"><b>Follow-up:</b> "What about service accounts or automation that can't use MFA at all?" — Those should already be using IAM roles rather than long-lived IAM user credentials wherever possible (the same principle from Assignment 1) — MFA enforcement targets human console/CLI users specifically, not machine-to-machine role assumption.</div>
+      </div>
+
+      <!-- RESUME -->
+      <h2 class="section-title" id="resume"><span class="num">18</span> Resume Points</h2>
+      <ul class="resume-list">
+        <li>Eliminated a plaintext third-party API credential from EC2 instance metadata by migrating to AWS Secrets Manager with runtime retrieval via IAM role</li>
+        <li>Implemented a two-layer access control model for a sensitive credential using a customer-managed KMS key policy independent of IAM permissions</li>
+        <li>Designed and enforced an account-wide MFA-required IAM policy with a scoped enrollment carve-out to prevent user lockout during rollout</li>
+        <li>Enabled AWS IAM Access Analyzer and conducted a full least-privilege review across all IAM roles created since project inception, identifying and remediating an out-of-band over-permission grant</li>
+        <li>Restricted IAM policy modification permissions to enforce Terraform as the sole change path for production roles, closing a recurring configuration-drift pattern</li>
+      </ul>
+
+      <!-- NEXT -->
+      <h2 class="section-title" id="next"><span class="num">19</span> Next Project</h2>
+      <div class="box win">
+        <span class="label">Foundation stage complete</span>
+        <p>That closes out Foundation (Assignments 1–5) — a working, monitored, backed-up, and now properly secured single-instance application on AWS. Implement this assignment and say <strong>"Next Project"</strong> when ready. Assignment 6 opens the Intermediate stage: building a genuinely highly-available, multi-AZ version of the quote portal — the point where a single app instance stops being an acceptable answer.</p>
+      </div>
+
+    </div>
+    <footer>AWS Cloud Engineering Masterclass · Assignment 05 of 25 · Foundation Stage</footer>
+  </div>
+</div>
+
+<button class="mobile-toggle" id="mobileToggle" aria-label="Toggle menu">☰</button>
+<script>
+const sections = document.querySelectorAll('h2.section-title[id]');
+const navLinks = document.querySelectorAll('.sidebar nav a');
+function onScroll(){
+  let current = '';
+  sections.forEach(s=>{ if(window.scrollY >= s.offsetTop - 80) current = s.id; });
+  navLinks.forEach(a=> a.classList.toggle('active', a.getAttribute('href') === '#'+current));
+}
+window.addEventListener('scroll', onScroll); onScroll();
+document.getElementById('mobileToggle').addEventListener('click', ()=> document.getElementById('sidebar').classList.toggle('open'));
+document.querySelectorAll('.sidebar nav a').forEach(a=> a.addEventListener('click', ()=> document.getElementById('sidebar').classList.remove('open')));
+function copyCode(btn){
+  const pre = btn.closest('.code-wrap').querySelector('pre');
+  navigator.clipboard.writeText(pre.innerText).then(()=>{
+    const orig = btn.textContent; btn.textContent = 'Copied!';
+    setTimeout(()=> btn.textContent = orig, 1500);
+  });
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Project 3 — DNS Failure Investigation</title>
+<style>
+:root{
+  --blue:#2563EB; --blue-bg:#EFF6FF;
+  --purple:#7C3AED; --purple-bg:#F5F3FF;
+  --teal:#0F766E; --teal-bg:#F0FDFA;
+  --green:#16A34A; --green-bg:#F0FDF4;
+  --orange:#EA580C; --orange-bg:#FFF7ED;
+  --red:#DC2626; --red-bg:#FEF2F2;
+  --bg:#FFFFFF; --text:#1F2937; --muted:#6B7280;
+  --border:#E5E7EB; --sidebar-w:280px;
+}
+*{box-sizing:border-box;}
+body{margin:0;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--text);line-height:1.65;}
+a{color:var(--blue);text-decoration:none;}
+a:hover{text-decoration:underline;}
+code{font-family:"SFMono-Regular",Consolas,"Liberation Mono",Menlo,monospace;}
+
+.cover{padding:60px 24px 40px;background:linear-gradient(135deg,var(--blue-bg),var(--purple-bg));border-bottom:1px solid var(--border);}
+.cover-inner{max-width:900px;margin:0 auto;}
+.badge-row{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:18px;}
+.badge{font-size:12.5px;font-weight:600;padding:5px 12px;border-radius:20px;letter-spacing:.02em;}
+.badge.blue{background:var(--blue);color:#fff;}
+.badge.purple{background:var(--purple);color:#fff;}
+.badge.teal{background:var(--teal);color:#fff;}
+.badge.orange{background:var(--orange);color:#fff;}
+.cover h1{font-size:2.1rem;margin:0 0 8px;color:#111827;}
+.cover .subtitle{font-size:1.05rem;color:var(--muted);margin-bottom:26px;}
+.cover-meta{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;}
+.meta-card{background:#fff;border:1px solid var(--border);border-radius:10px;padding:12px 14px;}
+.meta-card .label{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:700;}
+.meta-card .value{font-size:14.5px;font-weight:600;margin-top:2px;}
+
+.layout{display:flex;max-width:1400px;margin:0 auto;}
+.sidebar{width:var(--sidebar-w);flex-shrink:0;position:sticky;top:0;align-self:flex-start;height:100vh;overflow-y:auto;border-right:1px solid var(--border);padding:22px 14px;}
+.sidebar h4{font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin:18px 0 6px 10px;}
+.sidebar h4:first-child{margin-top:0;}
+.sidebar a{display:block;padding:7px 10px;border-radius:8px;font-size:13.5px;color:#374151;margin-bottom:1px;}
+.sidebar a:hover{background:var(--blue-bg);text-decoration:none;color:var(--blue);}
+.progress-wrap{margin:10px 10px 4px;}
+.progress-bar{height:6px;background:var(--border);border-radius:4px;overflow:hidden;}
+.progress-fill{height:100%;width:0%;background:linear-gradient(90deg,var(--blue),var(--purple));transition:width .2s;}
+.progress-label{font-size:11px;color:var(--muted);margin-top:4px;}
+
+.content{flex:1;min-width:0;padding:34px 40px 100px;}
+section{margin-bottom:48px;scroll-margin-top:20px;}
+h2.sec-title{font-size:1.5rem;border-bottom:2px solid var(--border);padding-bottom:10px;margin-bottom:18px;display:flex;align-items:center;gap:10px;}
+h2.sec-title .num{background:var(--blue);color:#fff;width:30px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;}
+h3{font-size:1.15rem;margin-top:28px;color:#111827;}
+
+.box{border-radius:10px;padding:16px 18px;margin:16px 0;border:1px solid transparent;}
+.box .box-title{font-weight:700;font-size:13px;text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px;display:flex;align-items:center;gap:6px;}
+.box.concept{background:var(--blue-bg);border-color:#BFDBFE;}
+.box.concept .box-title{color:var(--blue);}
+.box.architecture{background:var(--purple-bg);border-color:#DDD6FE;}
+.box.architecture .box-title{color:var(--purple);}
+.box.success{background:var(--green-bg);border-color:#BBF7D0;}
+.box.success .box-title{color:var(--green);}
+.box.warning{background:var(--orange-bg);border-color:#FED7AA;}
+.box.warning .box-title{color:var(--orange);}
+.box.failure{background:var(--red-bg);border-color:#FECACA;}
+.box.failure .box-title{color:var(--red);}
+.box.bestpractice{background:var(--teal-bg);border-color:#99F6E4;}
+.box.bestpractice .box-title{color:var(--teal);}
+.box.story{background:#F9FAFB;border-color:var(--border);border-left:4px solid var(--purple);}
+
+.story p{margin:0 0 10px;}
+.story .quote{font-style:italic;color:#374151;border-left:3px solid var(--purple);padding-left:12px;margin:10px 0;}
+
+.term{background:#0F172A;color:#E2E8F0;border-radius:10px;margin:14px 0;overflow:hidden;border:1px solid #1E293B;}
+.term-header{display:flex;justify-content:space-between;align-items:center;background:#1E293B;padding:8px 14px;font-size:12px;color:#94A3B8;}
+.copy-btn{background:#334155;color:#E2E8F0;border:none;border-radius:6px;padding:4px 10px;font-size:11.5px;cursor:pointer;}
+.copy-btn:hover{background:#475569;}
+.term pre{margin:0;padding:14px 16px;overflow-x:auto;font-size:13.5px;line-height:1.6;}
+.term .cmdno{color:#64748B;margin-right:8px;}
+.term .cmd{color:#7DD3FC;}
+.term .out{color:#CBD5E1;}
+.term .out-err{color:#FCA5A5;}
+.term .out-ok{color:#86EFAC;}
+.term .comment{color:#64748B;}
+
+table.breakdown{width:100%;border-collapse:collapse;margin:12px 0 20px;font-size:14px;}
+table.breakdown th{background:#F3F4F6;text-align:left;padding:8px 10px;font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);}
+table.breakdown td{padding:9px 10px;border-top:1px solid var(--border);vertical-align:top;}
+table.breakdown td.token{font-family:monospace;color:var(--blue);font-weight:700;white-space:nowrap;}
+
+details.collapse{border:1px solid var(--border);border-radius:10px;margin:14px 0;overflow:hidden;}
+details.collapse summary{cursor:pointer;padding:12px 16px;font-weight:600;background:#F9FAFB;list-style:none;display:flex;align-items:center;gap:8px;}
+details.collapse summary::-webkit-details-marker{display:none;}
+details.collapse summary:before{content:"▶";font-size:11px;color:var(--muted);transition:transform .15s;}
+details.collapse[open] summary:before{transform:rotate(90deg);}
+details.collapse .collapse-body{padding:4px 16px 16px;}
+
+.diagram-frame{background:#FAFAFA;border:1px solid var(--border);border-radius:12px;padding:18px;margin:16px 0;overflow-x:auto;}
+.diagram-caption{font-size:12.5px;color:var(--muted);text-align:center;margin-top:8px;}
+
+table.ref{width:100%;border-collapse:collapse;font-size:14px;margin:14px 0;}
+table.ref th{background:#F3F4F6;padding:8px 10px;text-align:left;font-size:12.5px;}
+table.ref td{padding:8px 10px;border-top:1px solid var(--border);}
+
+.dtree{list-style:none;padding-left:0;font-size:14px;}
+.dtree li{padding:8px 12px;margin-bottom:6px;border-radius:8px;border:1px solid var(--border);position:relative;}
+.dtree li.q{background:var(--blue-bg);}
+.dtree li.ok{background:var(--green-bg);}
+.dtree li.bad{background:var(--red-bg);}
+.dtree .arrow{text-align:center;color:var(--muted);font-size:12px;margin:2px 0;}
+
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin:16px 0;}
+.card{border:1px solid var(--border);border-radius:10px;padding:14px 16px;}
+.card h4{margin:0 0 6px;font-size:14.5px;}
+.card p{margin:0;font-size:13.5px;color:var(--muted);}
+
+.qa{border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin:12px 0;background:#FCFCFD;}
+.qa .q{font-weight:700;color:#111827;margin-bottom:6px;}
+.qa .q .qtag{background:var(--purple);color:#fff;font-size:10.5px;padding:2px 8px;border-radius:10px;margin-right:8px;text-transform:uppercase;}
+.qa .followup{margin-top:8px;padding-top:8px;border-top:1px dashed var(--border);font-size:13.5px;color:var(--muted);}
+
+.top-link{position:fixed;bottom:22px;right:22px;background:var(--blue);color:#fff;width:42px;height:42px;border-radius:50%;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(0,0,0,.15);font-size:18px;}
+.top-link:hover{text-decoration:none;background:#1D4ED8;}
+
+@media (max-width:900px){
+  .sidebar{display:none;}
+  .content{padding:22px 18px 80px;}
+}
+</style>
+</head>
+<body>
+
+<div class="cover">
+  <div class="cover-inner">
+    <div class="badge-row">
+      <span class="badge blue">Project 3 of ~38</span>
+      <span class="badge purple">Linux Networking Masterclass</span>
+      <span class="badge teal">Domain: Banking / DevOps</span>
+      <span class="badge orange">Difficulty: Intermediate</span>
+    </div>
+    <h1>DNS Failure Investigation</h1>
+    <div class="subtitle">A payments gateway intermittently can't resolve a partner bank's hostname — sometimes it works, sometimes it doesn't, and nobody can explain why. Time to trace exactly how Linux resolves a name, step by step.</div>
+    <div class="cover-meta">
+      <div class="meta-card"><div class="label">Estimated Lab Time</div><div class="value">2.5 – 3.5 hours</div></div>
+      <div class="meta-card"><div class="label">Prerequisites</div><div class="value">Projects 1 &amp; 2 completed</div></div>
+      <div class="meta-card"><div class="label">Lab Environment</div><div class="value">2 namespaces + a lab DNS server (dnsmasq)</div></div>
+      <div class="meta-card"><div class="label">Concepts Learned</div><div class="value">resolv.conf, nsswitch.conf, search domains, resolution order, caching/TTL</div></div>
+    </div>
+  </div>
+</div>
+
+<div class="layout">
+  <nav class="sidebar" id="sidebar">
+    <div class="progress-wrap">
+      <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+      <div class="progress-label" id="progressLabel">0% through Project 3</div>
+    </div>
+    <h4>Orientation</h4>
+    <a href="#story">1. The Incident</a>
+    <a href="#foundation">2. DNS Foundation</a>
+    <a href="#architecture">3. Resolver Architecture</a>
+    <a href="#resolution">4. Resolution Order</a>
+    <a href="#methodology">5. Troubleshooting Method</a>
+    <h4>Hands-On Lab</h4>
+    <a href="#labsetup">6. Lab Setup (dnsmasq)</a>
+    <a href="#verify">7. Verify Baseline</a>
+    <h4>Break / Fix (4 Incidents)</h4>
+    <a href="#break1">8. Wrong Nameserver IP</a>
+    <a href="#break2">9. Stale /etc/hosts Override</a>
+    <a href="#break3">10. Missing Search Domain</a>
+    <a href="#break4">11. Dead Primary Nameserver (Slow Failover)</a>
+    <h4>Wrap-Up</h4>
+    <a href="#bestpractices">12. Best Practices</a>
+    <a href="#cheatsheet">13. Cheat Sheet</a>
+    <a href="#interview">14. Interview Prep</a>
+    <a href="#practice">15. Practice Tasks</a>
+    <a href="#resume">16. Resume Points</a>
+    <a href="#next">17. Next Project</a>
+  </nav>
+
+  <main class="content">
+
+  <section id="story">
+    <h2 class="sec-title"><span class="num">1</span>The Incident</h2>
+    <div class="box story">
+      <p>We're supporting infrastructure for a bank's payments gateway. Every outbound transaction call goes to a partner bank's API at <code>partner-bank-api.internal</code>. Around mid-morning, alerts start firing.</p>
+      <p class="quote">"About 1 in 5 payment calls are failing with a DNS resolution error. It's intermittent — retrying the exact same request 30 seconds later often works. The partner bank swears their API has had 100% uptime. Application logs just show 'could not resolve host'."</p>
+      <p>Intermittent DNS failures are some of the trickiest tickets in this masterclass so far, because "sometimes it works" rules out the simplest explanations (a fully broken config would fail every time) and points us toward caching, multiple nameservers, or timing-dependent behavior.</p>
+    </div>
+    <div class="box concept">
+      <div class="box-title">🔵 Why this project matters</div>
+      <p>DNS sits in front of almost every other networking layer we've covered — before routing, before the firewall, before the TCP handshake even begins, an application usually has to resolve a name first. A huge fraction of "the network is down" tickets turn out to be DNS, and DNS is one of the few layers where the failure can be silent, intermittent, and cache-dependent — which is exactly why it deserves its own deep project instead of being treated as "just check resolv.conf."</p>
+    </div>
+  </section>
+
+  <section id="foundation">
+    <h2 class="sec-title"><span class="num">2</span>DNS Foundation — Just Enough to Investigate</h2>
+
+    <h3>2.1 Resolution doesn't start at a DNS server — it starts in glibc</h3>
+    <div class="box concept">
+      <div class="box-title">🔵 Concept</div>
+      <p>When an application calls a function like <code>getaddrinfo()</code> to resolve a hostname, it isn't talking to a DNS server directly — it's talking to the C library's resolver, which consults <code>/etc/nsswitch.conf</code> to decide, in order, WHERE to look for the answer (local files first? DNS first? both?). This is why two different tools can give you two different-looking answers for the "same" lookup — some tools use the full system resolver path, others (like classic <code>nslookup</code>) talk to DNS directly and skip /etc/hosts entirely.</p>
+    </div>
+
+    <h3>2.2 /etc/nsswitch.conf — the traffic cop</h3>
+    <div class="box concept">
+      <div class="box-title">🔵 Concept</div>
+      <p>The line <code>hosts: files dns</code> in /etc/nsswitch.conf tells the resolver: check /etc/hosts FIRST, and only fall through to DNS if there's no match there. This ordering is a very common source of "but I updated DNS and it's still resolving to the old IP" tickets — if a stale entry sits in /etc/hosts, DNS is never even consulted.</p>
+    </div>
+
+    <h3>2.3 /etc/resolv.conf — where to ask</h3>
+    <div class="box concept">
+      <div class="box-title">🔵 Concept</div>
+      <p><code>/etc/resolv.conf</code> lists the actual DNS servers (<code>nameserver</code> lines) the resolver will query, in order, plus optional <code>search</code> domains that get appended to short (unqualified) hostnames before they're queried. On systemd-based distros this file is frequently managed automatically by <b>systemd-resolved</b> or NetworkManager, which is why manually editing it sometimes "doesn't stick" — it gets regenerated.</p>
+    </div>
+
+    <h3>2.4 Search domains — why a short name behaves differently from an FQDN</h3>
+    <div class="box concept">
+      <div class="box-title">🔵 Concept</div>
+      <p>If you look up a short name like <code>partner-bank-api</code> instead of the fully-qualified <code>partner-bank-api.internal</code>, the resolver appends each configured <code>search</code> domain in turn and tries each combination until one resolves. If the search domain is missing or wrong, a short name can fail to resolve even though the fully-qualified version works perfectly — a very easy thing to overlook when only some code paths in an application use short names.</p>
+    </div>
+
+    <h3>2.5 Caching and TTL — the source of "sometimes it works"</h3>
+    <div class="box concept">
+      <div class="box-title">🔵 Concept</div>
+      <p>DNS answers come with a Time-To-Live (TTL) telling resolvers how long they're allowed to cache the answer. A caching layer (systemd-resolved, dnsmasq, or the application's own resolver cache) will keep answering from cache until the TTL expires — meaning a DNS fix, a failing nameserver, or a changed record can all produce inconsistent, timing-dependent results depending on exactly when a given host or process last refreshed its cache. This is very often the root cause behind "it's intermittent."</p>
+    </div>
+  </section>
+
+  <section id="architecture">
+    <h2 class="sec-title"><span class="num">3</span>Resolver Architecture</h2>
+    <div class="box architecture">
+      <div class="box-title">🟣 Architecture</div>
+      <p>Our payments gateway server, <code>pay-gw-01</code>, needs to resolve <code>partner-bank-api.internal</code>. Its resolution path passes through nsswitch, then either /etc/hosts or resolv.conf's nameserver list, which in this environment points at an internal DNS resolver (we'll simulate it with dnsmasq) that is itself a caching layer in front of the real authoritative answer.</p>
+    </div>
+    <div class="diagram-frame">
+<svg viewBox="0 0 900 300" xmlns="http://www.w3.org/2000/svg" width="100%">
+<style>
+  .lbl{font:600 13px sans-serif;fill:#1F2937;}
+  .sub{font:11px sans-serif;fill:#6B7280;}
+  .box{fill:#EFF6FF;stroke:#2563EB;stroke-width:1.5;rx:10;}
+  .box2{fill:#F5F3FF;stroke:#7C3AED;stroke-width:1.5;rx:10;}
+  .box3{fill:#F0FDFA;stroke:#0F766E;stroke-width:1.5;rx:10;}
+  .arr{stroke:#374151;stroke-width:2;marker-end:url(#a4);fill:none;}
+</style>
+<defs><marker id="a4" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6 Z" fill="#374151"/></marker></defs>
+
+<rect x="20" y="120" width="170" height="70" class="box"/>
+<text x="105" y="150" text-anchor="middle" class="lbl">Application</text>
+<text x="105" y="168" text-anchor="middle" class="sub">getaddrinfo()</text>
+
+<rect x="230" y="120" width="170" height="70" class="box2"/>
+<text x="315" y="150" text-anchor="middle" class="lbl">nsswitch.conf</text>
+<text x="315" y="168" text-anchor="middle" class="sub">hosts: files dns</text>
+
+<rect x="440" y="40" width="170" height="60" class="box3"/>
+<text x="525" y="65" text-anchor="middle" class="lbl">/etc/hosts</text>
+<text x="525" y="83" text-anchor="middle" class="sub">checked FIRST</text>
+
+<rect x="440" y="200" width="170" height="70" class="box3"/>
+<text x="525" y="228" text-anchor="middle" class="lbl">/etc/resolv.conf</text>
+<text x="525" y="246" text-anchor="middle" class="sub">nameserver list + search</text>
+
+<rect x="670" y="200" width="190" height="70" class="box"/>
+<text x="765" y="228" text-anchor="middle" class="lbl">Internal DNS Resolver</text>
+<text x="765" y="246" text-anchor="middle" class="sub">(caching, TTL-aware)</text>
+
+<line x1="190" y1="155" x2="228" y2="155" class="arr"/>
+<line x1="400" y1="140" x2="438" y2="80" class="arr"/>
+<line x1="400" y1="170" x2="438" y2="230" class="arr"/>
+<line x1="610" y1="235" x2="668" y2="235" class="arr"/>
+</svg>
+    </div>
+    <div class="diagram-caption">Figure 1 — nsswitch.conf decides the order; a stale /etc/hosts entry can short-circuit DNS entirely, and a caching resolver can return stale answers until TTL expiry.</div>
+  </section>
+
+  <section id="resolution">
+    <h2 class="sec-title"><span class="num">4</span>Resolution Order Decision Flow</h2>
+    <div class="diagram-frame">
+<svg viewBox="0 0 620 380" xmlns="http://www.w3.org/2000/svg" width="100%" style="max-width:480px;display:block;margin:0 auto;">
+<style>.step{fill:#fff;stroke:#D1D5DB;stroke-width:1.4;} .stepL{font:600 12.5px sans-serif;fill:#1F2937;} .arrow2{stroke:#9CA3AF;stroke-width:2;marker-end:url(#a5);}</style>
+<defs><marker id="a5" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#9CA3AF"/></marker></defs>
+<rect x="60" y="10" width="480" height="46" rx="8" class="step"/><text x="300" y="38" text-anchor="middle" class="stepL">App requests resolution of a hostname</text>
+<line x1="300" y1="56" x2="300" y2="76" class="arrow2"/>
+<rect x="60" y="76" width="480" height="46" rx="8" class="step"/><text x="300" y="104" text-anchor="middle" class="stepL">Is it a short name? Append each "search" domain in turn</text>
+<line x1="300" y1="122" x2="300" y2="142" class="arrow2"/>
+<rect x="60" y="142" width="480" height="46" rx="8" class="step"/><text x="300" y="170" text-anchor="middle" class="stepL">Check nsswitch.conf "hosts:" line for lookup order</text>
+<line x1="300" y1="188" x2="300" y2="208" class="arrow2"/>
+<rect x="60" y="208" width="480" height="46" rx="8" class="step"/><text x="300" y="236" text-anchor="middle" class="stepL">"files" first? Check /etc/hosts — match found → STOP here</text>
+<line x1="300" y1="254" x2="300" y2="274" class="arrow2"/>
+<rect x="60" y="274" width="480" height="46" rx="8" class="step"/><text x="300" y="302" text-anchor="middle" class="stepL">No match → query nameservers from resolv.conf, in order</text>
+<line x1="300" y1="320" x2="300" y2="340" class="arrow2"/>
+<rect x="60" y="340" width="480" height="30" rx="8" class="step"/><text x="300" y="360" text-anchor="middle" class="stepL">Cache the answer for its TTL, return result to app</text>
+</svg>
+    </div>
+    <div class="diagram-caption">Figure 2 — This is the exact order <code>getent hosts</code> follows, which is why it's our most trustworthy diagnostic command.</div>
+  </section>
+
+  <section id="methodology">
+    <h2 class="sec-title"><span class="num">5</span>Troubleshooting Method for DNS Incidents</h2>
+    <ul class="dtree">
+      <li class="q">1. Reproduce using getent hosts (the real application resolution path) — not just dig, which skips /etc/hosts and caching layers</li>
+      <div class="arrow">↓</div>
+      <li class="q">2. Is the result consistent across repeated attempts, or does it change? (points to caching/multiple nameservers if inconsistent)</li>
+      <div class="arrow">↓</div>
+      <li class="q">3. Check /etc/hosts for a matching, possibly stale, entry</li>
+      <div class="arrow">↓</div>
+      <li class="q">4. Check /etc/resolv.conf — are the nameservers correct and reachable? Is a needed search domain present?</li>
+      <div class="arrow">↓</div>
+      <li class="q">5. Query each configured nameserver directly with dig to see if they disagree with each other</li>
+      <div class="arrow">↓</div>
+      <li class="ok">Once the resolver path and every nameserver agree, DNS is cleared — move to routing/firewall/socket layers</li>
+    </ul>
+    <div class="box warning"><div class="box-title">🟠 Warning</div><p>Don't diagnose DNS issues using only <code>dig</code> or <code>nslookup</code> — both bypass /etc/hosts and nsswitch.conf entirely and talk to a nameserver directly. If dig succeeds but the application still fails, the bug is very likely in /etc/hosts or nsswitch ordering, not in DNS itself. Always cross-check with <code>getent hosts</code>, which follows the real application resolution path.</p></div>
+  </section>
+
+  <section id="labsetup">
+    <h2 class="sec-title"><span class="num">6</span>Lab Setup — A Namespace with Its Own DNS Server</h2>
+    <p>We'll build two namespaces: <code>ns-paygw</code> (our payments gateway) and <code>ns-dns</code> (running dnsmasq as our lab's internal DNS resolver, authoritative for the <code>.internal</code> zone).</p>
+    <div class="term">
+      <div class="term-header"><span>bash — run as root/sudo</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button></div>
+      <pre><span class="cmdno">1</span><span class="cmd">sudo ip netns add ns-paygw</span>
+<span class="cmdno">2</span><span class="cmd">sudo ip netns add ns-dns</span>
+<span class="cmdno">3</span><span class="cmd">sudo ip link add veth-paygw type veth peer name veth-dns</span>
+<span class="cmdno">4</span><span class="cmd">sudo ip link set veth-paygw netns ns-paygw</span>
+<span class="cmdno">5</span><span class="cmd">sudo ip link set veth-dns netns ns-dns</span>
+<span class="cmdno">6</span><span class="cmd">sudo ip netns exec ns-paygw ip addr add 10.30.1.10/24 dev veth-paygw</span>
+<span class="cmdno">7</span><span class="cmd">sudo ip netns exec ns-dns ip addr add 10.30.1.53/24 dev veth-dns</span>
+<span class="cmdno">8</span><span class="cmd">sudo ip netns exec ns-paygw ip link set veth-paygw up</span>
+<span class="cmdno">9</span><span class="cmd">sudo ip netns exec ns-dns ip link set veth-dns up</span>
+<span class="cmdno">10</span><span class="cmd">for ns in ns-paygw ns-dns; do sudo ip netns exec $ns ip link set lo up; done</span>
+<span class="cmdno">11</span><span class="comment"># install dnsmasq for our lab DNS server</span>
+<span class="cmdno">12</span><span class="cmd">sudo ip netns exec ns-dns bash -c "which dnsmasq || apt install -y dnsmasq"</span></pre>
+    </div>
+
+    <h3>6.1 Configure the lab DNS server to answer for partner-bank-api.internal</h3>
+    <div class="term">
+      <div class="term-header"><span>bash — on ns-dns</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button></div>
+      <pre><span class="cmdno">1</span><span class="cmd">sudo ip netns exec ns-dns bash -c "cat > /tmp/dnsmasq-lab.conf" &lt;&lt;'EOF'
+no-resolv
+no-hosts
+listen-address=10.30.1.53
+address=/partner-bank-api.internal/10.30.9.99
+EOF</span>
+<span class="cmdno">2</span><span class="cmd">sudo ip netns exec ns-dns dnsmasq -C /tmp/dnsmasq-lab.conf -k &amp;</span></pre>
+    </div>
+    <table class="breakdown">
+      <tr><th>Token</th><th>Meaning</th></tr>
+      <tr><td class="token">no-resolv</td><td>Tells dnsmasq not to read the host's own /etc/resolv.conf for upstream servers — we want it to act as a self-contained authoritative answer for our lab zone only.</td></tr>
+      <tr><td class="token">listen-address=10.30.1.53</td><td>Binds dnsmasq to listen for DNS queries on this specific IP.</td></tr>
+      <tr><td class="token">address=/partner-bank-api.internal/10.30.9.99</td><td>A static DNS mapping — any query for this exact name gets answered with 10.30.9.99, simulating the partner bank's real, correct IP.</td></tr>
+      <tr><td class="token">-k</td><td>Keep dnsmasq running in the foreground so we can see it (in a real lab, run it in its own terminal or as a background job).</td></tr>
+    </table>
+
+    <h3>6.2 Point the payments gateway at our lab DNS server</h3>
+    <div class="term">
+      <div class="term-header"><span>bash — on ns-paygw</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button></div>
+      <pre><span class="cmdno">1</span><span class="cmd">sudo ip netns exec ns-paygw bash -c "mkdir -p /etc/netns/ns-paygw; echo 'nameserver 10.30.1.53' > /etc/resolv.conf; echo 'search internal' >> /etc/resolv.conf"</span>
+<span class="cmdno">2</span><span class="cmd">sudo ip netns exec ns-paygw cat /etc/resolv.conf</span>
+<span class="out">    nameserver 10.30.1.53
+    search internal</span></pre>
+    </div>
+    <table class="breakdown">
+      <tr><th>Token</th><th>Meaning</th></tr>
+      <tr><td class="token">nameserver 10.30.1.53</td><td>The DNS server this host will query — order matters when there are multiple lines; the first is tried first.</td></tr>
+      <tr><td class="token">search internal</td><td>A short (unqualified) hostname will have ".internal" appended automatically before being queried.</td></tr>
+    </table>
+  </section>
+
+  <section id="verify">
+    <h2 class="sec-title"><span class="num">7</span>Verify the Baseline</h2>
+    <div class="term">
+      <div class="term-header"><span>bash — on ns-paygw</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button></div>
+      <pre><span class="cmdno">1</span><span class="cmd">sudo ip netns exec ns-paygw getent hosts partner-bank-api.internal</span>
+<span class="out-ok">    10.30.9.99  partner-bank-api.internal</span>
+<span class="cmdno">2</span><span class="cmd">sudo ip netns exec ns-paygw dig +short partner-bank-api.internal</span>
+<span class="out-ok">    10.30.9.99</span></pre>
+    </div>
+    <div class="box success"><div class="box-title">🟢 Validation</div><p>Both the real application resolution path (getent) and a direct query (dig) agree. This is our known-good baseline before we start breaking things.</p></div>
+  </section>
+
+  <!-- BREAK 1 -->
+  <section id="break1">
+    <h2 class="sec-title"><span class="num">8</span>Break-Fix #1 — Wrong Nameserver IP</h2>
+    <div class="box failure"><div class="box-title">🔴 Break It</div><p>Simulate a typo or a misapplied config push that points resolv.conf at a nameserver IP that doesn't exist.</p></div>
+    <div class="term">
+      <div class="term-header"><span>bash — on ns-paygw</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button></div>
+      <pre><span class="cmdno">1</span><span class="cmd">sudo ip netns exec ns-paygw bash -c "echo 'nameserver 10.30.1.99' > /etc/resolv.conf; echo 'search internal' >> /etc/resolv.conf"</span></pre>
+    </div>
+    <h3>Observe</h3>
+    <div class="term">
+      <div class="term-header"><span>bash — on ns-paygw</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button></div>
+      <pre><span class="cmdno">1</span><span class="cmd">sudo ip netns exec ns-paygw getent hosts partner-bank-api.internal</span>
+<span class="out-err">    (no output, non-zero exit — after a multi-second delay)</span>
+<span class="cmdno">2</span><span class="cmd">sudo ip netns exec ns-paygw dig partner-bank-api.internal</span>
+<span class="out-err">    ;; connection timed out; no servers could be reached</span></pre>
+    </div>
+    <div class="box concept"><div class="box-title">🔵 Reading the symptom</div><p>A completely unreachable nameserver produces a slow, total failure — no answer, no error message immediately, just a hang followed by a timeout. This is different from Break #2 and #3 below, which will fail fast with a definite (wrong) answer instead of a slow non-answer. The speed and shape of the failure is itself diagnostic evidence.</p></div>
+    <div class="box failure"><div class="box-title">🔴 Root Cause</div><p>resolv.conf pointed at a nameserver IP with no DNS service listening — every query times out with no reply at all.</p></div>
+    <div class="term">
+      <div class="term-header"><span>bash — fix</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button></div>
+      <pre><span class="cmdno">1</span><span class="cmd">sudo ip netns exec ns-paygw bash -c "echo 'nameserver 10.30.1.53' > /etc/resolv.conf; echo 'search internal' >> /etc/resolv.conf"</span></pre>
+    </div>
+    <div class="box success"><div class="box-title">🟢 Validate</div><p>Re-run getent hosts — should return instantly with the correct IP again.</p></div>
+  </section>
+
+  <!-- BREAK 2 -->
+  <section id="break2">
+    <h2 class="sec-title"><span class="num">9</span>Break-Fix #2 — Stale /etc/hosts Entry Overriding DNS</h2>
+    <div class="box failure"><div class="box-title">🔴 Break It</div><p>DNS is correctly configured and healthy — but someone added an old troubleshooting entry to /etc/hosts months ago and forgot to remove it.</p></div>
+    <div class="term">
+      <div class="term-header"><span>bash — on ns-paygw</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button></div>
+      <pre><span class="cmdno">1</span><span class="cmd">sudo ip netns exec ns-paygw bash -c "echo '10.30.9.200 partner-bank-api.internal' >> /etc/hosts"</span></pre>
+    </div>
+    <h3>Observe</h3>
+    <div class="term">
+      <div class="term-header"><span>bash — on ns-paygw</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button></div>
+      <pre><span class="cmdno">1</span><span class="cmd">sudo ip netns exec ns-paygw getent hosts partner-bank-api.internal</span>
+<span class="out-err">    10.30.9.200  partner-bank-api.internal</span>
+<span class="cmdno">2</span><span class="cmd">sudo ip netns exec ns-paygw dig +short partner-bank-api.internal</span>
+<span class="out-ok">    10.30.9.99</span></pre>
+    </div>
+    <div class="box concept"><div class="box-title">🔵 Reading the symptom</div><p>This is the single most confusing DNS symptom you'll see in production: dig (which talks to the nameserver directly, bypassing /etc/hosts) shows the CORRECT answer, while getent hosts (the real path applications use) shows a WRONG, stale answer. Anyone troubleshooting with dig alone will conclude "DNS is fine" and get stuck — because the actual bug isn't in DNS at all, it's in nsswitch's "files" precedence combined with a forgotten local override.</p></div>
+    <div class="box failure"><div class="box-title">🔴 Root Cause</div><p>A stale entry in /etc/hosts, checked before DNS per nsswitch.conf's "files dns" order, was silently overriding the correct, up-to-date DNS answer.</p></div>
+    <div class="term">
+      <div class="term-header"><span>bash — fix</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button></div>
+      <pre><span class="cmdno">1</span><span class="cmd">sudo ip netns exec ns-paygw sed -i '/partner-bank-api.internal/d' /etc/hosts</span></pre>
+    </div>
+    <div class="box success"><div class="box-title">🟢 Validate</div><p>Re-run getent hosts — it should now fall through to DNS and return 10.30.9.99, matching dig.</p></div>
+    <div class="box bestpractice"><div class="box-title">🟦 Production Best Practice</div><p>Whenever getent hosts and dig disagree, trust getent hosts as "what the application actually experiences," and go straight to checking /etc/hosts and nsswitch.conf ordering rather than re-checking the DNS server.</p></div>
+  </section>
+
+  <!-- BREAK 3 -->
+  <section id="break3">
+    <h2 class="sec-title"><span class="num">10</span>Break-Fix #3 — Missing Search Domain (Short Name Fails, FQDN Works)</h2>
+    <div class="box failure"><div class="box-title">🔴 Break It</div><p>Some parts of the payments application were recently refactored to call the short name <code>partner-bank-api</code> instead of the fully-qualified name. Remove the search domain to simulate a config regression.</p></div>
+    <div class="term">
+      <div class="term-header"><span>bash — on ns-paygw</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button></div>
+      <pre><span class="cmdno">1</span><span class="cmd">sudo ip netns exec ns-paygw bash -c "echo 'nameserver 10.30.1.53' > /etc/resolv.conf"</span></pre>
+    </div>
+    <h3>Observe</h3>
+    <div class="term">
+      <div class="term-header"><span>bash — on ns-paygw</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button></div>
+      <pre><span class="cmdno">1</span><span class="cmd">sudo ip netns exec ns-paygw getent hosts partner-bank-api</span>
+<span class="out-err">    (no output — resolution failed)</span>
+<span class="cmdno">2</span><span class="cmd">sudo ip netns exec ns-paygw getent hosts partner-bank-api.internal</span>
+<span class="out-ok">    10.30.9.99  partner-bank-api.internal</span></pre>
+    </div>
+    <div class="box concept"><div class="box-title">🔵 Reading the symptom</div><p>This is the classic "works with the full name, fails with the short name" pattern, and it's a search-domain problem, not a DNS server problem — our lab DNS server never even received a well-formed query for the bare short name, because there was no search suffix left to append to it before querying.</p></div>
+    <div class="box failure"><div class="box-title">🔴 Root Cause</div><p>The search domain entry was missing from resolv.conf, so short (unqualified) hostnames could no longer be automatically expanded to their fully-qualified form before lookup.</p></div>
+    <div class="term">
+      <div class="term-header"><span>bash — fix</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button></div>
+      <pre><span class="cmdno">1</span><span class="cmd">sudo ip netns exec ns-paygw bash -c "echo 'search internal' >> /etc/resolv.conf"</span></pre>
+    </div>
+    <div class="box success"><div class="box-title">🟢 Validate</div><p>Re-run getent hosts partner-bank-api (short name) — it should now succeed by trying "partner-bank-api.internal" automatically.</p></div>
+    <div class="box bestpractice"><div class="box-title">🟦 Production Best Practice</div><p>Prefer fully-qualified domain names in application configuration wherever practical — they don't depend on search-domain configuration being correct on every host the app might run on, which makes behavior far more predictable across environments.</p></div>
+  </section>
+
+  <!-- BREAK 4 -->
+  <section id="break4">
+    <h2 class="sec-title"><span class="num">11</span>Break-Fix #4 — Dead Primary Nameserver Causing Slow, Intermittent Failures</h2>
+    <div class="box failure"><div class="box-title">🔴 Break It</div><p>This reproduces the original incident's "about 1 in 5 calls fail, retries usually work" symptom. Add a second, healthy nameserver — but list the dead one FIRST.</p></div>
+    <div class="term">
+      <div class="term-header"><span>bash — on ns-paygw</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button></div>
+      <pre><span class="cmdno">1</span><span class="cmd">sudo ip netns exec ns-paygw bash -c "printf 'nameserver 10.30.1.199\nnameserver 10.30.1.53\nsearch internal\n' > /etc/resolv.conf"</span></pre>
+    </div>
+    <h3>Observe</h3>
+    <div class="term">
+      <div class="term-header"><span>bash — on ns-paygw, run this several times</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button></div>
+      <pre><span class="cmdno">1</span><span class="cmd">sudo ip netns exec ns-paygw time getent hosts partner-bank-api.internal</span>
+<span class="out">    10.30.9.99  partner-bank-api.internal</span>
+<span class="out-err">    real    0m5.021s   (much slower than the baseline's near-instant response)</span></pre>
+    </div>
+    <div class="box concept"><div class="box-title">🔵 Reading the symptom</div><p>Every single lookup eventually succeeds — but only after the resolver first times out waiting for the dead primary nameserver (10.30.1.199) and THEN falls through to the healthy secondary (10.30.1.53). Under normal load this shows up as slow, and under time pressure or short application-level timeouts, this exact multi-second delay is enough to make some fraction of calls fail outright — precisely the "about 1 in 5 calls fail" pattern from the incident report. This is one of the most underrated DNS incident patterns: a "working" secondary nameserver can still cause production failures if it's listed second and the first one is dead.</p></div>
+    <div class="box failure"><div class="box-title">🔴 Root Cause</div><p>A dead nameserver was listed first in resolv.conf; every lookup paid its full timeout penalty before falling back to a working nameserver, and application-level timeouts weren't tolerant of that added delay.</p></div>
+    <div class="term">
+      <div class="term-header"><span>bash — fix: remove the dead nameserver, keep only the healthy one</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button></div>
+      <pre><span class="cmdno">1</span><span class="cmd">sudo ip netns exec ns-paygw bash -c "printf 'nameserver 10.30.1.53\nsearch internal\n' > /etc/resolv.conf"</span></pre>
+    </div>
+    <div class="box success"><div class="box-title">🟢 Validate</div><p>Re-run the timed getent hosts command — response time should return to near-instant.</p></div>
+  </section>
+
+  <section id="bestpractices">
+    <h2 class="sec-title"><span class="num">12</span>Production Best Practices</h2>
+    <div class="cards">
+      <div class="card"><h4>🟦 Always test with getent hosts</h4><p>It's the only tool that follows the exact same resolution path a real application uses — dig and nslookup skip /etc/hosts and can mislead you.</p></div>
+      <div class="card"><h4>🟦 Keep /etc/hosts clean</h4><p>Temporary troubleshooting entries left behind in /etc/hosts are one of the most common causes of "DNS looks fine but the app is wrong" incidents.</p></div>
+      <div class="card"><h4>🟦 Prefer FQDNs in app config</h4><p>Fully-qualified names remove dependency on search-domain configuration being correct everywhere the app runs.</p></div>
+      <div class="card"><h4>🟦 Order nameservers by health, not habit</h4><p>A dead nameserver listed first silently taxes every single lookup with a timeout delay before falling through — monitor nameserver health, don't just add redundancy blindly.</p></div>
+      <div class="card"><h4>🟦 Remember caching when "it just started working again"</h4><p>If an issue resolves itself without any config change, suspect a TTL expiring or a cache refreshing rather than assuming the underlying problem is gone for good.</p></div>
+    </div>
+  </section>
+
+  <section id="cheatsheet">
+    <h2 class="sec-title"><span class="num">13</span>Troubleshooting Cheat Sheet</h2>
+    <table class="ref">
+      <tr><th>Symptom</th><th>Likely Cause</th><th>Command to Confirm</th></tr>
+      <tr><td>Total, slow failure — hangs then times out</td><td>Unreachable/wrong nameserver IP</td><td><code>dig @&lt;nameserver&gt; &lt;host&gt;</code> against each configured nameserver</td></tr>
+      <tr><td>dig shows correct IP, app still uses wrong IP</td><td>Stale /etc/hosts entry (files before dns)</td><td><code>getent hosts &lt;host&gt;</code> vs <code>dig +short &lt;host&gt;</code></td></tr>
+      <tr><td>Short name fails, FQDN works</td><td>Missing/wrong search domain</td><td><code>cat /etc/resolv.conf</code>, compare short vs FQDN lookups</td></tr>
+      <tr><td>Intermittent, slow-but-eventually-succeeds</td><td>Dead nameserver listed before a healthy one</td><td><code>time getent hosts &lt;host&gt;</code> run repeatedly</td></tr>
+    </table>
+  </section>
+
+  <section id="interview">
+    <h2 class="sec-title"><span class="num">14</span>Interview Preparation</h2>
+
+    <div class="qa"><div class="q"><span class="qtag">Scenario</span>An application intermittently fails to resolve a hostname, but retries usually succeed. How do you approach it?</div>
+    <p>Intermittent success rules out a fully broken config, so I'd suspect either multiple nameservers where one is unhealthy, or a caching/TTL effect. I'd use getent hosts repeatedly, timing it, to see if some lookups are simply slow rather than failing outright — a dead nameserver listed first in resolv.conf is a very common cause, since the resolver has to time out on it before trying the next one, and that delay alone can trip an application's own timeout.</p>
+    <div class="followup">Interviewer follow-up: "dig says it resolves fine every time — why would the app still fail?" — Answer: dig talks directly to a nameserver and bypasses /etc/hosts and nsswitch entirely, so if there's a stale /etc/hosts entry or the app is using a short name without the right search domain, dig can look perfectly healthy while the real application resolution path fails. I'd always cross-check with getent hosts, which follows the exact same path as the application.</div>
+    </div>
+
+    <div class="qa"><div class="q"><span class="qtag">Concept</span>What's the difference between dig, nslookup, and getent hosts?</div>
+    <p>dig and nslookup query a DNS server directly and bypass local resolution mechanisms like /etc/hosts and nsswitch ordering. getent hosts goes through the full system resolver path — the same one glibc-based applications use — so it's the most accurate way to reproduce what an application will actually see.</p>
+    </div>
+
+    <div class="qa"><div class="q"><span class="qtag">Troubleshooting</span>An app works using a fully-qualified hostname but fails using a short name. What's the likely cause?</div>
+    <p>That points to the search domain configuration in /etc/resolv.conf being missing or wrong — short names rely on a configured search suffix being appended automatically before the lookup happens; without it, the bare short name gets queried as-is and typically fails.</p>
+    </div>
+
+    <div class="qa"><div class="q"><span class="qtag">DevOps</span>Why does DNS troubleshooting matter for Kubernetes or containerized environments?</div>
+    <p>CoreDNS in Kubernetes and Docker's embedded DNS both follow the same fundamental resolver concepts — search domains (which is why Kubernetes Services can be reached by short names within a namespace), caching, and resolution order. The debugging instincts from plain Linux DNS troubleshooting — cross-checking getent-style resolution against direct queries, watching for stale entries — transfer directly.</p>
+    </div>
+  </section>
+
+  <section id="practice">
+    <h2 class="sec-title"><span class="num">15</span>Practice Tasks &amp; Break-Fix Challenge</h2>
+    <div class="box warning">
+      <div class="box-title">🟠 Practice Tasks</div>
+      <ol>
+        <li>Rebuild the dnsmasq-based lab from memory.</li>
+        <li>Reproduce all 4 break-fix scenarios, and for each one, write down whether dig and getent hosts agree or disagree BEFORE checking this file's answer.</li>
+        <li>Add a TTL to your dnsmasq lab config, change the mapped IP, and observe how long the old answer keeps being returned from cache before the change takes effect.</li>
+      </ol>
+    </div>
+    <div class="box failure">
+      <div class="box-title">🔴 Break-Fix Challenge</div>
+      <p>Have someone else apply exactly one of the four breaks without telling you. Diagnose it cold using only getent hosts, dig, and inspection of /etc/hosts and /etc/resolv.conf — state your root cause before undoing the break.</p>
+    </div>
+  </section>
+
+  <section id="resume">
+    <h2 class="sec-title"><span class="num">16</span>Resume Points &amp; How to Explain This Project</h2>
+    <div class="box bestpractice">
+      <div class="box-title">🟦 Realistic resume bullet points</div>
+      <ul>
+        <li>Diagnosed intermittent and silent DNS resolution failures on Linux, including stale /etc/hosts overrides, missing search domains, and unhealthy nameserver ordering.</li>
+        <li>Built a lab DNS environment using dnsmasq to reproduce and troubleshoot production-style DNS failure patterns without touching live infrastructure.</li>
+        <li>Established a diagnostic method comparing getent hosts against dig to distinguish local resolver-path issues from actual DNS server problems.</li>
+      </ul>
+    </div>
+    <div class="box concept">
+      <div class="box-title">🔵 Natural spoken interview answer</div>
+      <p>"I set up a small lab with my own DNS server using dnsmasq and practiced diagnosing four different DNS failure patterns — a completely unreachable nameserver, a stale entry in /etc/hosts silently overriding a correct DNS answer, a missing search domain that broke short hostname lookups while the fully-qualified name still worked, and a dead nameserver listed first that caused intermittent slow failures because the resolver had to time out before trying the healthy one. The biggest lesson was learning that dig and getent hosts can legitimately disagree, and that disagreement itself is often the clue — dig tells you if DNS itself is healthy, but getent hosts tells you what the application actually experiences."</p>
+    </div>
+  </section>
+
+  <section id="next">
+    <h2 class="sec-title"><span class="num">17</span>Next Project Prerequisites</h2>
+    <div class="box architecture">
+      <div class="box-title">🟣 Coming up in Project 4 — TCP Connection Troubleshooting</div>
+      <p>We'll go deep into TCP states — SYN-SENT, ESTABLISHED, TIME-WAIT, CLOSE-WAIT — and reproduce real incidents like connection resets and hung handshakes, using ss and tcpdump to read exactly what the kernel is doing during a failed connection.</p>
+      <p>Say <b>"Next Project"</b> when you're ready to continue.</p>
+    </div>
+  </section>
+
+  </main>
+</div>
+
+<a href="#" class="top-link" title="Back to top">↑</a>
+
+<script>
+function copyBlock(btn){
+  const pre = btn.closest('.term').querySelector('pre');
+  const text = pre.innerText;
+  navigator.clipboard.writeText(text).then(()=>{
+    const old = btn.textContent;
+    btn.textContent = "Copied!";
+    setTimeout(()=>btn.textContent = old, 1400);
+  });
+}
+window.addEventListener('scroll', function(){
+  const sections = document.querySelectorAll('section');
+  const total = document.body.scrollHeight - window.innerHeight;
+  const pct = Math.min(100, Math.round((window.scrollY/total)*100));
+  document.getElementById('progressFill').style.width = pct + '%';
+  document.getElementById('progressLabel').textContent = pct + '% through Project 3';
+
+  let current = '';
+  sections.forEach(sec=>{
+    const rect = sec.getBoundingClientRect();
+    if(rect.top <= 120) current = sec.id;
+  });
+  document.querySelectorAll('.sidebar a').forEach(a=>{
+    a.style.background = '';
+    a.style.color = '';
+    a.style.fontWeight = '';
+    if(a.getAttribute('href') === '#'+current){
+      a.style.background = 'var(--blue-bg)';
+      a.style.color = 'var(--blue)';
+      a.style.fontWeight = '700';
+    }
+  });
+});
+</script>
+</body>
+</html>

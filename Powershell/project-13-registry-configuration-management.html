@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Project 13 — Registry Configuration Management | PowerShell Masterclass</title>
+<style>
+  :root{
+    --primary:#6D28D9; --secondary:#7C3AED; --light-purple:#EDE9FE; --xlight-purple:#F5F3FF;
+    --bg:#FFFFFF; --text:#1F2937; --muted:#6B7280; --border:#E5E1F5;
+    --success:#15803D; --warn:#B45309; --danger:#B91C1C;
+    --code-bg:#1E1B2E; --code-text:#E9E4FF;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0; font-family:"Segoe UI",Calibri,Roboto,Arial,sans-serif; background:var(--bg); color:var(--text); line-height:1.65;}
+  a{color:var(--primary);}
+  .layout{display:flex; max-width:1400px; margin:0 auto;}
+  nav.sidebar{width:270px; flex-shrink:0; position:sticky; top:0; height:100vh; overflow-y:auto; background:var(--xlight-purple); border-right:1px solid var(--border); padding:22px 16px;}
+  nav.sidebar h3{color:var(--primary); font-size:13px; text-transform:uppercase; letter-spacing:.06em; margin:18px 0 8px;}
+  nav.sidebar a{display:block; padding:7px 10px; border-radius:8px; color:var(--text); text-decoration:none; font-size:14px; margin-bottom:2px;}
+  nav.sidebar a:hover{background:var(--light-purple); color:var(--primary);}
+  #progressWrap{background:var(--light-purple); border-radius:10px; padding:10px; margin-bottom:8px;}
+  #progressBar{height:8px; background:var(--border); border-radius:6px; overflow:hidden;}
+  #progressFill{height:100%; width:0%; background:linear-gradient(90deg,var(--primary),var(--secondary)); transition:width .2s;}
+  #progressLabel{font-size:12px; color:var(--muted); margin-top:6px;}
+  main{flex:1; min-width:0; padding:0;}
+  .cover{background:linear-gradient(135deg,var(--primary),var(--secondary)); color:#fff; padding:60px 48px; position:relative; overflow:hidden;}
+  .cover::after{content:"";position:absolute;right:-80px;top:-80px;width:300px;height:300px;border-radius:50%;background:rgba(255,255,255,.08);}
+  .badge{display:inline-block; background:rgba(255,255,255,.18); padding:5px 14px; border-radius:20px; font-size:12px; letter-spacing:.05em; margin-right:8px; margin-bottom:14px;}
+  .cover h1{font-size:34px; margin:6px 0 10px; max-width:760px;}
+  .cover p.sub{font-size:16px; opacity:.92; max-width:640px;}
+  .cover-meta{display:flex; gap:28px; margin-top:26px; flex-wrap:wrap;}
+  .cover-meta div{background:rgba(255,255,255,.12); padding:12px 18px; border-radius:10px; min-width:140px;}
+  .cover-meta span{display:block; font-size:12px; opacity:.85;}
+  .cover-meta strong{font-size:16px;}
+  section{padding:34px 48px; border-bottom:1px solid var(--border);}
+  section h2{color:var(--primary); font-size:24px; border-left:5px solid var(--primary); padding-left:14px; margin-top:0;}
+  section h3{color:var(--secondary); font-size:18px; margin-top:26px;}
+  .story{background:var(--xlight-purple); border-left:5px solid var(--primary); padding:20px 24px; border-radius:0 10px 10px 0; font-size:15px;}
+  .story b{color:var(--primary);}
+  .callout{border-radius:10px; padding:16px 18px; margin:16px 0; font-size:14.5px;}
+  .callout.tip{background:#F0FDF4; border-left:5px solid var(--success);}
+  .callout.note{background:var(--xlight-purple); border-left:5px solid var(--secondary);}
+  .callout.warn{background:#FFFBEB; border-left:5px solid var(--warn);}
+  .callout.security{background:#FEF2F2; border-left:5px solid var(--danger);}
+  .callout .lbl{font-weight:700; display:block; margin-bottom:4px;}
+  table{width:100%; border-collapse:collapse; margin:16px 0; font-size:14px;}
+  th,td{border:1px solid var(--border); padding:9px 12px; text-align:left; vertical-align:top;}
+  th{background:var(--light-purple); color:var(--primary);}
+  tr:nth-child(even){background:var(--xlight-purple);}
+  .codewrap{position:relative; margin:16px 0;}
+  pre{background:var(--code-bg); color:var(--code-text); padding:18px 16px; border-radius:10px; overflow-x:auto; font-family:Consolas,"Cascadia Code",Menlo,monospace; font-size:13.5px; line-height:1.7;}
+  pre code{white-space:pre;}
+  .copybtn{position:absolute; top:10px; right:10px; background:var(--secondary); color:#fff; border:none; padding:6px 12px; border-radius:6px; font-size:12px; cursor:pointer;}
+  .copybtn:hover{background:var(--primary);}
+  .explain-list{list-style:none; padding:0; margin:14px 0;}
+  .explain-list li{background:var(--xlight-purple); border-radius:8px; padding:10px 14px; margin-bottom:6px; font-size:14.5px;}
+  .explain-list code{background:var(--light-purple); padding:2px 6px; border-radius:5px; color:var(--primary); font-weight:600;}
+  details{background:var(--xlight-purple); border-radius:10px; padding:12px 16px; margin:10px 0;}
+  details summary{cursor:pointer; font-weight:600; color:var(--primary);}
+  .diagram{background:var(--xlight-purple); border-radius:12px; padding:20px; margin:16px 0; overflow-x:auto;}
+  .flow{display:flex; flex-wrap:wrap; align-items:center; gap:10px; font-size:13.5px;}
+  .flow .box{background:#fff; border:2px solid var(--secondary); border-radius:8px; padding:8px 14px; font-weight:600; color:var(--primary);}
+  .flow .arrow{color:var(--secondary); font-size:18px;}
+  .steps{counter-reset:step;}
+  .steps .step{position:relative; padding-left:44px; margin-bottom:18px;}
+  .steps .step::before{counter-increment:step; content:counter(step); position:absolute; left:0; top:0; background:var(--primary); color:#fff; width:30px; height:30px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:700;}
+  .grid2{display:grid; grid-template-columns:1fr 1fr; gap:16px;}
+  @media(max-width:900px){.grid2{grid-template-columns:1fr;} nav.sidebar{display:none;} section{padding:26px 20px;} .cover{padding:36px 22px;}}
+  footer{padding:30px 48px; background:var(--xlight-purple); color:var(--muted); font-size:13px;}
+</style>
+</head>
+<body>
+
+<div class="layout">
+  <nav class="sidebar">
+    <div id="progressWrap">
+      <div id="progressLabel">Reading progress</div>
+      <div id="progressBar"><div id="progressFill"></div></div>
+    </div>
+    <h3>Project 13</h3>
+    <a href="#cover">Cover</a>
+    <a href="#recap1">Recap: Projects 1–12</a>
+    <a href="#story">The Story</a>
+    <a href="#concepts">Concepts First</a>
+    <a href="#lab">Hands-On Lab</a>
+    <a href="#script">Full Script</a>
+    <a href="#linebyline">Line-by-Line</a>
+    <a href="#architecture">Architecture</a>
+    <a href="#incident">Production Incident</a>
+    <a href="#troubleshoot">Troubleshooting</a>
+    <a href="#security">Security Notes</a>
+    <a href="#recap">Key Learnings</a>
+    <a href="#interview">Interview Prep</a>
+    <a href="#challenges">Coding Challenges</a>
+    <a href="#resume">Resume Points</a>
+    <a href="#assignment">Practice Assignment</a>
+    <a href="#next">Next Project</a>
+  </nav>
+
+  <main id="top">
+    <div class="cover" id="cover">
+      <span class="badge">PROJECT 13</span><span class="badge">INTERMEDIATE</span><span class="badge">BFSI TRACK</span>
+      <h1>Registry Configuration Management</h1>
+      <p class="sub">Treat the Windows Registry like any other PowerShell drive — read, validate, and safely change values with backup, idempotency, and full ShouldProcess support.</p>
+      <div class="cover-meta">
+        <div><span>Difficulty</span><strong>Intermediate</strong></div>
+        <div><span>Estimated Lab Time</span><strong>75–90 min</strong></div>
+        <div><span>Concepts</span><strong>9 core concepts</strong></div>
+        <div><span>Track</span><strong>13 of 40</strong></div>
+      </div>
+    </div>
+
+    <section id="recap1">
+      <h2>Quick Recap of Projects 1–12</h2>
+      <p>We've built ShouldProcess-aware, idempotent remediation (Project 10), scheduled it (Project 11), and
+      reported on it (Project 12). This project applies that exact same safety discipline to a new and much
+      riskier target: the <b>Windows Registry</b> — a place where a wrong change can genuinely break a server, so
+      the caution we've been building matters more here than almost anywhere else so far.</p>
+    </section>
+
+    <section id="story">
+      <h2>The Story — Why We're Building This</h2>
+      <div class="story">
+        ABC Bank's security team has a new baseline requirement: a specific registry-based configuration setting
+        must be present and correctly set on every server, as part of a compliance audit. Manually opening
+        <code>regedit</code> on hundreds of servers isn't realistic, and nobody wants a script blindly overwriting
+        registry values without knowing what was there before. Our manager wants a script that <b>checks the
+        current value first, only changes it if actually needed, records what the value was before changing it,
+        and previews every change before making it.</b>
+      </div>
+    </section>
+
+    <section id="concepts">
+      <h2>Concepts First — Before We Touch Code</h2>
+
+      <h3>1. The Registry as a PowerShell Drive</h3>
+      <div class="callout note"><span class="lbl">A genuinely elegant design</span>PowerShell exposes the registry
+      as if it were a file system, using drives like <code>HKLM:</code> (HKEY_LOCAL_MACHINE) and <code>HKCU:</code>
+      (HKEY_CURRENT_USER). This means commands you already know from working with files —
+      <code>Test-Path</code>, <code>Get-ChildItem</code>, <code>New-Item</code> — work on the registry too, with
+      registry keys behaving like folders and registry values behaving like file contents.</div>
+      <table>
+        <tr><th>Registry Hive</th><th>PowerShell Drive</th><th>Contains</th></tr>
+        <tr><td>HKEY_LOCAL_MACHINE</td><td><code>HKLM:</code></td><td>Machine-wide settings, affecting all users</td></tr>
+        <tr><td>HKEY_CURRENT_USER</td><td><code>HKCU:</code></td><td>Settings for the currently logged-on user only</td></tr>
+      </table>
+
+      <h3>2. Reading Registry Values with Get-ItemProperty</h3>
+      <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code>Get-ItemProperty -Path "HKCU:\Software\ABCBankAutomation" -Name "LogLevel" -ErrorAction SilentlyContinue</code></pre></div>
+      <ul class="explain-list">
+        <li><code>-Path</code> — the registry <b>key</b> (like a folder).</li>
+        <li><code>-Name</code> — the specific <b>value</b> inside that key (like a file within the folder) we want
+        to read.</li>
+      </ul>
+      <div class="callout warn"><span class="lbl">Key vs Value — a common point of confusion</span>A registry
+      <b>key</b> is a container (like a folder); a <b>value</b> lives inside a key and has its own name, type, and
+      data (like a file's content). "Set a registry key" is technically imprecise — you set a <i>value</i> inside a
+      key. Being precise about this distinction avoids real mistakes.</div>
+
+      <h3>3. Registry Value Types</h3>
+      <table>
+        <tr><th>Type</th><th>PowerShell Parameter</th><th>Used For</th></tr>
+        <tr><td>String (REG_SZ)</td><td><code>-PropertyType String</code></td><td>Plain text</td></tr>
+        <tr><td>DWord (REG_DWORD)</td><td><code>-PropertyType DWord</code></td><td>32-bit numbers — very common for on/off flags (0/1) and settings</td></tr>
+        <tr><td>Binary (REG_BINARY)</td><td><code>-PropertyType Binary</code></td><td>Raw byte data</td></tr>
+        <tr><td>MultiString (REG_MULTI_SZ)</td><td><code>-PropertyType MultiString</code></td><td>An array of strings</td></tr>
+      </table>
+
+      <h3>4. Creating Keys and Setting Values Safely</h3>
+      <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code>if (-not (Test-Path $KeyPath)) {                          # Test-Path works on registry paths too
+    New-Item -Path $KeyPath -Force | Out-Null                # Creates the key if it doesn't exist
+}
+New-ItemProperty -Path $KeyPath -Name "LogLevel" -Value 2 -PropertyType DWord -Force   # Creates or overwrites the value</code></pre></div>
+      <ul class="explain-list">
+        <li><code>New-ItemProperty ... -Force</code> — creates the value if it doesn't exist yet, or overwrites it
+        if it does; without <code>-Force</code> it would error on an already-existing value.</li>
+      </ul>
+
+      <h3>5. Backup Before Change</h3>
+      <div class="callout warn"><span class="lbl">Why this matters more here than in prior projects</span>Unlike a
+      stopped service (easy to just start again) or a moved log file (still sitting in an archive folder), an
+      incorrectly changed registry value can be genuinely hard to undo if you didn't record what it was before. We
+      capture the "before" value and log it as part of every change — cheap insurance against a mistake.</div>
+
+      <h3>6. Idempotency, Applied to a Single Value</h3>
+      <p>Same principle as every prior project: read the current value first, and only call
+      <code>New-ItemProperty</code>/<code>Set-ItemProperty</code> if the current value is actually different from
+      the desired one — an already-correct value needs no action, logged or otherwise.</p>
+    </section>
+
+    <section id="lab">
+      <h2>Hands-On Lab — Build It Yourself</h2>
+      <div class="steps">
+        <div class="step"><b>Create the project folder:</b>
+          <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code>New-Item -ItemType Directory -Path "C:\PS-Masterclass\Project13\logs" -Force
+Set-Location "C:\PS-Masterclass\Project13"</code></pre></div>
+        </div>
+        <div class="step"><b>Create <code>Set-RegistryConfig.ps1</code></b> in VS Code and paste the full script
+        below. This lab deliberately targets a safe, sandboxed key under
+        <code>HKCU:\Software\ABCBankAutomation</code> — your own user profile, not a real system security
+        setting — so you can practice safely without any risk to your machine. No Administrator rights needed for
+        HKCU.</div>
+        <div class="step"><b>Run it in preview mode first:</b>
+          <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code>.\Set-RegistryConfig.ps1</code></pre></div>
+        </div>
+        <div class="step"><b>Apply it for real:</b>
+          <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code>.\Set-RegistryConfig.ps1 -WhatIf:$false</code></pre></div>
+        </div>
+        <div class="step"><b>Run it again</b> with <code>-WhatIf:$false</code> a second time — confirm it now
+        reports "already correct" instead of setting the value again, proving the idempotency check works.</div>
+        <div class="step"><b>Verify manually</b> by opening <code>regedit</code>, navigating to
+        <code>HKEY_CURRENT_USER\Software\ABCBankAutomation</code>, and confirming the value matches what the script
+        set — then check <code>.\logs\RegistryChanges.log</code> for the before/after audit entry.</div>
+      </div>
+    </section>
+
+    <section id="script">
+      <h2>Full Script — Set-RegistryConfig.ps1</h2>
+      <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code># =====================================================================
+# Set-RegistryConfig.ps1
+# ABC Bank - Windows Infrastructure Automation Team
+# Purpose: Safely validate and enforce a registry configuration value
+# =====================================================================
+
+[CmdletBinding(SupportsShouldProcess)]      # Same pattern from Project 10 - enables -WhatIf/-Confirm
+param(
+    [switch]$WhatIf = $true                   # Safe by default
+)
+
+$KeyPath      = "HKCU:\Software\ABCBankAutomation"   # Sandboxed practice key - safe for any user to modify
+$ValueName    = "LogLevel"
+$DesiredValue = 2                                       # The value we want to enforce (e.g. 2 = "Verbose logging enabled")
+$ValueType    = "DWord"
+$LogPath      = ".\logs\RegistryChanges.log"
+
+# ---------------------------------------------------------------
+# FUNCTION: Structured audit logging (same pattern as Project 10)
+# ---------------------------------------------------------------
+function Write-Log {
+    param([string]$Message, [string]$Status = "INFO")
+    $Line = "{0} | {1} | {2}" -f (Get-Date -Format "yyyy-MM-dd HH:mm:ss"), $Status, $Message
+    Add-Content -Path $LogPath -Value $Line
+}
+
+Write-Host "`n=== REGISTRY CONFIGURATION CHECK ===" -ForegroundColor Magenta
+Write-Host "Target: $KeyPath\$ValueName (desired: $DesiredValue)`n" -ForegroundColor Cyan
+
+# ---------------------------------------------------------------
+# STEP 1: Ensure the key itself exists before we try to read/write a value inside it
+# ---------------------------------------------------------------
+if (-not (Test-Path $KeyPath)) {                          # Test-Path works identically on registry paths
+    Write-Host "Key does not exist yet." -ForegroundColor Yellow
+
+    if ($PSCmdlet.ShouldProcess($KeyPath, "Create Registry Key")) {   # ShouldProcess check before creating
+        New-Item -Path $KeyPath -Force | Out-Null
+        Write-Log -Status "INFO" -Message "Created registry key $KeyPath"
+        Write-Host "Key created." -ForegroundColor Green
+    }
+    else {
+        Write-Host "PREVIEW: Would create key $KeyPath" -ForegroundColor Yellow
+    }
+}
+
+# ---------------------------------------------------------------
+# STEP 2: Read the CURRENT value, if any, before making any decision
+# ---------------------------------------------------------------
+$CurrentProperty = Get-ItemProperty -Path $KeyPath -Name $ValueName -ErrorAction SilentlyContinue   # $null if not set yet
+$CurrentValue    = if ($CurrentProperty) { $CurrentProperty.$ValueName } else { $null }               # Extracts just the value, or $null
+
+Write-Host "Current value: $(if ($null -eq $CurrentValue) {'<not set>'} else {$CurrentValue})" -ForegroundColor Cyan
+
+# ---------------------------------------------------------------
+# STEP 3: Idempotency check - only act if the value is actually wrong or missing
+# ---------------------------------------------------------------
+if ($CurrentValue -eq $DesiredValue) {                     # Already correct - nothing to do
+    Write-Host "Value already correct - no action needed." -ForegroundColor Green
+    Write-Log -Status "INFO" -Message "$ValueName already set to $DesiredValue - no change made"
+}
+else {
+    # -----------------------------------------------------------
+    # STEP 4: Change needed - preview or apply, respecting -WhatIf
+    # -----------------------------------------------------------
+    if ($PSCmdlet.ShouldProcess("$KeyPath\$ValueName", "Set value to $DesiredValue")) {
+
+        # Backup the "before" state into the log BEFORE changing anything
+        Write-Log -Status "INFO" -Message "BEFORE CHANGE: $ValueName was '$CurrentValue' (target: $DesiredValue)"
+
+        New-ItemProperty -Path $KeyPath -Name $ValueName -Value $DesiredValue -PropertyType $ValueType -Force | Out-Null
+
+        Write-Log -Status "SUCCESS" -Message "AFTER CHANGE: $ValueName set to $DesiredValue"
+        Write-Host "Value updated to $DesiredValue." -ForegroundColor Green
+    }
+    else {
+        Write-Host "PREVIEW: Would change $ValueName from '$CurrentValue' to '$DesiredValue'" -ForegroundColor Yellow
+    }
+}
+
+# ---------------------------------------------------------------
+# STEP 5: Final verification read - confirms what's ACTUALLY there now
+# ---------------------------------------------------------------
+$FinalProperty = Get-ItemProperty -Path $KeyPath -Name $ValueName -ErrorAction SilentlyContinue
+$FinalValue    = if ($FinalProperty) { $FinalProperty.$ValueName } else { $null }
+
+Write-Host "`nFinal verified value: $(if ($null -eq $FinalValue) {'<not set>'} else {$FinalValue})" -ForegroundColor Cyan
+Write-Host "Audit log: $LogPath" -ForegroundColor Cyan
+</code></pre></div>
+      </div>
+    </section>
+
+    <section id="linebyline">
+      <h2>Line-by-Line Explanation</h2>
+
+      <h3><code>$KeyPath = "HKCU:\Software\ABCBankAutomation"</code></h3>
+      <ul class="explain-list">
+        <li>This string looks exactly like a file path, and PowerShell treats it exactly like one, because
+        <code>HKCU:</code> is a registered PSDrive pointing at the registry rather than a disk — the same
+        <code>-Path</code>-based cmdlets we've used on real files all work here unchanged.</li>
+      </ul>
+
+      <h3><code>$CurrentProperty = Get-ItemProperty -Path $KeyPath -Name $ValueName -ErrorAction SilentlyContinue</code></h3>
+      <ul class="explain-list">
+        <li>A missing value produces a non-terminating error by default; <code>-ErrorAction SilentlyContinue</code>
+        (Project 5's narrow-use pattern) lets us treat "not set yet" as an expected first-run possibility rather
+        than a script failure, similar to how a missing scheduled task was treated in Project 11.</li>
+      </ul>
+
+      <h3><code>$CurrentValue = if ($CurrentProperty) { $CurrentProperty.$ValueName } else { $null }</code></h3>
+      <ul class="explain-list">
+        <li><code>Get-ItemProperty</code> returns an object whose properties are named after the registry values
+        themselves — so <code>$CurrentProperty.LogLevel</code> would give us the number directly. Because our value
+        name is stored in a <i>variable</i> (<code>$ValueName</code>) rather than typed literally, we use
+        <code>$CurrentProperty.$ValueName</code> — PowerShell evaluates the variable first to get the property name,
+        then looks up that property, letting the script work with any value name without hardcoding it in two
+        places.</li>
+      </ul>
+
+      <h3><code>if ($CurrentValue -eq $DesiredValue) { ... } else { ... }</code></h3>
+      <ul class="explain-list">
+        <li>This is the entire idempotency decision in one line — everything before it exists just to gather the
+        information needed to answer this single question accurately.</li>
+      </ul>
+
+      <h3><code>Write-Log -Status "INFO" -Message "BEFORE CHANGE: $ValueName was '$CurrentValue' ..."</code></h3>
+      <ul class="explain-list">
+        <li>Logging the "before" value happens <i>before</i> <code>New-ItemProperty</code> runs, not after — if the
+        change itself somehow failed partway through, we'd still have a record of what the value was beforehand,
+        preserving the audit trail's usefulness even in a failure scenario.</li>
+      </ul>
+
+      <h3><code>New-ItemProperty -Path $KeyPath -Name $ValueName -Value $DesiredValue -PropertyType $ValueType -Force</code></h3>
+      <ul class="explain-list">
+        <li>Reusing <code>New-ItemProperty</code> (rather than switching to <code>Set-ItemProperty</code> for
+        updates) with <code>-Force</code> works for both "value doesn't exist yet" and "value exists but is wrong" —
+        one code path handles both cases instead of branching into two separate cmdlet calls.</li>
+      </ul>
+    </section>
+
+    <section id="architecture">
+      <h2>Architecture &amp; Safety Flow</h2>
+      <div class="diagram">
+        <div class="flow">
+          <div class="box">Test-Path (key)</div><div class="arrow">→</div>
+          <div class="box">Missing? → ShouldProcess → New-Item</div>
+        </div>
+        <div class="flow" style="margin-top:12px;">
+          <div class="box">Get-ItemProperty (read current)</div><div class="arrow">→</div>
+          <div class="box">Matches desired?</div><div class="arrow">→</div>
+          <div class="box">Yes → Log "no action", done</div>
+        </div>
+        <div class="flow" style="margin-top:12px;">
+          <div class="box">No match</div><div class="arrow">→</div>
+          <div class="box">ShouldProcess</div><div class="arrow">→</div>
+          <div class="box">Log BEFORE value</div><div class="arrow">→</div>
+          <div class="box">New-ItemProperty</div><div class="arrow">→</div>
+          <div class="box">Log AFTER value</div><div class="arrow">→</div>
+          <div class="box">Verify (re-read)</div>
+        </div>
+      </div>
+      <p>Notice the script <b>re-reads the value at the very end</b>, after making a change, rather than just
+      trusting that <code>New-ItemProperty</code> did what we asked. This final verification step confirms reality
+      matches intent — the same "trust, but verify" discipline as Project 10's post-restart status check.</p>
+    </section>
+
+    <section id="incident">
+      <h2>Production Incident Walkthrough</h2>
+      <div class="story">
+        A less careful version of this script, without a "before" log entry, runs against 40 servers to enforce a
+        new setting. Three weeks later, someone reports unexpected application behavior possibly related to that
+        setting change, and Operations needs to know what the value was <i>before</i> the script touched it, on
+        each affected server, to help isolate the cause. Because our version logs the before-state on every actual
+        change, that history exists; a version that only logged "changed to X" would leave no way to reconstruct
+        what any given server looked like beforehand.
+      </div>
+      <ul class="explain-list">
+        <li><b>Why is "already correct, no action taken" also worth logging?</b> It proves the check actually ran on
+        that server, rather than leaving a gap that looks identical to "the script never executed here at all" — an
+        important distinction during an audit or incident review.</li>
+      </ul>
+    </section>
+
+    <section id="troubleshoot">
+      <h2>Troubleshooting Cheat Sheet</h2>
+      <table>
+        <tr><th>Symptom</th><th>Likely Root Cause</th><th>Fix</th></tr>
+        <tr><td>"Requested registry access is not allowed"</td><td>Attempting to write to HKLM without Administrator rights</td><td>This lab intentionally uses HKCU to avoid needing elevation; for HKLM changes, run as Administrator</td></tr>
+        <tr><td>Value always shows as needing change, even right after setting it</td><td>Type mismatch - comparing a string "2" against the number 2</td><td>Confirm -PropertyType DWord was used; DWord values come back as actual integers, not strings</td></tr>
+        <tr><td>"Cannot find path" on Test-Path against the registry</td><td>Missing the trailing colon or a typo in the hive name (e.g. "HKCU" instead of "HKCU:")</td><td>Registry drive names always need the trailing colon, exactly like a real drive letter</td></tr>
+        <tr><td>Script reports the key was created every single run</td><td>Test-Path check and New-Item are somehow out of sync, or a typo means two different paths are being used</td><td>Print $KeyPath right before both the Test-Path and New-Item calls to confirm they match exactly</td></tr>
+      </table>
+    </section>
+
+    <section id="security">
+      <h2>Security &amp; Best Practices</h2>
+      <div class="callout security"><span class="lbl">Why this lab avoids HKLM</span>Real security-baseline registry
+      changes almost always target HKLM (machine-wide) and require administrator rights — deliberately practicing
+      first against a safe HKCU sandbox key means you can make mistakes risk-free while learning the pattern, before
+      ever pointing similar logic at a real system setting.</div>
+      <div class="callout tip"><span class="lbl">Best practice reinforced here</span>Logging the "before" value
+      before making any change is a small addition that makes a registry-modifying script meaningfully safer and
+      more auditable — cheap to add, expensive to be missing when you actually need it.</div>
+    </section>
+
+    <section id="recap">
+      <h2>Key Learnings &amp; Recap</h2>
+      <div class="grid2">
+        <div>
+          <h3>Commands/Syntax Learned</h3>
+          <ul class="explain-list">
+            <li><code>HKLM:</code> / <code>HKCU:</code> as PSDrives</li>
+            <li><code>Get-ItemProperty</code> / <code>New-ItemProperty</code></li>
+            <li><code>Test-Path</code> / <code>New-Item</code> on registry paths</li>
+            <li>Dynamic property access: <code>$Object.$VariableName</code></li>
+          </ul>
+        </div>
+        <div>
+          <h3>Concepts Learned</h3>
+          <ul class="explain-list">
+            <li>Registry key vs value — the precise distinction</li>
+            <li>Registry value types (String, DWord, Binary, MultiString)</li>
+            <li>Backup-before-change as cheap insurance</li>
+            <li>Verify-after-change instead of trusting the write blindly</li>
+          </ul>
+        </div>
+      </div>
+      <h3>Common Mistakes to Avoid</h3>
+      <ul class="explain-list">
+        <li>Confusing a registry key with a registry value — they're different things.</li>
+        <li>Blindly overwriting a registry value without recording what it was before.</li>
+        <li>Forgetting the trailing colon on registry drive names.</li>
+        <li>Trusting that a write succeeded without a final verification read.</li>
+      </ul>
+    </section>
+
+    <section id="interview">
+      <h2>Interview Preparation</h2>
+      <details><summary>Q1. What's the precise difference between a registry key and a registry value?</summary>
+        <p><b>Answer:</b> A key is a container, analogous to a folder — it can contain other keys (subkeys) and
+        values. A value lives inside a key and has its own name, data type, and data, analogous to a file within a
+        folder. "Setting a registry key" is imprecise language; you set a value that lives inside a key.</p>
+        <p><b>Follow-up:</b> "How would you list every value inside a key using PowerShell?" — Answer:
+        <code>Get-ItemProperty -Path $KeyPath</code> without <code>-Name</code> returns an object with every value
+        in that key as its properties.</p>
+      </details>
+      <details><summary>Q2. Why re-read the value at the end of the script instead of trusting that New-ItemProperty succeeded?</summary>
+        <p><b>Answer:</b> A cmdlet reporting success doesn't guarantee the environment now matches intent in every
+        edge case (permissions quirks, unexpected type coercion, remote timing issues in more advanced scenarios) —
+        an explicit final read confirms the actual current state, rather than assuming based on the absence of an
+        error.</p>
+        <p><b>Follow-up:</b> "How would you handle it if the final verification showed the change didn't actually take effect?"
+        — Answer: log an ERROR-level entry (same pattern as Project 10's failed-recovery case) and flag it for
+        manual investigation rather than silently reporting success.</p>
+      </details>
+      <details><summary>Q3. Why does this script use HKCU for the lab instead of HKLM, given real security settings usually live in HKLM?</summary>
+        <p><b>Answer:</b> HKCU requires no elevated privileges and only affects the current user's profile, making it
+        safe to practice against without any risk of impacting the whole machine — the underlying
+        Test-Path/Get-ItemProperty/New-ItemProperty pattern is identical for HKLM, just requiring Administrator
+        rights and much more caution about what's actually being changed.</p>
+        <p><b>Follow-up:</b> "What would you add to this script before pointing it at a real HKLM security setting?"
+        — Answer: stronger confirmation prompts (perhaps requiring explicit -Confirm rather than defaulting it off),
+        a documented rollback value, and likely running it first in a test/DEV environment identical to Project 9's
+        multi-stage promotion path (DEV → UAT → Production).</p>
+      </details>
+    </section>
+
+    <section id="challenges">
+      <h2>Coding Challenges</h2>
+      <details><summary>Challenge 1: Add a second registry value (e.g. "MaxLogSizeMB" = 50) to the same key, following the same check-then-set pattern</summary>
+        <details><summary>Show answer</summary>
+        <pre><code># Repeat Steps 2-4 with a second variable set:
+$ValueName2 = "MaxLogSizeMB"; $DesiredValue2 = 50
+# ...same Get-ItemProperty / compare / ShouldProcess / New-ItemProperty pattern, just with the new names</code></pre>
+        </details>
+      </details>
+      <details><summary>Challenge 2: Add a -RollBack switch that restores the value to whatever was last logged as "BEFORE CHANGE"</summary>
+        <details><summary>Show answer</summary>
+        <pre><code>$LastBefore = Get-Content $LogPath | Select-String "BEFORE CHANGE" | Select-Object -Last 1
+# Parse out the old value from that log line, then New-ItemProperty it back - a good exercise in regex (-match) from Project 6</code></pre>
+        </details>
+      </details>
+      <details><summary>Challenge 3: List every value under the ABCBankAutomation key as a table</summary>
+        <details><summary>Show answer</summary>
+        <pre><code>Get-ItemProperty -Path $KeyPath | Select-Object * -ExcludeProperty PS*   # PS* properties are PowerShell's own metadata, not real registry values</code></pre>
+        </details>
+      </details>
+    </section>
+
+    <section id="resume">
+      <h2>Resume Points</h2>
+      <ul class="explain-list">
+        <li>Built an idempotent, ShouldProcess-aware PowerShell registry configuration enforcement script with full before/after audit logging.</li>
+        <li>Implemented safe registry validation using the registry-as-PSDrive model, avoiding unnecessary writes to already-compliant systems.</li>
+        <li>Designed a verify-after-change pattern to confirm configuration changes actually took effect rather than assuming success.</li>
+      </ul>
+    </section>
+
+    <section id="assignment">
+      <h2>Practice Assignment</h2>
+      <div class="callout note">
+        Change <code>$DesiredValue</code> to a different number, re-run the script for real, and review
+        <code>RegistryChanges.log</code> to confirm it shows the correct before/after values for that specific
+        change — then run it a third time and confirm no further changes are logged.
+      </div>
+    </section>
+
+    <section id="next">
+      <h2>Next Project Prerequisites</h2>
+      <p>Project 14 (Windows Firewall Validation) applies this same read-check-report (and eventually enforce)
+      pattern to firewall rules — a natural next step now that you've practiced safe, idempotent, auditable
+      configuration management. Be comfortable with the registry-as-PSDrive model and backup-before-change before
+      moving on. When ready, say <b>"Next Project."</b></p>
+    </section>
+
+    <footer>
+      PowerShell Masterclass — ABC Bank Automation Track · Project 13 of 40 · Generated for offline, self-contained use.
+    </footer>
+  </main>
+</div>
+
+<script>
+function copyCode(btn){
+  const code = btn.parentElement.querySelector('pre').innerText;
+  navigator.clipboard.writeText(code).then(()=>{
+    const old = btn.innerText; btn.innerText = "Copied!";
+    setTimeout(()=>btn.innerText = old, 1200);
+  });
+}
+window.addEventListener('scroll', ()=>{
+  const h = document.documentElement;
+  const pct = (h.scrollTop) / (h.scrollHeight - h.clientHeight) * 100;
+  document.getElementById('progressFill').style.width = pct + '%';
+  document.getElementById('progressLabel').innerText = 'Reading progress: ' + Math.round(pct) + '%';
+});
+</script>
+</body>
+</html>

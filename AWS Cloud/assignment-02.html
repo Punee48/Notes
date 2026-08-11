@@ -1,0 +1,724 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Assignment 02 — Secure VPC with Public &amp; Private Subnets</title>
+<style>
+:root{
+  --bg:#0B1120; --bg-2:#111827; --card:#17202F; --card-2:#1C2536; --border:#26314A;
+  --orange:#FF9900; --orange-dim:#B96E00; --blue:#00A8E1; --green:#34D399;
+  --warning:#FBBF24; --error:#F87171; --text:#E5E9F0; --text-dim:#94A3B8;
+  --code-bg:#0A0E17; --code-text:#D1D9E6;
+  --mono:'JetBrains Mono','Fira Code',ui-monospace,monospace;
+  --sans:'Inter',-apple-system,sans-serif; --display:'Space Grotesk','Inter',sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html{scroll-behavior:smooth;}
+body{background:var(--bg);color:var(--text);font-family:var(--sans);line-height:1.65;font-size:16px;}
+a{color:var(--blue);text-decoration:none;} a:hover{text-decoration:underline;}
+::selection{background:var(--orange);color:#0B1120;}
+.shell{display:flex;min-height:100vh;}
+.sidebar{width:270px;flex-shrink:0;background:var(--bg-2);border-right:1px solid var(--border);
+  position:sticky;top:0;height:100vh;overflow-y:auto;padding:24px 0 60px;}
+.sidebar-brand{padding:0 20px 20px;border-bottom:1px solid var(--border);margin-bottom:12px;}
+.sidebar-brand .tag{font-family:var(--mono);font-size:11px;color:var(--orange);letter-spacing:.12em;text-transform:uppercase;}
+.sidebar-brand h1{font-family:var(--display);font-size:17px;margin-top:6px;line-height:1.3;}
+.sidebar nav a{display:block;padding:8px 20px;font-size:13.5px;color:var(--text-dim);border-left:2px solid transparent;}
+.sidebar nav a:hover{color:var(--text);text-decoration:none;background:var(--card);}
+.sidebar nav a.active{color:var(--orange);border-left-color:var(--orange);background:var(--card);}
+.main{flex:1;min-width:0;}
+.container{max-width:900px;margin:0 auto;padding:56px 40px 120px;}
+.cover{background:linear-gradient(160deg,#131C2E 0%, #0B1120 70%);border:1px solid var(--border);border-radius:14px;
+  padding:44px 40px;margin-bottom:48px;position:relative;overflow:hidden;}
+.cover::before{content:"";position:absolute;top:-60px;right:-60px;width:260px;height:260px;
+  background:radial-gradient(circle,rgba(255,153,0,.18),transparent 70%);}
+.cover .eyebrow{font-family:var(--mono);color:var(--orange);font-size:12px;letter-spacing:.14em;text-transform:uppercase;}
+.cover h1{font-family:var(--display);font-size:34px;margin:12px 0 14px;max-width:640px;position:relative;}
+.cover p.lede{color:var(--text-dim);max-width:560px;font-size:15px;position:relative;}
+.cover-meta{display:flex;flex-wrap:wrap;gap:10px;margin-top:24px;position:relative;}
+.chip{background:var(--card);border:1px solid var(--border);border-radius:999px;padding:6px 14px;font-size:12.5px;color:var(--text-dim);font-family:var(--mono);}
+.chip b{color:var(--text);}
+h2.section-title{font-family:var(--display);font-size:24px;margin:56px 0 18px;padding-bottom:10px;border-bottom:1px solid var(--border);
+  display:flex;align-items:center;gap:10px;scroll-margin-top:24px;}
+h2.section-title .num{font-family:var(--mono);color:var(--orange-dim);font-size:15px;}
+h3{font-family:var(--display);font-size:18px;margin:26px 0 10px;color:var(--text);}
+h4{font-size:15px;margin:18px 0 8px;color:var(--orange);font-family:var(--mono);}
+p{margin-bottom:14px;color:#C7CEDB;}
+ul,ol{margin:0 0 14px 22px;color:#C7CEDB;} li{margin-bottom:6px;}
+strong{color:var(--text);}
+.card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:20px 22px;margin:16px 0;}
+.story-card{background:linear-gradient(135deg,#1A2333,#161E2C);border-left:3px solid var(--orange);border-radius:8px;padding:22px 24px;margin:16px 0;}
+.story-card p{color:#D7DCE8;font-style:italic;} .story-card p:last-child{margin-bottom:0;}
+.role-tag{display:inline-block;font-family:var(--mono);font-size:11px;color:var(--orange);background:rgba(255,153,0,.1);
+  border:1px solid rgba(255,153,0,.3);border-radius:5px;padding:2px 8px;margin-bottom:10px;letter-spacing:.05em;}
+.box{border-radius:8px;padding:16px 18px;margin:16px 0;border:1px solid;}
+.box.tip{background:rgba(0,168,225,.07);border-color:rgba(0,168,225,.35);}
+.box.warn{background:rgba(251,191,36,.07);border-color:rgba(251,191,36,.35);}
+.box.security{background:rgba(248,113,113,.07);border-color:rgba(248,113,113,.35);}
+.box.win{background:rgba(52,211,153,.07);border-color:rgba(52,211,153,.35);}
+.box .label{font-family:var(--mono);font-size:11px;text-transform:uppercase;letter-spacing:.1em;display:block;margin-bottom:6px;}
+.box.tip .label{color:var(--blue);} .box.warn .label{color:var(--warning);}
+.box.security .label{color:var(--error);} .box.win .label{color:var(--green);}
+.box p:last-child{margin-bottom:0;}
+table{width:100%;border-collapse:collapse;margin:16px 0;font-size:14px;}
+th{background:var(--card-2);color:var(--orange);text-align:left;padding:10px 12px;font-family:var(--mono);
+  font-size:12px;text-transform:uppercase;letter-spacing:.04em;border-bottom:1px solid var(--border);}
+td{padding:10px 12px;border-bottom:1px solid var(--border);color:#C7CEDB;vertical-align:top;}
+tr:last-child td{border-bottom:none;} tr:hover td{background:rgba(255,255,255,.02);}
+.code-wrap{position:relative;margin:16px 0;border-radius:8px;overflow:hidden;border:1px solid var(--border);}
+.code-head{background:var(--card-2);padding:8px 14px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border);}
+.code-head span{font-family:var(--mono);font-size:11.5px;color:var(--text-dim);}
+.copy-btn{background:transparent;border:1px solid var(--border);color:var(--text-dim);font-family:var(--mono);font-size:11px;
+  padding:4px 10px;border-radius:5px;cursor:pointer;}
+.copy-btn:hover{border-color:var(--orange);color:var(--orange);}
+pre{background:var(--code-bg);padding:16px 18px;overflow-x:auto;font-family:var(--mono);font-size:13px;line-height:1.6;color:var(--code-text);}
+code{font-family:var(--mono);}
+p code, li code{background:var(--card-2);padding:1px 6px;border-radius:4px;font-size:13px;color:#FFC876;}
+.comment{color:#5E7099;} .kw{color:var(--blue);} .str{color:var(--green);}
+.diagram{background:var(--code-bg);border:1px solid var(--border);border-radius:10px;padding:28px;margin:20px 0;overflow-x:auto;}
+.vpc-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px;font-family:var(--mono);font-size:12.5px;}
+.az-col{border:1px dashed var(--border);border-radius:10px;padding:14px;}
+.az-col .az-label{color:var(--text-dim);font-size:11px;text-align:center;margin-bottom:10px;letter-spacing:.08em;}
+.subnet{border-radius:8px;padding:12px 14px;margin-bottom:10px;text-align:center;
+  opacity:0;transform:translateY(8px);animation:reveal .5s ease forwards;}
+.subnet.pub{background:rgba(0,168,225,.1);border:1px solid var(--blue);color:#BFE9FA;}
+.subnet.priv{background:rgba(52,211,153,.1);border:1px solid var(--green);color:#BFF5E2;}
+.subnet small{display:block;color:var(--text-dim);font-size:10.5px;margin-top:3px;}
+@keyframes reveal{to{opacity:1;transform:translateY(0);}}
+.top-row{display:flex;justify-content:center;gap:14px;margin-bottom:16px;font-family:var(--mono);font-size:12.5px;}
+.top-box{background:var(--card);border:1px solid var(--orange-dim);border-radius:8px;padding:10px 18px;color:var(--text);
+  opacity:0;animation:reveal .5s ease forwards;}
+details{background:var(--card);border:1px solid var(--border);border-radius:8px;margin:10px 0;padding:0;}
+details summary{cursor:pointer;padding:14px 18px;font-family:var(--mono);font-size:13.5px;color:var(--orange);
+  list-style:none;display:flex;justify-content:space-between;align-items:center;}
+details summary::-webkit-details-marker{display:none;}
+details summary::after{content:"+";color:var(--text-dim);font-size:16px;}
+details[open] summary::after{content:"–";}
+details .inner{padding:0 18px 16px;border-top:1px solid var(--border);padding-top:12px;}
+details .inner p:last-child{margin-bottom:0;}
+.qa{margin:14px 0;padding:16px 18px;background:var(--card-2);border-radius:8px;border:1px solid var(--border);}
+.qa .q{font-family:var(--display);font-size:14.5px;color:var(--text);margin-bottom:8px;}
+.qa .q .qn{color:var(--orange);font-family:var(--mono);margin-right:6px;}
+.qa .follow{margin-top:10px;padding-top:10px;border-top:1px dashed var(--border);color:var(--text-dim);font-size:13px;}
+.qa .follow b{color:var(--blue);}
+.resume-list{list-style:none;margin:14px 0;}
+.resume-list li{padding:12px 16px;background:var(--card);border-left:3px solid var(--green);border-radius:0 6px 6px 0;
+  margin-bottom:8px;font-size:14px;color:#D7DCE8;}
+.criteria{list-style:none;margin:14px 0;}
+.criteria li{padding-left:28px;position:relative;margin-bottom:8px;color:#C7CEDB;}
+.criteria li::before{content:"✓";position:absolute;left:0;color:var(--green);font-family:var(--mono);}
+.folder{font-family:var(--mono);font-size:13px;color:var(--code-text);white-space:pre;line-height:1.7;}
+.folder .comment{color:#5E7099;}
+.progress-bar{height:6px;background:var(--card-2);border-radius:999px;overflow:hidden;margin:14px 0 4px;}
+.progress-bar-fill{height:100%;width:8%;background:linear-gradient(90deg,var(--orange),var(--blue));}
+.progress-label{font-family:var(--mono);font-size:11px;color:var(--text-dim);}
+footer{text-align:center;padding:40px;color:#4B5875;font-family:var(--mono);font-size:12px;border-top:1px solid var(--border);margin-top:60px;}
+.steps{list-style:none;margin:16px 0;counter-reset:step;}
+.steps li{position:relative;padding:14px 18px 14px 52px;margin-bottom:10px;background:var(--card);border:1px solid var(--border);
+  border-radius:8px;counter-increment:step;}
+.steps li::before{content:counter(step);position:absolute;left:16px;top:14px;width:24px;height:24px;border-radius:50%;
+  background:var(--orange);color:#0B1120;font-family:var(--mono);font-weight:700;font-size:12px;
+  display:flex;align-items:center;justify-content:center;}
+.steps li b{color:var(--text);}
+.tabbar{display:flex;gap:8px;margin:20px 0 0;flex-wrap:wrap;}
+.tabbar .tab-note{font-family:var(--mono);font-size:11px;color:var(--text-dim);background:var(--card-2);
+  border:1px solid var(--border);border-radius:6px;padding:5px 12px;}
+@media(max-width:860px){
+  .sidebar{position:fixed;left:-270px;transition:left .2s;z-index:50;box-shadow:20px 0 40px rgba(0,0,0,.4);}
+  .sidebar.open{left:0;} .container{padding:24px 18px 100px;}
+  .vpc-grid{grid-template-columns:1fr;}
+  .mobile-toggle{position:fixed;bottom:20px;right:20px;z-index:60;background:var(--orange);color:#0B1120;border:none;
+    border-radius:50%;width:52px;height:52px;font-size:20px;cursor:pointer;box-shadow:0 6px 20px rgba(0,0,0,.4);}
+}
+@media(min-width:861px){.mobile-toggle{display:none;}}
+@media(prefers-reduced-motion:reduce){*{animation:none !important;transition:none !important;}}
+</style>
+</head>
+<body>
+<div class="shell">
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-brand">
+      <span class="tag">AWS Cloud Engineering</span>
+      <h1>Assignment 02<br>Foundation Stage</h1>
+    </div>
+    <nav>
+      <a href="#story">Production Story</a>
+      <a href="#requirements">Requirements</a>
+      <a href="#architecture">Architecture</a>
+      <a href="#decisions">Architecture Decisions</a>
+      <a href="#console">Manual Console Steps</a>
+      <a href="#cli">AWS CLI</a>
+      <a href="#terraform">Terraform</a>
+      <a href="#validation">Validation &amp; Testing</a>
+      <a href="#monitoring">Monitoring</a>
+      <a href="#incident">Production Incident</a>
+      <a href="#troubleshooting">Troubleshooting Method</a>
+      <a href="#cost">Cost Awareness</a>
+      <a href="#review">Architecture Review</a>
+      <a href="#cleanup">Cleanup</a>
+      <a href="#acceptance">Acceptance Criteria</a>
+      <a href="#challenge">Practice Challenge</a>
+      <a href="#interview">Interview Prep</a>
+      <a href="#resume">Resume Points</a>
+      <a href="#next">Next Project</a>
+    </nav>
+  </aside>
+
+  <div class="main">
+    <div class="container">
+
+      <div class="cover">
+        <span class="eyebrow">Assignment 02 of 25 · Foundation</span>
+        <h1>Designing a Secure VPC with Public and Private Network Tiers</h1>
+        <p class="lede">A general insurance company wants to put a customer-facing policy quote portal on AWS. Security has one non-negotiable rule: production servers cannot be directly exposed to the internet. The application team still needs a public endpoint. We're building the network these two requirements both live inside.</p>
+        <div class="cover-meta">
+          <span class="chip">Difficulty: <b>Foundation</b></span>
+          <span class="chip">Domain: <b>Insurance</b></span>
+          <span class="chip">Services: <b>VPC · Subnets · IGW · NAT GW · Route Tables · NACLs</b></span>
+          <span class="chip">IaC: <b>Console + CLI + Terraform</b></span>
+          <span class="chip">Est. lab time: <b>2–3 hrs</b></span>
+        </div>
+        <div class="progress-bar"><div class="progress-bar-fill"></div></div>
+        <span class="progress-label">Progress: Assignment 2 of 25</span>
+      </div>
+
+      <!-- STORY -->
+      <h2 class="section-title" id="story"><span class="num">01</span> Production Story</h2>
+      <div class="story-card">
+        <span class="role-tag">Security Team — Ananya Reddy</span>
+        <p>"We've approved moving forward with the online policy quote portal. Before a single server goes up, I want the network design in front of me. Non-negotiable: no application server, and absolutely no database, sits in a subnet with a route to the internet. If it doesn't need to be reached from the internet, it doesn't get a public IP and it doesn't get a route to one. I don't care that it's 'just internal for now' — that's how things drift into being exposed six months later."</p>
+        <span class="role-tag" style="margin-top:14px;display:inline-block;">Application Team — Karthik Iyer</span>
+        <p>"Understood on the security side, but customers need to actually reach this thing over HTTPS from their browser. And our app servers still need to call out to third-party rating APIs and pull OS patches — they can't be fully cut off from the internet either, they just can't be reachable FROM it."</p>
+      </div>
+      <div class="box tip">
+        <span class="label">Why this is Assignment 2</span>
+        <p>Assignment 1 leaned on the account's default VPC — a flat, single-tier network where everything shares one address space with a route to the internet. That was fine for a background job nobody calls into. It is not fine the moment "public endpoint" and "database must be unreachable from the internet" are both requirements at once. That tension is exactly what public/private subnet design solves.</p>
+      </div>
+
+      <h3>Current Environment</h3>
+      <ul>
+        <li>Nothing built yet for this workload — we're starting from a clean slate rather than retrofitting the default VPC.</li>
+        <li>Assignment 1's reconciliation job continues running in its own default-VPC setup; unrelated to this workload.</li>
+      </ul>
+
+      <!-- REQUIREMENTS -->
+      <h2 class="section-title" id="requirements"><span class="num">02</span> Business &amp; Technical Requirements</h2>
+      <table>
+        <tr><th>Type</th><th>Requirement</th></tr>
+        <tr><td>Business</td><td>Customers must be able to reach the quote portal over the public internet via HTTPS.</td></tr>
+        <tr><td>Security</td><td>No application or database instance may have a public IP or a route to an Internet Gateway. Outbound-only internet access is allowed for patching/API calls where genuinely needed.</td></tr>
+        <tr><td>Availability</td><td>Network must span two Availability Zones — a single-AZ network design becomes a hard blocker once we add compute in Assignment 3.</td></tr>
+        <tr><td>Scalability</td><td>Subnet CIDR ranges must leave headroom for future tiers (cache, additional app pools) without a full re-address.</td></tr>
+        <tr><td>Compliance</td><td>Ananya's team requires VPC Flow Logs enabled from day one for audit purposes — not retrofitted later.</td></tr>
+        <tr><td>Cost</td><td>Acceptable to spend on NAT Gateway (a real recurring cost) because it's the correct security control — this is a case where Security explicitly overrides "cheapest option."</td></tr>
+      </table>
+
+      <!-- ARCHITECTURE -->
+      <h2 class="section-title" id="architecture"><span class="num">03</span> Architecture Design</h2>
+      <p>One VPC, two Availability Zones, two tiers per AZ: a <strong>public subnet</strong> that can be reached from (and reach out to) the internet, and a <strong>private subnet</strong> that can reach out but can never be reached from the internet. This assignment builds the network only — compute, load balancer, and database go in the subnets in Assignments 3 and 8.</p>
+
+      <div class="diagram">
+        <div class="top-row">
+          <div class="top-box" style="animation-delay:.05s">Internet</div>
+          <div class="top-box" style="animation-delay:.15s">↕</div>
+          <div class="top-box" style="animation-delay:.25s">Internet Gateway (igw)</div>
+        </div>
+        <div class="vpc-grid">
+          <div class="az-col">
+            <div class="az-label">AZ-A · ap-south-1a</div>
+            <div class="subnet pub" style="animation-delay:.4s">Public Subnet<br>10.20.1.0/24<small>route: 0.0.0.0/0 → igw</small></div>
+            <div class="subnet priv" style="animation-delay:.6s">Private Subnet<br>10.20.11.0/24<small>route: 0.0.0.0/0 → nat-gw-a</small></div>
+          </div>
+          <div class="az-col">
+            <div class="az-label">AZ-B · ap-south-1b</div>
+            <div class="subnet pub" style="animation-delay:.5s">Public Subnet<br>10.20.2.0/24<small>route: 0.0.0.0/0 → igw</small></div>
+            <div class="subnet priv" style="animation-delay:.7s">Private Subnet<br>10.20.12.0/24<small>route: 0.0.0.0/0 → nat-gw-b</small></div>
+          </div>
+        </div>
+      </div>
+
+      <p>VPC CIDR: <code>10.20.0.0/16</code>. Public subnets get a route to the Internet Gateway directly. Private subnets route outbound traffic through a NAT Gateway that lives in the public subnet of the <em>same</em> AZ — this avoids cross-AZ data transfer charges and means an AZ failure doesn't take down another AZ's outbound path.</p>
+
+      <h3>Security Architecture</h3>
+      <ul>
+        <li><strong>Security Groups</strong> (stateful, instance-level) will be defined per-workload in later assignments once there's actually compute to attach them to.</li>
+        <li><strong>Network ACLs</strong> (stateless, subnet-level) are set here as a second layer: private subnet NACLs explicitly deny inbound traffic from <code>0.0.0.0/0</code> on all ports except the ephemeral return-traffic range, so even a misconfigured security group later can't accidentally open a private subnet to the world.</li>
+        <li><strong>VPC Flow Logs</strong> enabled at the VPC level from creation, per Ananya's requirement — captures accepted and rejected traffic for every ENI in the VPC.</li>
+      </ul>
+
+      <!-- DECISIONS -->
+      <h2 class="section-title" id="decisions"><span class="num">04</span> Architecture Decision Making</h2>
+
+      <h3>Decision: NAT Gateway vs. NAT Instance</h3>
+      <table>
+        <tr><th></th><th>NAT Gateway</th><th>NAT Instance (EC2)</th></tr>
+        <tr><td>Management</td><td>Fully managed by AWS — no patching, no scaling to configure</td><td>You manage the OS, patch it, and size it yourself</td></tr>
+        <tr><td>Availability</td><td>Highly available within its AZ by design</td><td>Single EC2 instance — its own single point of failure</td></tr>
+        <tr><td>Throughput</td><td>Scales automatically up to 100 Gbps</td><td>Capped by the instance type you chose</td></tr>
+        <tr><td>Cost</td><td>Hourly charge + per-GB data processing charge</td><td>Just the (usually cheaper) EC2 instance cost</td></tr>
+      </table>
+      <p><strong>Decision: NAT Gateway.</strong> The operational overhead of patching and right-sizing a NAT instance isn't worth the cost savings for an insurance company's production customer portal — and Security's whole point in this assignment is reducing operational risk, not adding a self-managed component to the security boundary.</p>
+
+      <h3>Decision: One NAT Gateway per AZ vs. One Shared NAT Gateway</h3>
+      <p>A single shared NAT Gateway in one AZ is cheaper, but every private subnet in the <em>other</em> AZ would then depend on a resource outside its own AZ — meaning an AZ failure could take down outbound connectivity for a private subnet in a completely different, otherwise-healthy AZ. Since Assignment requirements already demand a two-AZ design for availability, undermining that with a single NAT Gateway would be inconsistent. <strong>Decision: one NAT Gateway per AZ</strong>, accepting the doubled NAT cost as the price of the availability requirement Priya's org already committed to.</p>
+
+      <!-- CONSOLE -->
+      <h2 class="section-title" id="console"><span class="num">05</span> AWS Console — Manual Steps</h2>
+      <p>We're building this by hand in the console first so the underlying pieces (route tables, associations, gateways) are visible and concrete, before we hand the exact same architecture to Terraform below. In real teams you'd rarely build production this way — but seeing every click makes the Terraform far less abstract.</p>
+
+      <div class="tabbar"><span class="tab-note">Console → VPC service → all steps below, in order</span></div>
+
+      <ol class="steps">
+        <li><b>Create the VPC.</b> VPC console → <em>Your VPCs</em> → <em>Create VPC</em> → choose "VPC only" → IPv4 CIDR <code>10.20.0.0/16</code> → name it <code>quote-portal-vpc</code>. This allocates the address space; nothing inside it exists yet.</li>
+        <li><b>Create four subnets.</b> <em>Subnets</em> → <em>Create subnet</em>, selecting <code>quote-portal-vpc</code> each time: <code>public-a</code> (10.20.1.0/24, AZ ap-south-1a), <code>public-b</code> (10.20.2.0/24, AZ ap-south-1b), <code>private-a</code> (10.20.11.0/24, AZ ap-south-1a), <code>private-b</code> (10.20.12.0/24, AZ ap-south-1b). A subnet is just a CIDR carved out of the VPC and pinned to one AZ — it isn't "public" or "private" yet; that label only becomes real once we attach route tables in step 5.</li>
+        <li><b>Create and attach an Internet Gateway.</b> <em>Internet Gateways</em> → <em>Create internet gateway</em> → name <code>quote-portal-igw</code> → create → then <em>Actions → Attach to VPC</em> → select <code>quote-portal-vpc</code>. An IGW with nothing attached does nothing; a VPC without an attached IGW has no path to the internet at all, public subnets or not.</li>
+        <li><b>Allocate Elastic IPs and create two NAT Gateways.</b> <em>Elastic IPs</em> → <em>Allocate Elastic IP address</em> (repeat twice). Then <em>NAT Gateways</em> → <em>Create NAT gateway</em> → subnet <code>public-a</code>, connectivity type "Public", select one Elastic IP → repeat for <code>public-b</code> with the second Elastic IP. NAT Gateways must sit in a <em>public</em> subnet — they need their own route to the internet to forward traffic on behalf of the private subnets.</li>
+        <li><b>Create and configure the public route table.</b> <em>Route Tables</em> → <em>Create route table</em> → name <code>public-rt</code>, VPC <code>quote-portal-vpc</code> → open it → <em>Routes → Edit routes → Add route</em>: destination <code>0.0.0.0/0</code>, target = the Internet Gateway → <em>Subnet associations → Edit</em> → associate both <code>public-a</code> and <code>public-b</code>. This is the step that actually makes those two subnets "public" — the label is just shorthand for "has a route table sending internet-bound traffic to an IGW."</li>
+        <li><b>Create and configure two private route tables.</b> Create <code>private-rt-a</code> → add route <code>0.0.0.0/0</code> → target = <code>nat-gw-a</code> → associate with <code>private-a</code> only. Repeat: <code>private-rt-b</code> → target <code>nat-gw-b</code> → associate with <code>private-b</code> only. Keeping them separate (rather than one shared private route table) is what makes each AZ's outbound path independent, matching the decision above.</li>
+        <li><b>Harden the private subnets' Network ACL.</b> <em>Network ACLs</em> → create <code>private-nacl</code> → inbound rules: allow ephemeral TCP return traffic (1024–65535) from <code>0.0.0.0/0</code>, deny everything else lower-numbered; no rule allowing unsolicited inbound on 80/443/22 from the internet. Associate with both private subnets. This is a second, stateless layer behind whatever security groups get attached to instances later.</li>
+        <li><b>Enable VPC Flow Logs.</b> Select <code>quote-portal-vpc</code> → <em>Flow logs</em> tab → <em>Create flow log</em> → filter "All", destination CloudWatch Logs, create/select an IAM role with permission to publish logs. This satisfies Ananya's audit requirement immediately, not as a follow-up task.</li>
+      </ol>
+
+      <div class="box warn">
+        <span class="label">Why we don't stay in the console</span>
+        <p>Eight manual steps, done correctly, is manageable once. It is not manageable for a "dev," "qa," and "prod" copy of this same network, and it is not repeatable, reviewable, or diffable when Ananya's team wants to audit exactly what changed and when. That's the whole reason the rest of this course pushes toward Terraform as the primary method — the Terraform below produces the identical architecture you just clicked through.</p>
+      </div>
+
+      <!-- CLI -->
+      <h2 class="section-title" id="cli"><span class="num">06</span> AWS CLI — Same Architecture, Scriptable</h2>
+      <div class="code-wrap">
+        <div class="code-head"><span>bash</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre><span class="comment"># 1. Create the VPC and capture its ID for later commands</span>
+VPC_ID=$(aws ec2 create-vpc \
+  --cidr-block 10.20.0.0/16 \
+  --query 'Vpc.VpcId' --output text)
+aws ec2 create-tags --resources $VPC_ID --tags Key=Name,Value=quote-portal-vpc
+
+<span class="comment"># 2. Create the public subnet in AZ-A</span>
+PUB_A=$(aws ec2 create-subnet \
+  --vpc-id $VPC_ID --cidr-block 10.20.1.0/24 \
+  --availability-zone ap-south-1a \
+  --query 'Subnet.SubnetId' --output text)
+
+<span class="comment"># 3. Create and attach the Internet Gateway</span>
+IGW_ID=$(aws ec2 create-internet-gateway --query 'InternetGateway.InternetGatewayId' --output text)
+aws ec2 attach-internet-gateway --vpc-id $VPC_ID --internet-gateway-id $IGW_ID
+
+<span class="comment"># 4. Create the public route table, add the default route, associate the subnet</span>
+RT_PUB=$(aws ec2 create-route-table --vpc-id $VPC_ID --query 'RouteTable.RouteTableId' --output text)
+aws ec2 create-route --route-table-id $RT_PUB --destination-cidr-block 0.0.0.0/0 --gateway-id $IGW_ID
+aws ec2 associate-route-table --route-table-id $RT_PUB --subnet-id $PUB_A</pre>
+      </div>
+      <table>
+        <tr><th>Command</th><th>What it does</th><th>Reversible?</th></tr>
+        <tr><td><code>create-vpc</code></td><td>Allocates the VPC address space</td><td>Yes — <code>delete-vpc</code> (only once everything inside it is deleted)</td></tr>
+        <tr><td><code>create-route</code></td><td>Adds a single route to an existing route table — does not create the table itself</td><td>Yes — <code>delete-route</code></td></tr>
+        <tr><td><code>associate-route-table</code></td><td>Links a subnet to a route table, which is what actually determines the subnet's traffic behavior</td><td>Yes — <code>disassociate-route-table</code>, but the subnet then falls back to the VPC's <em>main</em> route table</td></tr>
+      </table>
+      <p>We're showing four of the eight console steps here in CLI form for illustration — the full script (all four subnets, both NAT Gateways, both private route tables, the NACL, and flow logs) follows the identical pattern and is what the Terraform below encodes declaratively instead of imperatively.</p>
+
+      <!-- TERRAFORM -->
+      <h2 class="section-title" id="terraform"><span class="num">07</span> Terraform Implementation</h2>
+      <p>Same architecture a third time — this time declared once, applied consistently, and destroyable in one command. This is what actually ships to Ananya's team for review going forward.</p>
+
+      <h3>variables.tf</h3>
+      <div class="code-wrap">
+        <div class="code-head"><span>variables.tf</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre><span class="kw">variable</span> "vpc_cidr" {
+  description = <span class="str">"CIDR block for the quote portal VPC"</span>
+  type        = string
+  default     = <span class="str">"10.20.0.0/16"</span>
+}
+
+<span class="kw">variable</span> "azs" {
+  description = <span class="str">"Availability Zones to spread the network across"</span>
+  type        = list(string)
+  default     = ["ap-south-1a", "ap-south-1b"]
+}
+
+<span class="kw">variable</span> "public_subnet_cidrs" {
+  type    = list(string)
+  default = ["10.20.1.0/24", "10.20.2.0/24"]
+}
+
+<span class="kw">variable</span> "private_subnet_cidrs" {
+  type    = list(string)
+  default = ["10.20.11.0/24", "10.20.12.0/24"]
+  <span class="comment"># Numbered starting at .11 rather than .3, deliberately leaving 10.20.3.0/24</span>
+  <span class="comment"># through 10.20.10.0/24 free for a future tier (cache, additional pools)</span>
+  <span class="comment"># without renumbering anything that already exists — the scalability</span>
+  <span class="comment"># requirement from the table above.</span>
+}</pre>
+      </div>
+
+      <h3>main.tf — VPC, Subnets, Internet Gateway</h3>
+      <div class="code-wrap">
+        <div class="code-head"><span>main.tf (part 1 of 3)</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre><span class="kw">resource</span> "aws_vpc" "main" {
+  cidr_block           = var.vpc_cidr
+  enable_dns_support   = true
+  enable_dns_hostnames = true
+  <span class="comment"># DNS hostnames must be enabled for resources we add later (ALB, RDS) to</span>
+  <span class="comment"># get resolvable DNS names — off by default on a manually-created VPC.</span>
+  tags = { Name = "quote-portal-vpc" }
+}
+
+<span class="kw">resource</span> "aws_subnet" "public" {
+  count                   = length(var.public_subnet_cidrs)
+  vpc_id                  = aws_vpc.main.id
+  cidr_block              = var.public_subnet_cidrs[count.index]
+  availability_zone       = var.azs[count.index]
+  map_public_ip_on_launch = true
+  <span class="comment"># count.index walks 0,1 — pairing each CIDR with the AZ at the same list</span>
+  <span class="comment"># position. map_public_ip_on_launch means anything launched here gets a</span>
+  <span class="comment"># public IP automatically — appropriate ONLY for this public tier.</span>
+  tags = { Name = "public-${var.azs[count.index]}", Tier = "public" }
+}
+
+<span class="kw">resource</span> "aws_subnet" "private" {
+  count             = length(var.private_subnet_cidrs)
+  vpc_id            = aws_vpc.main.id
+  cidr_block        = var.private_subnet_cidrs[count.index]
+  availability_zone = var.azs[count.index]
+  <span class="comment"># No map_public_ip_on_launch here — defaults to false. Anything launched</span>
+  <span class="comment"># in this subnet gets NO public IP, satisfying Security's core requirement</span>
+  <span class="comment"># at the network layer, independent of whatever security group is applied.</span>
+  tags = { Name = "private-${var.azs[count.index]}", Tier = "private" }
+}
+
+<span class="kw">resource</span> "aws_internet_gateway" "main" {
+  vpc_id = aws_vpc.main.id
+  tags   = { Name = "quote-portal-igw" }
+}</pre>
+      </div>
+
+      <h3>main.tf — NAT Gateways &amp; Route Tables</h3>
+      <div class="code-wrap">
+        <div class="code-head"><span>main.tf (part 2 of 3)</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre><span class="kw">resource</span> "aws_eip" "nat" {
+  count  = length(var.azs)
+  domain = "vpc"
+  <span class="comment"># One Elastic IP per AZ — each NAT Gateway needs its own static public IP.</span>
+}
+
+<span class="kw">resource</span> "aws_nat_gateway" "main" {
+  count         = length(var.azs)
+  allocation_id = aws_eip.nat[count.index].id
+  subnet_id     = aws_subnet.public[count.index].id
+  <span class="comment"># Placed in the PUBLIC subnet of the SAME AZ index — this is what keeps</span>
+  <span class="comment"># each AZ's outbound path independent, per the architecture decision above.</span>
+  tags = { Name = "nat-gw-${var.azs[count.index]}" }
+  depends_on = [aws_internet_gateway.main]
+  <span class="comment"># Explicit dependency: a NAT Gateway needs the IGW to already be attached</span>
+  <span class="comment"># to route through, even though no attribute reference forces that order.</span>
+}
+
+<span class="kw">resource</span> "aws_route_table" "public" {
+  vpc_id = aws_vpc.main.id
+  route {
+    cidr_block = "0.0.0.0/0"
+    gateway_id = aws_internet_gateway.main.id
+  }
+  tags = { Name = "public-rt" }
+}
+
+<span class="kw">resource</span> "aws_route_table_association" "public" {
+  count          = length(aws_subnet.public)
+  subnet_id      = aws_subnet.public[count.index].id
+  route_table_id = aws_route_table.public.id
+  <span class="comment"># Both public subnets share ONE route table — they have identical routing</span>
+  <span class="comment"># needs, so there's no reason to duplicate it.</span>
+}
+
+<span class="kw">resource</span> "aws_route_table" "private" {
+  count  = length(var.azs)
+  vpc_id = aws_vpc.main.id
+  route {
+    cidr_block     = "0.0.0.0/0"
+    nat_gateway_id = aws_nat_gateway.main[count.index].id
+  }
+  <span class="comment"># TWO separate route tables (not one) — each private subnet routes through</span>
+  <span class="comment"># ONLY its own AZ's NAT Gateway, per the per-AZ decision above.</span>
+  tags = { Name = "private-rt-${var.azs[count.index]}" }
+}
+
+<span class="kw">resource</span> "aws_route_table_association" "private" {
+  count          = length(aws_subnet.private)
+  subnet_id      = aws_subnet.private[count.index].id
+  route_table_id = aws_route_table.private[count.index].id
+}</pre>
+      </div>
+
+      <h3>main.tf — Hardened NACL &amp; Flow Logs</h3>
+      <div class="code-wrap">
+        <div class="code-head"><span>main.tf (part 3 of 3)</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre><span class="kw">resource</span> "aws_network_acl" "private" {
+  vpc_id     = aws_vpc.main.id
+  subnet_ids = aws_subnet.private[*].id
+  <span class="comment"># [*] applies this one NACL to every private subnet in the list.</span>
+
+  ingress {
+    rule_no    = 100
+    protocol   = "tcp"
+    action     = "allow"
+    cidr_block = "0.0.0.0/0"
+    from_port  = 1024
+    to_port    = 65535
+    <span class="comment"># Allows RETURN traffic for connections the private instance itself</span>
+    <span class="comment"># initiated (e.g. the reply to an outbound API call) — NACLs are</span>
+    <span class="comment"># stateless, so return traffic must be explicitly allowed.</span>
+  }
+  egress {
+    rule_no    = 100
+    protocol   = "-1"
+    action     = "allow"
+    cidr_block = "0.0.0.0/0"
+    from_port  = 0
+    to_port    = 0
+  }
+  <span class="comment"># No rule allowing unsolicited inbound on 22/80/443 from 0.0.0.0/0 — the</span>
+  <span class="comment"># implicit final rule in any NACL is DENY, so anything not explicitly</span>
+  <span class="comment"># allowed above is blocked by default. This is the network-layer backstop.</span>
+  tags = { Name = "private-nacl" }
+}
+
+<span class="kw">resource</span> "aws_cloudwatch_log_group" "vpc_flow_logs" {
+  name              = "/vpc/quote-portal/flow-logs"
+  retention_in_days = 90
+  <span class="comment"># 90 days to satisfy a typical audit look-back window; adjust to whatever</span>
+  <span class="comment"># Ananya's team's actual compliance retention requirement turns out to be.</span>
+}
+
+<span class="kw">resource</span> "aws_iam_role" "flow_logs" {
+  name = "vpc-flow-logs-role"
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Action    = "sts:AssumeRole"
+      Effect    = "Allow"
+      Principal = { Service = "vpc-flow-logs.amazonaws.com" }
+    }]
+  })
+}
+
+<span class="kw">resource</span> "aws_iam_role_policy" "flow_logs" {
+  role = aws_iam_role.flow_logs.id
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect   = "Allow"
+      Action   = ["logs:CreateLogStream", "logs:PutLogEvents"]
+      Resource = "${aws_cloudwatch_log_group.vpc_flow_logs.arn}:*"
+    }]
+  })
+}
+
+<span class="kw">resource</span> "aws_flow_log" "main" {
+  vpc_id               = aws_vpc.main.id
+  log_destination      = aws_cloudwatch_log_group.vpc_flow_logs.arn
+  log_destination_type = "cloud-watch-logs"
+  iam_role_arn         = aws_iam_role.flow_logs.arn
+  traffic_type         = "ALL"
+  <span class="comment"># ALL captures both ACCEPT and REJECT records — REJECT records are what</span>
+  <span class="comment"># let us later detect "something tried to reach the private tier and was</span>
+  <span class="comment"># blocked," which matters for both security review and troubleshooting.</span>
+}</pre>
+      </div>
+
+      <!-- VALIDATION -->
+      <h2 class="section-title" id="validation"><span class="num">08</span> Validation &amp; Testing</h2>
+      <ul>
+        <li><strong>Network test:</strong> launch a temporary EC2 instance in a private subnet — confirm it receives no public IP, and confirm <code>curl</code> to an external URL from inside it succeeds (proving outbound-via-NAT works).</li>
+        <li><strong>Security test:</strong> from your own machine, attempt to reach the private instance's private IP directly — must fail, since there's no route from the internet into that subnet at all.</li>
+        <li><strong>Isolation test:</strong> confirm each AZ's NAT Gateway only appears in that AZ's route table — no cross-AZ NAT dependency.</li>
+        <li><strong>Flow Logs test:</strong> confirm log records appear in CloudWatch Logs within a few minutes of test traffic, including a REJECT record for the blocked direct-access attempt above.</li>
+      </ul>
+
+      <!-- MONITORING -->
+      <h2 class="section-title" id="monitoring"><span class="num">09</span> Monitoring &amp; Observability</h2>
+      <p>VPC Flow Logs are the primary observability surface for a network-only assignment — there's no application yet to monitor. We watch for REJECT records against the private subnets specifically, since any REJECT there is either a misconfiguration being caught by the NACL (good) or a sign that something in the private tier is trying to reach somewhere it shouldn't (worth investigating).</p>
+
+      <!-- INCIDENT -->
+      <h2 class="section-title" id="incident"><span class="num">10</span> Production Incident</h2>
+      <div class="story-card">
+        <span class="role-tag">Design review, two days later</span>
+        <p>Ananya's team runs a routine review of the new VPC before sign-off and flags something: the private route tables show a route to <code>0.0.0.0/0</code> via NAT Gateway, which is correct — but a review of the account's CloudTrail history shows someone briefly attached an Internet Gateway route directly to <code>private-rt-a</code> during testing yesterday, then removed it. Nothing was compromised, but it means for a window of time yesterday, private-a had a live path to the internet.</p>
+      </div>
+      <h4>Investigation</h4>
+      <div class="code-wrap">
+        <div class="code-head"><span>bash</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre>aws cloudtrail lookup-events \
+  --lookup-attributes AttributeKey=EventName,AttributeValue=CreateRoute \
+  --query "Events[].[EventTime,Username,CloudTrailEvent]" --output table</pre>
+      </div>
+      <p>CloudTrail shows an engineer manually ran <code>aws ec2 create-route</code> against <code>private-rt-a</code> pointing at the IGW while debugging an unrelated connectivity issue, intending it as temporary, and manually removed it afterward — but never went back through Terraform.</p>
+      <h4>Root Cause</h4>
+      <p>A manual, out-of-band change made directly against AWS instead of through the Terraform-managed configuration. Because Terraform wasn't re-applied, <code>terraform plan</code> would have shown this as drift if anyone had run it during that window — but nobody did, so the gap was only caught by a manual CloudTrail review.</p>
+      <h4>Immediate Fix</h4>
+      <p>Confirmed the manual route was already removed; ran <code>terraform plan</code> immediately to confirm current state now matches code with zero drift.</p>
+      <h4>Permanent Fix</h4>
+      <p>Restricted the IAM permissions of engineers who don't own this Terraform stack so they cannot call <code>ec2:CreateRoute</code> directly against production route tables — debugging should happen in a scratch/dev VPC, not by mutating the production network by hand.</p>
+      <h4>Monitoring Improvement</h4>
+      <p>Added a scheduled <code>terraform plan</code> (via CI, introduced properly in Assignment 14) that runs nightly and alerts if any drift is detected, so manual changes like this surface automatically instead of relying on someone remembering to check CloudTrail.</p>
+      <h4>Lessons Learned</h4>
+      <ul>
+        <li>Terraform only protects you if it's the <em>only</em> path to making changes — manual console/CLI access to the same resources is a standing risk.</li>
+        <li>Drift detection needs to be scheduled and automatic, not something someone has to remember to run.</li>
+      </ul>
+
+      <!-- TROUBLESHOOTING -->
+      <h2 class="section-title" id="troubleshooting"><span class="num">11</span> Troubleshooting Methodology</h2>
+      <table>
+        <tr><th>Symptom</th><th>Check First</th><th>Likely Cause</th></tr>
+        <tr><td>Private instance can't reach the internet at all</td><td>Route table associated with its subnet, then the NAT Gateway's own status</td><td>Missing/wrong route table association, or NAT Gateway in a failed state</td></tr>
+        <tr><td>Public instance unreachable from internet</td><td>Route table has IGW route AND instance has a public IP AND security group allows the port</td><td>Any one of the three missing breaks the whole chain</td></tr>
+        <tr><td>Terraform plan shows unexpected route changes</td><td><code>aws ec2 describe-route-tables</code> compared against state</td><td>Manual/out-of-band change, as in the incident above</td></tr>
+        <tr><td>NAT Gateway creation fails</td><td>Elastic IP allocation and subnet being genuinely public first</td><td>NAT Gateway requires a public subnet to launch into — chicken-and-egg if IGW/route isn't attached yet</td></tr>
+      </table>
+
+      <!-- COST -->
+      <h2 class="section-title" id="cost"><span class="num">12</span> Cost Optimization</h2>
+      <table>
+        <tr><th>Resource</th><th>Cost Driver</th><th>Note</th></tr>
+        <tr><td>NAT Gateway ×2</td><td>Hourly charge + per-GB data processing</td><td>The single biggest recurring cost in this design — roughly $32/month per gateway just in hourly charge before any data transfer, in ap-south-1</td></tr>
+        <tr><td>Elastic IPs</td><td>Free while attached to a running NAT Gateway; billed if left unattached</td><td>Non-issue here since both are permanently attached</td></tr>
+        <tr><td>VPC, subnets, route tables, IGW</td><td>No direct charge</td><td>Free — you only pay for NAT, EIP-when-unattached, and data transfer</td></tr>
+      </table>
+      <div class="box warn">
+        <span class="label">Cost vs. Security, explicitly</span>
+        <p>Two NAT Gateways roughly doubles that line item versus one shared NAT Gateway. We're keeping two because Security's availability requirement (survive an AZ failure without cross-AZ dependency) directly conflicts with the cheaper option. This is a case to name explicitly in a design review, not bury — "we chose availability over the cheaper NAT setup, here's why," not silence.</p>
+      </div>
+
+      <!-- REVIEW -->
+      <h2 class="section-title" id="review"><span class="num">13</span> Solutions Architect Review</h2>
+      <table>
+        <tr><th>Lens</th><th>Assessment</th></tr>
+        <tr><td>Reliability</td><td>Two independent AZs, no cross-AZ NAT dependency — network layer itself has no single point of failure</td></tr>
+        <tr><td>Security</td><td>Private tier has no public IP and no IGW route at the network layer, backed by a NACL as a second layer — strong for a foundation network with no compute yet</td></tr>
+        <tr><td>Cost</td><td>Two NAT Gateways is the most expensive part of an otherwise cheap design — a known, deliberate trade-off</td></tr>
+        <tr><td>Operations</td><td>Flow Logs give visibility from day one; the incident above shows a real gap (manual drift) that's now mitigated with tighter IAM and a plan for scheduled drift detection</td></tr>
+        <tr><td>Scalability</td><td>CIDR ranges leave room for a future tier without re-addressing anything that exists</td></tr>
+        <tr><td>Maintainability</td><td>Entire network is one <code>main.tf</code>; a new engineer can read it top to bottom and understand the topology</td></tr>
+      </table>
+
+      <!-- CLEANUP -->
+      <h2 class="section-title" id="cleanup"><span class="num">14</span> Cleanup</h2>
+      <div class="code-wrap">
+        <div class="code-head"><span>bash</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre>terraform destroy
+<span class="comment"># Terraform deletes in reverse dependency order automatically: flow log →</span>
+<span class="comment"># NACL → route table associations → route tables → NAT gateways → EIPs →</span>
+<span class="comment"># IGW → subnets → VPC. NAT Gateway deletion can take a couple of minutes —</span>
+<span class="comment"># this is normal, not a stuck operation.</span></pre>
+      </div>
+
+      <!-- ACCEPTANCE -->
+      <h2 class="section-title" id="acceptance"><span class="num">15</span> Acceptance Criteria</h2>
+      <ul class="criteria">
+        <li>VPC spans two Availability Zones with one public and one private subnet per AZ</li>
+        <li>Private subnets have zero route to an Internet Gateway; outbound-only via per-AZ NAT Gateway</li>
+        <li>An instance placed in a private subnet has no public IP by default</li>
+        <li>NACL on private subnets blocks unsolicited inbound from the internet as a second layer behind future security groups</li>
+        <li>VPC Flow Logs are enabled and visible in CloudWatch Logs from creation, not added afterward</li>
+        <li>Entire network is created and destroyed cleanly via Terraform with zero drift after apply</li>
+      </ul>
+
+      <!-- CHALLENGE -->
+      <h2 class="section-title" id="challenge"><span class="num">16</span> Practice Challenge</h2>
+      <div class="card">
+        <p><strong>Ananya comes back:</strong> "Good network. Now — what if an engineer's laptop needs to reach an instance in the private subnet for legitimate debugging, without opening it to the whole internet and without giving out a permanent public IP anywhere?"</p>
+        <p><strong>Requirement:</strong> Add a way for one specific, known IP (an engineer's office/VPN IP) to reach instances in the private subnets, without changing the private subnets' "no route to IGW" property.</p>
+        <p><strong>Acceptance Criteria:</strong> Private subnets still have zero IGW route. The access path is scoped to a specific source IP, not 0.0.0.0/0. No permanent public IP is added to any private instance.</p>
+        <p><strong>Hints:</strong> Think about where the "entry point" for legitimate access should live relative to the public/private boundary you already built.</p>
+      </div>
+      <details>
+        <summary>Challenge Solution</summary>
+        <div class="inner">
+          <p>Add a small <strong>bastion host</strong> (or, better in a modern account, <strong>AWS Systems Manager Session Manager</strong> with no bastion at all) — a single instance in a <em>public</em> subnet with a security group allowing SSH only from the engineer's specific IP/32. Engineers SSH into the bastion first, then SSH again from the bastion into the private instance using its private IP. The private subnet's route table is completely untouched — the private instance still has no route to the internet; the bastion is simply another resource that happens to sit inside the same VPC and can reach it over the VPC's internal routing, which works regardless of the private subnet's internet routing. The SSM Session Manager variant is actually preferable and removes the need for a bastion or any open SSH port at all — we build that properly once IAM and Systems Manager are covered in more depth in a later assignment.</p>
+        </div>
+      </details>
+
+      <!-- INTERVIEW -->
+      <h2 class="section-title" id="interview"><span class="num">17</span> Interview Preparation</h2>
+
+      <div class="qa">
+        <div class="q"><span class="qn">Q1 · Networking</span>What actually makes a subnet "public" in AWS — is it a setting on the subnet itself?</div>
+        <p>No — there's no literal "public" flag on the subnet resource itself (aside from the auto-assign-public-IP setting, which is convenience, not the security boundary). A subnet is public purely because its associated route table has a route sending <code>0.0.0.0/0</code> traffic to an Internet Gateway. Change the route table association and the exact same subnet becomes private.</p>
+        <div class="follow"><b>Follow-up:</b> "So could I make a 'public' subnet private without touching the subnet resource at all?" — Yes, exactly — disassociate it from the public route table and associate it with a private one; the subnet's CIDR and AZ never change.</div>
+      </div>
+
+      <div class="qa">
+        <div class="q"><span class="qn">Q2 · Security</span>Why use both security groups and network ACLs instead of just security groups?</div>
+        <p>Defense in depth. Security groups are stateful and attached at the instance/ENI level — a single misconfigured security group is a single point of failure for that instance's exposure. NACLs are stateless, apply at the subnet level, and act as a second, independent layer — so a mistake in one security group doesn't automatically expose the whole subnet, because the NACL still has to allow the traffic too.</p>
+        <div class="follow"><b>Follow-up:</b> "Why 'stateless' for NACLs specifically matter?" — Because you must explicitly allow both the request AND the response traffic (e.g. ephemeral port range for return traffic) — security groups handle that automatically since they track connection state.</div>
+      </div>
+
+      <div class="qa">
+        <div class="q"><span class="qn">Q3 · Production Scenario</span>How would you detect if someone manually changed a route table outside of Terraform?</div>
+        <p>Two ways: reactively, via CloudTrail — <code>CreateRoute</code>/<code>ReplaceRoute</code> events show exactly who changed what and when. Proactively, by scheduling <code>terraform plan</code> to run regularly (e.g. nightly in CI) and alerting if it reports any drift — a plan showing unexpected changes means the real infrastructure no longer matches the code, regardless of why.</p>
+        <div class="follow"><b>Follow-up:</b> "What would you do if you found drift like this in a live production VPC?" — Investigate via CloudTrail before touching anything, understand whether the drifted state is currently safe, then either update Terraform to match a legitimate change or run apply to correct back to the intended state — never blindly apply without understanding what changed and why first.</div>
+      </div>
+
+      <div class="qa">
+        <div class="q"><span class="qn">Q4 · Cost Optimization</span>When would one shared NAT Gateway be the right call instead of one per AZ?</div>
+        <p>When the workload's availability requirement doesn't actually demand AZ-independent outbound paths — for example, a dev/test environment where a temporary loss of outbound internet during an AZ event is an acceptable trade-off for lower cost. The decision should follow the stated availability requirement, not a blanket "always use N NAT Gateways" rule.</p>
+        <div class="follow"><b>Follow-up:</b> "How would you phase this — start with one, add more later?" — Yes, that's reasonable for a dev environment: start with a single shared NAT Gateway, and revisit per-AZ NAT Gateways only if/when that environment's requirements change to demand true AZ independence.</div>
+      </div>
+
+      <div class="qa">
+        <div class="q"><span class="qn">Q5 · Terraform</span>Why use count with a list variable here instead of writing four separate subnet resource blocks?</div>
+        <p><code>count</code> paired with indexing into <code>var.public_subnet_cidrs</code> and <code>var.azs</code> lets one resource block generate N subnets from N list entries — adding a third AZ later means adding one CIDR and one AZ to the variables, not writing new resource blocks. It keeps the code's size proportional to genuine complexity, not to how many subnets happen to exist today.</p>
+        <div class="follow"><b>Follow-up:</b> "What's a downside of count versus for_each here?" — count indexes by position, so inserting an element in the middle of the list (rather than appending) can cause Terraform to see it as changing every subsequent resource; for_each keyed by a stable name avoids that. We'll use for_each once we move to reusable modules in Assignment 13.</div>
+      </div>
+
+      <div class="qa">
+        <div class="q"><span class="qn">Q6 · Manager Round</span>Security wants two NAT Gateways for availability; Finance is asking why the network bill doubled. How do you handle that conversation?</div>
+        <p>I'd bring both stakeholders the same trade-off table I used to make the decision — cost delta, what specifically breaks with a single shared NAT Gateway during an AZ event, and let the actual availability requirement (which came from the business, via Security) drive the decision rather than defaulting to either "cheapest" or "safest" without naming the trade-off out loud. If the availability requirement is real and documented, the cost is the cost of meeting it — but that should be a visible decision, not something Finance discovers after the fact.</p>
+        <div class="follow"><b>Follow-up:</b> "What would make you revisit that decision later?" — If the workload turned out to be far less availability-sensitive than assumed, or if AWS introduced a cheaper HA NAT option — either would be a legitimate reason to reopen the trade-off, not a reason to have skipped the conversation the first time.</div>
+      </div>
+
+      <!-- RESUME -->
+      <h2 class="section-title" id="resume"><span class="num">18</span> Resume Points</h2>
+      <ul class="resume-list">
+        <li>Designed and implemented a multi-AZ AWS VPC with public/private subnet tiering, enforcing network-layer isolation for a customer-facing application's backend</li>
+        <li>Configured per-AZ NAT Gateway architecture to eliminate cross-AZ outbound-connectivity dependency, aligning network design with the business's availability requirements</li>
+        <li>Implemented defense-in-depth network security using Network ACLs as a stateless second layer behind instance-level security groups</li>
+        <li>Enabled VPC Flow Logs to CloudWatch from initial network build-out to satisfy audit and compliance requirements from day one</li>
+        <li>Investigated and remediated an out-of-band manual route table change using CloudTrail, then tightened IAM permissions to prevent recurrence</li>
+      </ul>
+
+      <!-- NEXT -->
+      <h2 class="section-title" id="next"><span class="num">19</span> Next Project</h2>
+      <div class="box win">
+        <span class="label">When you're ready</span>
+        <p>Implement this network, walk through the challenge, and say <strong>"Next Project"</strong> when ready. Assignment 3 puts real compute into the subnets you just built: Karthik's quote portal application goes into the private tier behind an Application Load Balancer in the public tier — the first time these subnets actually carry application traffic.</p>
+      </div>
+
+    </div>
+    <footer>AWS Cloud Engineering Masterclass · Assignment 02 of 25 · Foundation Stage</footer>
+  </div>
+</div>
+
+<button class="mobile-toggle" id="mobileToggle" aria-label="Toggle menu">☰</button>
+<script>
+const sections = document.querySelectorAll('h2.section-title[id]');
+const navLinks = document.querySelectorAll('.sidebar nav a');
+function onScroll(){
+  let current = '';
+  sections.forEach(s=>{ if(window.scrollY >= s.offsetTop - 80) current = s.id; });
+  navLinks.forEach(a=> a.classList.toggle('active', a.getAttribute('href') === '#'+current));
+}
+window.addEventListener('scroll', onScroll); onScroll();
+document.getElementById('mobileToggle').addEventListener('click', ()=> document.getElementById('sidebar').classList.toggle('open'));
+document.querySelectorAll('.sidebar nav a').forEach(a=> a.addEventListener('click', ()=> document.getElementById('sidebar').classList.remove('open')));
+function copyCode(btn){
+  const pre = btn.closest('.code-wrap').querySelector('pre');
+  navigator.clipboard.writeText(pre.innerText).then(()=>{
+    const orig = btn.textContent; btn.textContent = 'Copied!';
+    setTimeout(()=> btn.textContent = orig, 1500);
+  });
+}
+</script>
+</body>
+</html>

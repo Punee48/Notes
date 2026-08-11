@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Assignment 03 — EC2 + ALB Production Deployment</title>
+<style>
+:root{
+  --bg:#0B1120; --bg-2:#111827; --card:#17202F; --card-2:#1C2536; --border:#26314A;
+  --orange:#FF9900; --orange-dim:#B96E00; --blue:#00A8E1; --green:#34D399;
+  --warning:#FBBF24; --error:#F87171; --text:#E5E9F0; --text-dim:#94A3B8;
+  --code-bg:#0A0E17; --code-text:#D1D9E6;
+  --mono:'JetBrains Mono','Fira Code',ui-monospace,monospace;
+  --sans:'Inter',-apple-system,sans-serif; --display:'Space Grotesk','Inter',sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html{scroll-behavior:smooth;}
+body{background:var(--bg);color:var(--text);font-family:var(--sans);line-height:1.65;font-size:16px;}
+a{color:var(--blue);text-decoration:none;} a:hover{text-decoration:underline;}
+::selection{background:var(--orange);color:#0B1120;}
+.shell{display:flex;min-height:100vh;}
+.sidebar{width:270px;flex-shrink:0;background:var(--bg-2);border-right:1px solid var(--border);
+  position:sticky;top:0;height:100vh;overflow-y:auto;padding:24px 0 60px;}
+.sidebar-brand{padding:0 20px 20px;border-bottom:1px solid var(--border);margin-bottom:12px;}
+.sidebar-brand .tag{font-family:var(--mono);font-size:11px;color:var(--orange);letter-spacing:.12em;text-transform:uppercase;}
+.sidebar-brand h1{font-family:var(--display);font-size:17px;margin-top:6px;line-height:1.3;}
+.sidebar nav a{display:block;padding:8px 20px;font-size:13.5px;color:var(--text-dim);border-left:2px solid transparent;}
+.sidebar nav a:hover{color:var(--text);text-decoration:none;background:var(--card);}
+.sidebar nav a.active{color:var(--orange);border-left-color:var(--orange);background:var(--card);}
+.main{flex:1;min-width:0;}
+.container{max-width:900px;margin:0 auto;padding:56px 40px 120px;}
+.cover{background:linear-gradient(160deg,#131C2E 0%, #0B1120 70%);border:1px solid var(--border);border-radius:14px;
+  padding:44px 40px;margin-bottom:48px;position:relative;overflow:hidden;}
+.cover::before{content:"";position:absolute;top:-60px;right:-60px;width:260px;height:260px;
+  background:radial-gradient(circle,rgba(255,153,0,.18),transparent 70%);}
+.cover .eyebrow{font-family:var(--mono);color:var(--orange);font-size:12px;letter-spacing:.14em;text-transform:uppercase;}
+.cover h1{font-family:var(--display);font-size:34px;margin:12px 0 14px;max-width:640px;position:relative;}
+.cover p.lede{color:var(--text-dim);max-width:560px;font-size:15px;position:relative;}
+.cover-meta{display:flex;flex-wrap:wrap;gap:10px;margin-top:24px;position:relative;}
+.chip{background:var(--card);border:1px solid var(--border);border-radius:999px;padding:6px 14px;font-size:12.5px;color:var(--text-dim);font-family:var(--mono);}
+.chip b{color:var(--text);}
+h2.section-title{font-family:var(--display);font-size:24px;margin:56px 0 18px;padding-bottom:10px;border-bottom:1px solid var(--border);
+  display:flex;align-items:center;gap:10px;scroll-margin-top:24px;}
+h2.section-title .num{font-family:var(--mono);color:var(--orange-dim);font-size:15px;}
+h3{font-family:var(--display);font-size:18px;margin:26px 0 10px;color:var(--text);}
+h4{font-size:15px;margin:18px 0 8px;color:var(--orange);font-family:var(--mono);}
+p{margin-bottom:14px;color:#C7CEDB;}
+ul,ol{margin:0 0 14px 22px;color:#C7CEDB;} li{margin-bottom:6px;}
+strong{color:var(--text);}
+.card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:20px 22px;margin:16px 0;}
+.story-card{background:linear-gradient(135deg,#1A2333,#161E2C);border-left:3px solid var(--orange);border-radius:8px;padding:22px 24px;margin:16px 0;}
+.story-card p{color:#D7DCE8;font-style:italic;} .story-card p:last-child{margin-bottom:0;}
+.role-tag{display:inline-block;font-family:var(--mono);font-size:11px;color:var(--orange);background:rgba(255,153,0,.1);
+  border:1px solid rgba(255,153,0,.3);border-radius:5px;padding:2px 8px;margin-bottom:10px;letter-spacing:.05em;}
+.box{border-radius:8px;padding:16px 18px;margin:16px 0;border:1px solid;}
+.box.tip{background:rgba(0,168,225,.07);border-color:rgba(0,168,225,.35);}
+.box.warn{background:rgba(251,191,36,.07);border-color:rgba(251,191,36,.35);}
+.box.security{background:rgba(248,113,113,.07);border-color:rgba(248,113,113,.35);}
+.box.win{background:rgba(52,211,153,.07);border-color:rgba(52,211,153,.35);}
+.box .label{font-family:var(--mono);font-size:11px;text-transform:uppercase;letter-spacing:.1em;display:block;margin-bottom:6px;}
+.box.tip .label{color:var(--blue);} .box.warn .label{color:var(--warning);}
+.box.security .label{color:var(--error);} .box.win .label{color:var(--green);}
+.box p:last-child{margin-bottom:0;}
+table{width:100%;border-collapse:collapse;margin:16px 0;font-size:14px;}
+th{background:var(--card-2);color:var(--orange);text-align:left;padding:10px 12px;font-family:var(--mono);
+  font-size:12px;text-transform:uppercase;letter-spacing:.04em;border-bottom:1px solid var(--border);}
+td{padding:10px 12px;border-bottom:1px solid var(--border);color:#C7CEDB;vertical-align:top;}
+tr:last-child td{border-bottom:none;} tr:hover td{background:rgba(255,255,255,.02);}
+.code-wrap{position:relative;margin:16px 0;border-radius:8px;overflow:hidden;border:1px solid var(--border);}
+.code-head{background:var(--card-2);padding:8px 14px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border);}
+.code-head span{font-family:var(--mono);font-size:11.5px;color:var(--text-dim);}
+.copy-btn{background:transparent;border:1px solid var(--border);color:var(--text-dim);font-family:var(--mono);font-size:11px;
+  padding:4px 10px;border-radius:5px;cursor:pointer;}
+.copy-btn:hover{border-color:var(--orange);color:var(--orange);}
+pre{background:var(--code-bg);padding:16px 18px;overflow-x:auto;font-family:var(--mono);font-size:13px;line-height:1.6;color:var(--code-text);}
+code{font-family:var(--mono);}
+p code, li code{background:var(--card-2);padding:1px 6px;border-radius:4px;font-size:13px;color:#FFC876;}
+.comment{color:#5E7099;} .kw{color:var(--blue);} .str{color:var(--green);}
+.diagram{background:var(--code-bg);border:1px solid var(--border);border-radius:10px;padding:28px;margin:20px 0;overflow-x:auto;}
+.flow{display:flex;flex-direction:column;align-items:center;gap:0;font-family:var(--mono);font-size:13px;}
+.flow-box{background:var(--card);border:1px solid var(--orange-dim);border-radius:8px;padding:12px 22px;min-width:240px;
+  text-align:center;color:var(--text);opacity:0;transform:translateY(8px);animation:reveal .5s ease forwards;}
+.flow-box.public{border-color:var(--blue);} .flow-box.private{border-color:var(--green);}
+.flow-arrow{color:#4B5875;font-size:18px;padding:6px 0;opacity:0;animation:reveal .5s ease forwards;}
+@keyframes reveal{to{opacity:1;transform:translateY(0);}}
+.flow-box small, .flow-arrow small{display:block;color:var(--text-dim);font-size:10.5px;margin-top:3px;}
+.split{display:flex;gap:16px;justify-content:center;margin:10px 0;}
+details{background:var(--card);border:1px solid var(--border);border-radius:8px;margin:10px 0;padding:0;}
+details summary{cursor:pointer;padding:14px 18px;font-family:var(--mono);font-size:13.5px;color:var(--orange);
+  list-style:none;display:flex;justify-content:space-between;align-items:center;}
+details summary::-webkit-details-marker{display:none;}
+details summary::after{content:"+";color:var(--text-dim);font-size:16px;}
+details[open] summary::after{content:"–";}
+details .inner{padding:0 18px 16px;border-top:1px solid var(--border);padding-top:12px;}
+details .inner p:last-child{margin-bottom:0;}
+.qa{margin:14px 0;padding:16px 18px;background:var(--card-2);border-radius:8px;border:1px solid var(--border);}
+.qa .q{font-family:var(--display);font-size:14.5px;color:var(--text);margin-bottom:8px;}
+.qa .q .qn{color:var(--orange);font-family:var(--mono);margin-right:6px;}
+.qa .follow{margin-top:10px;padding-top:10px;border-top:1px dashed var(--border);color:var(--text-dim);font-size:13px;}
+.qa .follow b{color:var(--blue);}
+.resume-list{list-style:none;margin:14px 0;}
+.resume-list li{padding:12px 16px;background:var(--card);border-left:3px solid var(--green);border-radius:0 6px 6px 0;
+  margin-bottom:8px;font-size:14px;color:#D7DCE8;}
+.criteria{list-style:none;margin:14px 0;}
+.criteria li{padding-left:28px;position:relative;margin-bottom:8px;color:#C7CEDB;}
+.criteria li::before{content:"✓";position:absolute;left:0;color:var(--green);font-family:var(--mono);}
+.progress-bar{height:6px;background:var(--card-2);border-radius:999px;overflow:hidden;margin:14px 0 4px;}
+.progress-bar-fill{height:100%;width:12%;background:linear-gradient(90deg,var(--orange),var(--blue));}
+.progress-label{font-family:var(--mono);font-size:11px;color:var(--text-dim);}
+footer{text-align:center;padding:40px;color:#4B5875;font-family:var(--mono);font-size:12px;border-top:1px solid var(--border);margin-top:60px;}
+.steps{list-style:none;margin:16px 0;counter-reset:step;}
+.steps li{position:relative;padding:14px 18px 14px 52px;margin-bottom:10px;background:var(--card);border:1px solid var(--border);
+  border-radius:8px;counter-increment:step;}
+.steps li::before{content:counter(step);position:absolute;left:16px;top:14px;width:24px;height:24px;border-radius:50%;
+  background:var(--orange);color:#0B1120;font-family:var(--mono);font-weight:700;font-size:12px;
+  display:flex;align-items:center;justify-content:center;}
+.steps li b{color:var(--text);}
+.tabbar{display:flex;gap:8px;margin:20px 0 0;flex-wrap:wrap;}
+.tabbar .tab-note{font-family:var(--mono);font-size:11px;color:var(--text-dim);background:var(--card-2);
+  border:1px solid var(--border);border-radius:6px;padding:5px 12px;}
+@media(max-width:860px){
+  .sidebar{position:fixed;left:-270px;transition:left .2s;z-index:50;box-shadow:20px 0 40px rgba(0,0,0,.4);}
+  .sidebar.open{left:0;} .container{padding:24px 18px 100px;}
+  .mobile-toggle{position:fixed;bottom:20px;right:20px;z-index:60;background:var(--orange);color:#0B1120;border:none;
+    border-radius:50%;width:52px;height:52px;font-size:20px;cursor:pointer;box-shadow:0 6px 20px rgba(0,0,0,.4);}
+}
+@media(min-width:861px){.mobile-toggle{display:none;}}
+@media(prefers-reduced-motion:reduce){*{animation:none !important;transition:none !important;}}
+</style>
+</head>
+<body>
+<div class="shell">
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-brand">
+      <span class="tag">AWS Cloud Engineering</span>
+      <h1>Assignment 03<br>Foundation Stage</h1>
+    </div>
+    <nav>
+      <a href="#story">Production Story</a>
+      <a href="#requirements">Requirements</a>
+      <a href="#architecture">Architecture</a>
+      <a href="#decisions">Architecture Decisions</a>
+      <a href="#console">Manual Console Steps</a>
+      <a href="#cli">AWS CLI</a>
+      <a href="#terraform">Terraform</a>
+      <a href="#validation">Validation &amp; Testing</a>
+      <a href="#monitoring">Monitoring</a>
+      <a href="#incident">Production Incident</a>
+      <a href="#troubleshooting">Troubleshooting Method</a>
+      <a href="#cost">Cost Awareness</a>
+      <a href="#review">Architecture Review</a>
+      <a href="#cleanup">Cleanup</a>
+      <a href="#acceptance">Acceptance Criteria</a>
+      <a href="#challenge">Practice Challenge</a>
+      <a href="#interview">Interview Prep</a>
+      <a href="#resume">Resume Points</a>
+      <a href="#next">Next Project</a>
+    </nav>
+  </aside>
+
+  <div class="main">
+    <div class="container">
+
+      <div class="cover">
+        <span class="eyebrow">Assignment 03 of 25 · Foundation</span>
+        <h1>Deploying a Production-Style Application with EC2, ALB and Security Controls</h1>
+        <p class="lede">The network from Assignment 2 is approved and live. Now Karthik's team needs the actual quote portal application running inside it — reachable by customers over HTTPS, with the app servers themselves sitting where Ananya's team can't see them from the internet at all.</p>
+        <div class="cover-meta">
+          <span class="chip">Difficulty: <b>Foundation</b></span>
+          <span class="chip">Domain: <b>Insurance</b></span>
+          <span class="chip">Services: <b>EC2 · ALB · Target Groups · Security Groups</b></span>
+          <span class="chip">IaC: <b>Console + CLI + Terraform</b></span>
+          <span class="chip">Est. lab time: <b>2.5–3.5 hrs</b></span>
+        </div>
+        <div class="progress-bar"><div class="progress-bar-fill"></div></div>
+        <span class="progress-label">Progress: Assignment 3 of 25</span>
+      </div>
+
+      <!-- STORY -->
+      <h2 class="section-title" id="story"><span class="num">01</span> Production Story</h2>
+      <div class="story-card">
+        <span class="role-tag">Application Team — Karthik Iyer</span>
+        <p>"Network's approved, thanks. Now I need somewhere to actually run the quote portal — it's a Node.js app, stateless, serves an HTTP health endpoint at <code>/health</code>. We'll eventually run more than one copy of it for redundancy, but let's get one working end to end first: customer hits our domain over HTTPS, request lands on the app, app responds. And per Ananya's rules, the actual app server can't have a public IP — so whatever sits in front of it in the public subnet needs to be the only thing customers ever actually touch."</p>
+      </div>
+      <div class="box tip">
+        <span class="label">Why this is Assignment 3</span>
+        <p>We now have a network with a real public/private boundary and nothing running in either tier. This assignment is about the thing that sits exactly on that boundary — a load balancer in the public subnet forwarding to an application server that never has a public IP of its own. We're deliberately running a single EC2 instance behind the ALB, not an Auto Scaling Group yet — that's Assignment 7, once we've earned it by seeing what a single-instance failure actually looks like first.</p>
+      </div>
+
+      <!-- REQUIREMENTS -->
+      <h2 class="section-title" id="requirements"><span class="num">02</span> Business &amp; Technical Requirements</h2>
+      <table>
+        <tr><th>Type</th><th>Requirement</th></tr>
+        <tr><td>Business</td><td>Customers reach the quote portal over HTTPS at a single, stable entry point.</td></tr>
+        <tr><td>Technical</td><td>App server(s) live in the private subnet from Assignment 2; only the load balancer lives in the public subnet.</td></tr>
+        <tr><td>Security</td><td>App server's security group accepts traffic only from the load balancer's security group — never directly from the internet, even though it's already unreachable at the network layer per Assignment 2.</td></tr>
+        <tr><td>Availability</td><td>Load balancer itself spans both AZs from Assignment 2 (it's a managed, multi-AZ service by nature); the single app instance for now lives in one AZ — a known gap closed in Assignment 7.</td></tr>
+        <tr><td>Performance</td><td>Health checks must detect and stop routing to a broken instance within roughly 30–60 seconds.</td></tr>
+        <tr><td>Cost</td><td>One t3.micro instance and one ALB — no premature scaling infrastructure.</td></tr>
+      </table>
+
+      <!-- ARCHITECTURE -->
+      <h2 class="section-title" id="architecture"><span class="num">03</span> Architecture Design</h2>
+      <div class="diagram">
+        <div class="flow">
+          <div class="flow-box" style="animation-delay:.05s">Customer Browser<small>HTTPS</small></div>
+          <div class="flow-arrow" style="animation-delay:.25s">↓</div>
+          <div class="flow-box public" style="animation-delay:.35s">Application Load Balancer<small>public subnets, both AZs · sg-alb</small></div>
+          <div class="flow-arrow" style="animation-delay:.55s">↓ HTTP :3000 (only from sg-alb)</div>
+          <div class="flow-box private" style="animation-delay:.65s">EC2 App Instance<small>private subnet, AZ-A · sg-app</small></div>
+          <div class="flow-arrow" style="animation-delay:.85s">↓ health check GET /health every 30s</div>
+          <div class="flow-box" style="animation-delay:.95s">Target Group<small>tracks instance health, drives routing</small></div>
+        </div>
+      </div>
+      <p>The ALB terminates the customer's HTTPS connection and forwards plain HTTP to the app instance over port 3000 — internal traffic inside the VPC doesn't need its own TLS layer for this foundation assignment (we revisit end-to-end encryption once compliance requirements are introduced later). The <strong>target group</strong> is the object that actually tracks which registered instances are healthy; the ALB's listener rule just says "send matching requests to this target group," and the target group decides which specific instance(s) currently qualify.</p>
+
+      <h3>Security Architecture — Security Group Chaining</h3>
+      <p>Rather than writing the app's security group to allow port 3000 from a CIDR range, we reference the ALB's security group ID directly as the source. This means the app instance accepts traffic <em>only</em> from something that is itself a member of <code>sg-alb</code> — if a future engineer launches an unrelated EC2 instance in the same VPC, it cannot reach the app on port 3000 no matter what subnet or IP it has, because it isn't a member of the referenced security group.</p>
+
+      <!-- DECISIONS -->
+      <h2 class="section-title" id="decisions"><span class="num">04</span> Architecture Decision Making</h2>
+      <h3>Decision: ALB vs. NLB vs. Direct EC2 Exposure</h3>
+      <table>
+        <tr><th></th><th>Direct EC2</th><th>Network Load Balancer</th><th>Application Load Balancer</th></tr>
+        <tr><td>Fits this workload</td><td>Would require a public IP on the app instance — violates Security's core rule outright</td><td>Operates at L4 — routes TCP, has no visibility into HTTP paths/headers/health at the app layer</td><td>Operates at L7 — understands HTTP, can health-check <code>/health</code>, route by path later if needed</td></tr>
+        <tr><td>Health checking</td><td>None — nothing in front to detect a dead instance</td><td>TCP-level only (port open or not)</td><td>HTTP-level — can confirm the app actually returns 200 on <code>/health</code>, not just that the port is open</td></tr>
+        <tr><td>TLS termination</td><td>App itself must handle TLS certs</td><td>Supported (TLS listener) but no HTTP awareness beyond that</td><td>Native, plus HTTP→HTTPS redirect rules</td></tr>
+      </table>
+      <p><strong>Decision: Application Load Balancer.</strong> Direct EC2 exposure is disqualified immediately by the security requirement. Between ALB and NLB, this is an HTTP application where we specifically want an HTTP-aware health check (a port being open doesn't mean the app is actually serving correctly) — that alone makes ALB the right fit. NLB becomes the right answer later in the course for a non-HTTP protocol or extreme low-latency/high-throughput requirement, neither of which applies here.</p>
+
+      <!-- CONSOLE -->
+      <h2 class="section-title" id="console"><span class="num">05</span> AWS Console — Manual Steps</h2>
+      <ol class="steps">
+        <li><b>Create the app security group.</b> EC2 console → <em>Security Groups</em> → <em>Create security group</em> → name <code>sg-app</code>, VPC = <code>quote-portal-vpc</code> → no inbound rules yet (added after the ALB's security group exists, so we can reference it).</li>
+        <li><b>Create the ALB security group.</b> <em>Create security group</em> → name <code>sg-alb</code> → inbound: HTTPS (443) from <code>0.0.0.0/0</code>, HTTP (80) from <code>0.0.0.0/0</code> (redirected to HTTPS by the listener rule, not left open as plain HTTP) → outbound: all traffic (default).</li>
+        <li><b>Add the app's inbound rule referencing sg-alb.</b> Go back to <code>sg-app</code> → <em>Inbound rules → Edit</em> → add rule: type Custom TCP, port 3000, source = <code>sg-alb</code> (search by security group ID, not a CIDR). This is the security-group-chaining step described above.</li>
+        <li><b>Launch the app instance.</b> EC2 → <em>Launch instance</em> → Amazon Linux 2023 → t3.micro → network: <code>quote-portal-vpc</code>, subnet <code>private-a</code>, <strong>disable</strong> auto-assign public IP → security group <code>sg-app</code> → user data: install Node.js and start the quote-portal app listening on port 3000 with a <code>/health</code> route.</li>
+        <li><b>Create the target group.</b> EC2 console → <em>Target Groups</em> → <em>Create target group</em> → target type "Instances" → protocol HTTP, port 3000, VPC <code>quote-portal-vpc</code> → health check path <code>/health</code>, healthy threshold 2, unhealthy threshold 2, interval 30s → register the app instance as a target.</li>
+        <li><b>Create the ALB.</b> <em>Load Balancers → Create → Application Load Balancer</em> → internet-facing → VPC <code>quote-portal-vpc</code> → map both <em>public</em> subnets (public-a, public-b) → security group <code>sg-alb</code> → listener HTTP:80 → default action: forward to the target group created above. (An HTTPS:443 listener with an ACM certificate is added once a domain/cert exists — noted as a follow-up, not blocking this lab.)</li>
+        <li><b>Verify target health.</b> Target Groups → select the group → <em>Targets</em> tab → confirm status transitions to <code>healthy</code> within about a minute of the instance passing its first couple of health checks.</li>
+      </ol>
+
+      <!-- CLI -->
+      <h2 class="section-title" id="cli"><span class="num">06</span> AWS CLI</h2>
+      <div class="code-wrap">
+        <div class="code-head"><span>bash</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre><span class="comment"># Create the ALB security group first (app SG needs to reference its ID)</span>
+SG_ALB=$(aws ec2 create-security-group \
+  --group-name sg-alb --description "ALB ingress" --vpc-id $VPC_ID \
+  --query 'GroupId' --output text)
+aws ec2 authorize-security-group-ingress --group-id $SG_ALB \
+  --protocol tcp --port 80 --cidr 0.0.0.0/0
+
+<span class="comment"># Create the app security group referencing sg-alb as the source — not a CIDR</span>
+SG_APP=$(aws ec2 create-security-group \
+  --group-name sg-app --description "App tier ingress" --vpc-id $VPC_ID \
+  --query 'GroupId' --output text)
+aws ec2 authorize-security-group-ingress --group-id $SG_APP \
+  --protocol tcp --port 3000 --source-group $SG_ALB
+
+<span class="comment"># Create the target group with an HTTP health check on /health</span>
+TG_ARN=$(aws elbv2 create-target-group \
+  --name quote-portal-tg --protocol HTTP --port 3000 --vpc-id $VPC_ID \
+  --health-check-path /health --healthy-threshold-count 2 \
+  --unhealthy-threshold-count 2 --health-check-interval-seconds 30 \
+  --query 'TargetGroups[0].TargetGroupArn' --output text)</pre>
+      </div>
+      <table>
+        <tr><th>Command / Flag</th><th>Meaning</th></tr>
+        <tr><td><code>--source-group $SG_ALB</code></td><td>Sets the rule's source to a security group ID instead of a CIDR — this is the chaining mechanism, not achievable by CIDR alone since instances can change IPs</td></tr>
+        <tr><td><code>--healthy-threshold-count 2</code></td><td>Number of consecutive successful checks before a target is marked healthy and starts receiving traffic</td></tr>
+        <tr><td><code>--health-check-interval-seconds 30</code></td><td>How often the target group polls <code>/health</code> — combined with the thresholds, this determines how fast a failure is detected</td></tr>
+      </table>
+
+      <!-- TERRAFORM -->
+      <h2 class="section-title" id="terraform"><span class="num">07</span> Terraform Implementation</h2>
+
+      <h3>main.tf — Security Groups</h3>
+      <div class="code-wrap">
+        <div class="code-head"><span>main.tf (part 1 of 3)</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre><span class="kw">resource</span> "aws_security_group" "alb" {
+  name   = "sg-alb"
+  vpc_id = aws_vpc.main.id  <span class="comment"># references the VPC resource from Assignment 2's Terraform</span>
+
+  ingress {
+    description = "HTTP from internet (redirected to HTTPS by listener rule)"
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+  egress {
+    from_port = 0
+    to_port   = 0
+    protocol  = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+  tags = { Name = "sg-alb" }
+}
+
+<span class="kw">resource</span> "aws_security_group" "app" {
+  name   = "sg-app"
+  vpc_id = aws_vpc.main.id
+
+  ingress {
+    description     = "App port, ALB only"
+    from_port        = 3000
+    to_port           = 3000
+    protocol          = "tcp"
+    security_groups   = [aws_security_group.alb.id]
+    <span class="comment"># security_groups (not cidr_blocks) is the security-group-chaining rule —</span>
+    <span class="comment"># only network interfaces that are members of sg-alb can reach port 3000,</span>
+    <span class="comment"># regardless of what subnet or IP they have.</span>
+  }
+  egress {
+    from_port = 0
+    to_port   = 0
+    protocol  = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+  tags = { Name = "sg-app" }
+}</pre>
+      </div>
+
+      <h3>main.tf — EC2 App Instance</h3>
+      <div class="code-wrap">
+        <div class="code-head"><span>main.tf (part 2 of 3)</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre><span class="kw">resource</span> "aws_instance" "app" {
+  ami                    = "ami-0f5ee92e2d63afc18"  <span class="comment"># Amazon Linux 2023, ap-south-1</span>
+  instance_type          = "t3.micro"
+  subnet_id              = aws_subnet.private[0].id
+  <span class="comment"># index 0 = private-a from Assignment 2's Terraform — a single instance for</span>
+  <span class="comment"># now, deliberately not spread across AZs yet (that's Assignment 7's job,</span>
+  <span class="comment"># once Auto Scaling Groups are introduced to do it correctly).</span>
+  vpc_security_group_ids = [aws_security_group.app.id]
+  <span class="comment"># No public IP is requested and none is possible — private subnet has no</span>
+  <span class="comment"># route to an IGW at all, per Assignment 2.</span>
+
+  user_data = <<-EOF
+    #!/bin/bash
+    dnf install -y nodejs
+    mkdir -p /opt/quote-portal
+    cat > /opt/quote-portal/server.js <<'APP'
+    const http = require('http');
+    http.createServer((req,res)=>{
+      if(req.url === '/health'){ res.writeHead(200); res.end('ok'); }
+      else { res.writeHead(200); res.end('Quote Portal — placeholder response'); }
+    }).listen(3000);
+    APP
+    node /opt/quote-portal/server.js &
+  EOF
+  <span class="comment"># Minimal placeholder app for the lab — Karthik's real Node.js app replaces</span>
+  <span class="comment"># this user_data block once deployment packaging is covered (Assignment 14).</span>
+
+  tags = { Name = "quote-portal-app-1" }
+}</pre>
+      </div>
+
+      <h3>main.tf — Target Group &amp; ALB</h3>
+      <div class="code-wrap">
+        <div class="code-head"><span>main.tf (part 3 of 3)</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre><span class="kw">resource</span> "aws_lb_target_group" "app" {
+  name        = "quote-portal-tg"
+  port        = 3000
+  protocol    = "HTTP"
+  vpc_id      = aws_vpc.main.id
+  target_type = "instance"
+
+  health_check {
+    path                = "/health"
+    healthy_threshold   = 2
+    unhealthy_threshold = 2
+    interval            = 30
+    matcher             = "200"
+    <span class="comment"># matcher = "200" means ONLY an HTTP 200 counts as healthy — a 500 error</span>
+    <span class="comment"># page served on /health would still fail the check, which is what we want.</span>
+  }
+}
+
+<span class="kw">resource</span> "aws_lb_target_group_attachment" "app" {
+  target_group_arn = aws_lb_target_group.app.arn
+  target_id        = aws_instance.app.id
+  port             = 3000
+}
+
+<span class="kw">resource</span> "aws_lb" "main" {
+  name               = "quote-portal-alb"
+  internal           = false
+  load_balancer_type = "application"
+  security_groups    = [aws_security_group.alb.id]
+  subnets            = aws_subnet.public[*].id
+  <span class="comment"># [*] passes BOTH public subnet IDs — an ALB requires subnets in at least</span>
+  <span class="comment"># two AZs to be created at all, which is a built-in HA guarantee.</span>
+}
+
+<span class="kw">resource</span> "aws_lb_listener" "http" {
+  load_balancer_arn = aws_lb.main.arn
+  port              = 80
+  protocol          = "HTTP"
+
+  default_action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.app.arn
+  }
+  <span class="comment"># A production listener would be HTTPS:443 with an ACM certificate, and</span>
+  <span class="comment"># this HTTP:80 listener would instead redirect to it. Left as HTTP-only</span>
+  <span class="comment"># here since no domain/certificate exists yet for this lab.</span>
+}
+
+<span class="kw">output</span> "alb_dns_name" {
+  value = aws_lb.main.dns_name
+  <span class="comment"># AWS auto-generates a DNS name for the ALB — this is what you curl to</span>
+  <span class="comment"># test, before any custom domain is wired up in Assignment 10 (Route 53).</span>
+}</pre>
+      </div>
+
+      <!-- VALIDATION -->
+      <h2 class="section-title" id="validation"><span class="num">08</span> Validation &amp; Testing</h2>
+      <ul>
+        <li><strong>End-to-end test:</strong> <code>curl http://$(terraform output -raw alb_dns_name)</code> returns the placeholder app response.</li>
+        <li><strong>Health check test:</strong> Target group shows the instance as <code>healthy</code> in the console within ~60 seconds of launch.</li>
+        <li><strong>Security test:</strong> attempt <code>curl</code> to the app instance's private IP on port 3000 from your own machine — must fail (no route in from outside the VPC at all, per Assignment 2).</li>
+        <li><strong>Security-group-chaining test:</strong> launch a throwaway instance in the same VPC with an unrelated security group, SSH into it, and attempt <code>curl</code> to the app instance's private IP on port 3000 — must fail, proving the rule really is scoped to <code>sg-alb</code> membership, not just "anything inside the VPC."</li>
+        <li><strong>Failure test:</strong> stop the app process on the instance manually (<code>kill</code> the Node process) — confirm the target group marks it unhealthy within two failed checks and the ALB starts returning a 502 rather than silently hanging.</li>
+      </ul>
+
+      <!-- MONITORING -->
+      <h2 class="section-title" id="monitoring"><span class="num">09</span> Monitoring &amp; Observability</h2>
+      <table>
+        <tr><th>Metric</th><th>Why it matters</th></tr>
+        <tr><td><code>HealthyHostCount</code> / <code>UnHealthyHostCount</code> (ALB)</td><td>Direct signal of how many targets are actually serving traffic right now</td></tr>
+        <tr><td><code>HTTPCode_Target_5XX_Count</code></td><td>App-level errors reaching customers, as distinct from ALB-level errors</td></tr>
+        <tr><td><code>TargetResponseTime</code></td><td>Latency as measured from the ALB to the target — early warning for a struggling instance before it fails health checks outright</td></tr>
+      </table>
+
+      <!-- INCIDENT -->
+      <h2 class="section-title" id="incident"><span class="num">10</span> Production Incident</h2>
+      <div class="story-card">
+        <span class="role-tag">Two days after go-live</span>
+        <p>Karthik reports customers intermittently see a "502 Bad Gateway" page. The target group console shows the instance flipping between healthy and unhealthy every few minutes rather than being consistently down.</p>
+      </div>
+      <h4>Investigation</h4>
+      <div class="code-wrap">
+        <div class="code-head"><span>bash — from the instance</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre>top
+free -m
+journalctl -u <span class="comment"># (if running as a systemd service — for this lab, check the process directly)</span>
+ps aux | grep node</pre>
+      </div>
+      <p>Memory usage on the t3.micro climbs steadily and the Node process is periodically OOM-killed and restarted by a watchdog script, which briefly fails health checks during each restart window — explaining the flapping pattern rather than a hard failure.</p>
+      <h4>Root Cause</h4>
+      <p>t3.micro's 1 GiB of RAM is undersized for the actual application once real traffic and dependencies were deployed (the placeholder app in this lab is intentionally trivial — Karthik's real app has a larger memory footprint). This is a capacity-planning gap, not a code bug.</p>
+      <h4>Immediate Fix</h4>
+      <p>Manually stopped and resized the instance to <code>t3.small</code> to restore stable service while a permanent fix is planned.</p>
+      <h4>Permanent Fix</h4>
+      <p>Updated the Terraform <code>instance_type</code> variable to <code>t3.small</code> as the new baseline, and flagged that this workload will need real Auto Scaling (Assignment 7) rather than a single hand-sized instance, since "guess the right instance size once" doesn't hold up as traffic grows.</p>
+      <h4>Validation</h4>
+      <p>Monitored <code>UnHealthyHostCount</code> over the following 24 hours — zero flaps after the resize.</p>
+      <h4>Monitoring Improvement</h4>
+      <p>Added a CloudWatch alarm on the instance's <code>MemoryUtilization</code> (via the CloudWatch agent, since EC2 doesn't report memory by default) so a memory-pressure trend shows up before it starts failing health checks, not just after.</p>
+      <h4>Lessons Learned</h4>
+      <ul>
+        <li>A target flapping between healthy/unhealthy is a different failure signature than a hard-down target — it usually points to a resource-pressure or restart-loop issue, not a network problem.</li>
+        <li>EC2 doesn't report memory utilization to CloudWatch out of the box — you have to install the CloudWatch agent to see it at all, and its absence is easy to miss until you need it.</li>
+      </ul>
+
+      <!-- TROUBLESHOOTING -->
+      <h2 class="section-title" id="troubleshooting"><span class="num">11</span> Troubleshooting Methodology</h2>
+      <table>
+        <tr><th>Symptom</th><th>Check First</th><th>Likely Cause</th></tr>
+        <tr><td>ALB returns 502</td><td>Target group health status, then app process/logs on the instance</td><td>App not listening on the expected port, or crashed/restarting</td></tr>
+        <tr><td>ALB returns 503</td><td>Target group — zero healthy targets registered at all</td><td>All targets failing health checks, or none registered</td></tr>
+        <tr><td>Target stuck "unhealthy" but app responds fine via SSH+curl locally</td><td>Security group rule from sg-alb, and the exact health check path/port configured</td><td>Security group not actually allowing the ALB's traffic, or health check path/port mismatch</td></tr>
+        <tr><td>Target flapping healthy/unhealthy</td><td>Instance CPU/memory, and whether the app is being restarted by a watchdog</td><td>Resource exhaustion causing periodic restarts, as in the incident above</td></tr>
+      </table>
+
+      <!-- COST -->
+      <h2 class="section-title" id="cost"><span class="num">12</span> Cost Optimization</h2>
+      <table>
+        <tr><th>Resource</th><th>Cost Driver</th><th>Note</th></tr>
+        <tr><td>Application Load Balancer</td><td>Hourly charge + LCU (Load Balancer Capacity Unit) usage</td><td>Roughly $16–20/month baseline in ap-south-1 even at near-zero traffic — a fixed cost of having any ALB at all</td></tr>
+        <tr><td>EC2 t3.small (post-incident)</td><td>On-demand hourly</td><td>Roughly double the t3.micro cost — a direct, traceable consequence of the sizing incident above</td></tr>
+      </table>
+      <div class="box warn">
+        <span class="label">Cost note</span>
+        <p>An ALB has a real fixed cost regardless of traffic — for a genuinely tiny internal tool (like Assignment 1's job) it wouldn't be justified. Here it's justified because the requirement is a customer-facing HTTPS endpoint with health-aware routing, which a bare EC2 instance can't provide on its own.</p>
+      </div>
+
+      <!-- REVIEW -->
+      <h2 class="section-title" id="review"><span class="num">13</span> Solutions Architect Review</h2>
+      <table>
+        <tr><th>Lens</th><th>Assessment</th></tr>
+        <tr><td>Reliability</td><td>ALB is multi-AZ by design; the single app instance behind it is a known, explicitly-flagged single point of failure until Assignment 7</td></tr>
+        <tr><td>Security</td><td>App instance has no public IP and only accepts traffic from a specific security group — verified, not assumed</td></tr>
+        <tr><td>Performance</td><td>Health check interval/thresholds tuned to detect failure within roughly a minute; instance sizing corrected after the incident</td></tr>
+        <tr><td>Cost</td><td>ALB's fixed cost is justified by the HTTP-aware health check and HTTPS termination requirement</td></tr>
+        <tr><td>Operations</td><td>Target group health status and 5XX metrics give real visibility; memory monitoring added after the incident closed a real gap</td></tr>
+        <tr><td>Scalability</td><td>Not yet scalable — one instance — explicitly deferred to Assignment 7, not an oversight</td></tr>
+      </table>
+
+      <!-- CLEANUP -->
+      <h2 class="section-title" id="cleanup"><span class="num">14</span> Cleanup</h2>
+      <div class="code-wrap">
+        <div class="code-head"><span>bash</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre>terraform destroy
+<span class="comment"># Deletes in reverse order: listener → ALB → target group attachment →</span>
+<span class="comment"># target group → EC2 instance → security groups. The ALB itself can take</span>
+<span class="comment"># a minute or two to fully deprovision — normal, not stuck.</span></pre>
+      </div>
+
+      <!-- ACCEPTANCE -->
+      <h2 class="section-title" id="acceptance"><span class="num">15</span> Acceptance Criteria</h2>
+      <ul class="criteria">
+        <li>Application reachable via the ALB's DNS name over HTTP</li>
+        <li>App instance has no public IP and is unreachable directly from outside the VPC</li>
+        <li>App security group accepts port 3000 only from the ALB's security group, verified by a negative test from an unrelated instance</li>
+        <li>Target group correctly reflects instance health within the configured check interval</li>
+        <li>Stopping the app process causes the target to fail health checks and the ALB to stop routing to it</li>
+        <li>Entire stack created and destroyed cleanly via Terraform</li>
+      </ul>
+
+      <!-- CHALLENGE -->
+      <h2 class="section-title" id="challenge"><span class="num">16</span> Practice Challenge</h2>
+      <div class="card">
+        <p><strong>Karthik comes back:</strong> "We're about to demo this to the business, and I don't want a plain <code>http://</code> URL with a random AWS DNS name on the screen. Can we at least get this on HTTPS?"</p>
+        <p><strong>Requirement:</strong> Add an HTTPS listener to the ALB. It's fine to use a self-signed or ACM-issued certificate for a placeholder domain for this lab.</p>
+        <p><strong>Acceptance Criteria:</strong> ALB accepts HTTPS:443 traffic and forwards to the existing target group; HTTP:80 requests are redirected to HTTPS rather than served directly.</p>
+        <p><strong>Hints:</strong> You'll need an ACM certificate (even a manually-validated one for a test domain) and a second listener resource, plus a change to the existing HTTP listener's default action.</p>
+      </div>
+      <details>
+        <summary>Challenge Solution</summary>
+        <div class="inner">
+          <p>Request a certificate via <code>aws_acm_certificate</code> (or import an existing one), validate it, then add an <code>aws_lb_listener</code> resource on port 443 with <code>protocol = "HTTPS"</code>, <code>certificate_arn</code> pointing at the validated cert, and the same <code>forward</code> default action to the existing target group. Change the existing HTTP:80 listener's <code>default_action</code> from <code>forward</code> to <code>type = "redirect"</code> with <code>status_code = "HTTP_301"</code> and <code>protocol = "HTTPS"</code>, <code>port = "443"</code> — this is the standard pattern of "accept HTTP only to immediately bounce it to HTTPS," never serving real content over plain HTTP. Full Route 53 domain integration (so the ALB has a real hostname instead of the AWS-generated one) is Assignment 10's territory.</p>
+        </div>
+      </details>
+
+      <!-- INTERVIEW -->
+      <h2 class="section-title" id="interview"><span class="num">17</span> Interview Preparation</h2>
+
+      <div class="qa">
+        <div class="q"><span class="qn">Q1 · AWS Fundamentals</span>What's the difference between a listener, a listener rule, and a target group?</div>
+        <p>A listener is what the load balancer opens to accept connections on a given port/protocol (e.g. HTTPS:443). Listener rules attached to it decide, based on conditions like path or host header, which target group a given request goes to. The target group is the pool of actual backends plus the health check configuration — it's the layer that tracks which instances are currently eligible to receive traffic.</p>
+        <div class="follow"><b>Follow-up:</b> "When would you need more than one target group?" — Path- or host-based routing to different backend services behind the same ALB, e.g. <code>/api/*</code> to one target group and everything else to another — introduced properly once we build a multi-service architecture later in the course.</div>
+      </div>
+
+      <div class="qa">
+        <div class="q"><span class="qn">Q2 · Security</span>Why reference the ALB's security group as the source instead of the VPC's CIDR block?</div>
+        <p>A CIDR-based rule would allow anything inside that IP range to reach the app, including any other instance an engineer launches in the same VPC or subnet later — accidentally or otherwise. Referencing the ALB's security group ID scopes the rule to "only things that are members of this specific security group," which is a much tighter and more intentional boundary that doesn't erode as the VPC grows.</p>
+        <div class="follow"><b>Follow-up:</b> "Does this work across VPCs?" — No — security group references only work within the same VPC (or peered VPCs with specific configuration); it's not a general cross-account/cross-VPC mechanism.</div>
+      </div>
+
+      <div class="qa">
+        <div class="q"><span class="qn">Q3 · Production Scenario</span>A target is flapping between healthy and unhealthy in the console. What's your triage order?</div>
+        <p>First distinguish "the target never became healthy" from "it was healthy and started flapping" — the latter, as in the incident above, usually points to a resource or restart-loop issue on the instance rather than a network/security-group problem, since it worked at least once. I'd check instance-level metrics (CPU, memory if available) and application logs for restart or crash patterns before touching any network configuration.</p>
+        <div class="follow"><b>Follow-up:</b> "What if memory metrics aren't available at all?" — That's itself diagnostic: EC2 doesn't report memory to CloudWatch without the CloudWatch agent installed, so its absence tells you monitoring coverage has a gap worth closing regardless of what's actually causing the flapping.</div>
+      </div>
+
+      <div class="qa">
+        <div class="q"><span class="qn">Q4 · Cost Optimization</span>Is it ever worth skipping an ALB and exposing EC2 directly to save the fixed cost?</div>
+        <p>Only when there's no genuine requirement for HTTP-aware routing, health checking, or TLS termination at that layer — e.g. a truly single-purpose internal dev/test instance with no availability requirement. For anything customer-facing or requiring health-based failover, the ALB's fixed cost buys real operational and security value (nothing else gives you an HTTP-aware health check or a stable entry point independent of any one instance's lifecycle) — I wouldn't cut it purely to save the baseline charge.</p>
+        <div class="follow"><b>Follow-up:</b> "What's a cheaper alternative that still avoids direct exposure?" — A properly scoped bastion/SSM approach for internal-only tools, as covered in Assignment 2's challenge — different problem than a customer-facing HTTPS endpoint, though.</div>
+      </div>
+
+      <div class="qa">
+        <div class="q"><span class="qn">Q5 · Terraform</span>Why is aws_lb_target_group_attachment a separate resource instead of an attribute on the target group itself?</div>
+        <p>Decoupling target registration from the target group definition means the target group's configuration (health check, port, protocol) can be managed independently of which specific instances happen to be attached right now — which matters a lot once we move to Auto Scaling Groups in Assignment 7, where the ASG itself manages attachments dynamically rather than Terraform hardcoding a fixed instance ID.</p>
+        <div class="follow"><b>Follow-up:</b> "How does this change with an ASG instead of a static instance?" — The ASG resource gets a target_group_arns argument instead of individual attachment resources, and AWS handles registering/deregistering instances automatically as the group scales.</div>
+      </div>
+
+      <div class="qa">
+        <div class="q"><span class="qn">Q6 · Manager Round</span>How do you decide when a single-instance deployment is acceptable versus needing redundancy from day one?</div>
+        <p>Against the actual stated availability requirement, not a default instinct either way. Here, Karthik explicitly said "let's get one working end to end first" — meaning the redundancy requirement is real but sequenced deliberately, not skipped. I flagged the single point of failure clearly in the architecture review rather than quietly shipping it as if it were the final state, so it's a known, tracked gap with a plan (Assignment 7) rather than a surprise found later.</p>
+        <div class="follow"><b>Follow-up:</b> "What if that incident had caused a customer-facing outage instead of just flapping?" — That would be a strong argument to pull the ASG work forward in priority rather than sequencing it later — the sequencing decision should be revisited against real production impact, not treated as fixed.</div>
+      </div>
+
+      <!-- RESUME -->
+      <h2 class="section-title" id="resume"><span class="num">18</span> Resume Points</h2>
+      <ul class="resume-list">
+        <li>Deployed a production-style HTTP application on AWS EC2 behind an Application Load Balancer with HTTP-aware health checking</li>
+        <li>Implemented security-group-chaining between an ALB and its backend tier, restricting application access to load-balancer traffic only rather than by IP range</li>
+        <li>Diagnosed a target-health flapping incident to a memory-capacity issue via instance-level metrics and application log analysis, then right-sized the instance and closed a CloudWatch monitoring gap</li>
+        <li>Built and validated ALB/target group/EC2 infrastructure through Terraform with negative-path security tests confirming network isolation</li>
+        <li>Authored a Solutions-Architect-level review identifying and explicitly tracking a known single-point-of-failure ahead of a planned Auto Scaling remediation</li>
+      </ul>
+
+      <!-- NEXT -->
+      <h2 class="section-title" id="next"><span class="num">19</span> Next Project</h2>
+      <div class="box win">
+        <span class="label">When you're ready</span>
+        <p>Deploy it, run the tests above, and say <strong>"Next Project"</strong> when ready. Assignment 4 shifts focus to storage — building reliable S3/EBS backup and lifecycle workflows, using the reconciliation job from Assignment 1 and this quote portal as the concrete workloads that actually need them.</p>
+      </div>
+
+    </div>
+    <footer>AWS Cloud Engineering Masterclass · Assignment 03 of 25 · Foundation Stage</footer>
+  </div>
+</div>
+
+<button class="mobile-toggle" id="mobileToggle" aria-label="Toggle menu">☰</button>
+<script>
+const sections = document.querySelectorAll('h2.section-title[id]');
+const navLinks = document.querySelectorAll('.sidebar nav a');
+function onScroll(){
+  let current = '';
+  sections.forEach(s=>{ if(window.scrollY >= s.offsetTop - 80) current = s.id; });
+  navLinks.forEach(a=> a.classList.toggle('active', a.getAttribute('href') === '#'+current));
+}
+window.addEventListener('scroll', onScroll); onScroll();
+document.getElementById('mobileToggle').addEventListener('click', ()=> document.getElementById('sidebar').classList.toggle('open'));
+document.querySelectorAll('.sidebar nav a').forEach(a=> a.addEventListener('click', ()=> document.getElementById('sidebar').classList.remove('open')));
+function copyCode(btn){
+  const pre = btn.closest('.code-wrap').querySelector('pre');
+  navigator.clipboard.writeText(pre.innerText).then(()=>{
+    const orig = btn.textContent; btn.textContent = 'Copied!';
+    setTimeout(()=> btn.textContent = orig, 1500);
+  });
+}
+</script>
+</body>
+</html>

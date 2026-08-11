@@ -1,0 +1,601 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Assignment 10 — Route 53 DNS &amp; Traffic Management</title>
+<style>
+:root{
+  --bg:#0B1120; --bg-2:#111827; --card:#17202F; --card-2:#1C2536; --border:#26314A;
+  --orange:#FF9900; --orange-dim:#B96E00; --blue:#00A8E1; --green:#34D399;
+  --warning:#FBBF24; --error:#F87171; --text:#E5E9F0; --text-dim:#94A3B8;
+  --code-bg:#0A0E17; --code-text:#D1D9E6;
+  --mono:'JetBrains Mono','Fira Code',ui-monospace,monospace;
+  --sans:'Inter',-apple-system,sans-serif; --display:'Space Grotesk','Inter',sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html{scroll-behavior:smooth;}
+body{background:var(--bg);color:var(--text);font-family:var(--sans);line-height:1.65;font-size:16px;}
+a{color:var(--blue);text-decoration:none;} a:hover{text-decoration:underline;}
+::selection{background:var(--orange);color:#0B1120;}
+.shell{display:flex;min-height:100vh;}
+.sidebar{width:270px;flex-shrink:0;background:var(--bg-2);border-right:1px solid var(--border);
+  position:sticky;top:0;height:100vh;overflow-y:auto;padding:24px 0 60px;}
+.sidebar-brand{padding:0 20px 20px;border-bottom:1px solid var(--border);margin-bottom:12px;}
+.sidebar-brand .tag{font-family:var(--mono);font-size:11px;color:var(--orange);letter-spacing:.12em;text-transform:uppercase;}
+.sidebar-brand h1{font-family:var(--display);font-size:17px;margin-top:6px;line-height:1.3;}
+.sidebar nav a{display:block;padding:8px 20px;font-size:13.5px;color:var(--text-dim);border-left:2px solid transparent;}
+.sidebar nav a:hover{color:var(--text);text-decoration:none;background:var(--card);}
+.sidebar nav a.active{color:var(--orange);border-left-color:var(--orange);background:var(--card);}
+.main{flex:1;min-width:0;}
+.container{max-width:900px;margin:0 auto;padding:56px 40px 120px;}
+.cover{background:linear-gradient(160deg,#131C2E 0%, #0B1120 70%);border:1px solid var(--border);border-radius:14px;
+  padding:44px 40px;margin-bottom:48px;position:relative;overflow:hidden;}
+.cover::before{content:"";position:absolute;top:-60px;right:-60px;width:260px;height:260px;
+  background:radial-gradient(circle,rgba(255,153,0,.18),transparent 70%);}
+.cover .eyebrow{font-family:var(--mono);color:var(--orange);font-size:12px;letter-spacing:.14em;text-transform:uppercase;}
+.cover h1{font-family:var(--display);font-size:34px;margin:12px 0 14px;max-width:640px;position:relative;}
+.cover p.lede{color:var(--text-dim);max-width:560px;font-size:15px;position:relative;}
+.cover-meta{display:flex;flex-wrap:wrap;gap:10px;margin-top:24px;position:relative;}
+.chip{background:var(--card);border:1px solid var(--border);border-radius:999px;padding:6px 14px;font-size:12.5px;color:var(--text-dim);font-family:var(--mono);}
+.chip b{color:var(--text);}
+h2.section-title{font-family:var(--display);font-size:24px;margin:56px 0 18px;padding-bottom:10px;border-bottom:1px solid var(--border);
+  display:flex;align-items:center;gap:10px;scroll-margin-top:24px;}
+h2.section-title .num{font-family:var(--mono);color:var(--orange-dim);font-size:15px;}
+h3{font-family:var(--display);font-size:18px;margin:26px 0 10px;color:var(--text);}
+h4{font-size:15px;margin:18px 0 8px;color:var(--orange);font-family:var(--mono);}
+p{margin-bottom:14px;color:#C7CEDB;}
+ul,ol{margin:0 0 14px 22px;color:#C7CEDB;} li{margin-bottom:6px;}
+strong{color:var(--text);}
+.card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:20px 22px;margin:16px 0;}
+.story-card{background:linear-gradient(135deg,#1A2333,#161E2C);border-left:3px solid var(--orange);border-radius:8px;padding:22px 24px;margin:16px 0;}
+.story-card p{color:#D7DCE8;font-style:italic;} .story-card p:last-child{margin-bottom:0;}
+.role-tag{display:inline-block;font-family:var(--mono);font-size:11px;color:var(--orange);background:rgba(255,153,0,.1);
+  border:1px solid rgba(255,153,0,.3);border-radius:5px;padding:2px 8px;margin-bottom:10px;letter-spacing:.05em;}
+.box{border-radius:8px;padding:16px 18px;margin:16px 0;border:1px solid;}
+.box.tip{background:rgba(0,168,225,.07);border-color:rgba(0,168,225,.35);}
+.box.warn{background:rgba(251,191,36,.07);border-color:rgba(251,191,36,.35);}
+.box.security{background:rgba(248,113,113,.07);border-color:rgba(248,113,113,.35);}
+.box.win{background:rgba(52,211,153,.07);border-color:rgba(52,211,153,.35);}
+.box .label{font-family:var(--mono);font-size:11px;text-transform:uppercase;letter-spacing:.1em;display:block;margin-bottom:6px;}
+.box.tip .label{color:var(--blue);} .box.warn .label{color:var(--warning);}
+.box.security .label{color:var(--error);} .box.win .label{color:var(--green);}
+.box p:last-child{margin-bottom:0;}
+table{width:100%;border-collapse:collapse;margin:16px 0;font-size:14px;}
+th{background:var(--card-2);color:var(--orange);text-align:left;padding:10px 12px;font-family:var(--mono);
+  font-size:12px;text-transform:uppercase;letter-spacing:.04em;border-bottom:1px solid var(--border);}
+td{padding:10px 12px;border-bottom:1px solid var(--border);color:#C7CEDB;vertical-align:top;}
+tr:last-child td{border-bottom:none;} tr:hover td{background:rgba(255,255,255,.02);}
+.code-wrap{position:relative;margin:16px 0;border-radius:8px;overflow:hidden;border:1px solid var(--border);}
+.code-head{background:var(--card-2);padding:8px 14px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border);}
+.code-head span{font-family:var(--mono);font-size:11.5px;color:var(--text-dim);}
+.copy-btn{background:transparent;border:1px solid var(--border);color:var(--text-dim);font-family:var(--mono);font-size:11px;
+  padding:4px 10px;border-radius:5px;cursor:pointer;}
+.copy-btn:hover{border-color:var(--orange);color:var(--orange);}
+pre{background:var(--code-bg);padding:16px 18px;overflow-x:auto;font-family:var(--mono);font-size:13px;line-height:1.6;color:var(--code-text);}
+code{font-family:var(--mono);}
+p code, li code{background:var(--card-2);padding:1px 6px;border-radius:4px;font-size:13px;color:#FFC876;}
+.comment{color:#5E7099;} .kw{color:var(--blue);} .str{color:var(--green);}
+.diagram{background:var(--code-bg);border:1px solid var(--border);border-radius:10px;padding:28px;margin:20px 0;overflow-x:auto;}
+.flow{display:flex;flex-direction:column;align-items:center;gap:0;font-family:var(--mono);font-size:13px;}
+.flow-box{background:var(--card);border:1px solid var(--orange-dim);border-radius:8px;padding:12px 22px;min-width:260px;
+  text-align:center;color:var(--text);opacity:0;transform:translateY(8px);animation:reveal .5s ease forwards;}
+.flow-arrow{color:#4B5875;font-size:18px;padding:6px 0;opacity:0;animation:reveal .5s ease forwards;}
+@keyframes reveal{to{opacity:1;transform:translateY(0);}}
+.flow-box small, .flow-arrow small{display:block;color:var(--text-dim);font-size:10.5px;margin-top:3px;}
+details{background:var(--card);border:1px solid var(--border);border-radius:8px;margin:10px 0;padding:0;}
+details summary{cursor:pointer;padding:14px 18px;font-family:var(--mono);font-size:13.5px;color:var(--orange);
+  list-style:none;display:flex;justify-content:space-between;align-items:center;}
+details summary::-webkit-details-marker{display:none;}
+details summary::after{content:"+";color:var(--text-dim);font-size:16px;}
+details[open] summary::after{content:"–";}
+details .inner{padding:0 18px 16px;border-top:1px solid var(--border);padding-top:12px;}
+details .inner p:last-child{margin-bottom:0;}
+.qa{margin:14px 0;padding:16px 18px;background:var(--card-2);border-radius:8px;border:1px solid var(--border);}
+.qa .q{font-family:var(--display);font-size:14.5px;color:var(--text);margin-bottom:8px;}
+.qa .q .qn{color:var(--orange);font-family:var(--mono);margin-right:6px;}
+.qa .follow{margin-top:10px;padding-top:10px;border-top:1px dashed var(--border);color:var(--text-dim);font-size:13px;}
+.qa .follow b{color:var(--blue);}
+.resume-list{list-style:none;margin:14px 0;}
+.resume-list li{padding:12px 16px;background:var(--card);border-left:3px solid var(--green);border-radius:0 6px 6px 0;
+  margin-bottom:8px;font-size:14px;color:#D7DCE8;}
+.criteria{list-style:none;margin:14px 0;}
+.criteria li{padding-left:28px;position:relative;margin-bottom:8px;color:#C7CEDB;}
+.criteria li::before{content:"✓";position:absolute;left:0;color:var(--green);font-family:var(--mono);}
+.progress-bar{height:6px;background:var(--card-2);border-radius:999px;overflow:hidden;margin:14px 0 4px;}
+.progress-bar-fill{height:100%;width:40%;background:linear-gradient(90deg,var(--orange),var(--blue));}
+.progress-label{font-family:var(--mono);font-size:11px;color:var(--text-dim);}
+footer{text-align:center;padding:40px;color:#4B5875;font-family:var(--mono);font-size:12px;border-top:1px solid var(--border);margin-top:60px;}
+.steps{list-style:none;margin:16px 0;counter-reset:step;}
+.steps li{position:relative;padding:14px 18px 14px 52px;margin-bottom:10px;background:var(--card);border:1px solid var(--border);
+  border-radius:8px;counter-increment:step;}
+.steps li::before{content:counter(step);position:absolute;left:16px;top:14px;width:24px;height:24px;border-radius:50%;
+  background:var(--orange);color:#0B1120;font-family:var(--mono);font-weight:700;font-size:12px;
+  display:flex;align-items:center;justify-content:center;}
+.steps li b{color:var(--text);}
+.tanglish-note{font-family:var(--mono);font-size:11px;color:var(--text-dim);background:var(--card-2);border:1px solid var(--border);
+  border-radius:6px;padding:5px 12px;display:inline-block;margin-bottom:8px;}
+@media(max-width:860px){
+  .sidebar{position:fixed;left:-270px;transition:left .2s;z-index:50;box-shadow:20px 0 40px rgba(0,0,0,.4);}
+  .sidebar.open{left:0;} .container{padding:24px 18px 100px;}
+  .mobile-toggle{position:fixed;bottom:20px;right:20px;z-index:60;background:var(--orange);color:#0B1120;border:none;
+    border-radius:50%;width:52px;height:52px;font-size:20px;cursor:pointer;box-shadow:0 6px 20px rgba(0,0,0,.4);}
+}
+@media(min-width:861px){.mobile-toggle{display:none;}}
+@media(prefers-reduced-motion:reduce){*{animation:none !important;transition:none !important;}}
+</style>
+</head>
+<body>
+<div class="shell">
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-brand">
+      <span class="tag">AWS Cloud Engineering</span>
+      <h1>Assignment 10<br>Intermediate Stage</h1>
+    </div>
+    <nav>
+      <a href="#story">Production Story</a>
+      <a href="#requirements">Requirements</a>
+      <a href="#architecture">Architecture</a>
+      <a href="#decisions">Architecture Decisions</a>
+      <a href="#console">Manual Console Steps</a>
+      <a href="#cli">AWS CLI</a>
+      <a href="#terraform">Terraform</a>
+      <a href="#validation">Validation &amp; Testing</a>
+      <a href="#monitoring">Monitoring</a>
+      <a href="#incident">Production Incident</a>
+      <a href="#troubleshooting">Troubleshooting Method</a>
+      <a href="#cost">Cost Awareness</a>
+      <a href="#review">Architecture Review</a>
+      <a href="#cleanup">Cleanup</a>
+      <a href="#acceptance">Acceptance Criteria</a>
+      <a href="#challenge">Practice Challenge</a>
+      <a href="#interview">Interview Prep</a>
+      <a href="#resume">Resume Points</a>
+      <a href="#next">Next Project</a>
+    </nav>
+  </aside>
+
+  <div class="main">
+    <div class="container">
+
+      <div class="cover">
+        <span class="eyebrow">Assignment 10 of 25 · Intermediate</span>
+        <h1>Building DNS &amp; Traffic Management Using Route 53</h1>
+        <p class="lede">Ippa varaikkum namma customer-ku kudukkura URL, andha ugly, AWS auto-generated ALB DNS name than — <code>quote-portal-alb-1234567.ap-south-1.elb.amazonaws.com</code> maadhiri edhavadhu. Marketing team, campaign flyer-la ithan podanuma nu kekkuraanga. Namma real domain venum, HTTPS venum, and future-la traffic control pannura vazhi venum.</p>
+        <div class="cover-meta">
+          <span class="chip">Difficulty: <b>Intermediate</b></span>
+          <span class="chip">Domain: <b>Insurance</b></span>
+          <span class="chip">Services: <b>Route 53 · ACM · Health Checks · Failover Routing</b></span>
+          <span class="chip">IaC: <b>Console + CLI + Terraform</b></span>
+          <span class="chip">Est. lab time: <b>2–3 hrs</b></span>
+        </div>
+        <div class="progress-bar"><div class="progress-bar-fill"></div></div>
+        <span class="progress-label">Progress: Assignment 10 of 25</span>
+      </div>
+
+      <span class="tanglish-note">Note: Ithu kooda Tanglish tone-la — technical terms/code/commands English-la, explanation Tamil+English kalandhu.</span>
+
+      <!-- STORY -->
+      <h2 class="section-title" id="story"><span class="num">01</span> Production Story</h2>
+      <div class="story-card">
+        <span class="role-tag">Marketing — Ritu Sharma</span>
+        <p>"Campaign flyer print pannanum next week, aana andha AWS DNS name-ah print panna mudiyaadhu — customer confuse aayiduvaanga, spam link nu nenachikuvaanga. Namma <code>www.quoteportal.example</code> nu real domain kaattanum, HTTPS lock icon kooda irukkanum browser-la."</p>
+        <span class="role-tag" style="margin-top:14px;display:inline-block;">Priya Nandan</span>
+        <p>"Adhukku mela — namma innoru region-la disaster recovery setup pannum bodhu (adhu Assignment 22-la varum), DNS-level-lay traffic redirect panna oru mechanism ippolaye ready-a irukkanum. Ippozhaikku full DR build pannanum nu illa, aana DNS layer-ah andha future-ku ready-a design pannunga."</p>
+      </div>
+      <div class="box tip">
+        <span class="label">Ithu yean Assignment 10</span>
+        <p>Assignment 3-la namma ALB build pannomlaam, aana adhukku endpoint ah namma AWS-oda auto-generated DNS name mattum vechirundhom. Ippo Route 53-la oru <strong>hosted zone</strong> create panni, real domain-ah ALB-ku point pannuvom, and ACM-la oru TLS certificate free-a generate panni, ippo varaikkum "TODO" nu vecha HTTPS listener-ah (Assignment 3-oda challenge-la mention pannirundhom) properly complete pannuvom.</p>
+      </div>
+
+      <!-- REQUIREMENTS -->
+      <h2 class="section-title" id="requirements"><span class="num">02</span> Business &amp; Technical Requirements</h2>
+      <table>
+        <tr><th>Type</th><th>Requirement</th></tr>
+        <tr><td>Business</td><td>Customer-facing URL oru real, memorable domain-a irukanum — AWS-oda auto-generated name illama.</td></tr>
+        <tr><td>Security</td><td>HTTPS mandatory — plain HTTP-la vandha automatic-a HTTPS-ku redirect aagi, valid TLS certificate irukkanum.</td></tr>
+        <tr><td>Availability</td><td>Route 53 health check ALB-oda health-ah track pannanum, so DNS layer-um, "ippo backend down" nu theriyanum — future failover routing-ku ready-a.</td></tr>
+        <tr><td>Future-readiness</td><td>DNS architecture, future-la (Assignment 22) rendaavadhu region-ku failover pannura vazhi easy-a add panna mudiyara maadhiri irukkanum — ippo mattum single-region ready pannirukkanum.</td></tr>
+      </table>
+
+      <!-- ARCHITECTURE -->
+      <h2 class="section-title" id="architecture"><span class="num">03</span> Architecture Design</h2>
+      <div class="diagram">
+        <div class="flow">
+          <div class="flow-box" style="animation-delay:.05s">Customer types www.quoteportal.example<small>browser DNS lookup</small></div>
+          <div class="flow-arrow" style="animation-delay:.25s">↓</div>
+          <div class="flow-box" style="animation-delay:.35s">Route 53 Hosted Zone<small>Alias A-record → ALB</small></div>
+          <div class="flow-arrow" style="animation-delay:.55s">↓ resolves directly to ALB, no extra hop</div>
+          <div class="flow-box" style="animation-delay:.65s">Application Load Balancer<small>HTTPS:443, ACM certificate</small></div>
+          <div class="flow-arrow" style="animation-delay:.85s">↕ continuously checked by</div>
+          <div class="flow-box" style="animation-delay:.95s">Route 53 Health Check<small>drives future failover routing</small></div>
+        </div>
+      </div>
+      <p>Namma <strong>Alias record</strong> use panrom, normal CNAME illama — Alias record, Route 53-oda special feature, AWS resources (ALB, CloudFront) ku direct-a point pannalam, and root domain (<code>quoteportal.example</code>, without "www") kooda point panna mudiyum, which DNS standard-oda CNAME rule prevent pannum (root domain-la CNAME allowed illa). Plus, Alias record-ku extra charge illa query pannumbodhu — cost benefit-um irukku.</p>
+
+      <!-- DECISIONS -->
+      <h2 class="section-title" id="decisions"><span class="num">04</span> Architecture Decision Making</h2>
+
+      <h3>Decision: Alias Record vs. CNAME</h3>
+      <table>
+        <tr><th></th><th>CNAME</th><th>Alias Record (Route 53-only feature)</th></tr>
+        <tr><td>Root domain support</td><td>Illa — DNS spec-படி root/apex domain-la CNAME use panna mudiyaadhu</td><td>Aama — root domain-லேயும் ALB point panna mudiyum</td></tr>
+        <tr><td>Query cost</td><td>Standard Route 53 query charge apply aagum</td><td>AWS resource-ku point pannumbodhu, query charge illa</td></tr>
+        <tr><td>ALB IP change handle pannuradhu</td><td>Manual update venum, ALB IP maara</td><td>Automatic-a track pannum, ALB-oda underlying IP maara, namma ondrum pannavendaam</td></tr>
+      </table>
+      <p><strong>Decision: Alias record.</strong> Root domain support mattum illama, cost-um kammi, and ALB-oda IP address maaramal irukum bodhu manual intervention venaam — clear win, no trade-off worth mentioning.</p>
+
+      <h3>Decision: Route 53 Health Check — ippo enable pannalama, illa Assignment 22 varaikkum wait pannalama</h3>
+      <p>Namma ippolaikku single-region-thaan operate panrom, so oru Route 53 health check, ippo real failover routing trigger pannadhu. Aana Priya specific-a "future-ready-a design pannunga" nu kekkiraanga — so namma health check-ah ippolaye create pannுவோம் (adhu ippolaikku just monitoring/visibility-ku use aagum, Assignment 9-oda dashboard-la kooda feed pannalam), aana failover routing policy (rendaavadhu region point panra) Assignment 22 varaikkum add pannamaatom. Ithu, "future thevaikaaga groundwork podurathu" vs "future thevai illatha feature ippolaye build pannuradhu" — rendுக்கும் clear வித்தியாசம்.</p>
+
+      <!-- CONSOLE -->
+      <h2 class="section-title" id="console"><span class="num">05</span> AWS Console — Manual Steps</h2>
+      <ol class="steps">
+        <li><b>Hosted zone create pannunga.</b> Route 53 console → <em>Hosted zones → Create hosted zone</em> → domain name <code>quoteportal.example</code> → Public hosted zone → create pannina odane, AWS 4 NS (name server) records kudukkum — ivvai namma domain registrar-la (GoDaddy, Namecheap, edhu use pannirundhaalum) update pannanum, DNS resolution ithu route 53-ku point aagum.</li>
+        <li><b>ACM-la certificate request pannunga.</b> Certificate Manager console → <em>Request certificate</em> → domain names: <code>quoteportal.example</code> mattum <code>www.quoteportal.example</code> (rendையும் oru certificate-la cover pannalam) → validation method: DNS validation → ACM oru CNAME record kudukkum, adha Route 53-la add pannanum (ACM Route 53-oda integrated irundha, "Create records in Route 53" button click pannினாலே automatic-a add aagidum).</li>
+        <li><b>Certificate validate aagum varaikkum wait pannunga.</b> Konjam minutes edukkum — status "Issued" aana appuram mattum next step-ku pogalam.</li>
+        <li><b>ALB-la HTTPS listener add pannunga (Assignment 3-oda challenge complete pannurathu).</b> EC2 console → Load Balancers → quote-portal-alb → <em>Listeners → Add listener</em> → HTTPS:443 → default action: forward to <code>quote-portal-tg</code> → certificate: ACM-la irundhu step 2-la issue aana certificate select pannunga → existing HTTP:80 listener-ah edit panni, action-ah "Redirect to HTTPS" nu maathunga.</li>
+        <li><b>Alias A-record create pannunga.</b> Hosted zone-ku poi → <em>Create record</em> → record name blank (root domain-ku) → record type A → toggle "Alias" ON → route traffic to: Application Load Balancer → region select pannunga → ALB select pannunga → create. <code>www</code> subdomain-kum innoru Alias record create pannunga, adhே ALB point pannirukkanum.</li>
+        <li><b>Route 53 health check create pannunga.</b> Route 53 → <em>Health checks → Create health check</em> → endpoint: ALB-oda DNS name, path <code>/health</code> → this feeds visibility now, and becomes the failover trigger in Assignment 22.</li>
+        <li><b>Verify pannunga.</b> Browser-la <code>https://www.quoteportal.example</code> type pannunga → HTTPS lock icon, valid certificate, application response kaanum. <code>http://</code> try pannunga → automatic-a HTTPS-ku redirect aagi irukkanum.</li>
+      </ol>
+
+      <!-- CLI -->
+      <h2 class="section-title" id="cli"><span class="num">06</span> AWS CLI</h2>
+      <div class="code-wrap">
+        <div class="code-head"><span>bash</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre><span class="comment"># Create the hosted zone</span>
+ZONE_ID=$(aws route53 create-hosted-zone \
+  --name quoteportal.example \
+  --caller-reference "quote-portal-$(date +%s)" \
+  --query 'HostedZone.Id' --output text)
+
+<span class="comment"># Request the ACM certificate with DNS validation</span>
+CERT_ARN=$(aws acm request-certificate \
+  --domain-name quoteportal.example \
+  --subject-alternative-names www.quoteportal.example \
+  --validation-method DNS \
+  --query 'CertificateArn' --output text)
+
+<span class="comment"># Create the Alias A-record pointing the root domain at the ALB</span>
+aws route53 change-resource-record-sets --hosted-zone-id $ZONE_ID \
+  --change-batch '{
+    "Changes": [{
+      "Action": "UPSERT",
+      "ResourceRecordSet": {
+        "Name": "quoteportal.example",
+        "Type": "A",
+        "AliasTarget": {
+          "HostedZoneId": "'$ALB_HOSTED_ZONE_ID'",
+          "DNSName": "'$ALB_DNS_NAME'",
+          "EvaluateTargetHealth": true
+        }
+      }
+    }]
+  }'</pre>
+      </div>
+      <table>
+        <tr><th>Flag / Field</th><th>Meaning</th></tr>
+        <tr><td><code>--caller-reference</code></td><td>A unique idempotency token Route 53 requires per hosted zone creation call — prevents accidental duplicate zone creation on a retried request</td></tr>
+        <tr><td><code>"EvaluateTargetHealth": true</code></td><td>Ithu than Alias record-ah, target (ALB)-oda health status track pannura maadhiri pannum — ALB itself unhealthy-na, Route 53 andha record-ah "unhealthy" nu treat pannum, future multi-region failover-ku foundation</td></tr>
+        <tr><td><code>$ALB_HOSTED_ZONE_ID</code></td><td>ALB-kum, oru fixed, region-specific hosted zone ID irukkum (namma domain-oda hosted zone illa) — AWS documentation-la, region-per-region list irukkum</td></tr>
+      </table>
+
+      <!-- TERRAFORM -->
+      <h2 class="section-title" id="terraform"><span class="num">07</span> Terraform Implementation</h2>
+
+      <h3>main.tf — Hosted Zone &amp; ACM Certificate</h3>
+      <div class="code-wrap">
+        <div class="code-head"><span>main.tf (part 1 of 3)</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre><span class="kw">resource</span> "aws_route53_zone" "main" {
+  name = "quoteportal.example"
+}
+
+<span class="kw">resource</span> "aws_acm_certificate" "main" {
+  domain_name               = "quoteportal.example"
+  subject_alternative_names = ["www.quoteportal.example"]
+  validation_method          = "DNS"
+
+  lifecycle {
+    create_before_destroy = true
+    <span class="comment"># If this certificate is ever replaced (e.g. adding another SAN), the NEW</span>
+    <span class="comment"># cert is issued before the old one is destroyed — avoids a gap where the</span>
+    <span class="comment"># ALB's HTTPS listener has no valid certificate to reference at all.</span>
+  }
+}
+
+<span class="kw">resource</span> "aws_route53_record" "cert_validation" {
+  for_each = {
+    for dvo in aws_acm_certificate.main.domain_validation_options : dvo.domain_name => {
+      name   = dvo.resource_record_name
+      record = dvo.resource_record_value
+      type   = dvo.resource_record_type
+    }
+  }
+  <span class="comment"># for_each here because a cert with 2 SANs (root + www) produces 2</span>
+  <span class="comment"># separate validation records — this dynamically creates exactly as many</span>
+  <span class="comment"># records as ACM actually needs, without hardcoding a count.</span>
+  zone_id = aws_route53_zone.main.zone_id
+  name    = each.value.name
+  type    = each.value.type
+  records = [each.value.record]
+  ttl     = 60
+}
+
+<span class="kw">resource</span> "aws_acm_certificate_validation" "main" {
+  certificate_arn         = aws_acm_certificate.main.arn
+  validation_record_fqdns = [for record in aws_route53_record.cert_validation : record.fqdn]
+  <span class="comment"># This resource doesn't create anything itself — it BLOCKS Terraform until</span>
+  <span class="comment"># ACM actually confirms validation succeeded, so nothing downstream (the</span>
+  <span class="comment"># HTTPS listener) tries to reference a still-pending certificate.</span>
+}</pre>
+      </div>
+
+      <h3>main.tf — HTTPS Listener &amp; HTTP Redirect (completing Assignment 3's challenge)</h3>
+      <div class="code-wrap">
+        <div class="code-head"><span>main.tf (part 2 of 3)</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre><span class="kw">resource</span> "aws_lb_listener" "https" {
+  load_balancer_arn = aws_lb.main.arn
+  port               = 443
+  protocol           = "HTTPS"
+  certificate_arn    = aws_acm_certificate_validation.main.certificate_arn
+  ssl_policy          = "ELBSecurityPolicy-TLS13-1-2-2021-06"
+  <span class="comment"># A modern TLS security policy — supports TLS 1.3 while staying backward</span>
+  <span class="comment"># compatible with TLS 1.2 clients, rather than allowing older/weaker</span>
+  <span class="comment"># protocol versions by default.</span>
+
+  default_action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.app.arn
+  }
+}
+
+<span class="kw">resource</span> "aws_lb_listener" "http_redirect" {
+  load_balancer_arn = aws_lb.main.arn
+  port               = 80
+  protocol           = "HTTP"
+
+  default_action {
+    type = "redirect"
+    redirect {
+      port        = "443"
+      protocol    = "HTTPS"
+      status_code = "HTTP_301"
+    }
+  }
+  <span class="comment"># Replaces Assignment 3's plain HTTP-forwarding listener entirely — HTTP</span>
+  <span class="comment"># traffic is now ALWAYS bounced to HTTPS, never served directly.</span>
+}</pre>
+      </div>
+
+      <h3>main.tf — Alias Records &amp; Health Check</h3>
+      <div class="code-wrap">
+        <div class="code-head"><span>main.tf (part 3 of 3)</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre><span class="kw">resource</span> "aws_route53_record" "root" {
+  zone_id = aws_route53_zone.main.zone_id
+  name    = "quoteportal.example"
+  type    = "A"
+
+  alias {
+    name                   = aws_lb.main.dns_name
+    zone_id                = aws_lb.main.zone_id
+    evaluate_target_health = true
+  }
+}
+
+<span class="kw">resource</span> "aws_route53_record" "www" {
+  zone_id = aws_route53_zone.main.zone_id
+  name    = "www.quoteportal.example"
+  type    = "A"
+  alias {
+    name                   = aws_lb.main.dns_name
+    zone_id                = aws_lb.main.zone_id
+    evaluate_target_health = true
+  }
+}
+
+<span class="kw">resource</span> "aws_route53_health_check" "alb" {
+  fqdn              = aws_lb.main.dns_name
+  port               = 443
+  type               = "HTTPS"
+  resource_path      = "/health"
+  failure_threshold  = 3
+  request_interval   = 30
+  <span class="comment"># Not wired to any failover routing policy yet — that's Assignment 22's</span>
+  <span class="comment"># job once a second region actually exists to fail over TO. For now this</span>
+  <span class="comment"># purely feeds visibility (Assignment 9's dashboard) and groundwork.</span>
+  tags = { Name = "quote-portal-alb-health" }
+}</pre>
+      </div>
+
+      <!-- VALIDATION -->
+      <h2 class="section-title" id="validation"><span class="num">08</span> Validation &amp; Testing</h2>
+      <ul>
+        <li><strong>DNS resolution test:</strong> <code>dig www.quoteportal.example</code> → ALB-oda IP address(es) return aaganum, oru A record via Alias.</li>
+        <li><strong>HTTPS test:</strong> <code>curl -v https://www.quoteportal.example</code> → valid certificate chain, no TLS warning.</li>
+        <li><strong>Redirect test:</strong> <code>curl -I http://www.quoteportal.example</code> → 301 status, <code>Location</code> header HTTPS URL kaatanum.</li>
+        <li><strong>Root domain test:</strong> <code>https://quoteportal.example</code> (without www) kooda work aaganum — Alias record-oda root-domain support-ah confirm pannuradhu.</li>
+        <li><strong>Health check test:</strong> ALB-ah temporarily unhealthy pannunga (all targets deregister pannitu) → Route 53 health check console-la "Unhealthy" nu kaanum konjam neram-la.</li>
+      </ul>
+
+      <!-- MONITORING -->
+      <h2 class="section-title" id="monitoring"><span class="num">09</span> Monitoring &amp; Observability</h2>
+      <table>
+        <tr><th>What</th><th>Why</th></tr>
+        <tr><td>Route 53 health check status</td><td>DNS-layer visibility, Assignment 9-oda dashboard-la add pannalam — application-level health mattum illama, "external-facing endpoint reachable-a irukka" nu confirm pannum</td></tr>
+        <tr><td>ACM certificate expiry</td><td>ACM auto-renew pannum, DNS validation record already irukkura varaikkum — aana andha validation record accidentally delete aana, renewal fail aagum, so andha record-ah protect pannanum</td></tr>
+      </table>
+
+      <!-- INCIDENT -->
+      <h2 class="section-title" id="incident"><span class="num">10</span> Production Incident</h2>
+      <div class="story-card">
+        <span class="role-tag">Campaign launch day, morning</span>
+        <p>Ritu campaign email anuppitaanga, aana konjam customers "site not found" nu report pannaanga — aana majority customers-ku correctly work aagudhu. Weird — same domain, different result different users-ku.</p>
+      </div>
+      <h4>Investigation</h4>
+      <div class="code-wrap">
+        <div class="code-head"><span>bash</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre>dig quoteportal.example
+<span class="comment"># Locally resolves correctly — so the problem isn't Route 53 itself</span></pre>
+      </div>
+      <p>Andha specific customers-oda ISP/local DNS resolver, namma NS record change-ah innum propagate pannala — namma registrar-la NS records update panni innum konjam mani neram (few hours) aagirundhadhu mattum, aana global DNS propagation, TTL caching-oda base pannirundhu, sometimes 24-48 hours varaikkum edukkum, ella resolver-lyum ஒரே சமயம் illa.</p>
+      <h4>Root Cause</h4>
+      <p>DNS propagation delay — namma Route 53-la ondrum wrong pannala, aana namma NS record change, worldwide-a ella DNS resolver-lyum ஒரே நேரத்தில் kaanum nu expect pannirunthadhu, adhu unrealistic expectation. Ithu, technical mistake illa, planning/communication gap.</p>
+      <h4>Immediate Fix</h4>
+      <p>Onnume "fix" panna mudiyaadhu real-time-la — propagation, wait pannanum. Ritu-ku update kudutthom, "next few hours-la resolve aagum" nu.</p>
+      <h4>Permanent Fix / Prevention</h4>
+      <p>Process-level fix: future campaign launches-ku, DNS/domain changes-ah kammi-kammi 48-72 hours munnadiye pannanum, launch date-ku close-a illama. Additionally, NS record TTL-ah konjam kammi vecha (already low by default for NS records, aana explicit-a confirm pannanum), future changes propagate aaga edukkura time-ah minimize pannalam.</p>
+      <h4>Lessons Learned</h4>
+      <ul>
+        <li>DNS changes instant illa — global propagation timeline (few hours to 48 hours) explicitly plan pannanum, especially business-critical launch date-oda munnaadi.</li>
+        <li>"Namakku correctly work aagudhu" nu namma test panradhu, ella users-kum work aagum nu guarantee illa — DNS caching, different resolvers different time-la update aagum.</li>
+      </ul>
+
+      <!-- TROUBLESHOOTING -->
+      <h2 class="section-title" id="troubleshooting"><span class="num">11</span> Troubleshooting Methodology</h2>
+      <table>
+        <tr><th>Symptom</th><th>First Check</th><th>Likely Cause</th></tr>
+        <tr><td>Domain resolve aagalaye, sila users-ku</td><td>Registrar-la NS records correct-a Route 53-ah point pannirukka, propagation age</td><td>DNS propagation delay, incident-la paatha maadhiri, illa NS records typo</td></tr>
+        <tr><td>HTTPS-la certificate warning</td><td>ACM certificate status "Issued"-a irukka, ALB listener correct certificate ARN reference pannudha</td><td>Wrong/expired/still-pending certificate attached</td></tr>
+        <tr><td>ACM certificate auto-renew aagala</td><td>DNS validation CNAME record innum hosted zone-la irukka</td><td>Yaaro accidentally andha validation record delete pannirupaanga</td></tr>
+        <tr><td>Alias record create pannumbodhu error</td><td>ALB-oda correct region-specific hosted zone ID use pannudheengala</td><td>Wrong/hardcoded hosted zone ID — ithu region-per-region vary aagum</td></tr>
+      </table>
+
+      <!-- COST -->
+      <h2 class="section-title" id="cost"><span class="num">12</span> Cost Optimization</h2>
+      <table>
+        <tr><th>Resource</th><th>Cost Driver</th><th>Note</th></tr>
+        <tr><td>Route 53 hosted zone</td><td>Small flat monthly charge per hosted zone</td><td>Negligible — few cents/month</td></tr>
+        <tr><td>Alias record queries (to AWS resources)</td><td>No charge</td><td>Free — specifically why Alias record was chosen over CNAME</td></tr>
+        <tr><td>ACM certificate</td><td>Free, ALB-oda attach panna use pannumbodhu</td><td>Zero cost — no reason not to use HTTPS everywhere</td></tr>
+        <tr><td>Route 53 health check</td><td>Small per-health-check monthly charge</td><td>Negligible, worth it for the visibility + future-readiness</td></tr>
+      </table>
+
+      <!-- REVIEW -->
+      <h2 class="section-title" id="review"><span class="num">13</span> Solutions Architect Review</h2>
+      <table>
+        <tr><th>Lens</th><th>Assessment</th></tr>
+        <tr><td>Security</td><td>HTTPS mandatory, modern TLS policy, plain HTTP always redirected — Assignment 3-oda open item ippo close aachu</td></tr>
+        <tr><td>Reliability</td><td>Alias record with target-health-evaluation gives DNS-layer awareness of backend health, groundwork for future multi-region failover</td></tr>
+        <tr><td>Cost</td><td>Almost entirely free (Alias queries, ACM cert) — the small charges are hosted zone + health check, both negligible</td></tr>
+        <tr><td>Operations</td><td>DNS propagation incident led to a real process fix — launch timing now accounts for propagation delay</td></tr>
+        <tr><td>Maintainability</td><td>Certificate validation fully automated via Terraform's <code>for_each</code> + blocking validation resource — no manual "wait and click confirm" step</td></tr>
+      </table>
+
+      <!-- CLEANUP -->
+      <h2 class="section-title" id="cleanup"><span class="num">14</span> Cleanup</h2>
+      <div class="code-wrap">
+        <div class="code-head"><span>bash</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre>terraform destroy
+<span class="comment"># Hosted zone delete pannumbodhu, registrar-la NS records innum Route 53</span>
+<span class="comment"># point pannikittu irundha, domain resolve aaga nirutthidum — production</span>
+<span class="comment"># domain-ku, ithu genuine teardown-ku mattum pannunga, lab illama.</span></pre>
+      </div>
+
+      <!-- ACCEPTANCE -->
+      <h2 class="section-title" id="acceptance"><span class="num">15</span> Acceptance Criteria</h2>
+      <ul class="criteria">
+        <li>Real domain resolves to the ALB via a Route 53 Alias record, root domain and www both working</li>
+        <li>HTTPS enforced with a valid ACM certificate; plain HTTP always redirects to HTTPS</li>
+        <li>Route 53 health check active against the ALB, target-health evaluation enabled on the Alias record</li>
+        <li>Certificate validation fully automated end-to-end via Terraform, no manual console confirmation step</li>
+        <li>DNS propagation timeline explicitly documented and factored into future launch planning</li>
+      </ul>
+
+      <!-- CHALLENGE -->
+      <h2 class="section-title" id="challenge"><span class="num">16</span> Practice Challenge</h2>
+      <div class="card">
+        <p><strong>Karthik kekraaru:</strong> "Namma next version-ah, small % customers-ku mattum test pannanum full rollout pannuradhukku munnadi — 'canary' testing maadhiri. DNS layer-la ithu panna mudiyuma?"</p>
+        <p><strong>Requirement:</strong> Small percentage of traffic-ah oru different target (e.g., a test/staging target group) route pannunga, remaining majority traffic normal production-ku pogum maadhiri, DNS level-la.</p>
+        <p><strong>Acceptance Criteria:</strong> Traffic split percentage-based-a control panna mudiyanum, easy-a adjust panna mudiyanum without a major re-architecture.</p>
+      </div>
+      <details>
+        <summary>Challenge Solution</summary>
+        <div class="inner">
+          <p>Route 53 <strong>Weighted Routing Policy</strong> use pannunga — same record name (<code>www.quoteportal.example</code>) ku, rendு vera <code>aws_route53_record</code> resource create pannunga, vera vera <code>set_identifier</code> mattum <code>weight</code> value vechu (e.g., production target 95, canary target 5) — Route 53, automatic-a andha weight-oda proportion-la traffic split pannும். Weight easy-a adjust pannalam (95/5 → 80/20 → 50/50) gradual rollout-ku, ondrume application-level change venaam. Idhுக்கு, ALB listener rules-oda path-based routing kooda alternative-a irukkum, aana DNS-level weighted routing, "completely separate infrastructure stack-ku test traffic route pannanum" scenario-ku better fit, ALB listener rule "same infra, different path" scenario-ku better fit.</p>
+        </div>
+      </details>
+
+      <!-- INTERVIEW -->
+      <h2 class="section-title" id="interview"><span class="num">17</span> Interview Preparation</h2>
+
+      <div class="qa">
+        <div class="q"><span class="qn">Q1 · DNS Fundamentals</span>Route 53 Alias record-ah, standard CNAME-ku vida, evlo different?</div>
+        <p>Alias record Route 53-oda proprietary extension — AWS resources (ALB, CloudFront, S3 website) ku direct-a point pannalam, root/apex domain-லேயும் use pannalam (CNAME-ku andha restriction irukku, DNS RFC standard-படி). Query pannumbodhu charge illa AWS target-ku point pannumbodhu, and target resource-oda underlying IP maara, automatic-a track pannும், manual update venaam.</p>
+        <div class="follow"><b>Follow-up:</b> "Yeppo CNAME use pannuveenga, Alias illama?" — Non-AWS external target (namma control illatha oru third-party service) point pannanum-na, illa subdomain (root illama) point pannum bodhu, adhu AWS resource illama irundha.</div>
+      </div>
+
+      <div class="qa">
+        <div class="q"><span class="qn">Q2 · Security</span>ACM certificate free-a irukku, aana yean namma "always use TLS" nu default-a pannikkanum?</div>
+        <p>Plain HTTP, data-ah plaintext-la transmit pannும் — customer-oda quote data, personal info, ellame intercept panna mudiyum in-transit. Free-a irundhu, zero downside irukkumbodhu, HTTPS-ah default-a pannaadha reason edhuvum illa. Modern browsers kooda, HTTP-only sites-ku "Not Secure" warning kaattum, which affects customer trust directly.</p>
+        <div class="follow"><b>Follow-up:</b> "ACM certificate expire aagumbodhu enna aagum?" — DNS-validated certificates, AWS automatic-a renew pannும், andha validation record hosted zone-la irundha varaikkum — adhан exactly namma andha record-ah protect pannanum nu sonna reason.</div>
+      </div>
+
+      <div class="qa">
+        <div class="q"><span class="qn">Q3 · Production Scenario</span>Oru domain change pannina appuram, sila users "site not found" nu report pannaanga, majority-ku correctly work aagudhu. Epdi triage pannuveenga?</div>
+        <p>First step-ah, "namma-side problem-a, illa propagation delay-a" nu distinguish pannanum — namma own <code>dig</code> query correctly resolve aana, and affected users specific geography/ISP-la cluster aayirundha, DNS propagation delay romba likely. Adhukku "fix" panna edhuvum illa except wait pannuradhu — aana andha explanation-ah clearly communicate pannuradhு, business stakeholders-ku, romba mukkiyam.</p>
+        <div class="follow"><b>Follow-up:</b> "Future launches-ku ithai epdi prevent pannuveenga?" — DNS changes-ah launch date-ku romba close-a pannaama, munnadiye (48-72 hours) pannuradhu, exactly indha incident-la panna permanent fix.</div>
+      </div>
+
+      <div class="qa">
+        <div class="q"><span class="qn">Q4 · Cost Optimization</span>Route 53 health check evlo pannalam, cost effect enna?</div>
+        <p>Ovvoru health check-kum small per-month charge irukku, so "namma actually monitor panna venum" nu decide panna, blanket-a ella endpoint-kkum podradhu illama. Namma case-la, oru health check (main ALB endpoint) podhum ippolaikku — future multi-region setup varumbodhu, per-region health check venum, adhுவும் justified cost-தான், ovvoru region-oda independent health visibility venum-na.</p>
+        <div class="follow"><b>Follow-up:</b> "Health check vs CloudWatch alarm — rendும் same purpose-ah?" — Illa — CloudWatch alarm, AWS-internal metrics track pannும் (ALB target health, straight from inside AWS). Route 53 health check, external vantage point-lerundhu (multiple global locations-lerundhu) check pannும், so "AWS-oda internal view mattum illama, external user perspective-ல enna kaanudhu" nu kooda confirm pannும் — different, complementary signal.</div>
+      </div>
+
+      <div class="qa">
+        <div class="q"><span class="qn">Q5 · Terraform</span>aws_acm_certificate_validation resource, actually enna "create" pannும்?</div>
+        <p>Technically ondrume "create" pannaadhu — idhu oru blocking/waiting resource, ACM andha certificate-ah "Issued" status-ku maaruradha varaikkum Terraform apply-ah pause pannும். Idhu illama, downstream resources (namma HTTPS listener) andha certificate-ah reference panna try pannும், adhu innum "Pending validation" state-la irundhaalும் — race condition, intermittent apply failures create pannும்.</p>
+        <div class="follow"><b>Follow-up:</b> "Idhu illama enna specific error varum?" — HTTPS listener create pannும் bodhu, "certificate not found/not valid" maadhiri error, especially first-time apply-la, DNS validation innum propagate aagatha samayathula.</div>
+      </div>
+
+      <div class="qa">
+        <div class="q"><span class="qn">Q6 · Manager Round</span>Ritu, campaign launch-oda DNS propagation delay-ah "namma mistake" nu frame pannuraanga. Epdi respond pannுவீங்க?</div>
+        <p>Naan adha "namma-side execution mistake" nu illama, "planning gap namma munnamே anticipate pannirukkanum" nu honestly frame pannுவேன் — DNS propagation, namma control-la illatha oru real, well-known technical constraint, aana adha campaign timeline planning-la account pannாதadhு namma responsibility. Naan concrete-a, "next launch-ku 72 hours munnadiye DNS changes pannுவோம்" nu process fix propose pannுவேன், same mistake repeat aagாம இருக்க.</p>
+        <div class="follow"><b>Follow-up:</b> "Marketing team-oda trust epdi rebuild pannுவீங்க இந்த மாதிரி event-க்கு அப்புறம்?" — Transparent-a, exactly enna nadandhுchு nu technical detail-oda explain pannுவேன் (jargon illama), and future launches-ku oru shared checklist create pannுவேன் (DNS changes, cert issuance, propagation buffer) — dono teams-ум munnadiye same timeline-ah expect pannும் maadhiri.</div>
+      </div>
+
+      <!-- RESUME -->
+      <h2 class="section-title" id="resume"><span class="num">18</span> Resume Points</h2>
+      <ul class="resume-list">
+        <li>Migrated a production application from an AWS-generated DNS endpoint to a custom domain using Route 53 hosted zones and Alias records</li>
+        <li>Implemented end-to-end automated TLS certificate provisioning and DNS validation via AWS Certificate Manager and Terraform, enforcing HTTPS-only access with automatic HTTP redirect</li>
+        <li>Configured Route 53 health checks with target-health evaluation, establishing DNS-layer visibility and groundwork for future multi-region failover routing</li>
+        <li>Diagnosed a DNS propagation-related incident during a live marketing campaign launch and established a documented pre-launch DNS change timeline to prevent recurrence</li>
+        <li>Designed a weighted DNS routing pattern enabling percentage-based canary traffic distribution without infrastructure re-architecture</li>
+      </ul>
+
+      <!-- NEXT -->
+      <h2 class="section-title" id="next"><span class="num">19</span> Next Project</h2>
+      <div class="box win">
+        <span class="label">Ready aana</span>
+        <p>Domain live-a pannunga, HTTPS test pannunga, appuram <strong>"Next Project"</strong> nu sollunga. Assignment 11-la namma VPC Endpoints use panni, app tier-ah S3/Secrets Manager-oda private-a, NAT Gateway kooda vazhaama, connect pannura vazhi build pannுவோம் — outbound internet dependency innum kammi pannுவோம்.</p>
+      </div>
+
+    </div>
+    <footer>AWS Cloud Engineering Masterclass · Assignment 10 of 25 · Intermediate Stage</footer>
+  </div>
+</div>
+
+<button class="mobile-toggle" id="mobileToggle" aria-label="Toggle menu">☰</button>
+<script>
+const sections = document.querySelectorAll('h2.section-title[id]');
+const navLinks = document.querySelectorAll('.sidebar nav a');
+function onScroll(){
+  let current = '';
+  sections.forEach(s=>{ if(window.scrollY >= s.offsetTop - 80) current = s.id; });
+  navLinks.forEach(a=> a.classList.toggle('active', a.getAttribute('href') === '#'+current));
+}
+window.addEventListener('scroll', onScroll); onScroll();
+document.getElementById('mobileToggle').addEventListener('click', ()=> document.getElementById('sidebar').classList.toggle('open'));
+document.querySelectorAll('.sidebar nav a').forEach(a=> a.addEventListener('click', ()=> document.getElementById('sidebar').classList.remove('open')));
+function copyCode(btn){
+  const pre = btn.closest('.code-wrap').querySelector('pre');
+  navigator.clipboard.writeText(pre.innerText).then(()=>{
+    const orig = btn.textContent; btn.textContent = 'Copied!';
+    setTimeout(()=> btn.textContent = orig, 1500);
+  });
+}
+</script>
+</body>
+</html>

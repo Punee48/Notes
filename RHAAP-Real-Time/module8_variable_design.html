@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Module 8 — Variable Design</title>
+<style>
+:root{
+  --blue:#1D4ED8; --blue-light:#DBEAFE; --blue-vlight:#EFF6FF;
+  --ink:#1F2937; --muted:#4B5563; --line:#E5E7EB; --ok:#047857; --warn:#B45309; --bad:#B91C1C;
+  --code-bg:#0F172A; --code-ink:#E2E8F0;
+}
+*{box-sizing:border-box}
+body{margin:0;font-family:Segoe UI, Arial, sans-serif;color:var(--ink);background:#fff;line-height:1.65;font-size:16px;}
+.layout{display:flex;min-height:100vh;}
+nav{width:280px;flex-shrink:0;background:var(--blue-vlight);border-right:1px solid var(--line);padding:24px 16px;position:sticky;top:0;height:100vh;overflow-y:auto;}
+nav h2{font-size:14px;text-transform:uppercase;letter-spacing:.05em;color:var(--blue);margin:0 0 12px;}
+nav a{display:block;padding:7px 10px;border-radius:6px;color:var(--ink);text-decoration:none;font-size:14px;margin-bottom:2px;}
+nav a:hover{background:var(--blue-light);}
+main{flex:1;padding:40px 60px;max-width:980px;}
+.badge{display:inline-block;background:var(--blue);color:#fff;font-size:12px;font-weight:600;padding:4px 10px;border-radius:999px;letter-spacing:.03em;}
+h1{font-size:30px;margin:14px 0 6px;color:var(--blue);}
+.subtitle{color:var(--muted);font-size:16px;margin-bottom:32px;}
+h2{font-size:22px;margin-top:48px;border-bottom:2px solid var(--blue-light);padding-bottom:8px;color:#111827;}
+h3{font-size:18px;margin-top:24px;color:#111827;}
+p{margin:12px 0;}
+.story{background:var(--blue-vlight);border-left:4px solid var(--blue);padding:16px 20px;border-radius:6px;margin:16px 0;}
+.why{background:#FFFBEB;border-left:4px solid var(--warn);padding:14px 20px;border-radius:6px;margin:14px 0;}
+.prod{background:#ECFDF5;border-left:4px solid var(--ok);padding:14px 20px;border-radius:6px;margin:14px 0;}
+.flow{background:#F9FAFB;border:1px solid var(--line);border-radius:8px;padding:18px 20px;margin:16px 0;font-family:Consolas,monospace;font-size:14px;white-space:pre;overflow-x:auto;color:#111827;}
+table{width:100%;border-collapse:collapse;margin:16px 0;font-size:14px;}
+th{background:var(--blue);color:#fff;text-align:left;padding:9px 11px;}
+td{padding:9px 11px;border-bottom:1px solid var(--line);vertical-align:top;}
+tr:nth-child(even) td{background:#F9FAFB;}
+details{border:1px solid var(--line);border-radius:8px;margin:14px 0;padding:0;}
+summary{cursor:pointer;padding:12px 16px;font-weight:600;background:#F9FAFB;border-radius:8px;}
+details[open] summary{border-bottom:1px solid var(--line);border-radius:8px 8px 0 0;}
+details .inner{padding:14px 18px;}
+.task{background:#ECFDF5;border:1px solid #A7F3D0;border-radius:8px;padding:18px 22px;margin:24px 0;}
+.task h3{margin-top:0;color:var(--ok);}
+.next{background:#111827;color:#fff;border-radius:8px;padding:20px 24px;margin-top:30px;}
+code{background:#F1F5F9;padding:1px 6px;border-radius:4px;font-size:13.5px;}
+pre{background:var(--code-bg);color:var(--code-ink);padding:16px 18px;border-radius:8px;overflow-x:auto;font-size:13.5px;margin:14px 0;}
+.line-note{font-size:14px;color:var(--muted);margin:4px 0 4px 18px;}
+footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);color:var(--muted);font-size:13px;}
+</style>
+</head>
+<body>
+<div class="layout">
+<nav>
+  <h2>Masterclass</h2>
+  <a href="#recap">1. The Story So Far</a>
+  <a href="#types">2. Every Kind of Variable</a>
+  <a href="#precedence">3. Variable Precedence</a>
+  <a href="#secrets">4. Where Secrets Go — and Never Go</a>
+  <a href="#task">5. Hands-On Task</a>
+  <a href="#next">6. What Comes Next</a>
+</nav>
+<main>
+  <span class="badge">MODULE 8</span>
+  <h1>Variable Design</h1>
+  <p class="subtitle">Turning the Module 1 checklist into real, well-organized Ansible variables</p>
+
+  <h2 id="recap">1. The Story So Far</h2>
+  <div class="story">
+    <p>Puneeth, remember the Payment Gateway checklist from Module 1 — hostname, CPU, memory, environment, owner, cost center? Those are not just facts on paper anymore; they need to become real variables our playbooks can read. The question this module answers is: <em>of all the places Ansible lets you put a variable, which place should each one of our 25 fields actually live in?</em> Getting this wrong is one of the most common sources of confusing bugs in real Ansible projects — a variable silently being overridden by another one you forgot existed.</p>
+  </div>
+
+  <h2 id="types">2. Every Kind of Variable, and When to Use It</h2>
+  <table>
+    <tr><th>Variable Type</th><th>Where it lives</th><th>Good example from our project</th></tr>
+    <tr><td>Role Defaults</td><td><code>roles/aws_provision/defaults/main.yml</code></td><td>A sensible fallback like <code>root_volume_size: 100</code> — used only if nothing else overrides it</td></tr>
+    <tr><td>Role Vars</td><td><code>roles/aws_provision/vars/main.yml</code></td><td>Values the role itself controls and generally should not be overridden, like an internal mapping table</td></tr>
+    <tr><td>group_vars</td><td><code>group_vars/all.yml</code>, <code>group_vars/aws.yml</code></td><td>Shared values like <code>ntp_server: ntp.abcbank.local</code>, true for every DEV server on that platform</td></tr>
+    <tr><td>host_vars</td><td><code>host_vars/pay-dev-app01.yml</code></td><td>A one-off override, like a specific server needing extra disk, that shouldn't apply to its siblings</td></tr>
+    <tr><td>extra_vars</td><td>Passed at runtime, e.g. by AAP</td><td>The exact request-specific values: <code>vm_name</code>, <code>cpu</code>, <code>memory</code>, <code>application</code></td></tr>
+    <tr><td>Survey Variables</td><td>Defined in the AAP Job Template Survey (Module 15)</td><td>What the requester actually typed into the form — becomes <code>extra_vars</code> automatically</td></tr>
+    <tr><td>Credential Variables</td><td>Injected securely by AAP from a Credential object, never visible in plain YAML</td><td>AWS access key/secret, Azure Service Principal secret</td></tr>
+    <tr><td>Environment Variables</td><td>Set on the Execution Environment or Job Template</td><td><code>HTTPS_PROXY</code>, <code>NO_PROXY</code> from Module 4</td></tr>
+  </table>
+
+  <h3>The Variable File We'll Reuse Throughout This Masterclass</h3>
+  <pre>---
+# vars/aws.yml
+cloud_platform: aws
+environment: dev
+vm_name: pay-dev-app01
+os_type: rhel9
+cpu: 4
+memory: 16
+disk_size: 100
+application: payment
+owner: payment-team
+cost_center: PAY001</pre>
+  <p class="line-note"><code>cloud_platform: aws</code> — the single variable that later decides, in Module 13, which platform-specific role actually runs; this is the "switch" for our whole multi-cloud design.</p>
+  <p class="line-note"><code>environment: dev</code> — used both for naming and, importantly, for the input validation logic we build in Module 9 (only dev/qa/uat/prod are allowed).</p>
+  <p class="line-note"><code>vm_name</code>, <code>os_type</code>, <code>cpu</code>, <code>memory</code>, <code>disk_size</code> — the direct technical values straight from the Module 1 checklist, used to build the actual AWS/Azure/OpenShift resource requests.</p>
+  <p class="line-note"><code>application</code>, <code>owner</code>, <code>cost_center</code> — business metadata values used purely for tagging (Module 10) and CMDB updates (Module 22), not for sizing the server itself.</p>
+
+  <h2 id="precedence">3. Variable Precedence — Who Wins When Two Places Disagree</h2>
+  <p>Ansible has a well-defined order of who "wins" if the same variable name is set in more than one place. From <strong>lowest</strong> to <strong>highest</strong> priority (highest always wins):</p>
+  <div class="flow">1. Role defaults               (lowest priority — easiest to override)
+2. group_vars (all, then more specific groups)
+3. host_vars
+4. Play vars
+5. Role vars
+6. extra_vars  (including AAP Survey answers)   ← HIGHEST priority</div>
+  <div class="why"><strong>Why this order matters in our project:</strong> We deliberately rely on this! Role defaults hold safe fallback values, but whatever the requester types into the AAP Survey (which becomes <code>extra_vars</code>) will always win over any default, no matter what. This is exactly the behavior we want — the person filling out the form should always control the final outcome, not a hardcoded fallback buried inside a role.</div>
+
+  <h2 id="secrets">4. Where Secrets Should — and Should Never — Live</h2>
+  <table>
+    <tr><th>❌ Never here</th><th>✅ Always here instead</th></tr>
+    <tr><td>Hardcoded inside a playbook or role task</td><td>An AAP Credential object (Machine, AWS, Azure, or Vault type)</td></tr>
+    <tr><td>Committed into <code>vars/aws.yml</code> in Git, even "temporarily"</td><td>Injected at runtime by AAP directly into environment variables the collection modules read automatically</td></tr>
+    <tr><td>Passed as a plain <code>extra_vars</code> string on the command line</td><td>Pulled from HashiCorp Vault / CyberArk via a lookup plugin at job runtime</td></tr>
+  </table>
+  <div class="prod"><strong>Recommended for production:</strong> Nothing secret should ever be readable by opening a file in the Git repository — if you can <code>grep</code> and find a password or key in the repo, that is a security incident waiting to happen, and in a bank it would fail an audit outright.</div>
+
+  <div class="task" id="task">
+    <h3>5. Hands-On Task</h3>
+    <p>Take your own filled-in checklist from Module 1's task. Sort every one of your 25 values into one of these three buckets: (a) role default, (b) group_vars, or (c) extra_vars/Survey. Write one line per value stating which bucket it belongs to and why.</p>
+  </div>
+
+  <div class="next" id="next">
+    <strong>What comes next — Module 9: Input Validation.</strong>
+    <p style="margin-bottom:0">Now that variables have a home, we make sure bad values never reach AWS/Azure/OpenShift in the first place — using <code>assert</code>, <code>fail</code>, regex, and allowed-value lists, explained line by line.</p>
+  </div>
+
+  <footer>Enterprise Multi-Cloud Server Provisioning Masterclass — Module 8 of 30</footer>
+</main>
+</div>
+</body>
+</html>

@@ -1,0 +1,736 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Project 01 — Windows Server Inventory Automation | PowerShell Masterclass</title>
+<style>
+  :root{
+    --primary:#6D28D9;
+    --secondary:#7C3AED;
+    --light-purple:#EDE9FE;
+    --xlight-purple:#F5F3FF;
+    --bg:#FFFFFF;
+    --text:#1F2937;
+    --muted:#6B7280;
+    --border:#E5E1F5;
+    --success:#15803D;
+    --warn:#B45309;
+    --danger:#B91C1C;
+    --code-bg:#1E1B2E;
+    --code-text:#E9E4FF;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; font-family:"Segoe UI",Calibri,Roboto,Arial,sans-serif;
+    background:var(--bg); color:var(--text); line-height:1.65;
+  }
+  a{color:var(--primary);}
+  .layout{display:flex; max-width:1400px; margin:0 auto;}
+  /* SIDEBAR */
+  nav.sidebar{
+    width:270px; flex-shrink:0; position:sticky; top:0; height:100vh; overflow-y:auto;
+    background:var(--xlight-purple); border-right:1px solid var(--border); padding:22px 16px;
+  }
+  nav.sidebar h3{color:var(--primary); font-size:13px; text-transform:uppercase; letter-spacing:.06em; margin:18px 0 8px;}
+  nav.sidebar a{
+    display:block; padding:7px 10px; border-radius:8px; color:var(--text);
+    text-decoration:none; font-size:14px; margin-bottom:2px;
+  }
+  nav.sidebar a:hover{background:var(--light-purple); color:var(--primary);}
+  #progressWrap{background:var(--light-purple); border-radius:10px; padding:10px; margin-bottom:8px;}
+  #progressBar{height:8px; background:var(--border); border-radius:6px; overflow:hidden;}
+  #progressFill{height:100%; width:0%; background:linear-gradient(90deg,var(--primary),var(--secondary)); transition:width .2s;}
+  #progressLabel{font-size:12px; color:var(--muted); margin-top:6px;}
+  /* MAIN */
+  main{flex:1; min-width:0; padding:0;}
+  .cover{
+    background:linear-gradient(135deg,var(--primary),var(--secondary));
+    color:#fff; padding:60px 48px; position:relative; overflow:hidden;
+  }
+  .cover::after{content:"";position:absolute;right:-80px;top:-80px;width:300px;height:300px;border-radius:50%;background:rgba(255,255,255,.08);}
+  .badge{display:inline-block; background:rgba(255,255,255,.18); padding:5px 14px; border-radius:20px; font-size:12px; letter-spacing:.05em; margin-right:8px; margin-bottom:14px;}
+  .cover h1{font-size:34px; margin:6px 0 10px; max-width:760px;}
+  .cover p.sub{font-size:16px; opacity:.92; max-width:640px;}
+  .cover-meta{display:flex; gap:28px; margin-top:26px; flex-wrap:wrap;}
+  .cover-meta div{background:rgba(255,255,255,.12); padding:12px 18px; border-radius:10px; min-width:140px;}
+  .cover-meta span{display:block; font-size:12px; opacity:.85;}
+  .cover-meta strong{font-size:16px;}
+  section{padding:34px 48px; border-bottom:1px solid var(--border);}
+  section h2{color:var(--primary); font-size:24px; border-left:5px solid var(--primary); padding-left:14px; margin-top:0;}
+  section h3{color:var(--secondary); font-size:18px; margin-top:26px;}
+  .story{
+    background:var(--xlight-purple); border-left:5px solid var(--primary);
+    padding:20px 24px; border-radius:0 10px 10px 0; font-size:15px;
+  }
+  .story b{color:var(--primary);}
+  .callout{border-radius:10px; padding:16px 18px; margin:16px 0; font-size:14.5px;}
+  .callout.tip{background:#F0FDF4; border-left:5px solid var(--success);}
+  .callout.note{background:var(--xlight-purple); border-left:5px solid var(--secondary);}
+  .callout.warn{background:#FFFBEB; border-left:5px solid var(--warn);}
+  .callout.security{background:#FEF2F2; border-left:5px solid var(--danger);}
+  .callout .lbl{font-weight:700; display:block; margin-bottom:4px;}
+  table{width:100%; border-collapse:collapse; margin:16px 0; font-size:14px;}
+  th,td{border:1px solid var(--border); padding:9px 12px; text-align:left; vertical-align:top;}
+  th{background:var(--light-purple); color:var(--primary);}
+  tr:nth-child(even){background:var(--xlight-purple);}
+  .codewrap{position:relative; margin:16px 0;}
+  pre{
+    background:var(--code-bg); color:var(--code-text); padding:18px 16px; border-radius:10px;
+    overflow-x:auto; font-family:Consolas,"Cascadia Code",Menlo,monospace; font-size:13.5px; line-height:1.7;
+  }
+  pre code{white-space:pre;}
+  .copybtn{
+    position:absolute; top:10px; right:10px; background:var(--secondary); color:#fff; border:none;
+    padding:6px 12px; border-radius:6px; font-size:12px; cursor:pointer;
+  }
+  .copybtn:hover{background:var(--primary);}
+  .tok-kw{color:#C4B5FD;font-weight:600;} .tok-cmd{color:#93C5FD;font-weight:600;}
+  .tok-str{color:#86EFAC;} .tok-var{color:#FCD34D;} .tok-comment{color:#8B87A8;font-style:italic;}
+  .tok-op{color:#F9A8D4;} .tok-num{color:#FDBA74;}
+  .explain-list{list-style:none; padding:0; margin:14px 0;}
+  .explain-list li{
+    background:var(--xlight-purple); border-radius:8px; padding:10px 14px; margin-bottom:6px; font-size:14.5px;
+  }
+  .explain-list code{background:var(--light-purple); padding:2px 6px; border-radius:5px; color:var(--primary); font-weight:600;}
+  details{background:var(--xlight-purple); border-radius:10px; padding:12px 16px; margin:10px 0;}
+  details summary{cursor:pointer; font-weight:600; color:var(--primary);}
+  .diagram{background:var(--xlight-purple); border-radius:12px; padding:20px; margin:16px 0; overflow-x:auto;}
+  .flow{display:flex; flex-wrap:wrap; align-items:center; gap:10px; font-size:13.5px;}
+  .flow .box{background:#fff; border:2px solid var(--secondary); border-radius:8px; padding:8px 14px; font-weight:600; color:var(--primary);}
+  .flow .arrow{color:var(--secondary); font-size:18px;}
+  .steps{counter-reset:step;}
+  .steps .step{position:relative; padding-left:44px; margin-bottom:18px;}
+  .steps .step::before{
+    counter-increment:step; content:counter(step); position:absolute; left:0; top:0;
+    background:var(--primary); color:#fff; width:30px; height:30px; border-radius:50%;
+    display:flex; align-items:center; justify-content:center; font-weight:700;
+  }
+  .grid2{display:grid; grid-template-columns:1fr 1fr; gap:16px;}
+  @media(max-width:900px){.grid2{grid-template-columns:1fr;} nav.sidebar{display:none;} section{padding:26px 20px;} .cover{padding:36px 22px;}}
+  footer{padding:30px 48px; background:var(--xlight-purple); color:var(--muted); font-size:13px;}
+</style>
+</head>
+<body>
+
+<div class="layout">
+  <nav class="sidebar">
+    <div id="progressWrap">
+      <div id="progressLabel">Reading progress</div>
+      <div id="progressBar"><div id="progressFill"></div></div>
+    </div>
+    <h3>Project 01</h3>
+    <a href="#cover">Cover</a>
+    <a href="#story">The Story</a>
+    <a href="#concepts">Concepts First</a>
+    <a href="#lab">Hands-On Lab</a>
+    <a href="#script">Full Script</a>
+    <a href="#linebyline">Line-by-Line</a>
+    <a href="#architecture">Architecture</a>
+    <a href="#troubleshoot">Troubleshooting</a>
+    <a href="#security">Security Notes</a>
+    <a href="#recap">Key Learnings</a>
+    <a href="#interview">Interview Prep</a>
+    <a href="#challenges">Coding Challenges</a>
+    <a href="#resume">Resume Points</a>
+    <a href="#assignment">Practice Assignment</a>
+    <a href="#next">Next Project</a>
+  </nav>
+
+  <main id="top">
+    <div class="cover" id="cover">
+      <span class="badge">PROJECT 01</span><span class="badge">BEGINNER</span><span class="badge">BFSI TRACK</span>
+      <h1>Windows Server Inventory Automation Using PowerShell</h1>
+      <p class="sub">Build your first production-style PowerShell script: an automated Windows server inventory tool, taught the way a senior engineer would mentor you on a real banking infrastructure team.</p>
+      <div class="cover-meta">
+        <div><span>Difficulty</span><strong>Beginner</strong></div>
+        <div><span>Estimated Lab Time</span><strong>60–90 min</strong></div>
+        <div><span>Concepts</span><strong>12 core concepts</strong></div>
+        <div><span>Track</span><strong>1 of 40</strong></div>
+      </div>
+    </div>
+
+    <section id="story">
+      <h2>The Story — Why We're Building This</h2>
+      <div class="story">
+        We've just joined the <b>Windows Infrastructure Automation team at ABC Bank</b>. The bank runs more than
+        1,000 Windows Servers across Development, QA, UAT, Production, and Disaster Recovery.<br><br>
+        Every morning, the Windows Operations team manually logs into critical servers to check basic health
+        information — hostname, OS version, uptime, memory, and disk space. It takes hours, and it's error-prone
+        because it depends on someone remembering to check every server.<br><br>
+        Our manager has given us our very first automation task: <b>build a PowerShell script that collects basic
+        inventory information from a Windows server and prints it in a clean, structured way.</b> This is the
+        foundation every later automation (health checks, patching, IIS, Active Directory) will build on.
+      </div>
+    </section>
+
+    <section id="concepts">
+      <h2>Concepts First — Before We Touch Code</h2>
+
+      <h3>1. What is PowerShell?</h3>
+      <p>PowerShell is a command-line shell <i>and</i> a scripting language built on the .NET runtime. Unlike
+      older shells (like Command Prompt or Bash), PowerShell doesn't just move text around — it moves
+      <b>.NET objects</b>. That single difference is why PowerShell is so powerful for Windows automation: when you
+      ask for a list of services, you don't get a block of text you have to parse — you get real objects with
+      properties and methods you can use directly.</p>
+      <div class="callout note"><span class="lbl">Why does this exist?</span>Windows administrators needed a way to
+      automate repetitive administrative work (services, disks, event logs, AD) without writing full C# programs.
+      Microsoft built PowerShell to expose the entire Windows management surface as scriptable objects.</div>
+
+      <h3>2. Windows PowerShell vs PowerShell 7</h3>
+      <table>
+        <tr><th>Windows PowerShell 5.1</th><th>PowerShell 7 (Core)</th></tr>
+        <tr><td>Built into Windows, .NET Framework based</td><td>Cross-platform (Windows/Linux/macOS), .NET based</td></tr>
+        <tr><td>Executable: <code>powershell.exe</code></td><td>Executable: <code>pwsh.exe</code></td></tr>
+        <tr><td>Still required for some legacy modules (older AD/Exchange cmdlets)</td><td>Preferred for new automation — faster, modern, actively developed</td></tr>
+      </table>
+      <div class="callout tip"><span class="lbl">Where we'll use this</span>In a bank, you'll often see both installed
+      side by side: legacy modules run on Windows PowerShell 5.1, while new automation is written in PowerShell 7.</div>
+
+      <h3>3. Console, Windows Terminal, and VS Code</h3>
+      <ul class="explain-list">
+        <li><code>powershell.exe</code> / <code>pwsh.exe</code> — the actual engine that runs your commands.</li>
+        <li><b>Windows Terminal</b> — a modern terminal app that can host PowerShell, Command Prompt, and WSL in tabs. It's just the "window", not the engine.</li>
+        <li><b>VS Code + PowerShell Extension</b> — where we'll actually write and debug scripts. It gives us IntelliSense, syntax checking, and a built-in debugger.</li>
+      </ul>
+
+      <h3>4. Cmdlets and Verb-Noun Naming</h3>
+      <p>A <b>cmdlet</b> (pronounced "command-let") is a built-in PowerShell command. Every cmdlet follows a strict
+      <code>Verb-Noun</code> naming pattern, e.g. <code>Get-Service</code>, <code>Get-Process</code>,
+      <code>Get-ComputerInfo</code>. The verb tells you the action (Get, Set, New, Remove, Start, Stop), the noun
+      tells you the target. This consistency means once you know the pattern, you can often guess a cmdlet's name.</p>
+      <div class="callout note"><span class="lbl">Common mistake</span>Beginners often try to remember every cmdlet
+      by heart. Instead, learn the verb list (<code>Get-Verb</code>) and rely on discovery commands (next section) —
+      production engineers look things up constantly; that's normal.</div>
+
+      <h3>5. Discovery Cmdlets: Get-Help, Get-Command, Get-Member</h3>
+      <ul class="explain-list">
+        <li><code>Get-Command *service*</code> — finds cmdlets whose name contains "service".</li>
+        <li><code>Get-Help Get-Service -Full</code> — shows full documentation, parameters, and examples for a cmdlet.</li>
+        <li><code>Get-Member</code> — shows the <b>type</b>, <b>properties</b>, and <b>methods</b> of whatever object was piped into it. This is the single most important discovery tool in PowerShell.</li>
+      </ul>
+      <div class="callout tip"><span class="lbl">Production habit</span>Whenever you're unsure what an object looks
+      like, pipe it into <code>Get-Member</code>. We'll do this constantly in this project.</div>
+
+      <h3>6. Variables, Data Types, Arrays, Hash Tables</h3>
+      <ul class="explain-list">
+        <li><code>$Name = "WIN-SRV01"</code> — a variable. The <code>$</code> tells PowerShell "this word refers to a stored value", not a literal string or command name.</li>
+        <li><code>$Count = 5</code> — a number (integer).</li>
+        <li><code>$IsOnline = $true</code> — a boolean (<code>$true</code>/<code>$false</code>).</li>
+        <li><code>$Servers = @("SRV01","SRV02")</code> — an <b>array</b>: an ordered list of items. The <code>@()</code> tells PowerShell "build a collection", even if it ends up with one item or zero items.</li>
+        <li><code>$Config = @{ Name = "SRV01"; Env = "PROD" }</code> — a <b>hash table</b>: key–value pairs, using <code>@{}</code>. Arrays are for ordered lists of similar items; hash tables are for named settings/lookups.</li>
+      </ul>
+
+      <h3>7. Objects, Properties, and Methods</h3>
+      <p>Nearly everything in PowerShell is an object. An object has <b>properties</b> (data about it, e.g.
+      <code>$Server.Name</code>) and <b>methods</b> (actions it can perform, e.g. <code>$Service.Stop()</code>).
+      The dot (<code>.</code>) after a variable means "access something that belongs to this object".</p>
+
+      <h3>8. The Pipeline — Objects, Not Text</h3>
+      <div class="diagram">
+        <div class="flow">
+          <div class="box">Get-Service</div><div class="arrow">→</div>
+          <div class="box">Service Objects</div><div class="arrow">→</div>
+          <div class="box">Pipeline |</div><div class="arrow">→</div>
+          <div class="box">Where-Object Filter</div><div class="arrow">→</div>
+          <div class="box">Filtered Result</div>
+        </div>
+      </div>
+      <p>The pipe symbol <code>|</code> takes the <b>objects</b> produced by the command on its left and feeds them,
+      one at a time, into the command on its right. Because these are real objects (not plain text lines like in
+      Bash), the receiving command can filter, sort, or reformat based on actual properties — no text-parsing needed.</p>
+
+      <h3>9. Select-Object, Where-Object, ForEach-Object, Sort-Object, Group-Object, Measure-Object</h3>
+      <table>
+        <tr><th>Cmdlet</th><th>Purpose</th></tr>
+        <tr><td><code>Where-Object</code></td><td>Filters objects based on a condition</td></tr>
+        <tr><td><code>Select-Object</code></td><td>Chooses which properties to keep (or the first/last N objects)</td></tr>
+        <tr><td><code>ForEach-Object</code></td><td>Runs a script block once per object in the pipeline</td></tr>
+        <tr><td><code>Sort-Object</code></td><td>Orders objects by a property</td></tr>
+        <tr><td><code>Group-Object</code></td><td>Groups objects by a shared property value</td></tr>
+        <tr><td><code>Measure-Object</code></td><td>Calculates count, sum, average, min, max of property values</td></tr>
+      </table>
+
+      <h3>10. The Automatic Variable <code>$_</code></h3>
+      <p><code>$_</code> means "the current object flowing through the pipeline right now". Inside a
+      <code>Where-Object</code> or <code>ForEach-Object</code> script block, <code>$_</code> refers to whichever
+      object is currently being processed.</p>
+
+      <h3>11. File Operations (what we'll use here)</h3>
+      <ul class="explain-list">
+        <li><code>New-Item -ItemType Directory</code> — creates a folder.</li>
+        <li><code>Out-File</code> / <code>Set-Content</code> — writes text to a file.</li>
+        <li><code>Export-Csv</code> — writes objects to a CSV file, preserving column structure.</li>
+      </ul>
+
+      <h3>12. CIM/WMI — How PowerShell Talks to Windows for Inventory Data</h3>
+      <div class="diagram">
+        <div class="flow">
+          <div class="box">PowerShell</div><div class="arrow">→</div>
+          <div class="box">Get-CimInstance cmdlet</div><div class="arrow">→</div>
+          <div class="box">CIM/WMI Provider</div><div class="arrow">→</div>
+          <div class="box">Windows Management Instrumentation Repository</div><div class="arrow">→</div>
+          <div class="box">Hardware / OS Data Returned as Objects</div>
+        </div>
+      </div>
+      <p><b>WMI (Windows Management Instrumentation)</b> is Windows' built-in management database — it holds
+      structured information about the OS, hardware, disks, and more. <code>Get-CimInstance</code> is the modern
+      cmdlet that queries WMI through the CIM (Common Information Model) standard. We'll use it to pull OS name,
+      version, and total memory.</p>
+    </section>
+
+    <section id="lab">
+      <h2>Hands-On Lab — Build It Yourself</h2>
+
+      <h3>Prerequisites</h3>
+      <table>
+        <tr><th>Requirement</th><th>Detail</th></tr>
+        <tr><td>OS</td><td>Windows 10/11 (works fine for local practice — no server needed for this project)</td></tr>
+        <tr><td>PowerShell</td><td>Windows PowerShell 5.1 (built-in) or PowerShell 7 (recommended) — check with <code>$PSVersionTable</code></td></tr>
+        <tr><td>Editor</td><td>VS Code + "PowerShell" extension (by Microsoft) from the Extensions marketplace</td></tr>
+        <tr><td>Permissions</td><td>Standard user is enough for this project — no admin rights required</td></tr>
+      </table>
+
+      <div class="steps">
+        <div class="step"><b>Install VS Code and the PowerShell extension.</b> Open VS Code → Extensions (Ctrl+Shift+X) → search "PowerShell" → install the one published by Microsoft.</div>
+        <div class="step"><b>Create your project folder.</b> Open a terminal (Windows Terminal or VS Code's integrated terminal) and run:
+          <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code>New-Item -ItemType Directory -Path "C:\PS-Masterclass\Project01" -Force
+Set-Location "C:\PS-Masterclass\Project01"</code></pre></div>
+        </div>
+        <div class="step"><b>Create sub-folders</b> for reports, matching how a real project is organized:
+          <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code>New-Item -ItemType Directory -Path ".\reports" -Force</code></pre></div>
+        </div>
+        <div class="step"><b>Create the script file</b> in VS Code: File → New File → save as
+          <code>Get-ServerInventory.ps1</code> inside the Project01 folder.</div>
+        <div class="step"><b>Set the execution policy</b> for your current session so VS Code is allowed to run local scripts (this does not permanently weaken your system-wide security):
+          <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code>Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass</code></pre></div>
+          <div class="callout note"><span class="lbl">Why "-Scope Process"?</span>This only changes the policy for the
+          current terminal session/process. It resets when you close the window, so you're not permanently loosening
+          security on your machine — a good habit even for local practice.</div>
+        </div>
+        <div class="step"><b>Copy the full script</b> from the "Full Script" section below into
+          <code>Get-ServerInventory.ps1</code>, save it, then run it:
+          <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code>.\Get-ServerInventory.ps1</code></pre></div>
+        </div>
+        <div class="step"><b>Validate the output.</b> You should see a structured inventory printed to the console,
+        and a CSV file created inside <code>.\reports\</code>.</div>
+      </div>
+    </section>
+
+    <section id="script">
+      <h2>Full Script — Get-ServerInventory.ps1</h2>
+      <p>This is a complete, working script. Every important line has an inline comment. Save this exactly as
+      <code>Get-ServerInventory.ps1</code>.</p>
+      <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code># =====================================================================
+# Get-ServerInventory.ps1
+# ABC Bank - Windows Infrastructure Automation Team
+# Purpose: Collect basic inventory information from a Windows server
+# =====================================================================
+
+$ComputerName = $env:COMPUTERNAME          # Reads the local machine's name from an environment variable
+
+Write-Host "Collecting inventory for $ComputerName..." -ForegroundColor Cyan   # Prints a status message in cyan text
+
+# ---------------------------------------------------------------
+# STEP 1: Get Operating System information using CIM
+# ---------------------------------------------------------------
+$OSInfo = Get-CimInstance -ClassName Win32_OperatingSystem   # Queries WMI/CIM for OS-level details as an object
+
+# ---------------------------------------------------------------
+# STEP 2: Get Computer System information (manufacturer, model, RAM)
+# ---------------------------------------------------------------
+$SystemInfo = Get-CimInstance -ClassName Win32_ComputerSystem   # Queries WMI/CIM for hardware-level details
+
+# ---------------------------------------------------------------
+# STEP 3: Get Disk information for all fixed local drives
+# ---------------------------------------------------------------
+$DiskInfo = Get-CimInstance -ClassName Win32_LogicalDisk -Filter "DriveType=3"   # DriveType=3 means "local fixed disk"
+
+# ---------------------------------------------------------------
+# STEP 4: Calculate uptime from the OS's last boot time
+# ---------------------------------------------------------------
+$LastBoot = $OSInfo.LastBootUpTime          # Extracts the LastBootUpTime property from the OS object
+$Uptime = (Get-Date) - $LastBoot            # Subtracts boot time from the current time to get a TimeSpan object
+
+# ---------------------------------------------------------------
+# STEP 5: Build a single, clean custom object with just what we need
+# ---------------------------------------------------------------
+$InventoryReport = [PSCustomObject]@{        # Creates a new custom object with named properties, in our own order
+    ServerName      = $ComputerName                                   # Stores the computer name
+    OperatingSystem = $OSInfo.Caption                                  # Human-readable OS name, e.g. "Microsoft Windows 11 Pro"
+    OSVersion       = $OSInfo.Version                                  # Numeric OS version string
+    Manufacturer    = $SystemInfo.Manufacturer                        # Hardware manufacturer (e.g. Dell, HP, VMware)
+    Model           = $SystemInfo.Model                                # Hardware/VM model
+    TotalMemoryGB   = [math]::Round($SystemInfo.TotalPhysicalMemory / 1GB, 2)  # Converts bytes to GB, rounds to 2 decimals
+    LastBootTime    = $LastBoot                                       # When the machine was last started
+    UptimeDays      = [math]::Round($Uptime.TotalDays, 2)             # Uptime expressed in days
+}
+
+# ---------------------------------------------------------------
+# STEP 6: Build one object per disk (so CSV export has one row per disk)
+# ---------------------------------------------------------------
+$DiskReport = $DiskInfo | ForEach-Object {    # Sends each disk object, one at a time, into this script block
+    [PSCustomObject]@{                        # Builds a clean custom object for this specific disk
+        ServerName   = $ComputerName                                          # Repeats server name so each row is self-contained
+        DriveLetter  = $_.DeviceID                                            # $_ is "this disk"; DeviceID is like "C:"
+        SizeGB       = [math]::Round($_.Size / 1GB, 2)                        # Total disk size converted to GB
+        FreeGB       = [math]::Round($_.FreeSpace / 1GB, 2)                   # Free space converted to GB
+        FreePercent  = [math]::Round(($_.FreeSpace / $_.Size) * 100, 1)       # Free space as a percentage of total size
+    }
+}
+
+# ---------------------------------------------------------------
+# STEP 7: Display the results on screen
+# ---------------------------------------------------------------
+Write-Host "`n=== SERVER INVENTORY SUMMARY ===" -ForegroundColor Magenta   # Prints a section header; `n adds a blank line first
+$InventoryReport | Format-List                                            # Displays the summary object, one property per line
+
+Write-Host "`n=== DISK INVENTORY ===" -ForegroundColor Magenta            # Prints another section header
+$DiskReport | Format-Table -AutoSize                                      # Displays disk rows as a neat auto-sized table
+
+# ---------------------------------------------------------------
+# STEP 8: Export both reports to CSV files for record-keeping
+# ---------------------------------------------------------------
+$Timestamp = Get-Date -Format "yyyyMMdd_HHmmss"       # Builds a sortable timestamp string, e.g. 20260804_091530
+
+$InventoryReport |                                     # Sends the summary object into the pipeline
+    Export-Csv -Path ".\reports\Inventory_$Timestamp.csv" -NoTypeInformation   # Writes it to CSV without the extra .NET type header line
+
+$DiskReport |                                          # Sends the disk rows into the pipeline
+    Export-Csv -Path ".\reports\Disks_$Timestamp.csv" -NoTypeInformation       # Writes disk data to its own CSV file
+
+Write-Host "`nReports saved to .\reports\" -ForegroundColor Green   # Confirms where the output files were saved
+</code></pre></div>
+      </div>
+    </section>
+
+    <section id="linebyline">
+      <h2>Line-by-Line Explanation</h2>
+      <p>We already explained the concepts above. Here we walk through the exact symbols and syntax used in this
+      specific script, piece by piece, so nothing is assumed.</p>
+
+      <h3><code>$ComputerName = $env:COMPUTERNAME</code></h3>
+      <ul class="explain-list">
+        <li><code>$ComputerName</code> — a new variable we are creating to hold the machine name.</li>
+        <li><code>=</code> — the assignment operator: "store the right-hand value into the left-hand variable".</li>
+        <li><code>$env:COMPUTERNAME</code> — an <b>environment variable</b>. The <code>$env:</code> prefix tells
+        PowerShell "look this up in the operating system's environment variables", not in our script's own variables.</li>
+      </ul>
+
+      <h3><code>Get-CimInstance -ClassName Win32_OperatingSystem</code></h3>
+      <ul class="explain-list">
+        <li><code>Get-CimInstance</code> — the cmdlet that queries the CIM/WMI management layer.</li>
+        <li><code>-ClassName</code> — a named parameter telling the cmdlet which WMI class to query.</li>
+        <li><code>Win32_OperatingSystem</code> — the specific WMI class that holds OS-level data (caption, version, boot time, etc).</li>
+      </ul>
+
+      <h3><code>Get-CimInstance -ClassName Win32_LogicalDisk -Filter "DriveType=3"</code></h3>
+      <ul class="explain-list">
+        <li><code>-Filter</code> — a parameter that lets WMI filter results <b>on the server side</b> (inside the
+        query itself), which is more efficient than pulling everything and filtering afterward with <code>Where-Object</code>.</li>
+        <li><code>"DriveType=3"</code> — a WMI query string; DriveType 3 specifically means "local fixed disk" (as
+        opposed to removable, network, or CD-ROM drives).</li>
+      </ul>
+
+      <h3><code>$Uptime = (Get-Date) - $LastBoot</code></h3>
+      <ul class="explain-list">
+        <li><code>(Get-Date)</code> — the parentheses force PowerShell to run <code>Get-Date</code> first and use its
+        result, rather than treating the whole line differently.</li>
+        <li><code>-</code> — here the minus operator is being used on two <b>DateTime objects</b>. PowerShell is
+        smart enough to know that subtracting one date from another produces a <code>TimeSpan</code> object (a
+        duration), not a plain number.</li>
+      </ul>
+
+      <h3><code>[PSCustomObject]@{ ServerName = $ComputerName; ... }</code></h3>
+      <ul class="explain-list">
+        <li><code>[PSCustomObject]</code> — a type accelerator that tells PowerShell "build a real custom object",
+        not just a hash table.</li>
+        <li><code>@{ }</code> — a hash table literal listing key–value pairs. When cast to <code>[PSCustomObject]</code>,
+        each key becomes a <b>property name</b>, and property order is preserved exactly as written — this matters
+        because it controls the column order later in <code>Format-Table</code> and CSV export.</li>
+        <li><code>ServerName = $ComputerName</code> — inside the hash table, <code>=</code> assigns a value to a
+        named key/property.</li>
+      </ul>
+
+      <h3><code>[math]::Round($SystemInfo.TotalPhysicalMemory / 1GB, 2)</code></h3>
+      <ul class="explain-list">
+        <li><code>[math]</code> — refers to the .NET <code>System.Math</code> class directly. PowerShell can call
+        .NET classes with square brackets when there's no cmdlet for what we need.</li>
+        <li><code>::Round(...)</code> — the double-colon calls a <b>static method</b> (a method that belongs to the
+        class itself, not to a specific object instance).</li>
+        <li><code>$SystemInfo.TotalPhysicalMemory</code> — the dot accesses the <code>TotalPhysicalMemory</code>
+        property (in raw bytes) on the <code>$SystemInfo</code> object.</li>
+        <li><code>/ 1GB</code> — PowerShell has built-in size constants (<code>1KB</code>, <code>1MB</code>,
+        <code>1GB</code>, <code>1TB</code>) that are just large numbers under the hood. Dividing bytes by
+        <code>1GB</code> converts the value to gigabytes.</li>
+        <li><code>, 2</code> — the second argument to <code>Round</code>: "round to 2 decimal places".</li>
+      </ul>
+
+      <h3><code>$DiskInfo | ForEach-Object { [PSCustomObject]@{ ... $_.DeviceID ... } }</code></h3>
+      <ul class="explain-list">
+        <li><code>|</code> — pipes each disk object from <code>$DiskInfo</code> into the next command, one at a time.</li>
+        <li><code>ForEach-Object { }</code> — runs the code inside the curly braces once for every object received.</li>
+        <li><code>$_</code> — inside that script block, represents "the current disk object being processed right now".</li>
+        <li><code>$_.DeviceID</code> — the drive letter property of the current disk (e.g. <code>"C:"</code>).</li>
+      </ul>
+
+      <h3><code>Write-Host "`n=== SERVER INVENTORY SUMMARY ===" -ForegroundColor Magenta</code></h3>
+      <ul class="explain-list">
+        <li><code>Write-Host</code> — prints directly to the console. Unlike <code>Write-Output</code>, its output
+        cannot be captured by the pipeline — it's for human-facing display only. (We'll cover why that distinction
+        matters for automation in a later project.)</li>
+        <li><code>` n</code> (backtick-n) — an <b>escape sequence</b> inside a double-quoted string meaning "insert a
+        newline here". The backtick is PowerShell's escape character.</li>
+        <li><code>-ForegroundColor Magenta</code> — a parameter that sets the text color in the console.</li>
+      </ul>
+
+      <h3><code>Export-Csv -Path ".\reports\Inventory_$Timestamp.csv" -NoTypeInformation</code></h3>
+      <ul class="explain-list">
+        <li><code>Export-Csv</code> — converts pipeline objects into CSV rows and writes them to a file.</li>
+        <li><code>-Path</code> — where to save the file. <code>.\</code> means "relative to the current folder".</li>
+        <li><code>$Timestamp</code> inside the double-quoted string — PowerShell automatically substitutes the
+        variable's value into the string; this is called <b>string interpolation</b>.</li>
+        <li><code>-NoTypeInformation</code> — by default, older PowerShell versions add a comment line at the top of
+        the CSV describing the .NET type. This switch removes that line so the CSV opens cleanly in Excel.</li>
+      </ul>
+    </section>
+
+    <section id="architecture">
+      <h2>Architecture &amp; Execution Flow</h2>
+      <h3>What happens when you run <code>.\Get-ServerInventory.ps1</code></h3>
+      <div class="diagram">
+        <div class="flow">
+          <div class="box">PowerShell Host</div><div class="arrow">→</div>
+          <div class="box">PowerShell Engine</div><div class="arrow">→</div>
+          <div class="box">Parser</div><div class="arrow">→</div>
+          <div class="box">Command Discovery</div><div class="arrow">→</div>
+          <div class="box">Parameter Binding</div><div class="arrow">→</div>
+          <div class="box">Pipeline Execution</div><div class="arrow">→</div>
+          <div class="box">.NET / CIM Objects</div><div class="arrow">→</div>
+          <div class="box">Console + CSV Output</div>
+        </div>
+      </div>
+      <ul class="explain-list">
+        <li><b>PowerShell Host</b> — the program you typed into (VS Code terminal, Windows Terminal, ISE). It's just the "window".</li>
+        <li><b>PowerShell Engine</b> — the actual runtime that interprets and executes your script.</li>
+        <li><b>Parser</b> — reads your script's text and checks it's syntactically valid PowerShell.</li>
+        <li><b>Command Discovery</b> — for each cmdlet name (like <code>Get-CimInstance</code>), the engine locates
+        which module/binary actually implements it.</li>
+        <li><b>Parameter Binding</b> — matches the values you typed (like <code>-ClassName Win32_OperatingSystem</code>)
+        to the cmdlet's defined parameters.</li>
+        <li><b>Pipeline Execution</b> — objects flow from one cmdlet to the next through <code>|</code>.</li>
+        <li><b>.NET / CIM Objects</b> — the actual data returned, backed by .NET types under the hood.</li>
+        <li><b>Console + CSV Output</b> — the final human-readable and file-based results we produced.</li>
+      </ul>
+
+      <h3>How Get-CimInstance reaches Windows internally</h3>
+      <div class="diagram">
+        <div class="flow">
+          <div class="box">PowerShell</div><div class="arrow">→</div>
+          <div class="box">CIM Cmdlets</div><div class="arrow">→</div>
+          <div class="box">WMI Provider Host (WmiPrvSE.exe)</div><div class="arrow">→</div>
+          <div class="box">WMI Repository</div><div class="arrow">→</div>
+          <div class="box">OS / Hardware Data</div><div class="arrow">→</div>
+          <div class="box">Returned as Objects to PowerShell</div>
+        </div>
+      </div>
+      <p>WMI is a long-standing Windows management framework. When you call <code>Get-CimInstance</code>, PowerShell
+      talks to a background Windows process that queries the WMI repository (a structured database of system
+      information maintained by Windows itself) and hands the results back as objects.</p>
+    </section>
+
+    <section id="troubleshoot">
+      <h2>Troubleshooting Cheat Sheet</h2>
+      <table>
+        <tr><th>Symptom</th><th>Likely Root Cause</th><th>Fix</th></tr>
+        <tr>
+          <td>Script won't run: "cannot be loaded because running scripts is disabled"</td>
+          <td>Execution Policy is set to <code>Restricted</code></td>
+          <td>Run <code>Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass</code> for the current session, or
+          <code>-Scope CurrentUser</code> for a lasting local change</td>
+        </tr>
+        <tr>
+          <td>"Get-CimInstance is not recognized"</td>
+          <td>Very old PowerShell version, or a broken/incomplete install</td>
+          <td>Check <code>$PSVersionTable.PSVersion</code>; install PowerShell 7 from Microsoft's official source</td>
+        </tr>
+        <tr>
+          <td>Disk report shows no rows</td>
+          <td><code>-Filter "DriveType=3"</code> excluded all drives (e.g. running inside a container/VM with unusual disk types)</td>
+          <td>Temporarily remove the filter, inspect <code>DriveType</code> values with <code>Get-Member</code>, then adjust</td>
+        </tr>
+        <tr>
+          <td>CSV file not created</td>
+          <td>The <code>reports</code> folder doesn't exist, or you're in the wrong working directory</td>
+          <td>Confirm your folder with <code>Get-Location</code>; re-run Step 3 from the lab to create <code>.\reports</code></td>
+        </tr>
+        <tr>
+          <td>Numbers show too many decimal places or look wrong</td>
+          <td>Division was done before unit conversion, or rounding wasn't applied</td>
+          <td>Double-check the order of operations: divide by <code>1GB</code> first, then round</td>
+        </tr>
+      </table>
+      <div class="callout warn"><span class="lbl">Debugging tip</span>When something looks wrong, don't guess —
+      insert a temporary line like <code>$OSInfo | Get-Member</code> right after the query to see every real
+      property name available. Remove it once you've confirmed what you need.</div>
+    </section>
+
+    <section id="security">
+      <h2>Security &amp; Best Practices</h2>
+      <div class="callout security">
+        <span class="lbl">No secrets in this project — and that's intentional</span>
+        This project runs against the local machine only, so there are no credentials to handle yet. Starting from
+        Project 2 onward, as we begin talking to remote servers, we will introduce <code>PSCredential</code> and
+        <code>SecureString</code> properly — never hard-coded plaintext passwords.
+      </div>
+      <div class="callout tip"><span class="lbl">Best practice reinforced here</span>Notice we used
+      <code>[PSCustomObject]</code> instead of printing raw text with string concatenation. Structured objects are
+      reusable (for CSV, HTML, further filtering) — raw text output is a dead end for automation.</div>
+    </section>
+
+    <section id="recap">
+      <h2>Key Learnings &amp; Recap</h2>
+      <div class="grid2">
+        <div>
+          <h3>Commands Learned</h3>
+          <ul class="explain-list">
+            <li><code>Get-CimInstance</code></li>
+            <li><code>Get-Date</code></li>
+            <li><code>Get-Member</code></li>
+            <li><code>ForEach-Object</code></li>
+            <li><code>Format-List</code> / <code>Format-Table</code></li>
+            <li><code>Export-Csv</code></li>
+            <li><code>[math]::Round()</code></li>
+            <li><code>[PSCustomObject]</code></li>
+          </ul>
+        </div>
+        <div>
+          <h3>Concepts Learned</h3>
+          <ul class="explain-list">
+            <li>Object pipeline vs text pipeline</li>
+            <li>Variables, arrays, hash tables</li>
+            <li>Environment variables</li>
+            <li>String interpolation and escape sequences</li>
+            <li>.NET static methods via <code>[Type]::Method()</code></li>
+            <li>WMI/CIM as Windows' management data source</li>
+          </ul>
+        </div>
+      </div>
+      <h3>Common Mistakes to Avoid</h3>
+      <ul class="explain-list">
+        <li>Using <code>Write-Host</code> everywhere instead of returning real objects — makes output impossible to reuse or pipe further.</li>
+        <li>Filtering with <code>Where-Object</code> when the source cmdlet already supports server-side filtering (like WMI's <code>-Filter</code>) — slower and less efficient.</li>
+        <li>Forgetting that dividing large byte counts without converting units produces misleading numbers.</li>
+      </ul>
+    </section>
+
+    <section id="interview">
+      <h2>Interview Preparation</h2>
+      <details><summary>Q1. What's the core difference between PowerShell and traditional shells like Bash?</summary>
+        <p><b>Answer:</b> Traditional shells pass plain text between commands, requiring text parsing (grep, awk,
+        sed). PowerShell passes structured .NET objects through the pipeline, so downstream commands can access real
+        properties and methods directly, without parsing strings.</p>
+        <p><b>Follow-up:</b> "Can you give an example of a bug this design prevents?" — Answer: parsing failures
+        when column widths or locale-based date formats change; with objects, you access <code>.Name</code> or
+        <code>.Date</code> directly regardless of display formatting.</p>
+      </details>
+      <details><summary>Q2. What does <code>$_</code> represent, and where can you use it?</summary>
+        <p><b>Answer:</b> It's an automatic variable representing the current object in the pipeline, valid inside
+        script blocks like <code>Where-Object</code>, <code>ForEach-Object</code>, and <code>Process</code> blocks of
+        advanced functions.</p>
+        <p><b>Follow-up:</b> "What happens if you use <code>$_</code> outside a pipeline script block?" — Answer: it
+        will be <code>$null</code> or refer to an unrelated value; it only has meaning inside a block actively
+        receiving pipeline input.</p>
+      </details>
+      <details><summary>Q3. Why did we use Get-CimInstance instead of the older Get-WmiObject?</summary>
+        <p><b>Answer:</b> <code>Get-CimInstance</code> is the modern replacement — it works over WS-Management (used
+        for remoting later), is cross-platform-compatible in PowerShell 7, and is actively maintained.
+        <code>Get-WmiObject</code> is deprecated and removed entirely from PowerShell 7.</p>
+        <p><b>Follow-up:</b> "What protocol does Get-CimInstance use for remote queries?" — Answer: WSMan/WinRM by
+        default (we'll cover this deeply in the remoting projects).</p>
+      </details>
+      <details><summary>Q4. Why build a [PSCustomObject] instead of just printing strings?</summary>
+        <p><b>Answer:</b> Objects preserve structure and types, can be piped into <code>Export-Csv</code>,
+        <code>ConvertTo-Json</code>, filtering, or sorting — string output can only be displayed, not reused.</p>
+        <p><b>Follow-up:</b> "How would you turn this into JSON instead of CSV?" — Answer: pipe the object into
+        <code>ConvertTo-Json</code> and write it with <code>Set-Content</code> — we'll do this in a later project.</p>
+      </details>
+    </section>
+
+    <section id="challenges">
+      <h2>Coding Challenges</h2>
+      <p>Try these yourself before opening the answers.</p>
+      <details><summary>Challenge 1: Add the logged-on username to the report</summary>
+        <p><i>Task:</i> Add a <code>LoggedOnUser</code> property to <code>$InventoryReport</code> using a property
+        already available on <code>$SystemInfo</code>.</p>
+        <details><summary>Show answer</summary>
+        <pre><code>LoggedOnUser = $SystemInfo.UserName   # Win32_ComputerSystem exposes the currently logged-on user</code></pre>
+        </details>
+      </details>
+      <details><summary>Challenge 2: Warn when free disk space drops below 15%</summary>
+        <p><i>Task:</i> After building <code>$DiskReport</code>, loop through it and print a warning for any disk
+        under 15% free.</p>
+        <details><summary>Show answer</summary>
+        <pre><code>$DiskReport | Where-Object { $_.FreePercent -lt 15 } | ForEach-Object {
+    Write-Warning "$($_.DriveLetter) on $($_.ServerName) is low on space: $($_.FreePercent)% free"
+}</code></pre>
+        </details>
+      </details>
+      <details><summary>Challenge 3: Only export the CSV if the reports folder exists, otherwise create it automatically</summary>
+        <p><i>Task:</i> Make the script self-healing — don't assume the folder was created manually.</p>
+        <details><summary>Show answer</summary>
+        <pre><code>if (-not (Test-Path ".\reports")) {           # Checks whether the folder exists
+    New-Item -ItemType Directory -Path ".\reports" | Out-Null   # Creates it silently if missing
+}</code></pre>
+        </details>
+      </details>
+    </section>
+
+    <section id="resume">
+      <h2>Resume Points</h2>
+      <ul class="explain-list">
+        <li>Built a PowerShell script to automate collection of Windows server OS, hardware, and disk inventory using CIM/WMI.</li>
+        <li>Designed structured, reusable output using PSCustomObject and automated CSV export for reporting.</li>
+        <li>Applied PowerShell object-pipeline concepts (Where-Object, ForEach-Object, Export-Csv) to replace manual server checks.</li>
+      </ul>
+    </section>
+
+    <section id="assignment">
+      <h2>Practice Assignment</h2>
+      <div class="callout note">
+        Extend the script to also collect the number of CPU cores (<code>Win32_Processor</code>) and add it to the
+        summary report. Re-run the script and confirm the new column appears correctly in the CSV file.
+      </div>
+    </section>
+
+    <section id="next">
+      <h2>Next Project Prerequisites</h2>
+      <p>Project 02 (Disk Space Monitoring) will build directly on this script's disk-collection logic and add
+      threshold-based alerting. Make sure you can comfortably run this script and understand every line above before
+      moving on. When you're ready, just say <b>"Next Project."</b></p>
+    </section>
+
+    <footer>
+      PowerShell Masterclass — ABC Bank Automation Track · Project 01 of 40 · Generated for offline, self-contained use.
+    </footer>
+  </main>
+</div>
+
+<script>
+function copyCode(btn){
+  const code = btn.parentElement.querySelector('pre').innerText;
+  navigator.clipboard.writeText(code).then(()=>{
+    const old = btn.innerText; btn.innerText = "Copied!";
+    setTimeout(()=>btn.innerText = old, 1200);
+  });
+}
+// Scroll progress
+window.addEventListener('scroll', ()=>{
+  const h = document.documentElement;
+  const pct = (h.scrollTop) / (h.scrollHeight - h.clientHeight) * 100;
+  document.getElementById('progressFill').style.width = pct + '%';
+  document.getElementById('progressLabel').innerText = 'Reading progress: ' + Math.round(pct) + '%';
+});
+</script>
+</body>
+</html>

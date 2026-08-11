@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Project 6 — Wireshark Analysis</title>
+<style>
+:root{
+  --blue:#2563EB; --blue-bg:#EFF6FF;
+  --purple:#7C3AED; --purple-bg:#F5F3FF;
+  --teal:#0F766E; --teal-bg:#F0FDFA;
+  --green:#16A34A; --green-bg:#F0FDF4;
+  --orange:#EA580C; --orange-bg:#FFF7ED;
+  --red:#DC2626; --red-bg:#FEF2F2;
+  --bg:#FFFFFF; --text:#1F2937; --muted:#6B7280;
+  --border:#E5E7EB; --sidebar-w:280px;
+}
+*{box-sizing:border-box;}
+body{margin:0;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--text);line-height:1.65;}
+a{color:var(--blue);text-decoration:none;}
+a:hover{text-decoration:underline;}
+code{font-family:"SFMono-Regular",Consolas,"Liberation Mono",Menlo,monospace;}
+
+.cover{padding:60px 24px 40px;background:linear-gradient(135deg,var(--blue-bg),var(--purple-bg));border-bottom:1px solid var(--border);}
+.cover-inner{max-width:900px;margin:0 auto;}
+.badge-row{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:18px;}
+.badge{font-size:12.5px;font-weight:600;padding:5px 12px;border-radius:20px;letter-spacing:.02em;}
+.badge.blue{background:var(--blue);color:#fff;}
+.badge.purple{background:var(--purple);color:#fff;}
+.badge.teal{background:var(--teal);color:#fff;}
+.badge.orange{background:var(--orange);color:#fff;}
+.cover h1{font-size:2.1rem;margin:0 0 8px;color:#111827;}
+.cover .subtitle{font-size:1.05rem;color:var(--muted);margin-bottom:26px;}
+.cover-meta{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;}
+.meta-card{background:#fff;border:1px solid var(--border);border-radius:10px;padding:12px 14px;}
+.meta-card .label{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:700;}
+.meta-card .value{font-size:14.5px;font-weight:600;margin-top:2px;}
+
+.layout{display:flex;max-width:1400px;margin:0 auto;}
+.sidebar{width:var(--sidebar-w);flex-shrink:0;position:sticky;top:0;align-self:flex-start;height:100vh;overflow-y:auto;border-right:1px solid var(--border);padding:22px 14px;}
+.sidebar h4{font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin:18px 0 6px 10px;}
+.sidebar h4:first-child{margin-top:0;}
+.sidebar a{display:block;padding:7px 10px;border-radius:8px;font-size:13.5px;color:#374151;margin-bottom:1px;}
+.sidebar a:hover{background:var(--blue-bg);text-decoration:none;color:var(--blue);}
+.progress-wrap{margin:10px 10px 4px;}
+.progress-bar{height:6px;background:var(--border);border-radius:4px;overflow:hidden;}
+.progress-fill{height:100%;width:0%;background:linear-gradient(90deg,var(--blue),var(--purple));transition:width .2s;}
+.progress-label{font-size:11px;color:var(--muted);margin-top:4px;}
+
+.content{flex:1;min-width:0;padding:34px 40px 100px;}
+section{margin-bottom:48px;scroll-margin-top:20px;}
+h2.sec-title{font-size:1.5rem;border-bottom:2px solid var(--border);padding-bottom:10px;margin-bottom:18px;display:flex;align-items:center;gap:10px;}
+h2.sec-title .num{background:var(--blue);color:#fff;width:30px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;}
+h3{font-size:1.15rem;margin-top:28px;color:#111827;}
+
+.box{border-radius:10px;padding:16px 18px;margin:16px 0;border:1px solid transparent;}
+.box .box-title{font-weight:700;font-size:13px;text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px;display:flex;align-items:center;gap:6px;}
+.box.concept{background:var(--blue-bg);border-color:#BFDBFE;}
+.box.concept .box-title{color:var(--blue);}
+.box.architecture{background:var(--purple-bg);border-color:#DDD6FE;}
+.box.architecture .box-title{color:var(--purple);}
+.box.success{background:var(--green-bg);border-color:#BBF7D0;}
+.box.success .box-title{color:var(--green);}
+.box.warning{background:var(--orange-bg);border-color:#FED7AA;}
+.box.warning .box-title{color:var(--orange);}
+.box.failure{background:var(--red-bg);border-color:#FECACA;}
+.box.failure .box-title{color:var(--red);}
+.box.bestpractice{background:var(--teal-bg);border-color:#99F6E4;}
+.box.bestpractice .box-title{color:var(--teal);}
+.box.story{background:#F9FAFB;border-color:var(--border);border-left:4px solid var(--purple);}
+
+.story p{margin:0 0 10px;}
+.story .quote{font-style:italic;color:#374151;border-left:3px solid var(--purple);padding-left:12px;margin:10px 0;}
+
+.term{background:#0F172A;color:#E2E8F0;border-radius:10px;margin:14px 0;overflow:hidden;border:1px solid #1E293B;}
+.term-header{display:flex;justify-content:space-between;align-items:center;background:#1E293B;padding:8px 14px;font-size:12px;color:#94A3B8;}
+.copy-btn{background:#334155;color:#E2E8F0;border:none;border-radius:6px;padding:4px 10px;font-size:11.5px;cursor:pointer;}
+.copy-btn:hover{background:#475569;}
+.term pre{margin:0;padding:14px 16px;overflow-x:auto;font-size:13.5px;line-height:1.6;}
+.term .cmdno{color:#64748B;margin-right:8px;}
+.term .cmd{color:#7DD3FC;}
+.term .out{color:#CBD5E1;}
+.term .out-err{color:#FCA5A5;}
+.term .out-ok{color:#86EFAC;}
+.term .comment{color:#64748B;}
+
+table.breakdown{width:100%;border-collapse:collapse;margin:12px 0 20px;font-size:14px;}
+table.breakdown th{background:#F3F4F6;text-align:left;padding:8px 10px;font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);}
+table.breakdown td{padding:9px 10px;border-top:1px solid var(--border);vertical-align:top;}
+table.breakdown td.token{font-family:monospace;color:var(--blue);font-weight:700;white-space:nowrap;}
+
+details.collapse{border:1px solid var(--border);border-radius:10px;margin:14px 0;overflow:hidden;}
+details.collapse summary{cursor:pointer;padding:12px 16px;font-weight:600;background:#F9FAFB;list-style:none;display:flex;align-items:center;gap:8px;}
+details.collapse summary::-webkit-details-marker{display:none;}
+details.collapse summary:before{content:"▶";font-size:11px;color:var(--muted);transition:transform .15s;}
+details.collapse[open] summary:before{transform:rotate(90deg);}
+details.collapse .collapse-body{padding:4px 16px 16px;}
+
+.diagram-frame{background:#FAFAFA;border:1px solid var(--border);border-radius:12px;padding:18px;margin:16px 0;overflow-x:auto;}
+.diagram-caption{font-size:12.5px;color:var(--muted);text-align:center;margin-top:8px;}
+
+table.ref{width:100%;border-collapse:collapse;font-size:14px;margin:14px 0;}
+table.ref th{background:#F3F4F6;padding:8px 10px;text-align:left;font-size:12.5px;}
+table.ref td{padding:8px 10px;border-top:1px solid var(--border);}
+
+.dtree{list-style:none;padding-left:0;font-size:14px;}
+.dtree li{padding:8px 12px;margin-bottom:6px;border-radius:8px;border:1px solid var(--border);position:relative;}
+.dtree li.q{background:var(--blue-bg);}
+.dtree li.ok{background:var(--green-bg);}
+.dtree li.bad{background:var(--red-bg);}
+.dtree .arrow{text-align:center;color:var(--muted);font-size:12px;margin:2px 0;}
+
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin:16px 0;}
+.card{border:1px solid var(--border);border-radius:10px;padding:14px 16px;}
+.card h4{margin:0 0 6px;font-size:14.5px;}
+.card p{margin:0;font-size:13.5px;color:var(--muted);}
+
+.qa{border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin:12px 0;background:#FCFCFD;}
+.qa .q{font-weight:700;color:#111827;margin-bottom:6px;}
+.qa .q .qtag{background:var(--purple);color:#fff;font-size:10.5px;padding:2px 8px;border-radius:10px;margin-right:8px;text-transform:uppercase;}
+.qa .followup{margin-top:8px;padding-top:8px;border-top:1px dashed var(--border);font-size:13.5px;color:var(--muted);}
+
+.top-link{position:fixed;bottom:22px;right:22px;background:var(--blue);color:#fff;width:42px;height:42px;border-radius:50%;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(0,0,0,.15);font-size:18px;}
+.top-link:hover{text-decoration:none;background:#1D4ED8;}
+
+.wsframe{border:1px solid #D1D5DB;border-radius:10px;overflow:hidden;background:#fff;margin:16px 0;}
+.wsframe .wstop{background:#F3F4F6;padding:6px 10px;font-size:11px;color:var(--muted);border-bottom:1px solid var(--border);}
+.wsrow{display:grid;grid-template-columns:40px 90px 110px 110px 70px 1fr;gap:0;font-size:12px;padding:5px 8px;border-bottom:1px solid #F3F4F6;}
+.wsrow.hd{background:#F9FAFB;font-weight:700;color:var(--muted);}
+.wsrow.syn{background:var(--blue-bg);}
+.wsrow.retrans{background:var(--red-bg);color:#991B1B;}
+.wsrow.dup{background:var(--orange-bg);color:#9A3412;}
+.wsrow.zero{background:var(--purple-bg);color:#5B21B6;}
+.wsrow.ok{background:var(--green-bg);}
+
+@media (max-width:900px){
+  .sidebar{display:none;}
+  .content{padding:22px 18px 80px;}
+  .wsrow{font-size:10.5px;}
+}
+</style>
+</head>
+<body>
+
+<div class="cover">
+  <div class="cover-inner">
+    <div class="badge-row">
+      <span class="badge blue">Project 6 of ~38</span>
+      <span class="badge purple">Linux Networking Masterclass</span>
+      <span class="badge teal">Domain: Telecom / DevOps</span>
+      <span class="badge orange">Difficulty: Intermediate</span>
+    </div>
+    <h1>Wireshark Analysis</h1>
+    <div class="subtitle">A telecom billing API integration is throughput-limited in a way raw tcpdump text makes hard to spot at a glance. Time to learn Wireshark's visual analysis — and the exact display filters that turn a 50,000-packet capture into three suspicious ones.</div>
+    <div class="cover-meta">
+      <div class="meta-card"><div class="label">Estimated Lab Time</div><div class="value">2.5 – 3 hours</div></div>
+      <div class="meta-card"><div class="label">Prerequisites</div><div class="value">Project 5 completed; Wireshark installed on your own machine</div></div>
+      <div class="meta-card"><div class="label">Lab Environment</div><div class="value">Namespaces + tshark to generate .pcap files, analyzed in Wireshark GUI</div></div>
+      <div class="meta-card"><div class="label">Concepts Learned</div><div class="value">TCP Stream view, Expert Info, retransmission/dup-ACK/zero-window filters</div></div>
+    </div>
+  </div>
+</div>
+
+<div class="layout">
+  <nav class="sidebar" id="sidebar">
+    <div class="progress-wrap">
+      <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+      <div class="progress-label" id="progressLabel">0% through Project 6</div>
+    </div>
+    <h4>Orientation</h4>
+    <a href="#story">1. The Incident</a>
+    <a href="#foundation">2. Why Wireshark, Not Just tcpdump</a>
+    <a href="#architecture">3. The Wireshark Window</a>
+    <a href="#filters">4. Capture Filters vs Display Filters</a>
+    <a href="#methodology">5. Analysis Workflow</a>
+    <h4>Hands-On Lab</h4>
+    <a href="#labsetup">6. Generate Lab Captures</a>
+    <a href="#verify">7. Verify Baseline in Wireshark</a>
+    <h4>Break / Fix — Read the Pattern (4 Incidents)</h4>
+    <a href="#break1">8. Retransmissions, Visually</a>
+    <a href="#break2">9. Duplicate ACKs</a>
+    <a href="#break3">10. Zero Window</a>
+    <a href="#break4">11. RST in a TCP Stream</a>
+    <h4>Wrap-Up</h4>
+    <a href="#bestpractices">12. Best Practices</a>
+    <a href="#cheatsheet">13. Cheat Sheet</a>
+    <a href="#interview">14. Interview Prep</a>
+    <a href="#practice">15. Practice Tasks</a>
+    <a href="#resume">16. Resume Points</a>
+    <a href="#next">17. Next Project</a>
+  </nav>
+
+  <main class="content">
+
+  <section id="story">
+    <h2 class="sec-title"><span class="num">1</span>The Incident</h2>
+    <div class="box story">
+      <p>We're supporting a telecom company's billing platform, which integrates with a partner's usage-rating API. A large nightly batch job that used to finish in 40 minutes now regularly takes 3+ hours, and nobody can point to a specific error — just "it's slow."</p>
+      <p class="quote">"We pulled a packet capture during last night's run — it's about 90MB and has tens of thousands of packets. We don't even know what we're looking for. Can Linux infra take a pass at it?"</p>
+      <p>This is a completely different kind of challenge from our previous projects — we already have the evidence, but it's too large to read line by line the way we did with tcpdump's raw text output in Project 5. This is exactly the situation Wireshark's visual tools were built for.</p>
+    </div>
+    <div class="box concept">
+      <div class="box-title">🔵 Why this project matters</div>
+      <p>Reading raw tcpdump output works great for a handful of packets. It falls apart at scale. Wireshark takes the exact same packet data and gives you filtering, coloring, statistics, and stream-reconstruction tools that turn "somewhere in these 50,000 packets" into "here are the exact 12 packets that explain the whole incident." Every senior Linux/DevOps engineer eventually needs this skill for capture files too large or too complex to read as plain text.</p>
+    </div>
+  </section>
+
+  <section id="foundation">
+    <h2 class="sec-title"><span class="num">2</span>Why Wireshark, Not Just tcpdump</h2>
+    <div class="box concept">
+      <div class="box-title">🔵 Concept</div>
+      <p>Wireshark and tcpdump both use the same underlying capture library (libpcap) and can read each other's files. The difference is entirely in analysis: Wireshark adds a GUI with color-coded rows, a "Follow TCP Stream" feature that reconstructs an entire conversation into readable order, an "Expert Info" panel that automatically flags retransmissions/resets/zero-windows for you, and a powerful display-filter language that's separate from (and more expressive than) tcpdump's capture-time BPF filters.</p>
+    </div>
+    <div class="box concept">
+      <div class="box-title">🔵 Concept — Wireshark's built-in TCP analysis</div>
+      <p>Wireshark doesn't just show you raw packets — it tracks the state of every TCP stream as it reads a capture and automatically annotates suspicious patterns for you: <code>[TCP Retransmission]</code>, <code>[TCP Dup ACK]</code>, <code>[TCP ZeroWindow]</code>, <code>[TCP Out-Of-Order]</code>. This turns manual pattern-spotting (like we did by eye in Project 5) into something you can filter for directly by name.</p>
+    </div>
+  </section>
+
+  <section id="architecture">
+    <h2 class="sec-title"><span class="num">3</span>The Wireshark Window, Explained</h2>
+    <div class="box architecture">
+      <div class="box-title">🟣 Architecture</div>
+      <p>Wireshark's main window always has three stacked panes. Understanding what each one is for is the foundation of using the tool efficiently.</p>
+    </div>
+    <div class="diagram-frame">
+<svg viewBox="0 0 820 320" xmlns="http://www.w3.org/2000/svg" width="100%">
+<style>.lbl{font:600 13px sans-serif;fill:#1F2937;} .sub{font:11px sans-serif;fill:#6B7280;} .box{fill:#EFF6FF;stroke:#2563EB;stroke-width:1.5;rx:8;} .box2{fill:#F5F3FF;stroke:#7C3AED;stroke-width:1.5;rx:8;} .box3{fill:#F0FDFA;stroke:#0F766E;stroke-width:1.5;rx:8;}</style>
+<rect x="20" y="20" width="780" height="30" fill="#E5E7EB" rx="6"/><text x="410" y="40" text-anchor="middle" class="sub">Display filter bar (e.g. tcp.analysis.retransmission)</text>
+<rect x="20" y="60" width="780" height="100" class="box"/><text x="410" y="82" text-anchor="middle" class="lbl">Packet List Pane</text><text x="410" y="100" text-anchor="middle" class="sub">One row per packet — No., Time, Source, Destination, Protocol, Info</text><text x="410" y="118" text-anchor="middle" class="sub">Color-coded: black=RST/errors, dark red=retransmission, light purple=TCP control</text>
+<rect x="20" y="170" width="780" height="70" class="box2"/><text x="410" y="192" text-anchor="middle" class="lbl">Packet Detail Pane</text><text x="410" y="210" text-anchor="middle" class="sub">Expandable tree: Frame → Ethernet → IP → TCP → payload, for the packet selected above</text>
+<rect x="20" y="250" width="780" height="55" class="box3"/><text x="410" y="272" text-anchor="middle" class="lbl">Bytes Pane</text><text x="410" y="290" text-anchor="middle" class="sub">Raw hex/ASCII of the selected packet</text>
+</svg>
+    </div>
+    <div class="diagram-caption">Figure 1 — Click any row in the Packet List, and the Packet Detail and Bytes panes update to show that packet's full structure.</div>
+  </section>
+
+  <section id="filters">
+    <h2 class="sec-title"><span class="num">4</span>Capture Filters vs Display Filters — Do Not Confuse These</h2>
+    <div class="box warning">
+      <div class="box-title">🟠 Warning — the #1 beginner mistake in Wireshark</div>
+      <p><b>Capture filters</b> (using BPF syntax, same as tcpdump — <code>host 10.10.9.50 and port 8443</code>) decide what gets captured in the first place, applied BEFORE packets are saved. <b>Display filters</b> (Wireshark's own, different syntax — <code>tcp.analysis.retransmission</code>) decide what's shown to you from an ALREADY-captured file, and can be changed as many times as you like without recapturing anything. They look similar but use completely different syntax — putting a display filter into the capture filter box (or vice versa) simply won't work.</p>
+    </div>
+    <table class="breakdown">
+      <tr><th>Display Filter</th><th>What It Shows</th></tr>
+      <tr><td class="token">tcp.analysis.retransmission</td><td>Every packet Wireshark identified as a retransmitted segment — the visual equivalent of spotting duplicate sequence numbers by eye.</td></tr>
+      <tr><td class="token">tcp.analysis.duplicate_ack</td><td>Packets where the receiver re-acknowledged the same byte position it already acknowledged — usually a sign the receiver is telling the sender "I'm still missing something," often preceding a retransmission.</td></tr>
+      <tr><td class="token">tcp.analysis.zero_window</td><td>Packets where a host advertised a TCP window size of 0 — telling the sender "stop sending, my receive buffer is full" — a strong signal of a slow reader on the receiving side.</td></tr>
+      <tr><td class="token">tcp.flags.reset == 1</td><td>Every packet with the RST flag set — instantly find every reset in a huge capture.</td></tr>
+      <tr><td class="token">dns</td><td>Show only DNS query/response packets.</td></tr>
+      <tr><td class="token">http</td><td>Show only HTTP request/response packets.</td></tr>
+      <tr><td class="token">tls.handshake.type == 1</td><td>Show only TLS Client Hello packets — the very first step of a TLS handshake, useful for confirming a TLS negotiation even started.</td></tr>
+      <tr><td class="token">ip.addr == 10.10.9.50 &amp;&amp; tcp.port == 8443</td><td>Combine host and port filters using Wireshark's own AND syntax (&amp;&amp;, different from tcpdump's "and").</td></tr>
+    </table>
+  </section>
+
+  <section id="methodology">
+    <h2 class="sec-title"><span class="num">5</span>Analysis Workflow for a Large Capture</h2>
+    <ul class="dtree">
+      <li class="q">1. Open the file. Go to Statistics → Conversations to see which host pairs carried the most traffic/time — narrow down to the relevant flow</li>
+      <div class="arrow">↓</div>
+      <li class="q">2. Go to Statistics → Expert Information — Wireshark's automatic summary of every warning/error it detected (retransmissions, resets, zero windows) with counts</li>
+      <div class="arrow">↓</div>
+      <li class="q">3. Apply a display filter matching the most common warning type from Expert Info to jump straight to the interesting packets</li>
+      <div class="arrow">↓</div>
+      <li class="q">4. Right-click a packet in that stream → Follow → TCP Stream, to see the whole conversation in order, reconstructed and readable</li>
+      <div class="arrow">↓</div>
+      <li class="ok">Correlate what you found back to application-level timing (when did the batch job slow down?) to confirm cause and effect</li>
+    </ul>
+    <div class="box bestpractice"><div class="box-title">🟦 Production Best Practice</div><p>Never scroll through a large capture packet-by-packet looking for problems. Always start with Statistics → Expert Information — it does the pattern-spotting for you and tells you exactly how many of each issue type exist, which is the fastest way to know whether you're looking at one weird packet or a systemic issue affecting thousands.</p></div>
+  </section>
+
+  <section id="labsetup">
+    <h2 class="sec-title"><span class="num">6</span>Generate Lab Captures (tshark, then open in Wireshark)</h2>
+    <p>Since we're working from the Linux command line, we'll use <code>tshark</code> — Wireshark's command-line sibling, which shares the same capture and analysis engine — to generate three realistic, labeled .pcap files. Then you'll copy them to your own machine and open them in the Wireshark GUI to practice the visual workflow.</p>
+    <div class="term">
+      <div class="term-header"><span>bash — rebuild the namespace lab</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button></div>
+      <pre><span class="cmdno">1</span><span class="cmd">sudo ip netns add ns-billing-client</span>
+<span class="cmdno">2</span><span class="cmd">sudo ip netns add ns-rating-api</span>
+<span class="cmdno">3</span><span class="cmd">sudo ip link add veth-bc type veth peer name veth-ra</span>
+<span class="cmdno">4</span><span class="cmd">sudo ip link set veth-bc netns ns-billing-client</span>
+<span class="cmdno">5</span><span class="cmd">sudo ip link set veth-ra netns ns-rating-api</span>
+<span class="cmdno">6</span><span class="cmd">sudo ip netns exec ns-billing-client ip addr add 10.50.1.10/24 dev veth-bc</span>
+<span class="cmdno">7</span><span class="cmd">sudo ip netns exec ns-rating-api ip addr add 10.50.1.20/24 dev veth-ra</span>
+<span class="cmdno">8</span><span class="cmd">sudo ip netns exec ns-billing-client ip link set veth-bc up</span>
+<span class="cmdno">9</span><span class="cmd">sudo ip netns exec ns-rating-api ip link set veth-ra up</span>
+<span class="cmdno">10</span><span class="cmd">for ns in ns-billing-client ns-rating-api; do sudo ip netns exec $ns ip link set lo up; done</span>
+<span class="cmdno">11</span><span class="cmd">sudo ip netns exec ns-rating-api python3 -m http.server 8443 --bind 10.50.1.20 &amp;</span></pre>
+    </div>
+  </section>
+
+  <section id="verify">
+    <h2 class="sec-title"><span class="num">7</span>Verify Baseline in Wireshark</h2>
+    <div class="term">
+      <div class="term-header"><span>bash — capture a clean baseline with tshark</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button></div>
+      <pre><span class="cmdno">1</span><span class="cmd">sudo ip netns exec ns-rating-api tshark -i veth-ra -f "tcp port 8443" -w /tmp/01-baseline.pcap -c 30 &amp;</span>
+<span class="cmdno">2</span><span class="cmd">sudo ip netns exec ns-billing-client curl -s -o /dev/null http://10.50.1.20:8443/</span></pre>
+    </div>
+    <table class="breakdown">
+      <tr><th>Token</th><th>Meaning</th></tr>
+      <tr><td class="token">tshark -i veth-ra</td><td>Same idea as tcpdump's -i — capture on this interface.</td></tr>
+      <tr><td class="token">-f "tcp port 8443"</td><td>tshark's <b>capture filter</b> flag — note this uses the same BPF syntax as tcpdump, NOT Wireshark's display-filter syntax.</td></tr>
+      <tr><td class="token">-w /tmp/01-baseline.pcap</td><td>Write to a file, exactly like tcpdump -w — this file can be opened directly in the Wireshark GUI.</td></tr>
+    </table>
+    <div class="box success"><div class="box-title">🟢 Validation — copy this file to your own machine and open it</div><p>Copy <code>/tmp/01-baseline.pcap</code> to your laptop (scp, or your VM provider's file transfer) and open it in Wireshark. You should see a clean SYN → SYN-ACK → ACK, an HTTP GET/response, then a clean FIN sequence — every row a neutral color, Expert Information showing zero warnings. This is our known-good visual baseline.</p></div>
+  </section>
+
+  <!-- BREAK 1 -->
+  <section id="break1">
+    <h2 class="sec-title"><span class="num">8</span>Break-Fix #1 — Retransmissions, Visually</h2>
+    <div class="box failure"><div class="box-title">🔴 Break It</div><p>Reintroduce lossy conditions like Project 5, but this time capture with tshark for Wireshark analysis.</p></div>
+    <div class="term">
+      <div class="term-header"><span>bash</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button></div>
+      <pre><span class="cmdno">1</span><span class="cmd">sudo ip netns exec ns-billing-client tc qdisc add dev veth-bc root netem loss 20%</span>
+<span class="cmdno">2</span><span class="cmd">sudo ip netns exec ns-rating-api tshark -i veth-ra -f "tcp port 8443" -w /tmp/02-retransmit.pcap -c 60 &amp;</span>
+<span class="cmdno">3</span><span class="cmd">sudo ip netns exec ns-billing-client curl -s -o /dev/null http://10.50.1.20:8443/</span></pre>
+    </div>
+    <p>Copy <code>/tmp/02-retransmit.pcap</code> to your machine, open it in Wireshark, and type this into the display filter bar:</p>
+    <div class="term">
+      <div class="term-header"><span>Wireshark display filter</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button></div>
+      <pre><span class="cmd">tcp.analysis.retransmission</span></pre>
+    </div>
+    <div class="wsframe">
+      <div class="wstop">Packet List Pane — simulated view of what you'll see</div>
+      <div class="wsrow hd"><span>No.</span><span>Time</span><span>Source</span><span>Destination</span><span>Proto</span><span>Info</span></div>
+      <div class="wsrow syn"><span>1</span><span>0.000</span><span>10.50.1.10</span><span>10.50.1.20</span><span>TCP</span><span>51301 → 8443 [SYN]</span></div>
+      <div class="wsrow ok"><span>2</span><span>0.001</span><span>10.50.1.20</span><span>10.50.1.10</span><span>TCP</span><span>8443 → 51301 [SYN, ACK]</span></div>
+      <div class="wsrow retrans"><span>7</span><span>0.301</span><span>10.50.1.10</span><span>10.50.1.20</span><span>TCP</span><span>[TCP Retransmission] 51301 → 8443 [PSH, ACK]</span></div>
+      <div class="wsrow retrans"><span>15</span><span>0.902</span><span>10.50.1.10</span><span>10.50.1.20</span><span>TCP</span><span>[TCP Retransmission] 51301 → 8443 [PSH, ACK]</span></div>
+    </div>
+    <div class="box concept"><div class="box-title">🔵 Reading the symptom</div><p>Wireshark automatically colors retransmissions dark red/black and labels them right in the Info column — no manual sequence-number comparison needed. Look at the Time column: each retransmission jumps forward by hundreds of milliseconds, exactly the "invisible tax" we found manually with raw tcpdump in Project 5, now visible instantly. Check Statistics → Expert Information and you'll see a count of how many retransmissions occurred across the whole capture — this is how you'd quickly judge whether the billing batch job's slowdown is systemic (thousands of retransmissions) or an isolated blip (just a few).</p></div>
+    <div class="term">
+      <div class="term-header"><span>bash — cleanup</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button></div>
+      <pre><span class="cmdno">1</span><span class="cmd">sudo ip netns exec ns-billing-client tc qdisc del dev veth-bc root netem</span></pre>
+    </div>
+  </section>
+
+  <!-- BREAK 2 -->
+  <section id="break2">
+    <h2 class="sec-title"><span class="num">9</span>Break-Fix #2 — Duplicate ACKs</h2>
+    <div class="box failure"><div class="box-title">🔴 Break It</div><p>Use netem's duplicate option to simulate a network segment that occasionally delivers the same packet twice — common on certain WAN links and misconfigured redundant paths.</p></div>
+    <div class="term">
+      <div class="term-header"><span>bash</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button></div>
+      <pre><span class="cmdno">1</span><span class="cmd">sudo ip netns exec ns-billing-client tc qdisc add dev veth-bc root netem duplicate 25%</span>
+<span class="cmdno">2</span><span class="cmd">sudo ip netns exec ns-rating-api tshark -i veth-ra -f "tcp port 8443" -w /tmp/03-dupack.pcap -c 60 &amp;</span>
+<span class="cmdno">3</span><span class="cmd">sudo ip netns exec ns-billing-client curl -s -o /dev/null http://10.50.1.20:8443/</span></pre>
+    </div>
+    <p>Open <code>/tmp/03-dupack.pcap</code> in Wireshark and filter:</p>
+    <div class="term">
+      <div class="term-header"><span>Wireshark display filter</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button></div>
+      <pre><span class="cmd">tcp.analysis.duplicate_ack</span></pre>
+    </div>
+    <div class="wsframe">
+      <div class="wstop">Packet List Pane — simulated view</div>
+      <div class="wsrow hd"><span>No.</span><span>Time</span><span>Source</span><span>Destination</span><span>Proto</span><span>Info</span></div>
+      <div class="wsrow dup"><span>9</span><span>0.050</span><span>10.50.1.20</span><span>10.50.1.10</span><span>TCP</span><span>[TCP Dup ACK 8#1] 8443 → 51301 [ACK]</span></div>
+      <div class="wsrow dup"><span>10</span><span>0.051</span><span>10.50.1.20</span><span>10.50.1.10</span><span>TCP</span><span>[TCP Dup ACK 8#2] 8443 → 51301 [ACK]</span></div>
+    </div>
+    <div class="box concept"><div class="box-title">🔵 Reading the symptom</div><p>The label <code>[TCP Dup ACK 8#1]</code> tells you exactly which original packet (frame 8, in this example) this is a duplicate acknowledgment of, and Wireshark numbers repeated dup-ACKs for the same segment (#1, #2, #3...). A small number of duplicate ACKs is often harmless — but three duplicate ACKs for the same segment is the classic trigger for TCP's "fast retransmit" mechanism, where the sender resends data without even waiting for a timeout, because three dup-ACKs is treated as strong evidence of loss.</p></div>
+    <div class="term">
+      <div class="term-header"><span>bash — cleanup</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button></div>
+      <pre><span class="cmdno">1</span><span class="cmd">sudo ip netns exec ns-billing-client tc qdisc del dev veth-bc root netem</span></pre>
+    </div>
+  </section>
+
+  <!-- BREAK 3 -->
+  <section id="break3">
+    <h2 class="sec-title"><span class="num">10</span>Break-Fix #3 — Zero Window (The Real Culprit Behind the Batch Job)</h2>
+    <div class="box failure"><div class="box-title">🔴 Break It</div><p>Simulate a slow-reading receiver — an application that accepts data slower than the network can deliver it, forcing its TCP receive buffer to fill up. We'll use a Python client that reads in tiny, deliberately delayed chunks.</p></div>
+    <div class="term">
+      <div class="term-header"><span>bash — on ns-billing-client, create a deliberately slow reader</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button></div>
+      <pre><span class="cmdno">1</span><span class="cmd">sudo ip netns exec ns-billing-client bash -c "cat > /tmp/slow_reader.py" &lt;&lt;'EOF'
+import socket, time
+s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+s.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, 1024)  # tiny receive buffer
+s.connect(('10.50.1.20', 8443))
+s.send(b"GET / HTTP/1.0\r\nHost: rating-api\r\n\r\n")
+while True:
+    data = s.recv(64)   # read very small chunks
+    if not data:
+        break
+    time.sleep(0.5)      # simulate a slow application not draining the buffer
+EOF</span>
+<span class="cmdno">2</span><span class="cmd">sudo ip netns exec ns-rating-api tshark -i veth-ra -f "tcp port 8443" -w /tmp/04-zerowindow.pcap -c 80 &amp;</span>
+<span class="cmdno">3</span><span class="cmd">sudo ip netns exec ns-billing-client python3 /tmp/slow_reader.py</span></pre>
+    </div>
+    <table class="breakdown">
+      <tr><th>Token</th><th>Meaning</th></tr>
+      <tr><td class="token">SO_RCVBUF, 1024</td><td>Shrinks the kernel's receive buffer for this socket down to 1KB — a small buffer fills up much faster, making a zero-window condition easy to reproduce on demand in a lab.</td></tr>
+      <tr><td class="token">time.sleep(0.5)</td><td>Simulates a slow application — one that isn't calling recv() fast enough to drain the buffer, exactly like a batch job doing heavy processing on each chunk before asking for more data.</td></tr>
+    </table>
+    <p>Open <code>/tmp/04-zerowindow.pcap</code> in Wireshark and filter:</p>
+    <div class="term">
+      <div class="term-header"><span>Wireshark display filter</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button></div>
+      <pre><span class="cmd">tcp.analysis.zero_window</span></pre>
+    </div>
+    <div class="wsframe">
+      <div class="wstop">Packet List Pane — simulated view</div>
+      <div class="wsrow hd"><span>No.</span><span>Time</span><span>Source</span><span>Destination</span><span>Proto</span><span>Info</span></div>
+      <div class="wsrow zero"><span>22</span><span>0.512</span><span>10.50.1.10</span><span>10.50.1.20</span><span>TCP</span><span>[TCP ZeroWindow] 51402 → 8443 [ACK] Win=0</span></div>
+      <div class="wsrow zero"><span>34</span><span>1.030</span><span>10.50.1.20</span><span>10.50.1.10</span><span>TCP</span><span>[TCP ZeroWindowProbe] 8443 → 51402 [ACK]</span></div>
+    </div>
+    <div class="box concept"><div class="box-title">🔵 Reading the symptom — the real root cause</div><p><code>Win=0</code> is the client explicitly telling the server "stop sending, my buffer is full." The server then periodically sends small "ZeroWindowProbe" packets asking "any room yet?" — and transfer basically stalls until the client's application catches up and drains its buffer. THIS is what a slow-consuming application looks like on the wire, and it's a very different root cause from packet loss or a firewall issue — the network is delivering data perfectly fine; the receiving application simply can't keep up. For a nightly batch job that got slower over time, this pattern — check whether the client-side application logic (not the network) is the actual bottleneck — is exactly where a senior engineer's instincts should go next.</p></div>
+    <div class="box bestpractice"><div class="box-title">🟦 Fix — this is an application/tuning fix, not a network fix</div><p>The real-world fix is either speeding up the application's own processing of received data (so it drains its buffer faster) or increasing the socket's receive buffer size (a mitigation, not a cure, if the application itself is genuinely too slow) — never a routing, firewall, or DNS change.</p></div>
+  </section>
+
+  <!-- BREAK 4 -->
+  <section id="break4">
+    <h2 class="sec-title"><span class="num">11</span>Break-Fix #4 — Spotting an RST Inside a TCP Stream</h2>
+    <div class="box failure"><div class="box-title">🔴 Break It</div><p>Revisit the REJECT scenario from Project 4, capturing with tshark this time.</p></div>
+    <div class="term">
+      <div class="term-header"><span>bash</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button></div>
+      <pre><span class="cmdno">1</span><span class="cmd">sudo ip netns exec ns-rating-api iptables -A INPUT -p tcp --dport 8443 -j REJECT --reject-with tcp-reset</span>
+<span class="cmdno">2</span><span class="cmd">sudo ip netns exec ns-rating-api tshark -i veth-ra -f "tcp port 8443" -w /tmp/05-reset.pcap -c 10 &amp;</span>
+<span class="cmdno">3</span><span class="cmd">sudo ip netns exec ns-billing-client timeout 3 curl http://10.50.1.20:8443/</span></pre>
+    </div>
+    <p>Open <code>/tmp/05-reset.pcap</code> in Wireshark and filter:</p>
+    <div class="term">
+      <div class="term-header"><span>Wireshark display filter</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button></div>
+      <pre><span class="cmd">tcp.flags.reset == 1</span></pre>
+    </div>
+    <div class="box concept"><div class="box-title">🔵 Reading the symptom</div><p>In the Packet List, RST packets are typically shown in a distinct dark/black color by Wireshark's default coloring rules, making them easy to spot visually even without filtering. Right-click the RST packet → Follow → TCP Stream to see the entire short-lived conversation in one readable window — you'll see the SYN, the SYN-ACK never arriving (or arriving then immediately reset, depending on where the REJECT is applied), confirming exactly where the conversation broke down.</p></div>
+    <div class="term">
+      <div class="term-header"><span>bash — cleanup</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button></div>
+      <pre><span class="cmdno">1</span><span class="cmd">sudo ip netns exec ns-rating-api iptables -D INPUT -p tcp --dport 8443 -j REJECT --reject-with tcp-reset</span></pre>
+    </div>
+  </section>
+
+  <section id="bestpractices">
+    <h2 class="sec-title"><span class="num">12</span>Production Best Practices</h2>
+    <div class="cards">
+      <div class="card"><h4>🟦 Start with Expert Information</h4><p>Never manually scroll a large capture — let Wireshark's automatic analysis point you at the interesting packets first.</p></div>
+      <div class="card"><h4>🟦 Know your filter language</h4><p>Capture filters (BPF, same as tcpdump) and display filters (Wireshark's own syntax) are not interchangeable — mixing them up is the most common beginner mistake.</p></div>
+      <div class="card"><h4>🟦 Zero window ≠ network problem</h4><p>A zero-window condition means the receiving application is the bottleneck, not the network — don't waste time chasing routing or firewall causes for this pattern.</p></div>
+      <div class="card"><h4>🟦 Follow TCP Stream for context</h4><p>Individual packets rarely tell the full story — reconstructing the whole conversation in order is often what actually explains an incident.</p></div>
+      <div class="card"><h4>🟦 tshark for headless capture, Wireshark for analysis</h4><p>Servers rarely have a GUI — capture with tshark over SSH, then transfer the .pcap to your workstation for the visual deep-dive.</p></div>
+    </div>
+  </section>
+
+  <section id="cheatsheet">
+    <h2 class="sec-title"><span class="num">13</span>Display Filter Cheat Sheet</h2>
+    <table class="ref">
+      <tr><th>What You're Looking For</th><th>Display Filter</th></tr>
+      <tr><td>Retransmitted packets</td><td><code>tcp.analysis.retransmission</code></td></tr>
+      <tr><td>Duplicate ACKs</td><td><code>tcp.analysis.duplicate_ack</code></td></tr>
+      <tr><td>Zero window (receiver buffer full)</td><td><code>tcp.analysis.zero_window</code></td></tr>
+      <tr><td>Connection resets</td><td><code>tcp.flags.reset == 1</code></td></tr>
+      <tr><td>Only DNS traffic</td><td><code>dns</code></td></tr>
+      <tr><td>Only HTTP traffic</td><td><code>http</code></td></tr>
+      <tr><td>TLS Client Hello only</td><td><code>tls.handshake.type == 1</code></td></tr>
+      <tr><td>Traffic to/from a host and port</td><td><code>ip.addr == 10.50.1.20 &amp;&amp; tcp.port == 8443</code></td></tr>
+    </table>
+  </section>
+
+  <section id="interview">
+    <h2 class="sec-title"><span class="num">14</span>Interview Preparation</h2>
+
+    <div class="qa"><div class="q"><span class="qtag">Scenario</span>You're handed a large packet capture with no context and told "figure out why this was slow." Where do you start?</div>
+    <p>I wouldn't scroll through it manually — I'd open Statistics → Conversations first to identify the relevant host pair and time range, then go straight to Statistics → Expert Information, which automatically summarizes every retransmission, duplicate ACK, reset, and zero-window event Wireshark detected. Whichever pattern dominates tells me where to focus — for example, a huge count of zero-window events points to a slow-consuming application rather than a network problem, while lots of retransmissions points to packet loss.</p>
+    <div class="followup">Interviewer follow-up: "What's the difference between a retransmission and a zero-window issue, in terms of root cause?" — Answer: retransmissions mean data is being lost in transit and needs to be resent — a network-path problem. A zero window means the data IS arriving fine, but the receiving application isn't reading it fast enough, so its buffer fills up and it tells the sender to pause — that's an application or receiver-side performance problem, not a network problem.</div>
+    </div>
+
+    <div class="qa"><div class="q"><span class="qtag">Concept</span>What's the difference between a Wireshark capture filter and a display filter?</div>
+    <p>A capture filter uses BPF syntax, the same as tcpdump, and determines what gets captured in the first place — it's applied before any data is saved. A display filter uses Wireshark's own separate syntax and is applied afterward, to an already-captured file, purely to control what's shown on screen — you can change it as many times as you want without recapturing anything.</p>
+    </div>
+
+    <div class="qa"><div class="q"><span class="qtag">Troubleshooting</span>What does a TCP zero-window condition tell you, and what would you check next?</div>
+    <p>It tells me the receiving side's TCP buffer is full because the application isn't draining it fast enough — the network delivered the data successfully. I'd check what the receiving application is doing with each chunk of data — heavy processing per request, blocking I/O, or an undersized read loop are common causes — rather than looking at routing, DNS, or firewall configuration.</p>
+    </div>
+
+    <div class="qa"><div class="q"><span class="qtag">Production</span>Why capture with tshark instead of the Wireshark GUI on a production server?</div>
+    <p>Production servers rarely have a graphical environment, and even if they did, running a full GUI application isn't appropriate on a production host. tshark shares the exact same capture and protocol-analysis engine as Wireshark but runs entirely from the command line, so I can capture remotely over SSH and then transfer the resulting .pcap file to my workstation for visual analysis.</p>
+    </div>
+  </section>
+
+  <section id="practice">
+    <h2 class="sec-title"><span class="num">15</span>Practice Tasks &amp; Break-Fix Challenge</h2>
+    <div class="box warning">
+      <div class="box-title">🟠 Practice Tasks</div>
+      <ol>
+        <li>Generate all four lab captures again from memory, using tshark instead of tcpdump this time.</li>
+        <li>In Wireshark, use Statistics → Expert Information on each capture and confirm the counts match what you'd expect from each scenario.</li>
+        <li>Practice Follow → TCP Stream on the zero-window capture and describe, in your own words, what the reconstructed conversation shows about timing.</li>
+      </ol>
+    </div>
+    <div class="box failure">
+      <div class="box-title">🔴 Break-Fix Challenge</div>
+      <p>Have someone else generate one of the four capture types without telling you which. Using ONLY Statistics → Expert Information and the display filters from this project's cheat sheet, identify which scenario it is and explain your reasoning from the evidence alone.</p>
+    </div>
+  </section>
+
+  <section id="resume">
+    <h2 class="sec-title"><span class="num">16</span>Resume Points &amp; How to Explain This Project</h2>
+    <div class="box bestpractice">
+      <div class="box-title">🟦 Realistic resume bullet points</div>
+      <ul>
+        <li>Analyzed large-scale packet captures using Wireshark's Expert Information and display-filter tooling to distinguish network packet loss from application-side receive-buffer bottlenecks.</li>
+        <li>Diagnosed a TCP zero-window condition causing severe throughput degradation, tracing the root cause to slow application-side data consumption rather than network performance.</li>
+        <li>Established a headless capture (tshark) plus GUI analysis (Wireshark) workflow for troubleshooting production servers without graphical environments.</li>
+      </ul>
+    </div>
+    <div class="box concept">
+      <div class="box-title">🔵 Natural spoken interview answer</div>
+      <p>"I worked through a scenario simulating a large, unfamiliar packet capture from a slow batch job, and practiced Wireshark's real analysis workflow instead of scrolling through packets by hand — starting with Statistics and Expert Information to see what patterns dominated the capture. I reproduced four distinct TCP problems — packet loss causing retransmissions, duplicate ACKs from a lossy link, a connection reset, and a zero-window condition from a deliberately slow-reading client — and learned to recognize each one's specific signature. The most valuable lesson was the zero-window case: it looked like a performance problem, but Wireshark showed clearly that the network was delivering data fine and the client application's slow processing was the actual bottleneck, which completely changes who needs to fix it."</p>
+    </div>
+  </section>
+
+  <section id="next">
+    <h2 class="sec-title"><span class="num">17</span>Next Project Prerequisites</h2>
+    <div class="box architecture">
+      <div class="box-title">🟣 Coming up in Project 7 — Linux Firewall Troubleshooting</div>
+      <p>We'll go deep into iptables and nftables — chains, tables, NAT, connection tracking — building on the DROP/REJECT rules we've used as supporting characters in Projects 1, 4, 5, and 6, and finally making the firewall itself the star of the investigation.</p>
+      <p>Say <b>"Next Project"</b> when you're ready to continue.</p>
+    </div>
+  </section>
+
+  </main>
+</div>
+
+<a href="#" class="top-link" title="Back to top">↑</a>
+
+<script>
+function copyBlock(btn){
+  const pre = btn.closest('.term').querySelector('pre');
+  const text = pre.innerText;
+  navigator.clipboard.writeText(text).then(()=>{
+    const old = btn.textContent;
+    btn.textContent = "Copied!";
+    setTimeout(()=>btn.textContent = old, 1400);
+  });
+}
+window.addEventListener('scroll', function(){
+  const sections = document.querySelectorAll('section');
+  const total = document.body.scrollHeight - window.innerHeight;
+  const pct = Math.min(100, Math.round((window.scrollY/total)*100));
+  document.getElementById('progressFill').style.width = pct + '%';
+  document.getElementById('progressLabel').textContent = pct + '% through Project 6';
+
+  let current = '';
+  sections.forEach(sec=>{
+    const rect = sec.getBoundingClientRect();
+    if(rect.top <= 120) current = sec.id;
+  });
+  document.querySelectorAll('.sidebar a').forEach(a=>{
+    a.style.background = '';
+    a.style.color = '';
+    a.style.fontWeight = '';
+    if(a.getAttribute('href') === '#'+current){
+      a.style.background = 'var(--blue-bg)';
+      a.style.color = 'var(--blue)';
+      a.style.fontWeight = '700';
+    }
+  });
+});
+</script>
+</body>
+</html>

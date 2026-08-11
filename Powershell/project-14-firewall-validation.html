@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Project 14 — Windows Firewall Validation | PowerShell Masterclass</title>
+<style>
+  :root{
+    --primary:#6D28D9; --secondary:#7C3AED; --light-purple:#EDE9FE; --xlight-purple:#F5F3FF;
+    --bg:#FFFFFF; --text:#1F2937; --muted:#6B7280; --border:#E5E1F5;
+    --success:#15803D; --warn:#B45309; --danger:#B91C1C;
+    --code-bg:#1E1B2E; --code-text:#E9E4FF;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0; font-family:"Segoe UI",Calibri,Roboto,Arial,sans-serif; background:var(--bg); color:var(--text); line-height:1.65;}
+  a{color:var(--primary);}
+  .layout{display:flex; max-width:1400px; margin:0 auto;}
+  nav.sidebar{width:270px; flex-shrink:0; position:sticky; top:0; height:100vh; overflow-y:auto; background:var(--xlight-purple); border-right:1px solid var(--border); padding:22px 16px;}
+  nav.sidebar h3{color:var(--primary); font-size:13px; text-transform:uppercase; letter-spacing:.06em; margin:18px 0 8px;}
+  nav.sidebar a{display:block; padding:7px 10px; border-radius:8px; color:var(--text); text-decoration:none; font-size:14px; margin-bottom:2px;}
+  nav.sidebar a:hover{background:var(--light-purple); color:var(--primary);}
+  #progressWrap{background:var(--light-purple); border-radius:10px; padding:10px; margin-bottom:8px;}
+  #progressBar{height:8px; background:var(--border); border-radius:6px; overflow:hidden;}
+  #progressFill{height:100%; width:0%; background:linear-gradient(90deg,var(--primary),var(--secondary)); transition:width .2s;}
+  #progressLabel{font-size:12px; color:var(--muted); margin-top:6px;}
+  main{flex:1; min-width:0; padding:0;}
+  .cover{background:linear-gradient(135deg,var(--primary),var(--secondary)); color:#fff; padding:60px 48px; position:relative; overflow:hidden;}
+  .cover::after{content:"";position:absolute;right:-80px;top:-80px;width:300px;height:300px;border-radius:50%;background:rgba(255,255,255,.08);}
+  .badge{display:inline-block; background:rgba(255,255,255,.18); padding:5px 14px; border-radius:20px; font-size:12px; letter-spacing:.05em; margin-right:8px; margin-bottom:14px;}
+  .cover h1{font-size:34px; margin:6px 0 10px; max-width:760px;}
+  .cover p.sub{font-size:16px; opacity:.92; max-width:640px;}
+  .cover-meta{display:flex; gap:28px; margin-top:26px; flex-wrap:wrap;}
+  .cover-meta div{background:rgba(255,255,255,.12); padding:12px 18px; border-radius:10px; min-width:140px;}
+  .cover-meta span{display:block; font-size:12px; opacity:.85;}
+  .cover-meta strong{font-size:16px;}
+  section{padding:34px 48px; border-bottom:1px solid var(--border);}
+  section h2{color:var(--primary); font-size:24px; border-left:5px solid var(--primary); padding-left:14px; margin-top:0;}
+  section h3{color:var(--secondary); font-size:18px; margin-top:26px;}
+  .story{background:var(--xlight-purple); border-left:5px solid var(--primary); padding:20px 24px; border-radius:0 10px 10px 0; font-size:15px;}
+  .story b{color:var(--primary);}
+  .callout{border-radius:10px; padding:16px 18px; margin:16px 0; font-size:14.5px;}
+  .callout.tip{background:#F0FDF4; border-left:5px solid var(--success);}
+  .callout.note{background:var(--xlight-purple); border-left:5px solid var(--secondary);}
+  .callout.warn{background:#FFFBEB; border-left:5px solid var(--warn);}
+  .callout.security{background:#FEF2F2; border-left:5px solid var(--danger);}
+  .callout .lbl{font-weight:700; display:block; margin-bottom:4px;}
+  table{width:100%; border-collapse:collapse; margin:16px 0; font-size:14px;}
+  th,td{border:1px solid var(--border); padding:9px 12px; text-align:left; vertical-align:top;}
+  th{background:var(--light-purple); color:var(--primary);}
+  tr:nth-child(even){background:var(--xlight-purple);}
+  .codewrap{position:relative; margin:16px 0;}
+  pre{background:var(--code-bg); color:var(--code-text); padding:18px 16px; border-radius:10px; overflow-x:auto; font-family:Consolas,"Cascadia Code",Menlo,monospace; font-size:13.5px; line-height:1.7;}
+  pre code{white-space:pre;}
+  .copybtn{position:absolute; top:10px; right:10px; background:var(--secondary); color:#fff; border:none; padding:6px 12px; border-radius:6px; font-size:12px; cursor:pointer;}
+  .copybtn:hover{background:var(--primary);}
+  .explain-list{list-style:none; padding:0; margin:14px 0;}
+  .explain-list li{background:var(--xlight-purple); border-radius:8px; padding:10px 14px; margin-bottom:6px; font-size:14.5px;}
+  .explain-list code{background:var(--light-purple); padding:2px 6px; border-radius:5px; color:var(--primary); font-weight:600;}
+  details{background:var(--xlight-purple); border-radius:10px; padding:12px 16px; margin:10px 0;}
+  details summary{cursor:pointer; font-weight:600; color:var(--primary);}
+  .diagram{background:var(--xlight-purple); border-radius:12px; padding:20px; margin:16px 0; overflow-x:auto;}
+  .flow{display:flex; flex-wrap:wrap; align-items:center; gap:10px; font-size:13.5px;}
+  .flow .box{background:#fff; border:2px solid var(--secondary); border-radius:8px; padding:8px 14px; font-weight:600; color:var(--primary);}
+  .flow .arrow{color:var(--secondary); font-size:18px;}
+  .steps{counter-reset:step;}
+  .steps .step{position:relative; padding-left:44px; margin-bottom:18px;}
+  .steps .step::before{counter-increment:step; content:counter(step); position:absolute; left:0; top:0; background:var(--primary); color:#fff; width:30px; height:30px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:700;}
+  .grid2{display:grid; grid-template-columns:1fr 1fr; gap:16px;}
+  @media(max-width:900px){.grid2{grid-template-columns:1fr;} nav.sidebar{display:none;} section{padding:26px 20px;} .cover{padding:36px 22px;}}
+  footer{padding:30px 48px; background:var(--xlight-purple); color:var(--muted); font-size:13px;}
+</style>
+</head>
+<body>
+
+<div class="layout">
+  <nav class="sidebar">
+    <div id="progressWrap">
+      <div id="progressLabel">Reading progress</div>
+      <div id="progressBar"><div id="progressFill"></div></div>
+    </div>
+    <h3>Project 14</h3>
+    <a href="#cover">Cover</a>
+    <a href="#recap1">Recap: Projects 1–13</a>
+    <a href="#story">The Story</a>
+    <a href="#concepts">Concepts First</a>
+    <a href="#lab">Hands-On Lab</a>
+    <a href="#script">Full Script</a>
+    <a href="#linebyline">Line-by-Line</a>
+    <a href="#architecture">Architecture</a>
+    <a href="#incident">Production Incident</a>
+    <a href="#troubleshoot">Troubleshooting</a>
+    <a href="#security">Security Notes</a>
+    <a href="#recap">Key Learnings</a>
+    <a href="#interview">Interview Prep</a>
+    <a href="#challenges">Coding Challenges</a>
+    <a href="#resume">Resume Points</a>
+    <a href="#assignment">Practice Assignment</a>
+    <a href="#next">Next Project</a>
+  </nav>
+
+  <main id="top">
+    <div class="cover" id="cover">
+      <span class="badge">PROJECT 14</span><span class="badge">INTERMEDIATE</span><span class="badge">BFSI TRACK</span>
+      <h1>Windows Firewall Validation</h1>
+      <p class="sub">Validate that required firewall rules exist and are enabled, using a CSV-driven compliance check — and learn why some cmdlets split data across linked, associated objects.</p>
+      <div class="cover-meta">
+        <div><span>Difficulty</span><strong>Intermediate</strong></div>
+        <div><span>Estimated Lab Time</span><strong>75–90 min</strong></div>
+        <div><span>Concepts</span><strong>8 core concepts</strong></div>
+        <div><span>Track</span><strong>14 of 40</strong></div>
+      </div>
+    </div>
+
+    <section id="recap1">
+      <h2>Quick Recap of Projects 1–13</h2>
+      <p>Project 8 checked whether a port was reachable from the <i>outside</i>; this project checks the firewall
+      <i>configuration itself</i> from the inside — are the rules that should exist actually there, actually
+      enabled, and actually allowing what we expect? We'll also reuse Project 9's config-driven CSV approach and
+      Project 10/13's ShouldProcess-and-idempotency discipline for any rule we need to create.</p>
+    </section>
+
+    <section id="story">
+      <h2>The Story — Why We're Building This</h2>
+      <div class="story">
+        The banking application team says their new service needs inbound port 8443 open, and swears they already
+        requested it. Nobody can confirm whether the firewall rule actually exists, is enabled, or was created
+        correctly, without someone manually opening Windows Defender Firewall with Advanced Security and hunting
+        through hundreds of rules. Our manager wants a script that reads a list of <b>required rules from a config
+        file</b> (same CSV-driven approach as Project 9), validates each one against the real firewall, and — only
+        if genuinely missing — creates it safely.
+      </div>
+    </section>
+
+    <section id="concepts">
+      <h2>Concepts First — Before We Touch Code</h2>
+
+      <h3>1. The NetSecurity Module</h3>
+      <table>
+        <tr><th>Cmdlet</th><th>Purpose</th></tr>
+        <tr><td><code>Get-NetFirewallRule</code></td><td>Lists firewall rules and their high-level properties (Enabled, Direction, Action, Profile)</td></tr>
+        <tr><td><code>Get-NetFirewallPortFilter</code></td><td>Gets the port/protocol details <i>associated with</i> a rule</td></tr>
+        <tr><td><code>New-NetFirewallRule</code></td><td>Creates a new rule, optionally in one step with its port details</td></tr>
+      </table>
+
+      <h3>2. Why Port Info Isn't Directly on the Rule Object</h3>
+      <div class="callout warn"><span class="lbl">A genuinely important design detail</span>Unlike a service
+      object (Project 4) where everything you need is one property away, a firewall rule's port and protocol
+      information live on a <i>separate, associated</i> object. This reflects how Windows Firewall itself is
+      structured internally — one rule can have multiple filter types attached (port, address, application, security)
+      — so <code>Get-NetFirewallRule</code> alone won't tell you what port a rule covers.</div>
+      <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code>$Rule = Get-NetFirewallRule -DisplayName "Core Banking App"
+$PortInfo = $Rule | Get-NetFirewallPortFilter                # Follows the association from rule to its port details
+$PortInfo.LocalPort                                            # e.g. 8443</code></pre></div>
+      <ul class="explain-list">
+        <li><code>$Rule | Get-NetFirewallPortFilter</code> — piping the rule object into this cmdlet (rather than
+        passing a name) uses the rule's internal association to find its linked port filter — the same underlying
+        pattern as <code>Get-Process | Get-NetworkPath</code> style associated-object cmdlets you'll encounter
+        elsewhere in Windows administration.</li>
+      </ul>
+
+      <h3>3. Key Rule Properties</h3>
+      <table>
+        <tr><th>Property</th><th>Meaning</th></tr>
+        <tr><td><code>DisplayName</code></td><td>Human-readable rule name</td></tr>
+        <tr><td><code>Enabled</code></td><td><code>True</code>/<code>False</code> — is the rule active</td></tr>
+        <tr><td><code>Direction</code></td><td>Inbound or Outbound</td></tr>
+        <tr><td><code>Action</code></td><td>Allow or Block</td></tr>
+        <tr><td><code>Profile</code></td><td>Which network profile(s) it applies to — Domain, Private, Public, or Any</td></tr>
+      </table>
+
+      <h3>4. Firewall Profiles — Why They Matter</h3>
+      <div class="callout note"><span class="lbl">Domain vs Private vs Public</span>Windows applies different rule
+      sets depending on which network profile is active. A rule scoped only to "Domain" won't help on a server
+      connected to a "Public" network profile — checking a rule exists isn't enough; it also needs to apply to the
+      right profile for the environment it's protecting.</div>
+
+      <h3>5. Creating a Rule with New-NetFirewallRule</h3>
+      <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code>New-NetFirewallRule `
+    -DisplayName "Core Banking App" `
+    -Direction Inbound `
+    -Action Allow `
+    -Protocol TCP `
+    -LocalPort 8443 `
+    -Profile Domain,Private</code></pre></div>
+      <ul class="explain-list">
+        <li>Unlike the two-step read pattern, <code>New-NetFirewallRule</code> can set both the rule and its port
+        details in one call — the module provides convenience parameters that create the associated port filter
+        object behind the scenes for you.</li>
+      </ul>
+
+      <h3>6. Reusing the Config-Driven Pattern from Project 9</h3>
+      <p>Required rules live in a CSV — <code>RuleName,Port,Protocol,Profile</code> — so Operations can request a new
+      port be validated/opened by editing a spreadsheet-like file, not by asking someone to modify PowerShell code.</p>
+    </section>
+
+    <section id="lab">
+      <h2>Hands-On Lab — Build It Yourself</h2>
+      <div class="steps">
+        <div class="step"><b>Create the project structure:</b>
+          <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code>New-Item -ItemType Directory -Path "C:\PS-Masterclass\Project14\config" -Force
+New-Item -ItemType Directory -Path "C:\PS-Masterclass\Project14\reports" -Force
+Set-Location "C:\PS-Masterclass\Project14"</code></pre></div>
+        </div>
+        <div class="step"><b>Create <code>config\required-rules.csv</code>:</b>
+          <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code>RuleName,Port,Protocol,Profile
+ABCBank-CoreApp,8443,TCP,Private
+ABCBank-ReportingSvc,8081,TCP,Private</code></pre></div>
+        </div>
+        <div class="step"><b>Create <code>Test-FirewallCompliance.ps1</code></b> in VS Code (as Administrator - both
+        reading full rule details and creating rules typically need elevation) and paste the full script below.</div>
+        <div class="step"><b>Run it in preview mode first:</b>
+          <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code>.\Test-FirewallCompliance.ps1</code></pre></div>
+        </div>
+        <div class="step"><b>Apply it for real:</b>
+          <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code>.\Test-FirewallCompliance.ps1 -WhatIf:$false</code></pre></div>
+        </div>
+        <div class="step"><b>Verify manually</b> in Windows Defender Firewall with Advanced Security → Inbound
+        Rules, then run the script a second time and confirm it now reports both rules as already compliant instead
+        of creating them again.</div>
+      </div>
+    </section>
+
+    <section id="script">
+      <h2>Full Script — Test-FirewallCompliance.ps1</h2>
+      <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code># =====================================================================
+# Test-FirewallCompliance.ps1
+# ABC Bank - Windows Infrastructure Automation Team
+# Purpose: Validate and enforce required inbound firewall rules from config
+# =====================================================================
+
+[CmdletBinding(SupportsShouldProcess)]      # Same pattern from Projects 10 and 13
+param(
+    [switch]$WhatIf = $true
+)
+
+$RequiredRules = Import-Csv -Path ".\config\required-rules.csv"   # Config-driven, Project 9 pattern
+$Results = @()
+
+Write-Host "`n=== FIREWALL COMPLIANCE CHECK ===" -ForegroundColor Magenta
+Write-Host "Validating $($RequiredRules.Count) required rule(s) from config.`n" -ForegroundColor Cyan
+
+foreach ($Required in $RequiredRules) {                          # $Required is one row from the CSV
+
+    Write-Host "Checking $($Required.RuleName) (port $($Required.Port)/$($Required.Protocol))..." -ForegroundColor Cyan
+
+    # ---------------------------------------------------------------
+    # STEP 1: Look for an existing rule with this exact name
+    # ---------------------------------------------------------------
+    $ExistingRule = Get-NetFirewallRule -DisplayName $Required.RuleName -ErrorAction SilentlyContinue
+
+    $Status = "UNKNOWN"
+
+    if ($ExistingRule) {
+        # -------------------------------------------------------
+        # STEP 2: Rule exists - verify it's actually correct, not just present
+        # -------------------------------------------------------
+        $PortInfo = $ExistingRule | Get-NetFirewallPortFilter    # Follows the rule-to-port association
+
+        $PortMatches = ($PortInfo.LocalPort -eq $Required.Port) -and ($PortInfo.Protocol -eq $Required.Protocol)
+        $IsEnabled   = $ExistingRule.Enabled -eq $true
+        $IsAllow     = $ExistingRule.Action -eq "Allow"
+        $IsInbound   = $ExistingRule.Direction -eq "Inbound"
+
+        if ($PortMatches -and $IsEnabled -and $IsAllow -and $IsInbound) {   # ALL conditions must hold - Project 8's -and chaining
+            $Status = "COMPLIANT"
+            Write-Host "  Rule exists and is correctly configured." -ForegroundColor Green
+        }
+        else {
+            $Status = "MISCONFIGURED"                                        # Exists, but something about it is wrong
+            Write-Host "  Rule exists but is misconfigured (Enabled=$IsEnabled, Action=$($ExistingRule.Action), Port=$($PortInfo.LocalPort))" -ForegroundColor Red
+        }
+    }
+    else {
+        # -------------------------------------------------------
+        # STEP 3: Rule missing - create it, respecting -WhatIf
+        # -------------------------------------------------------
+        Write-Host "  Rule not found." -ForegroundColor Yellow
+
+        if ($PSCmdlet.ShouldProcess($Required.RuleName, "Create Firewall Rule")) {
+
+            New-NetFirewallRule `
+                -DisplayName $Required.RuleName `
+                -Direction Inbound `
+                -Action Allow `
+                -Protocol $Required.Protocol `
+                -LocalPort $Required.Port `
+                -Profile $Required.Profile `
+                -ErrorAction Stop | Out-Null
+
+            $Status = "CREATED"
+            Write-Host "  Rule created." -ForegroundColor Green
+        }
+        else {
+            $Status = "MISSING (previewed)"
+            Write-Host "  PREVIEW: Would create this rule." -ForegroundColor Yellow
+        }
+    }
+
+    $Results += [PSCustomObject]@{
+        RuleName = $Required.RuleName
+        Port     = $Required.Port
+        Protocol = $Required.Protocol
+        Status   = $Status
+        CheckedAt = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+    }
+}
+
+# ---------------------------------------------------------------
+# STEP 4: Export and summarize
+# ---------------------------------------------------------------
+if (-not (Test-Path ".\reports")) { New-Item -ItemType Directory -Path ".\reports" | Out-Null }
+$Timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
+$Results | Export-Csv -Path ".\reports\FirewallCompliance_$Timestamp.csv" -NoTypeInformation
+
+$NonCompliant = ($Results | Where-Object { $_.Status -notin @("COMPLIANT", "CREATED") }).Count
+Write-Host "`nSummary: $NonCompliant of $($Results.Count) rule(s) need attention." -ForegroundColor Cyan
+Write-Host "Report saved to .\reports\" -ForegroundColor Green
+</code></pre></div>
+      </div>
+    </section>
+
+    <section id="linebyline">
+      <h2>Line-by-Line Explanation</h2>
+
+      <h3><code>$PortInfo = $ExistingRule | Get-NetFirewallPortFilter</code></h3>
+      <ul class="explain-list">
+        <li>This is the associated-object pattern from the concepts section, applied for real: we can't get the port
+        from <code>$ExistingRule</code> directly, so we pipe the rule object itself into
+        <code>Get-NetFirewallPortFilter</code>, which uses the rule's internal identity to find and return its
+        linked port filter object.</li>
+      </ul>
+
+      <h3><code>$PortMatches = ($PortInfo.LocalPort -eq $Required.Port) -and ($PortInfo.Protocol -eq $Required.Protocol)</code></h3>
+      <ul class="explain-list">
+        <li>Values coming from a CSV (<code>$Required.Port</code>) are always strings, while
+        <code>$PortInfo.LocalPort</code> may come back as a different underlying type — PowerShell's
+        <code>-eq</code> operator handles this kind of comparison gracefully in most cases by converting types as
+        needed, but it's worth being aware this comparison is happening across potentially different types, unlike
+        Project 13's DWord-to-integer registry comparison which was more strictly numeric.</li>
+      </ul>
+
+      <h3><code>if ($PortMatches -and $IsEnabled -and $IsAllow -and $IsInbound) { ... }</code></h3>
+      <ul class="explain-list">
+        <li>Four separate boolean checks chained with <code>-and</code> — extending the pattern from Project 8's
+        three-layer network check to four conditions, because "compliant" here means <i>all</i> of these must be
+        true simultaneously: right port, enabled, allowing (not blocking), and inbound.</li>
+      </ul>
+
+      <h3><code>$Status = "MISCONFIGURED"</code> vs <code>$Status = "MISSING (previewed)"</code></h3>
+      <ul class="explain-list">
+        <li>Notice this script distinguishes <i>three</i> different problem states — MISCONFIGURED (exists but
+        wrong), MISSING (doesn't exist at all), and the WhatIf-specific preview variant — rather than lumping every
+        non-compliant result into one generic "BAD" status. This level of detail is what actually helps someone fix
+        the problem quickly, versus just knowing something's wrong.</li>
+      </ul>
+
+      <h3><code>Where-Object { $_.Status -notin @("COMPLIANT", "CREATED") }</code></h3>
+      <ul class="explain-list">
+        <li><code>-notin</code> — the negated form of <code>-in</code> (first seen in Project 4): checks that a
+        value is <i>not</i> present in the given list — here, "anything except these two good outcomes counts as
+        needing attention," which is more robust than trying to explicitly list every possible bad status.</li>
+      </ul>
+    </section>
+
+    <section id="architecture">
+      <h2>Architecture &amp; Validation Flow</h2>
+      <div class="diagram">
+        <div class="flow">
+          <div class="box">required-rules.csv</div><div class="arrow">→</div>
+          <div class="box">Import-Csv</div><div class="arrow">→</div>
+          <div class="box">foreach Required Rule</div>
+        </div>
+        <div class="flow" style="margin-top:12px;">
+          <div class="box">Get-NetFirewallRule (by name)</div><div class="arrow">→</div>
+          <div class="box">Found?</div>
+        </div>
+        <div class="flow" style="margin-top:12px;">
+          <div class="box">Yes → Get-NetFirewallPortFilter</div><div class="arrow">→</div>
+          <div class="box">4-Condition Check</div><div class="arrow">→</div>
+          <div class="box">COMPLIANT / MISCONFIGURED</div>
+        </div>
+        <div class="flow" style="margin-top:12px;">
+          <div class="box">No → ShouldProcess</div><div class="arrow">→</div>
+          <div class="box">New-NetFirewallRule</div><div class="arrow">→</div>
+          <div class="box">CREATED</div>
+        </div>
+      </div>
+      <p>Notice this script checks for <b>three</b> distinct outcomes per rule, not just "exists or not": a rule can
+      be entirely missing, present but wrong, or present and correct — and only the "missing" path involves creating
+      anything. A misconfigured existing rule is deliberately <i>not</i> auto-corrected here; it's flagged for
+      review, since silently changing an existing rule someone else configured carries more risk than creating a new
+      one that wasn't there at all.</p>
+    </section>
+
+    <section id="incident">
+      <h2>Production Incident Walkthrough</h2>
+      <div class="story">
+        Our report comes back showing "ABCBank-CoreApp: MISCONFIGURED (Enabled=False)" — the rule exists with the
+        exact right port, but it's disabled. This immediately explains the application team's connectivity complaint
+        without anyone needing to dig further: someone or something disabled the rule after it was originally
+        created correctly, likely during a security sweep or a conflicting policy change.
+      </div>
+      <ul class="explain-list">
+        <li><b>Why report MISCONFIGURED separately instead of just re-enabling it automatically?</b> A disabled rule
+        might have been disabled deliberately and for a good reason nobody documented — automatically flipping it
+        back on could reintroduce a security exposure someone intentionally closed. Flagging for human review is
+        safer than assuming the CSV's desired state is always correct in every case.</li>
+        <li><b>Why check all four conditions instead of just checking whether the rule is enabled?</b> A rule could
+        be enabled but pointing at the wrong port, or enabled but set to Block instead of Allow — each of those
+        would look "present and enabled" while still not doing what's actually needed.</li>
+      </ul>
+    </section>
+
+    <section id="troubleshoot">
+      <h2>Troubleshooting Cheat Sheet</h2>
+      <table>
+        <tr><th>Symptom</th><th>Likely Root Cause</th><th>Fix</th></tr>
+        <tr><td>"Access is denied" on Get-NetFirewallRule or New-NetFirewallRule</td><td>Terminal not running as Administrator</td><td>Re-open your terminal/VS Code with "Run as Administrator"</td></tr>
+        <tr><td>Newly created rule shows MISCONFIGURED on the next run</td><td>-Profile value in the CSV doesn't exactly match what Windows expects (e.g. typo, wrong casing)</td><td>Confirm valid profile values: Domain, Private, Public, or Any</td></tr>
+        <tr><td>Get-NetFirewallPortFilter returns nothing for an existing rule</td><td>The rule uses a different filter type (e.g. application-based instead of port-based)</td><td>Expected for some system rules; this project's config assumes simple port-based rules</td></tr>
+        <tr><td>Script reports MISSING even though you can see the rule in the firewall GUI</td><td>DisplayName in the CSV doesn't exactly match the rule's real display name (case and spacing matter)</td><td>Run <code>Get-NetFirewallRule -DisplayName "*CoreApp*"</code> to find the exact real name</td></tr>
+      </table>
+    </section>
+
+    <section id="security">
+      <h2>Security &amp; Best Practices</h2>
+      <div class="callout security"><span class="lbl">Why misconfigured rules aren't auto-fixed</span>This script
+      deliberately only ever <i>creates</i> missing rules automatically — it never modifies or re-enables an
+      existing rule, even one that's technically wrong. Changing something that already exists and was presumably
+      configured by someone, for some reason, carries more risk than adding something that plainly wasn't there.</div>
+      <div class="callout tip"><span class="lbl">Best practice reinforced here</span>Rules are validated against
+      <i>all four</i> relevant properties (port, enabled, action, direction), not just existence — a compliance check
+      that only confirms "a rule with this name exists" would miss most of the ways a rule can actually be wrong.</div>
+    </section>
+
+    <section id="recap">
+      <h2>Key Learnings &amp; Recap</h2>
+      <div class="grid2">
+        <div>
+          <h3>Commands/Syntax Learned</h3>
+          <ul class="explain-list">
+            <li><code>Get-NetFirewallRule</code> / <code>New-NetFirewallRule</code></li>
+            <li><code>Get-NetFirewallPortFilter</code> (associated-object query)</li>
+            <li><code>-notin</code></li>
+          </ul>
+        </div>
+        <div>
+          <h3>Concepts Learned</h3>
+          <ul class="explain-list">
+            <li>Associated objects — why some data isn't on the "main" object</li>
+            <li>Firewall profiles (Domain/Private/Public) and why they matter</li>
+            <li>Distinguishing MISSING vs MISCONFIGURED vs COMPLIANT</li>
+            <li>Only auto-fixing what's absent, never silently changing what exists</li>
+          </ul>
+        </div>
+      </div>
+      <h3>Common Mistakes to Avoid</h3>
+      <ul class="explain-list">
+        <li>Assuming a rule that "exists" is automatically correct without checking its actual properties.</li>
+        <li>Trying to read port information directly off a firewall rule object instead of querying its associated port filter.</li>
+        <li>Automatically "fixing" an existing misconfigured rule without human review.</li>
+      </ul>
+    </section>
+
+    <section id="interview">
+      <h2>Interview Preparation</h2>
+      <details><summary>Q1. Why doesn't Get-NetFirewallRule return the port number directly?</summary>
+        <p><b>Answer:</b> A firewall rule can have several different kinds of filters attached to it (port, address,
+        application, security) as separate associated objects — this mirrors how Windows Firewall itself models
+        rules internally, so retrieving port-specific details requires a separate, associated query via
+        <code>Get-NetFirewallPortFilter</code>.</p>
+        <p><b>Follow-up:</b> "What other 'Get-NetFirewall*Filter' cmdlets might exist, based on that pattern?" —
+        Answer: <code>Get-NetFirewallAddressFilter</code> and <code>Get-NetFirewallApplicationFilter</code> follow
+        the same associated-object idea for IP address ranges and specific application paths, respectively.</p>
+      </details>
+      <details><summary>Q2. Why check Enabled, Action, and Direction in addition to the port number?</summary>
+        <p><b>Answer:</b> A rule with the exact right port could still be disabled, set to Block instead of Allow,
+        or scoped to Outbound instead of Inbound — any one of those would mean the rule doesn't actually provide the
+        access it appears to at a glance, so all relevant properties need validation, not just the port.</p>
+        <p><b>Follow-up:</b> "How would you extend this to also validate the Profile matches what's required?" —
+        Answer: add a fifth boolean check comparing <code>$ExistingRule.Profile</code> against
+        <code>$Required.Profile</code>, following the exact same -and chaining already used for the other four
+        conditions.</p>
+      </details>
+      <details><summary>Q3. Why does this script only create missing rules and never modify existing misconfigured ones?</summary>
+        <p><b>Answer:</b> An existing rule might have been intentionally changed by someone for a reason not
+        captured in this script's config — automatically overwriting it risks undoing a deliberate, undocumented
+        decision. Creating something that's genuinely absent is lower-risk than modifying something that already
+        exists.</p>
+        <p><b>Follow-up:</b> "If the business wanted misconfigured rules auto-corrected too, what would you add first?"
+        — Answer: a stronger audit trail (like Project 10/13's before/after logging) plus likely a mandatory human
+        approval step or change ticket reference before allowing automatic correction of existing configuration —
+        auto-remediation of something pre-existing needs more governance than creating something new.</p>
+      </details>
+    </section>
+
+    <section id="challenges">
+      <h2>Coding Challenges</h2>
+      <details><summary>Challenge 1: Add Profile validation as a fifth compliance condition</summary>
+        <details><summary>Show answer</summary>
+        <pre><code>$ProfileMatches = $ExistingRule.Profile -eq $Required.Profile
+if ($PortMatches -and $IsEnabled -and $IsAllow -and $IsInbound -and $ProfileMatches) { ... }</code></pre>
+        </details>
+      </details>
+      <details><summary>Challenge 2: List all currently enabled Inbound Allow rules, regardless of the CSV, as a separate audit view</summary>
+        <details><summary>Show answer</summary>
+        <pre><code>Get-NetFirewallRule -Direction Inbound -Action Allow -Enabled True |
+    Select-Object DisplayName, Profile | Sort-Object DisplayName</code></pre>
+        </details>
+      </details>
+      <details><summary>Challenge 3: Export only the non-compliant rows to a separate "action needed" CSV</summary>
+        <details><summary>Show answer</summary>
+        <pre><code>$Results | Where-Object { $_.Status -notin @("COMPLIANT", "CREATED") } |
+    Export-Csv -Path ".\reports\ActionNeeded_$Timestamp.csv" -NoTypeInformation</code></pre>
+        </details>
+      </details>
+    </section>
+
+    <section id="resume">
+      <h2>Resume Points</h2>
+      <ul class="explain-list">
+        <li>Built a config-driven PowerShell firewall compliance validator checking rule existence, state, and correctness against a defined baseline.</li>
+        <li>Implemented associated-object queries (NetSecurity module) to validate port and protocol details linked to firewall rules.</li>
+        <li>Designed a safe remediation boundary that only creates missing rules automatically, flagging misconfigurations for human review.</li>
+      </ul>
+    </section>
+
+    <section id="assignment">
+      <h2>Practice Assignment</h2>
+      <div class="callout note">
+        Manually disable one of the two rules the script created (via the Firewall GUI or
+        <code>Disable-NetFirewallRule</code>), then re-run the script and confirm it correctly reports that rule as
+        MISCONFIGURED rather than trying to silently fix it.
+      </div>
+    </section>
+
+    <section id="next">
+      <h2>Next Project Prerequisites</h2>
+      <p>Project 15 (NTFS Permission Audit) shifts focus to file system security — auditing who has access to
+      sensitive folders, another compliance-style validation project that will reuse this same
+      check-report-flag-for-review philosophy. Be comfortable with associated-object queries and the
+      MISSING/MISCONFIGURED/COMPLIANT distinction before moving on. When ready, say <b>"Next Project."</b></p>
+    </section>
+
+    <footer>
+      PowerShell Masterclass — ABC Bank Automation Track · Project 14 of 40 · Generated for offline, self-contained use.
+    </footer>
+  </main>
+</div>
+
+<script>
+function copyCode(btn){
+  const code = btn.parentElement.querySelector('pre').innerText;
+  navigator.clipboard.writeText(code).then(()=>{
+    const old = btn.innerText; btn.innerText = "Copied!";
+    setTimeout(()=>btn.innerText = old, 1200);
+  });
+}
+window.addEventListener('scroll', ()=>{
+  const h = document.documentElement;
+  const pct = (h.scrollTop) / (h.scrollHeight - h.clientHeight) * 100;
+  document.getElementById('progressFill').style.width = pct + '%';
+  document.getElementById('progressLabel').innerText = 'Reading progress: ' + Math.round(pct) + '%';
+});
+</script>
+</body>
+</html>

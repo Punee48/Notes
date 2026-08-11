@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Project 10 — Multi-Region Disaster Recovery | ABC Bank Terraform Mastery</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/10.9.0/mermaid.min.js"></script>
+<style>
+  :root{
+    --bg:#ffffff; --surface:#f7f5fc; --surface-2:#efeaf9; --border:#e3ddf4;
+    --primary:#6d28d9; --primary-dark:#4c1d95; --primary-light:#8b5cf6;
+    --accent-soft:#ede9fe; --text:#211b32; --muted:#6b6480;
+    --code-bg:#2b2140; --code-text:#e9e3fb;
+    --good:#0f7b52; --warn:#a8630a; --danger:#b3261e;
+    --radius:14px; --shadow:0 4px 20px rgba(109,40,217,0.08);
+  }
+  *{box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;font-size:16px;line-height:1.65;}
+  h1,h2,h3,h4{font-family:'Space Grotesk',sans-serif;color:var(--primary-dark);letter-spacing:-0.01em;}
+  a{color:var(--primary);}
+  .layout{display:flex;min-height:100vh;}
+  #sidebar{width:290px;flex-shrink:0;background:linear-gradient(180deg,var(--primary-dark),var(--primary));color:#f2edff;position:sticky;top:0;height:100vh;overflow-y:auto;padding:22px 18px 40px;}
+  #sidebar .brand{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:1.05rem;color:#fff;margin-bottom:4px;}
+  #sidebar .brand-sub{font-size:0.78rem;color:#d9cbff;margin-bottom:22px;display:block;}
+  #sidebar .progress-pill{display:inline-block;background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.25);border-radius:999px;padding:4px 12px;font-size:0.72rem;margin-bottom:20px;color:#fff;}
+  #sidebar nav a{display:block;color:#e6dcff;text-decoration:none;font-size:0.85rem;padding:7px 10px;border-radius:8px;margin-bottom:2px;transition:background .15s ease, color .15s ease;}
+  #sidebar nav a:hover{background:rgba(255,255,255,0.14);color:#fff;}
+  #sidebar nav a.active{background:#fff;color:var(--primary-dark);font-weight:600;}
+  #sidebar .nav-group-label{text-transform:uppercase;font-size:0.68rem;letter-spacing:0.08em;color:#c8b6f7;margin:18px 0 6px 10px;}
+  #content{flex:1;min-width:0;padding:44px 56px 120px;max-width:980px;}
+  .kicker{display:inline-block;background:var(--accent-soft);color:var(--primary-dark);font-size:0.75rem;font-weight:600;padding:5px 12px;border-radius:999px;margin-bottom:14px;letter-spacing:0.03em;}
+  header.hero{padding-bottom:28px;border-bottom:1px solid var(--border);margin-bottom:34px;}
+  header.hero h1{font-size:2.1rem;margin:0 0 10px;}
+  header.hero p.lead{font-size:1.05rem;color:var(--muted);max-width:70ch;}
+  section{margin-bottom:52px;scroll-margin-top:20px;}
+  section h2{font-size:1.4rem;display:flex;align-items:center;gap:10px;border-bottom:2px solid var(--surface-2);padding-bottom:10px;margin-bottom:18px;}
+  section h2 .num{background:var(--primary);color:#fff;font-size:0.75rem;font-family:'JetBrains Mono',monospace;padding:3px 8px;border-radius:6px;}
+  section h3{font-size:1.08rem;margin-top:26px;color:var(--primary);}
+  .story-box{background:var(--surface);border-left:4px solid var(--primary);border-radius:10px;padding:20px 22px;font-size:0.98rem;}
+  .story-box em{color:var(--muted);}
+  .card-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:18px 0;}
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px;}
+  .card h4{margin:0 0 8px;font-size:0.92rem;color:var(--primary-dark);}
+  .card p, .card ul{margin:0;font-size:0.9rem;color:var(--text);}
+  .card ul{padding-left:18px;}
+  .note, .warn, .best{border-radius:10px;padding:14px 16px;margin:16px 0;font-size:0.92rem;border:1px solid transparent;}
+  .note{background:#eef2ff;border-color:#c7d2fe;}
+  .note::before{content:"📝 Note";display:block;font-weight:700;margin-bottom:4px;color:#3730a3;}
+  .warn{background:#fff7ed;border-color:#fed7aa;}
+  .warn::before{content:"⚠️ Watch out";display:block;font-weight:700;margin-bottom:4px;color:var(--warn);}
+  .best{background:#ecfdf5;border-color:#a7f3d0;}
+  .best::before{content:"✅ Best Practice";display:block;font-weight:700;margin-bottom:4px;color:var(--good);}
+  details.collapse{border:1px solid var(--border);border-radius:var(--radius);margin:14px 0;background:#fff;box-shadow:var(--shadow);overflow:hidden;}
+  details.collapse summary{cursor:pointer;padding:14px 18px;font-weight:600;font-family:'Space Grotesk',sans-serif;color:var(--primary-dark);background:var(--surface);list-style:none;}
+  details.collapse summary::-webkit-details-marker{display:none;}
+  details.collapse summary::before{content:"▸ ";color:var(--primary);}
+  details.collapse[open] summary::before{content:"▾ ";}
+  details.collapse .inner{padding:16px 20px;}
+  table{width:100%;border-collapse:collapse;margin:14px 0;font-size:0.9rem;}
+  th,td{border:1px solid var(--border);padding:8px 10px;text-align:left;}
+  th{background:var(--surface-2);color:var(--primary-dark);}
+  .code-block{position:relative;margin:14px 0;border-radius:12px;overflow:hidden;border:1px solid #3b2c5e;}
+  .code-block .code-head{background:#231a38;color:#cbb8f5;font-family:'JetBrains Mono',monospace;font-size:0.78rem;padding:8px 14px;display:flex;justify-content:space-between;align-items:center;}
+  .code-block pre{margin:0;background:var(--code-bg);color:var(--code-text);padding:16px;overflow-x:auto;font-family:'JetBrains Mono',monospace;font-size:0.83rem;line-height:1.55;}
+  .code-block .copy-btn{background:var(--primary);color:#fff;border:none;border-radius:6px;font-size:0.72rem;padding:4px 10px;cursor:pointer;font-family:'Inter',sans-serif;}
+  .code-block .copy-btn:hover{background:var(--primary-light);}
+  .cmt{color:#8ee6a3;}
+  .mermaid-wrap{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:18px;margin:16px 0;overflow-x:auto;}
+  .tree{font-family:'JetBrains Mono',monospace;font-size:0.83rem;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px;white-space:pre;overflow-x:auto;}
+  .qa{border-top:1px solid var(--border);padding:12px 0;}
+  .qa .q{font-weight:600;color:var(--primary-dark);margin-bottom:4px;}
+  .nextbar{background:linear-gradient(135deg,var(--primary),var(--primary-dark));color:#fff;border-radius:16px;padding:26px 30px;margin-top:40px;}
+  .nextbar h3{color:#fff;margin-top:0;}
+  .nextbar p{color:#e6dcff;margin-bottom:0;}
+  @media (max-width:900px){.layout{flex-direction:column;}#sidebar{position:relative;width:100%;height:auto;}#content{padding:30px 20px 80px;}.card-grid{grid-template-columns:1fr;}}
+</style>
+</head>
+<body>
+<div class="layout">
+
+  <aside id="sidebar">
+    <span class="brand">🏦 ABC Bank — DevOps Mastery</span>
+    <span class="brand-sub">Intermediate → Advanced Terraform Track</span>
+    <span class="progress-pill">Project 10 / 40</span>
+    <nav id="navlinks">
+      <div class="nav-group-label">Orientation</div>
+      <a href="#story">The Banking Story</a>
+      <a href="#requirements">Business &amp; Risk</a>
+      <a href="#why-iac">Why Active-Passive DR</a>
+      <div class="nav-group-label">Concepts</div>
+      <a href="#tf-concepts">Terraform Concepts</a>
+      <a href="#aws-concepts">AWS Concepts (Cross-Region DR)</a>
+      <div class="nav-group-label">Design</div>
+      <a href="#architecture">Architecture Diagrams</a>
+      <a href="#solution-design">Solution Design</a>
+      <div class="nav-group-label">Build</div>
+      <a href="#folder-structure">Folder &amp; Repo Structure</a>
+      <a href="#implementation">Implementation (Full Code)</a>
+      <a href="#code-explained">Line-by-Line Explanation</a>
+      <div class="nav-group-label">Operate</div>
+      <a href="#execution-flow">Execution Flow</a>
+      <a href="#cicd">CI/CD Integration</a>
+      <a href="#local-lab">Local Lab, DR Drill &amp; Assignments</a>
+      <a href="#interview">Interview Preparation</a>
+      <a href="#next">What's Next</a>
+    </nav>
+  </aside>
+
+  <main id="content">
+    <header class="hero">
+      <span class="kicker">PROJECT 10 OF 40 · INTERMEDIATE→ADVANCED</span>
+      <h1>Multi-Region Disaster Recovery — Active-Passive Across Two Regions</h1>
+      <p class="lead">Everything we've built so far lives entirely in ap-south-1. A regional AWS outage — rare, but not theoretical — would take the whole Digital Banking Platform down with it. Today we stand up a passive twin in a second region, with data replicated continuously and DNS ready to fail over the moment it's needed.</p>
+    </header>
+
+    <section id="story">
+      <h2><span class="num">01</span> The Banking Story</h2>
+      <div class="story-box">
+        The bank's risk committee has flagged a gap that's been quietly deferred since the program started: every piece of infrastructure we've built across all nine prior projects lives in a single AWS region, <code>ap-south-1</code>. AWS regions are highly reliable, but they are not immune to multi-hour outages — and for a bank, "our core banking platform is unreachable" for even 30 minutes is a regulatory reportable event, not just an inconvenience.<br><br>
+        The bank has committed to a Recovery Time Objective (RTO) of 15 minutes and a Recovery Point Objective (RPO) of 5 minutes for the payments-api service specifically — meaning: if <code>ap-south-1</code> goes down, payments must be reachable again within 15 minutes, having lost no more than 5 minutes of data.<br><br>
+        Our manager's brief: <em>"Stand up a passive DR environment in ap-southeast-1. Replicate the database continuously. Replicate what needs replicating in S3. And wire up Route53 so that when — not if, eventually — we need to fail over, it's a deliberate, tested, fast action, not a multi-day scramble."</em>
+      </div>
+    </section>
+
+    <section id="requirements">
+      <h2><span class="num">02</span> Business Requirement, Risk &amp; Impact</h2>
+      <div class="card-grid">
+        <div class="card"><h4>Business Requirement</h4><p>The payments-api service must meet a 15-minute RTO and 5-minute RPO in the event of a full regional outage in ap-south-1.</p></div>
+        <div class="card"><h4>Customer Requirement</h4><p>The bank's risk and compliance function needs a documented, periodically tested DR plan — not just infrastructure that theoretically could fail over.</p></div>
+        <div class="card"><h4>Current Infrastructure</h4><p>The complete VPC framework, Transit Gateway, logging, IAM, secrets, and DNS layers from Projects 02-09, entirely single-region.</p></div>
+        <div class="card"><h4>Existing Manual Process</h4><p>None — there is currently no DR capability at all for this platform; a regional outage today would be a full, unplanned outage with no defined recovery path.</p></div>
+        <div class="card"><h4>Problems With Current Process</h4><ul><li>Zero resilience to a regional-scale AWS event</li><li>No tested failover procedure means even a manual, ad hoc recovery would likely take far longer than 15 minutes</li><li>No visibility into how much data would actually be lost in a real event, since replication doesn't yet exist</li></ul></div>
+        <div class="card"><h4>Business Challenges</h4><p>Banking regulators in most jurisdictions require demonstrable DR capability with a defined and tested RTO/RPO for core payment systems specifically — this is often a licensing condition, not an optional best practice.</p></div>
+        <div class="card"><h4>Risk Analysis</h4><p><strong>High:</strong> a regional outage without DR is a low-probability but severe-impact event — exactly the risk profile that demands a mitigating control, even though it may never be invoked.</p></div>
+        <div class="card"><h4>Business Impact</h4><p>Failure to demonstrate DR capability during a regulatory exam can result in formal findings and, in serious cases, restrictions on the bank's ability to process payments until remediated.</p></div>
+      </div>
+    </section>
+
+    <section id="why-iac">
+      <h2><span class="num">03</span> Why Active-Passive, and What We Rejected</h2>
+      <h3>Why Active-Passive DR (not Active-Active)</h3>
+      <p>An active-passive design keeps the DR region's compute scaled down (or fully stopped) most of the time, with data replication running continuously — meeting the RTO/RPO targets at a fraction of the cost of running full production capacity in two regions simultaneously. Active-active would meet an even tighter RTO, but ABC Bank's committed 15-minute RTO doesn't require it, and the operational complexity and cost of keeping two fully active regions in sync isn't justified by the actual requirement.</p>
+      <h3>Alternatives considered, and why they were rejected</h3>
+      <table>
+        <tr><th>Alternative</th><th>Why considered</th><th>Why rejected for ABC Bank</th></tr>
+        <tr><td>Active-Active, both regions serving traffic</td><td>Near-zero RTO, no failover decision needed</td><td>Significantly higher cost and operational complexity (bi-directional replication conflicts, dual-write consistency) than the bank's actual 15-minute RTO requirement justifies</td></tr>
+        <tr><td>Backup-and-restore only (no live replication)</td><td>Cheapest option, simplest to build</td><td>Cannot meet a 5-minute RPO or 15-minute RTO — restoring from a backup at this scale takes hours, not minutes</td></tr>
+        <tr><td>AWS Elastic Disaster Recovery (block-level replication)</td><td>Purpose-built DR service, application-agnostic</td><td>Better suited to lift-and-shift/on-prem DR (a later project in this series) — for our own Terraform-managed cloud-native stack, native per-service replication (RDS, S3) gives us more precise control over what replicates and how</td></tr>
+      </table>
+    </section>
+
+    <section id="tf-concepts">
+      <h2><span class="num">04</span> Terraform Concepts You Must Understand Before We Build</h2>
+
+      <details class="collapse" open>
+        <summary>Multiple Provider Configurations for Multi-Region</summary>
+        <div class="inner">
+          <p><strong>What it is:</strong> two full <code>provider "aws"</code> blocks in the same configuration — one default for <code>ap-south-1</code>, one aliased for <code>ap-southeast-1</code> — letting a single Terraform apply manage resources in both regions from one root module.</p>
+          <p><strong>Why it exists:</strong> the DR VPC, its Transit Gateway peering attachment, and cross-region replication configuration all need to exist in relation to BOTH regions simultaneously — modeling that with two separate root modules would make the relationship between them (which this project's whole purpose depends on) much harder to express and review.</p>
+          <p><strong>Production example:</strong> our vpc-framework module (from Project 02) is called twice in this same file — once with the default provider, once with <code>providers = { aws = aws.dr_region }</code> — reusing the exact same versioned module for both regions.</p>
+        </div>
+      </details>
+
+      <details class="collapse">
+        <summary>Reinforcing Nested Modules Across Regions</summary>
+        <div class="inner">
+          <p><strong>What it is:</strong> the same <code>terraform-aws-vpc-framework</code> module from Project 02, called a second time with different CIDR and region inputs — proof that a properly versioned, reusable module pays off exactly when a need like this arises months later.</p>
+          <p><strong>Production example:</strong> <code>module "vpc_dr" { source = "git::...?ref=v1.2.0" providers = { aws = aws.dr_region } vpc_cidr = "10.20.0.0/16" ... }</code> — same tested module, same version, completely different region.</p>
+        </div>
+      </details>
+
+      <details class="collapse">
+        <summary>Conditional Resource Creation for Active-Passive Scaling</summary>
+        <div class="inner">
+          <p><strong>What it is:</strong> using <code>count = var.dr_active ? 1 : 0</code> on the DR region's compute resources, so the same Terraform code can represent both the normal "passive, scaled to zero" state and, during an actual failover drill or real event, the "active" state — flipped by a single variable, not a code rewrite.</p>
+          <p><strong>Why it exists:</strong> keeping the passive region's compute defined in code (just not created) means the failover procedure is "change one variable and apply," not "write new Terraform under pressure during an actual incident."</p>
+        </div>
+      </details>
+    </section>
+
+    <section id="aws-concepts">
+      <h2><span class="num">05</span> AWS Concepts: Cross-Region Replication &amp; Failover</h2>
+      <div class="card-grid">
+        <div class="card"><h4>RDS Cross-Region Read Replica</h4><p>A continuously replicating, read-only copy of the Production database in the DR region — promotable to a standalone read-write instance in minutes during an actual failover, rather than restored from a backup.</p></div>
+        <div class="card"><h4>S3 Cross-Region Replication (CRR)</h4><p>Automatically and asynchronously copies new objects from the primary region's buckets (e.g. application assets, the centralized logs from Project 04) to a matching bucket in the DR region, typically within minutes of the original write.</p></div>
+        <div class="card"><h4>Route53 Health Checks + Failover Routing</h4><p>A health check continuously probes the primary region's endpoint; a failover routing policy automatically shifts DNS answers to the DR region's endpoint the moment the primary is detected as unhealthy — the actual mechanism that makes the 15-minute RTO achievable without a human manually editing DNS at 3am.</p></div>
+        <div class="card"><h4>Why Continuous Replication, Not Periodic Backups</h4><p>A 5-minute RPO is incompatible with periodic (e.g. nightly) backups — only continuous, near-real-time replication (RDS read replicas, S3 CRR) can keep data loss that low.</p></div>
+        <div class="card"><h4>Security</h4><p>The DR region needs its own complete security stack — IAM guardrails from Project 05, VPC endpoints from Project 08 — DR is not exempt from the same controls Production requires; a insecure DR region is itself a risk.</p></div>
+        <div class="card"><h4>Cost</h4><p>Active-passive keeps DR compute costs low (often just the replica/replication costs) until an actual failover, at which point compute is scaled up — a deliberate, budgeted cost trade-off against the alternative of full active-active spend.</p></div>
+        <div class="card"><h4>Limitations</h4><p>A promoted read replica becomes a new, independent database — application connection strings must point at the new endpoint, which is exactly what the Route53 failover record's automatic switch is designed to handle transparently.</p></div>
+      </div>
+    </section>
+
+    <section id="architecture">
+      <h2><span class="num">06</span> Architecture Diagrams</h2>
+      <h3>Active-Passive Topology</h3>
+      <div class="mermaid-wrap"><div class="mermaid">
+flowchart TB
+  subgraph Primary[ap-south-1 — ACTIVE]
+    VPC1[Prod VPC] --> RDS1[(RDS Primary)]
+    VPC1 --> S3P[(S3 Primary Bucket)]
+  end
+  subgraph DR[ap-southeast-1 — PASSIVE]
+    VPC2[DR VPC — scaled to zero compute] --> RDS2[(RDS Read Replica)]
+    VPC2 --> S3D[(S3 Replica Bucket)]
+  end
+  RDS1 -.continuous replication.-> RDS2
+  S3P -.cross-region replication.-> S3D
+  R53[Route53 Health Check + Failover Record] -->|healthy| VPC1
+  R53 -.failover.-> VPC2
+      </div></div>
+
+      <h3>Failover Sequence</h3>
+      <div class="mermaid-wrap"><div class="mermaid">
+sequenceDiagram
+  participant HC as Route53 Health Check
+  participant R53 as Route53 Failover Record
+  participant Eng as On-call Engineer
+  participant DR as DR Region
+  HC->>HC: Primary region health probe fails repeatedly
+  HC->>R53: Marks primary as UNHEALTHY
+  R53->>R53: Automatically returns DR region's IP to new DNS queries
+  Eng->>DR: Promote RDS read replica to standalone (var.dr_active = true)
+  Eng->>DR: terraform apply — scales DR compute up from zero
+  DR-->>Eng: DR region now fully active, RTO clock stopped
+      </div></div>
+
+      <h3>Terraform Multi-Provider Structure</h3>
+      <div class="mermaid-wrap"><div class="mermaid">
+flowchart LR
+  Root[environments/dr/main.tf] --> P1[provider aws — default, ap-south-1]
+  Root --> P2[provider aws.dr_region — ap-southeast-1]
+  Root --> M1[module vpc_primary — uses P1]
+  Root --> M2[module vpc_dr — uses P2]
+  Root --> RDS[aws_db_instance replica — uses P2, source_db in P1]
+      </div></div>
+    </section>
+
+    <section id="solution-design">
+      <h2><span class="num">07</span> Complete Solution Design</h2>
+      <p>A second full instance of the Project 02 <code>vpc-framework</code> module is deployed into <code>ap-southeast-1</code> using an aliased provider, with compute resources gated behind <code>count = var.dr_active ? 1 : 0</code> (defaulting to <code>false</code> — passive). An RDS read replica in the DR region continuously replicates from Production's primary instance; S3 Cross-Region Replication rules mirror the primary buckets from Projects 04 and 06's related infrastructure into matching DR-region buckets.</p>
+      <p>A Route53 health check monitors the primary region's payments-api endpoint; a failover routing policy pair (PRIMARY/SECONDARY records under the same name) automatically returns the DR region's endpoint the moment the health check fails — the DNS-level mechanism that actually delivers the RTO, once an engineer has promoted the replica and scaled up DR compute.</p>
+    </section>
+
+    <section id="folder-structure">
+      <h2><span class="num">08</span> Folder Structure &amp; Repo Layout</h2>
+      <div class="tree">terraform-abc-bank/
+└── environments/
+    └── dr/
+        ├── backend.tf              # key = "dr/prod-payments/terraform.tfstate"
+        ├── providers.tf            # default (ap-south-1) + aliased aws.dr_region (ap-southeast-1)
+        ├── variables.tf            # includes dr_active (bool, default false)
+        ├── main.tf                 # both vpc-framework module calls
+        ├── replication.tf          # RDS read replica + S3 CRR
+        ├── failover-dns.tf         # Route53 health check + failover records
+        └── outputs.tf</div>
+    </section>
+
+    <section id="implementation">
+      <h2><span class="num">09</span> Implementation — Full Production Code</h2>
+
+      <h3>environments/dr/providers.tf</h3>
+      <div class="code-block">
+        <div class="code-head"><span>environments/dr/providers.tf</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre><code>provider "aws" {                                                     <span class="cmt"># Default provider — the PRIMARY region, unaliased</span>
+  region = "ap-south-1"
+}
+
+provider "aws" {
+  alias  = "dr_region"                                                 <span class="cmt"># Aliased provider — every DR-region resource explicitly references this</span>
+  region = "ap-southeast-1"
+}</code></pre>
+      </div>
+
+      <h3>environments/dr/main.tf</h3>
+      <div class="code-block">
+        <div class="code-head"><span>environments/dr/main.tf</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre><code>module "vpc_dr" {                                                     <span class="cmt"># Same versioned module from Project 02 — proof of what proper versioning buys you later</span>
+  source = "git::https://github.com/abc-bank/terraform-aws-vpc-framework.git?ref=v1.2.0"
+  providers = {
+    aws = aws.dr_region                                                 <span class="cmt"># Tells the module to use the DR-region provider for every resource it creates</span>
+  }
+
+  vpc_name = "abc-bank-dr-vpc"
+  vpc_cidr = "10.20.0.0/16"                                             <span class="cmt"># Deliberately non-overlapping with Prod's 10.10.0.0/16 — required for the eventual TGW peering</span>
+  ha_nat   = false                                                       <span class="cmt"># Passive region doesn't need HA NAT until an actual failover promotes it to active</span>
+
+  subnet_definitions = [
+    { name = "public-a",  cidr_block = "10.20.0.0/24",  availability_zone = "ap-southeast-1a", tier = "public" },
+    { name = "private-a", cidr_block = "10.20.10.0/24", availability_zone = "ap-southeast-1a", tier = "private" },
+    { name = "db-a",      cidr_block = "10.20.20.0/24", availability_zone = "ap-southeast-1a", tier = "database" },
+  ]
+
+  tags = { Environment = "dr" }
+}
+
+resource "aws_instance" "dr_app" {                                     <span class="cmt"># Deliberately created only when DR is actively invoked</span>
+  count = var.dr_active ? 1 : 0                                         <span class="cmt"># Conditional resource creation — the passive/active switch for this entire fleet</span>
+
+  ami           = data.aws_ssm_parameter.latest_al2023_ami_dr.value
+  instance_type = "t3.large"
+  subnet_id     = module.vpc_dr.subnet_ids_by_tier["private"][0]
+
+  tags = { Name = "payments-api-app-dr" }
+}</code></pre>
+      </div>
+
+      <h3>environments/dr/replication.tf</h3>
+      <div class="code-block">
+        <div class="code-head"><span>environments/dr/replication.tf</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre><code>resource "aws_db_instance" "payments_replica" {
+  provider = aws.dr_region                                              <span class="cmt"># Created in the DR region, but references the PRIMARY region's database as its source</span>
+
+  replicate_source_db = var.primary_db_arn                               <span class="cmt"># The ARN of the Prod RDS instance from earlier in this series — enables continuous cross-region replication</span>
+  instance_class       = "db.r6g.large"
+  db_subnet_group_name = module.vpc_dr.database_subnet_group_name
+
+  tags = { Name = "payments-api-db-dr-replica", Role = "disaster-recovery" }
+}
+
+resource "aws_s3_bucket_replication_configuration" "logs_crr" {
+  provider = aws.dr_region_unused_intentionally_left_default            <span class="cmt"># NOTE: replication config lives on the SOURCE bucket's own provider (primary region), not the destination</span>
+  role     = aws_iam_role.s3_replication.arn
+  bucket   = var.primary_logging_bucket_id                                <span class="cmt"># The centralized logging bucket from Project 04</span>
+
+  rule {
+    id     = "replicate-to-dr"
+    status = "Enabled"
+
+    destination {
+      bucket        = "arn:aws:s3:::abc-bank-central-flow-logs-dr-2026"    <span class="cmt"># A matching bucket created in the DR region, referenced by ARN</span>
+      storage_class = "STANDARD_IA"                                         <span class="cmt"># Infrequent Access — the DR copy is rarely read except during an actual failover or audit</span>
+    }
+  }
+}</code></pre>
+      </div>
+
+      <h3>environments/dr/failover-dns.tf</h3>
+      <div class="code-block">
+        <div class="code-head"><span>environments/dr/failover-dns.tf</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre><code>resource "aws_route53_health_check" "primary" {
+  fqdn              = var.primary_alb_dns_name
+  port              = 443
+  type              = "HTTPS"
+  resource_path     = "/healthz"                                        <span class="cmt"># Application-level health endpoint — a real functional check, not just "is the ALB reachable"</span>
+  failure_threshold = 3                                                  <span class="cmt"># Requires 3 consecutive failures before marking unhealthy — avoids a single transient blip triggering failover</span
+  request_interval  = 30
+}
+
+resource "aws_route53_record" "payments_api_primary" {
+  zone_id         = var.hosted_zone_id
+  name            = "payments-api.abcbank.internal"                      <span class="cmt"># Same name for BOTH records — clients never need to know which region answered</span>
+  type            = "A"
+  set_identifier  = "primary"
+  health_check_id = aws_route53_health_check.primary.id
+
+  failover_routing_policy {
+    type = "PRIMARY"
+  }
+
+  alias {
+    name                   = var.primary_alb_dns_name
+    zone_id                = var.primary_alb_zone_id
+    evaluate_target_health = true
+  }
+}
+
+resource "aws_route53_record" "payments_api_secondary" {
+  zone_id        = var.hosted_zone_id
+  name           = "payments-api.abcbank.internal"
+  type           = "A"
+  set_identifier = "secondary"
+
+  failover_routing_policy {
+    type = "SECONDARY"                                                    <span class="cmt"># Only answered by Route53 when the PRIMARY record's health check is failing</span>
+  }
+
+  alias {
+    name                   = var.dr_alb_dns_name
+    zone_id                = var.dr_alb_zone_id
+    evaluate_target_health = false                                         <span class="cmt"># DR's own ALB may have nothing behind it while passive — don't health-check what isn't running yet</span>
+  }
+}</code></pre>
+      </div>
+    </section>
+
+    <section id="code-explained">
+      <h2><span class="num">10</span> Code Explanation Summary</h2>
+      <table>
+        <tr><th>Block / Argument</th><th>What it does</th><th>Common mistake to avoid</th></tr>
+        <tr><td><code>providers = { aws = aws.dr_region }</code> on a module call</td><td>Tells a child module which specific provider configuration to use, overriding its own default</td><td>Forgetting this on a module call — the module would silently use the DEFAULT (primary region) provider, creating DR resources in the wrong region entirely</td></tr>
+        <tr><td><code>count = var.dr_active ? 1 : 0</code></td><td>Conditionally creates (or removes) a resource based on a boolean variable, without deleting the resource block from the code</td><td>Deleting and re-adding the resource block by hand during an actual incident — keeping it permanently in code with this conditional is what makes failover a one-variable change, not an emergency code-write</td></tr>
+        <tr><td><code>replicate_source_db</code></td><td>Turns an <code>aws_db_instance</code> into a continuously-replicating read replica of another instance, potentially cross-region</td><td>Confusing this with a manual snapshot-restore approach — replication here is continuous and ongoing, not a one-time copy</td></tr>
+        <tr><td>Two records with the same <code>name</code> but different <code>failover_routing_policy</code></td><td>Route53's mechanism for automatic failover — both records exist simultaneously, and health check status decides which one answers</td><td>Setting <code>evaluate_target_health = true</code> on the SECONDARY record before DR is actively serving traffic — Route53 could then consider the failover target itself unhealthy and have nowhere left to send traffic</td></tr>
+      </table>
+    </section>
+
+    <section id="execution-flow">
+      <h2><span class="num">11</span> Execution Flow, Explained Internally</h2>
+      <div class="card-grid">
+        <div class="card"><h4>terraform apply — steady state (dr_active = false)</h4><p>Creates the DR VPC, the RDS read replica (continuously replicating), and the S3 replication configuration — but zero DR compute instances, since <code>count</code> evaluates to 0.</p></div>
+        <div class="card"><h4>terraform apply — during an actual failover (dr_active = true)</h4><p>The plan shows exactly the DR compute instances being added — nothing about the already-existing VPC, replica, or DNS records changes, since only the <code>count</code>-gated resources were affected by the variable flip.</p></div>
+        <div class="card"><h4>Route53 during an outage</h4><p>Operates entirely independently of Terraform — the health check and failover routing react to the primary's actual availability in real time, seconds after 3 consecutive failed probes, with no Terraform apply needed for the DNS switch itself.</p></div>
+      </div>
+      <div class="warn">Promoting the RDS read replica to a standalone writable instance is a one-way action — once promoted, it stops replicating from the original primary. Only do this during a genuine failover or a carefully scoped DR drill, never as a routine test against the real replica.</div>
+    </section>
+
+    <section id="cicd">
+      <h2><span class="num">12</span> CI/CD Integration</h2>
+      <div class="code-block">
+        <div class="code-head"><span>.github/workflows/terraform-dr-failover.yml</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre><code>name: terraform-dr-failover
+on:
+  workflow_dispatch:                                                     <span class="cmt"># Manually triggered ONLY — never on a routine push, given the severity of what this pipeline can do</span>
+    inputs:
+      dr_active:
+        description: "Set to true to activate DR compute (real failover or approved drill)"
+        required: true
+        default: "false"
+
+jobs:
+  failover:
+    runs-on: ubuntu-latest
+    defaults: { run: { working-directory: environments/dr } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+      - run: terraform init
+      - run: terraform plan  -var="dr_active=${{ github.event.inputs.dr_active }}" -out=tfplan
+      - name: Require manual approval before DR activation
+        uses: trstringer/manual-approval@v1
+        with:
+          approvers: incident-commander,platform-lead
+      - run: terraform apply -auto-approve tfplan</code></pre>
+      </div>
+      <div class="best"><code>workflow_dispatch</code> with a mandatory approval gate ensures DR activation is always a deliberate human decision — appropriate for an action with this much operational and cost impact, never something that fires automatically off a code push.</div>
+    </section>
+
+    <section id="local-lab">
+      <h2><span class="num">13</span> Local Lab, DR Drill &amp; Assignments</h2>
+      <h3>Prerequisites</h3>
+      <ul>
+        <li>A Production RDS instance to replicate from (a small test instance is fine for practice)</li>
+        <li>A second AWS region enabled on your account (most are enabled by default; some like ap-southeast-1 may need explicit opt-in on older accounts)</li>
+      </ul>
+      <h3>Commands — Steady State</h3>
+      <div class="code-block">
+        <div class="code-head"><span>terminal</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre><code>cd environments/dr
+terraform init
+terraform apply -var="dr_active=false"    <span class="cmt"># Normal passive state — VPC + replica exist, zero compute running</span></code></pre>
+      </div>
+      <h3>Commands — Simulated DR Drill</h3>
+      <div class="code-block">
+        <div class="code-head"><span>terminal</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre><code>terraform apply -var="dr_active=true"      <span class="cmt"># Scales DR compute up — time this step against the 15-minute RTO target</span>
+dig payments-api.abcbank.internal          <span class="cmt"># Confirm DNS still resolves correctly during the drill</span>
+<span class="cmt"># After the drill: scale back down</span>
+terraform apply -var="dr_active=false"</code></pre>
+      </div>
+      <h3>Expected output</h3>
+      <p>The time from <code>terraform apply -var="dr_active=true"</code> completing to the DR application instances passing their own health checks should be measured and logged — this measured value, not the theoretical target, is what an auditor will actually ask to see evidence of.</p>
+      <h3>Troubleshooting</h3>
+      <table>
+        <tr><th>Symptom</th><th>Likely cause</th></tr>
+        <tr><td>Read replica creation fails</td><td>Cross-region automated backups aren't enabled on the source Production instance — this is a prerequisite for cross-region read replicas</td></tr>
+        <tr><td>Route53 never fails over during a real test</td><td>The health check's <code>resource_path</code> doesn't reflect true application health, or <code>failure_threshold</code>/<code>request_interval</code> combination is too slow for the RTO target — tune both together</td></tr>
+      </table>
+      <h3>Assignments</h3>
+      <ol>
+        <li>Add a scheduled Lambda (or Systems Manager Automation document, reusing Project 07's patterns) that runs a non-disruptive DR drill monthly and reports actual RTO to a dashboard.</li>
+        <li>Extend the Transit Gateway from Project 03 with a peering attachment to a second Transit Gateway in the DR region, so DR-region resources can reach Shared Services during an active failover.</li>
+      </ol>
+      <h3>Challenge Task</h3>
+      <p>Write a documented DR runbook (in <code>README.md</code>) covering the exact sequence of commands and approvals from "primary region declared down" to "DR fully serving traffic" — the artifact a real bank's operations team would keep at hand during an actual incident.</p>
+    </section>
+
+    <section id="interview">
+      <h2><span class="num">14</span> Interview Preparation</h2>
+      <div class="qa"><div class="q">Q: What's the difference between RTO and RPO, and how does this design meet both?</div><div>RTO is how long recovery takes; RPO is how much data loss is acceptable — continuous RDS/S3 replication keeps RPO low (data is nearly current in the DR region at all times), while pre-provisioned (but scaled-to-zero) infrastructure plus automated Route53 failover keeps RTO low by removing manual setup from the critical path.</div></div>
+      <div class="qa"><div class="q">Q: Why gate DR compute behind a count-based conditional instead of just not writing that Terraform until it's needed?</div><div>Having the resource fully defined in code, just not created, means activation is a single variable change and a normal apply — writing new Terraform under the pressure of an actual incident is slower and far more error-prone.</div></div>
+      <div class="qa"><div class="q">Q: Why does the SECONDARY Route53 record set evaluate_target_health to false?</div><div>Because the DR region's own ALB may have nothing running behind it while passive — health-checking a target that isn't meant to be serving traffic yet could leave Route53 with no healthy answer for either record during normal operation.</div></div>
+      <div class="qa"><div class="q">Q: Why is promoting a read replica a one-way action, and what does that mean operationally?</div><div>Promotion breaks replication from the source permanently, turning the replica into an independent writable database — it should only be done during a genuine failover or a carefully scoped, approved drill, never as a routine or accidental test.</div></div>
+      <div class="qa"><div class="q">Manager round: How would you prove to a regulator that your DR plan actually works, not just exists on paper?</div><div>Show a log of actual, periodically executed DR drills with measured RTO figures against the committed target, plus the runbook and approval process used each time — demonstrated, repeatable evidence, not just the presence of Terraform code.</div></div>
+    </section>
+
+    <div class="nextbar" id="next">
+      <h3>What's next</h3>
+      <p>Project 11 builds <strong>Blue-Green Infrastructure</strong> — zero-downtime deployment patterns for the payments-api itself, using weighted Route53 records and dual target groups behind the same ALB, extending the failover DNS mechanics we just built toward routine, planned deployments rather than disaster events. Tell me when you're ready for Project 11.</p>
+    </div>
+
+  </main>
+</div>
+
+<script>
+  mermaid.initialize({ startOnLoad: true, theme: 'base', themeVariables: {
+    primaryColor: '#ede9fe', primaryTextColor: '#4c1d95', primaryBorderColor: '#8b5cf6',
+    lineColor: '#8b5cf6', secondaryColor: '#f7f5fc', tertiaryColor: '#ffffff', fontFamily: 'Inter, sans-serif'
+  }});
+  function copyCode(btn){
+    const pre = btn.closest('.code-block').querySelector('pre');
+    const text = pre.innerText;
+    navigator.clipboard.writeText(text).then(()=>{
+      const original = btn.textContent;
+      btn.textContent = 'Copied!';
+      setTimeout(()=>{ btn.textContent = original; }, 1500);
+    });
+  }
+  const sections = document.querySelectorAll('section, .nextbar');
+  const links = document.querySelectorAll('#navlinks a');
+  const observer = new IntersectionObserver((entries)=>{
+    entries.forEach(entry=>{
+      if(entry.isIntersecting){
+        links.forEach(l=>l.classList.remove('active'));
+        const id = entry.target.getAttribute('id');
+        const match = document.querySelector(`#navlinks a[href="#${id}"]`);
+        if(match) match.classList.add('active');
+      }
+    });
+  }, { rootMargin: '-20% 0px -70% 0px' });
+  sections.forEach(s=>observer.observe(s));
+</script>
+</body>
+</html>

@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Module 10 — The AWS Master Playbook</title>
+<style>
+:root{
+  --blue:#1D4ED8; --blue-light:#DBEAFE; --blue-vlight:#EFF6FF;
+  --ink:#1F2937; --muted:#4B5563; --line:#E5E7EB; --ok:#047857; --warn:#B45309; --bad:#B91C1C;
+  --code-bg:#0F172A; --code-ink:#E2E8F0;
+}
+*{box-sizing:border-box}
+body{margin:0;font-family:Segoe UI, Arial, sans-serif;color:var(--ink);background:#fff;line-height:1.65;font-size:16px;}
+.layout{display:flex;min-height:100vh;}
+nav{width:280px;flex-shrink:0;background:var(--blue-vlight);border-right:1px solid var(--line);padding:24px 16px;position:sticky;top:0;height:100vh;overflow-y:auto;}
+nav h2{font-size:14px;text-transform:uppercase;letter-spacing:.05em;color:var(--blue);margin:0 0 12px;}
+nav a{display:block;padding:7px 10px;border-radius:6px;color:var(--ink);text-decoration:none;font-size:14px;margin-bottom:2px;}
+nav a:hover{background:var(--blue-light);}
+main{flex:1;padding:40px 60px;max-width:980px;}
+.badge{display:inline-block;background:var(--blue);color:#fff;font-size:12px;font-weight:600;padding:4px 10px;border-radius:999px;letter-spacing:.03em;}
+h1{font-size:30px;margin:14px 0 6px;color:var(--blue);}
+.subtitle{color:var(--muted);font-size:16px;margin-bottom:32px;}
+h2{font-size:22px;margin-top:48px;border-bottom:2px solid var(--blue-light);padding-bottom:8px;color:#111827;}
+h3{font-size:18px;margin-top:24px;color:#111827;}
+p{margin:12px 0;}
+.story{background:var(--blue-vlight);border-left:4px solid var(--blue);padding:16px 20px;border-radius:6px;margin:16px 0;}
+.why{background:#FFFBEB;border-left:4px solid var(--warn);padding:14px 20px;border-radius:6px;margin:14px 0;}
+.prod{background:#ECFDF5;border-left:4px solid var(--ok);padding:14px 20px;border-radius:6px;margin:14px 0;}
+.flow{background:#F9FAFB;border:1px solid var(--line);border-radius:8px;padding:18px 20px;margin:16px 0;font-family:Consolas,monospace;font-size:14px;white-space:pre;overflow-x:auto;color:#111827;}
+table{width:100%;border-collapse:collapse;margin:16px 0;font-size:14px;}
+th{background:var(--blue);color:#fff;text-align:left;padding:9px 11px;}
+td{padding:9px 11px;border-bottom:1px solid var(--line);vertical-align:top;}
+tr:nth-child(even) td{background:#F9FAFB;}
+details{border:1px solid var(--line);border-radius:8px;margin:14px 0;padding:0;}
+summary{cursor:pointer;padding:12px 16px;font-weight:600;background:#F9FAFB;border-radius:8px;}
+details[open] summary{border-bottom:1px solid var(--line);border-radius:8px 8px 0 0;}
+details .inner{padding:14px 18px;}
+.task{background:#ECFDF5;border:1px solid #A7F3D0;border-radius:8px;padding:18px 22px;margin:24px 0;}
+.task h3{margin-top:0;color:var(--ok);}
+.next{background:#111827;color:#fff;border-radius:8px;padding:20px 24px;margin-top:30px;}
+code{background:#F1F5F9;padding:1px 6px;border-radius:4px;font-size:13.5px;}
+pre{background:var(--code-bg);color:var(--code-ink);padding:16px 18px;border-radius:8px;overflow-x:auto;font-size:13.5px;margin:14px 0;}
+.line-note{font-size:14px;color:var(--muted);margin:4px 0 4px 18px;}
+footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);color:var(--muted);font-size:13px;}
+</style>
+</head>
+<body>
+<div class="layout">
+<nav>
+  <h2>Masterclass</h2>
+  <a href="#recap">1. What We're Building</a>
+  <a href="#playbook">2. The Full Role</a>
+  <a href="#linebyline">3. Line-by-Line Explanation</a>
+  <a href="#idempotent">4. Why This Is Idempotent</a>
+  <a href="#task">5. Hands-On Task</a>
+  <a href="#next">6. What Comes Next</a>
+</nav>
+<main>
+  <span class="badge">MODULE 10</span>
+  <h1>The AWS Master Playbook</h1>
+  <p class="subtitle">A complete, production-style EC2 provisioning role — every line explained</p>
+
+  <h2 id="recap">1. What We're Building</h2>
+  <div class="story">
+    <p>Puneeth, this is the module where everything from Modules 1–9 finally comes together into real, working code: the requirement checklist, the AWS-specific values, the authentication flow, the collections, the variable design, and the validation gate. What follows is the <code>aws_provision</code> role's <code>tasks/main.yml</code> — the heart of our AWS automation.</p>
+  </div>
+
+  <h2 id="playbook">2. The Full Role</h2>
+  <pre>---
+# roles/aws_provision/tasks/main.yml
+
+- name: Look up the latest approved RHEL 9 AMI
+  amazon.aws.ec2_ami_info:
+    region: "{{ aws_region }}"
+    owners: ["self"]
+    filters:
+      name: "golden-rhel9-*"
+      state: available
+  register: ami_lookup
+
+- name: Set the AMI ID to use for this build
+  ansible.builtin.set_fact:
+    ami_id: "{{ (ami_lookup.images | sort(attribute='creation_date') | last).image_id }}"
+
+- name: Map CPU/memory to an AWS instance type
+  ansible.builtin.set_fact:
+    instance_type: "{{ instance_type_map[cpu ~ '-' ~ memory] | default('m5.large') }}"
+
+- name: Check whether this server already exists (idempotency)
+  amazon.aws.ec2_instance_info:
+    region: "{{ aws_region }}"
+    filters:
+      "tag:Name": "{{ vm_name }}"
+      instance-state-name: ["running", "stopped"]
+  register: existing_instance
+
+- name: Provision the EC2 instance
+  amazon.aws.ec2_instance:
+    name: "{{ vm_name }}"
+    region: "{{ aws_region }}"
+    image_id: "{{ ami_id }}"
+    instance_type: "{{ instance_type }}"
+    vpc_subnet_id: "{{ subnet_id }}"
+    security_group: "{{ security_group_id }}"
+    iam_instance_profile: "{{ instance_profile_name }}"
+    key_name: "{{ ssh_key_name }}"
+    volumes:
+      - device_name: /dev/sda1
+        ebs:
+          volume_size: "{{ disk_size }}"
+          encrypted: true
+          kms_key_id: "{{ kms_key_id }}"
+          delete_on_termination: true
+    tags:
+      Name: "{{ vm_name }}"
+      Application: "{{ application }}"
+      Environment: "{{ environment }}"
+      Owner: "{{ owner }}"
+      CostCenter: "{{ cost_center }}"
+    wait: true
+    state: running
+  register: ec2_result
+  when: existing_instance.instances | length == 0
+
+- name: Wait for SSH to become reachable
+  ansible.builtin.wait_for:
+    host: "{{ ec2_result.instances[0].private_ip_address }}"
+    port: 22
+    delay: 10
+    timeout: 300
+  when: ec2_result is changed
+
+- name: Add the new instance to in-memory inventory for post-config
+  ansible.builtin.add_host:
+    name: "{{ vm_name }}"
+    groups: newly_provisioned
+    ansible_host: "{{ ec2_result.instances[0].private_ip_address }}"
+    instance_id: "{{ ec2_result.instances[0].instance_id }}"
+  when: ec2_result is changed
+
+- name: Produce the provisioning report
+  ansible.builtin.set_stats:
+    data:
+      vm_name: "{{ vm_name }}"
+      instance_id: "{{ ec2_result.instances[0].instance_id | default(existing_instance.instances[0].instance_id) }}"
+      private_ip: "{{ ec2_result.instances[0].private_ip_address | default(existing_instance.instances[0].private_ip_address) }}"
+      cloud_platform: aws
+      status: "{{ 'created' if ec2_result is changed else 'already_existed' }}"</pre>
+
+  <h2 id="linebyline">3. Line-by-Line Explanation</h2>
+  <p class="line-note"><code>amazon.aws.ec2_ami_info</code> — a read-only "info" module (notice it ends in <code>_info</code>, the Ansible naming convention for modules that only look things up and never change anything) that searches for AMIs matching our golden-image naming pattern, owned by our own account rather than the public marketplace.</p>
+  <p class="line-note"><code>filters: name: "golden-rhel9-*"</code> — restricts the search to images following our internal naming convention; using a wildcard means we don't have to hardcode one specific AMI ID that will eventually go stale.</p>
+  <p class="line-note"><code>register: ami_lookup</code> — captures the module's JSON output (a list of matching images) into a variable so later tasks can use it.</p>
+  <p class="line-note"><code>ami_lookup.images | sort(attribute='creation_date') | last</code> — a Jinja2 pipeline: sort the list of matching images by creation date, then take the last one, meaning "the newest golden image available" — this keeps new servers always built from the latest approved image without us updating the playbook every time a new image is published.</p>
+  <p class="line-note"><code>instance_type_map[cpu ~ '-' ~ memory]</code> — the <code>~</code> operator concatenates strings in Jinja2, so <code>4</code> and <code>16</code> become the lookup key <code>"4-16"</code> into a dictionary (defined in <code>vars/aws.yml</code>) that maps CPU/memory combinations to real AWS instance type names — this is how "4 CPU, 16GB" from Module 1 becomes <code>m5.xlarge</code> without the requester ever needing to know AWS instance type names.</p>
+  <p class="line-note"><code>ec2_instance_info</code> with a <code>tag:Name</code> filter — this is our idempotency check (explained more in the next section): before creating anything, we ask AWS "does an instance with this exact Name tag already exist and is it running or stopped?"</p>
+  <p class="line-note"><code>amazon.aws.ec2_instance</code> — the actual instance-creation module; every parameter below it maps directly to a value we gathered in earlier modules: <code>vpc_subnet_id</code>/<code>security_group</code> from Module 2's network values, <code>iam_instance_profile</code> from Module 3's authentication design, <code>volumes.ebs.encrypted</code>/<code>kms_key_id</code> from Module 2's security fields.</p>
+  <p class="line-note"><code>tags:</code> block — every tag here maps directly back to a Module 1 checklist field; this is what lets Finance later answer "what did PAY001 spend on cloud compute this month" by simply filtering on the <code>CostCenter</code> tag.</p>
+  <p class="line-note"><code>wait: true, state: running</code> — tells the module to not just fire the API call and return immediately, but to actually wait until AWS reports the instance as fully running before the task is considered complete — this matters because the very next task needs a real IP address to test SSH against.</p>
+  <p class="line-note"><code>when: existing_instance.instances | length == 0</code> — the entire creation task is skipped if our idempotency check already found a matching instance; this single line is what stops duplicate servers on a re-run, which we unpack fully in Module 19.</p>
+  <p class="line-note"><code>wait_for: ... port: 22</code> — actively polls the new instance's private IP on port 22 until SSH responds or the 300-second timeout is hit; this confirms not just "AWS says it's running" but "we can actually reach it," which is a meaningfully different and more useful check.</p>
+  <p class="line-note"><code>add_host</code> — this is the bridge from "provisioning via cloud API" to "configuring via SSH," which Module 17 covers in depth; it adds the brand-new server into Ansible's in-memory inventory under a group called <code>newly_provisioned</code>, so a later play can target that group directly by name.</p>
+  <p class="line-note"><code>set_stats</code> — writes structured data into the AAP job's "artifacts," visible in the Job Template output and usable by later Workflow nodes (Module 16) — this is how the final Notification/CMDB steps know the instance ID and IP without re-querying AWS.</p>
+
+  <h2 id="idempotent">4. Why This Playbook Is Idempotent</h2>
+  <div class="flow">Run the playbook
+        |
+        v
+Check: does an instance named "pay-dev-app01" already exist?
+        |
+   +----+----+
+   |         |
+  Yes        No
+   |         |
+ Skip      Create
+ creation   the instance
+   |         |
+   +----+----+
+        |
+        v
+Report the (existing or new) instance details either way</div>
+  <div class="why"><strong>Why this matters:</strong> Without the <code>ec2_instance_info</code> check and the <code>when</code> condition, running this same playbook twice — say, because a Job Template got accidentally launched twice — would create <em>two</em> EC2 instances both trying to use the name <code>pay-dev-app01</code>, doubling the cost and confusing every downstream system. This check-then-act pattern is the standard way idempotency is achieved when a module itself doesn't already guarantee it by name.</div>
+
+  <div class="task" id="task">
+    <h3>5. Hands-On Task</h3>
+    <p>Write, in your own words, what would happen if the <code>when: existing_instance.instances | length == 0</code> line were accidentally deleted from this playbook, and the playbook were run twice in a row for the same <code>vm_name</code>. Be specific about what AWS would end up containing.</p>
+  </div>
+
+  <div class="next" id="next">
+    <strong>What comes next — Module 11: The Azure Master Playbook.</strong>
+    <p style="margin-bottom:0">We build the equivalent Azure VM provisioning role, and explicitly compare every task against the AWS version you just learned.</p>
+  </div>
+
+  <footer>Enterprise Multi-Cloud Server Provisioning Masterclass — Module 10 of 30</footer>
+</main>
+</div>
+</body>
+</html>

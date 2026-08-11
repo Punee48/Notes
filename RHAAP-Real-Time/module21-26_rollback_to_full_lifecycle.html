@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Modules 21-26 — Rollback, Auditing, ServiceNow, Troubleshooting, Testing, and the Full Lifecycle</title>
+<style>
+:root{
+  --blue:#1D4ED8; --blue-light:#DBEAFE; --blue-vlight:#EFF6FF;
+  --ink:#1F2937; --muted:#4B5563; --line:#E5E7EB; --ok:#047857; --warn:#B45309; --bad:#B91C1C;
+  --code-bg:#0F172A; --code-ink:#E2E8F0;
+}
+*{box-sizing:border-box}
+body{margin:0;font-family:Segoe UI, Arial, sans-serif;color:var(--ink);background:#fff;line-height:1.65;font-size:16px;}
+.layout{display:flex;min-height:100vh;}
+nav{width:280px;flex-shrink:0;background:var(--blue-vlight);border-right:1px solid var(--line);padding:24px 16px;position:sticky;top:0;height:100vh;overflow-y:auto;}
+nav h2{font-size:14px;text-transform:uppercase;letter-spacing:.05em;color:var(--blue);margin:0 0 12px;}
+nav a{display:block;padding:7px 10px;border-radius:6px;color:var(--ink);text-decoration:none;font-size:14px;margin-bottom:2px;}
+nav a:hover{background:var(--blue-light);}
+main{flex:1;padding:40px 60px;max-width:980px;}
+.badge{display:inline-block;background:var(--blue);color:#fff;font-size:12px;font-weight:600;padding:4px 10px;border-radius:999px;letter-spacing:.03em;}
+h1{font-size:30px;margin:14px 0 6px;color:var(--blue);}
+.subtitle{color:var(--muted);font-size:16px;margin-bottom:32px;}
+h2{font-size:22px;margin-top:48px;border-bottom:2px solid var(--blue-light);padding-bottom:8px;color:#111827;}
+h3{font-size:18px;margin-top:24px;color:#111827;}
+p{margin:12px 0;}
+.story{background:var(--blue-vlight);border-left:4px solid var(--blue);padding:16px 20px;border-radius:6px;margin:16px 0;}
+.why{background:#FFFBEB;border-left:4px solid var(--warn);padding:14px 20px;border-radius:6px;margin:14px 0;}
+.prod{background:#ECFDF5;border-left:4px solid var(--ok);padding:14px 20px;border-radius:6px;margin:14px 0;}
+.flow{background:#F9FAFB;border:1px solid var(--line);border-radius:8px;padding:18px 20px;margin:16px 0;font-family:Consolas,monospace;font-size:14px;white-space:pre;overflow-x:auto;color:#111827;}
+table{width:100%;border-collapse:collapse;margin:16px 0;font-size:14px;}
+th{background:var(--blue);color:#fff;text-align:left;padding:9px 11px;}
+td{padding:9px 11px;border-bottom:1px solid var(--line);vertical-align:top;}
+tr:nth-child(even) td{background:#F9FAFB;}
+details{border:1px solid var(--line);border-radius:8px;margin:14px 0;padding:0;}
+summary{cursor:pointer;padding:12px 16px;font-weight:600;background:#F9FAFB;border-radius:8px;}
+details[open] summary{border-bottom:1px solid var(--line);border-radius:8px 8px 0 0;}
+details .inner{padding:14px 18px;}
+.task{background:#ECFDF5;border:1px solid #A7F3D0;border-radius:8px;padding:18px 22px;margin:24px 0;}
+.task h3{margin-top:0;color:var(--ok);}
+.next{background:#111827;color:#fff;border-radius:8px;padding:20px 24px;margin-top:30px;}
+code{background:#F1F5F9;padding:1px 6px;border-radius:4px;font-size:13.5px;}
+pre{background:var(--code-bg);color:var(--code-ink);padding:16px 18px;border-radius:8px;overflow-x:auto;font-size:13.5px;margin:14px 0;}
+.line-note{font-size:14px;color:var(--muted);margin:4px 0 4px 18px;}
+footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);color:var(--muted);font-size:13px;}
+</style>
+</head>
+<body>
+<div class="layout">
+<nav>
+  <h2>Masterclass</h2>
+  <a href="#m21">21. Rollback Strategy</a>
+  <a href="#m22">22. Logging and Auditing</a>
+  <a href="#m23">23. ServiceNow Integration</a>
+  <a href="#m24">24. Troubleshooting Masterclass</a>
+  <a href="#m25">25. Testing</a>
+  <a href="#m26">26. The Complete Real-Time Project</a>
+  <a href="#next">What Comes Next</a>
+</nav>
+<main>
+  <span class="badge">MODULES 21 – 26</span>
+  <h1>Rollback, Auditing, ServiceNow, Troubleshooting, Testing, and the Full Lifecycle</h1>
+  <p class="subtitle">Everything that turns a working playbook into something a bank can actually trust in production</p>
+  <div class="story">
+    <p>Puneeth, this file closes the loop on almost everything you've learned so far. By the end of Module 26, you'll watch the entire Payment Gateway request — the same one from Module 1's opening story — travel start to finish through every piece we've built. Take your time with this one.</p>
+  </div>
+
+  <h2 id="m21">Module 21 — Rollback Strategy</h2>
+  <p>Imagine this exact sequence goes wrong:</p>
+  <div class="flow">VM created                    ✅
+     ↓
+Disk attached                 ✅
+     ↓
+Network configured            ✅
+     ↓
+Post-provision configuration  ❌ FAILED
+     (e.g. monitoring agent install failed)</div>
+  <p>Now what? There are four possible responses, and choosing the wrong one by default is a real production mistake:</p>
+  <table>
+    <tr><th>Option</th><th>When it's the right call</th></tr>
+    <tr><td>Delete the VM (full rollback)</td><td>DEV/QA environments, or when the failure happened very early (e.g. the VM itself never finished booting) — cheap to just start over</td></tr>
+    <tr><td>Preserve the VM, flag it "unhealthy"</td><td>PROD, or when the VM and its disk are expensive/slow to recreate, and a human should decide next steps rather than an automatic delete</td></tr>
+    <tr><td>Create an incident ticket</td><td>Always, for PROD failures — even if you also decide to delete, the incident record matters for audit and root-cause tracking</td></tr>
+    <tr><td>Retry automatically</td><td>Only for known-transient issues (e.g. SSH not reachable yet) — never for failures that indicate a real configuration problem, since blindly retrying those just wastes time and can mask the real issue</td></tr>
+  </table>
+  <div class="prod"><strong>Our recommended default for this project:</strong> DEV/QA — automatically roll back (delete) on any failure, since recreating is cheap and fast, and speed matters more than caution there. PROD — never auto-delete; preserve the resource, mark it clearly (a tag like <code>provisioning_status=failed</code>), raise an incident automatically, and let a human engineer decide whether to fix forward or roll back manually. This asymmetry — aggressive auto-rollback in low environments, cautious human-in-the-loop in PROD — is a very common, very defensible enterprise pattern.</div>
+  <pre>- name: Environment-aware rollback on failure
+  block:
+    - name: Run post-provision configuration
+      ansible.builtin.include_role:
+        name: linux_baseline
+
+  rescue:
+    - name: DEV/QA - delete the failed resource automatically
+      ansible.builtin.include_role:
+        name: "{{ cloud_platform }}_deprovision"
+      when: environment in ['dev', 'qa']
+
+    - name: PROD/UAT - tag as failed and stop, do not delete
+      ansible.builtin.debug:
+        msg: "PROD/UAT failure — VM preserved for investigation, incident will be raised"
+      when: environment in ['uat', 'prod']
+
+    - name: Always raise an incident on failure
+      ansible.builtin.include_role:
+        name: notification
+      vars:
+        notification_type: "incident"</pre>
+  <p class="line-note"><code>when: environment in ['dev', 'qa']</code> vs <code>['uat', 'prod']</code> — this single conditional is what encodes our whole rollback policy directly in code, rather than leaving it as a decision an engineer has to remember to make manually every time.</p>
+
+  <h2 id="m22">Module 22 — Logging and Auditing</h2>
+  <p>An auditor's favorite question is: <em>"show me exactly who did what, and when, for this specific server."</em> Here is everything we need to be able to answer that instantly.</p>
+  <table>
+    <tr><th>What we track</th><th>Where it comes from</th></tr>
+    <tr><td>Who requested the server</td><td>The AAP user who launched the Job Template/Workflow, or the ServiceNow requester field (Module 23)</td></tr>
+    <tr><td>Who approved it</td><td>The AAP user who actioned the Approval Node (Module 16)</td></tr>
+    <tr><td>When the job ran</td><td>AAP Job's built-in start/finish timestamps</td></tr>
+    <tr><td>Which playbook version ran</td><td>The exact Git commit hash AAP's Project sync recorded at launch time</td></tr>
+    <tr><td>Cloud account / subscription / cluster</td><td>The Credential object used, visible in the Job's Credential summary</td></tr>
+    <tr><td>VM ID and IP</td><td><code>set_stats</code> artifacts from Modules 10-12</td></tr>
+    <tr><td>Change Number</td><td>The Survey answer from Module 15, carried through as a Workflow variable</td></tr>
+    <tr><td>Job ID and final result</td><td>AAP's own Job record — Success/Failed, with the full task-by-task log retained</td></tr>
+  </table>
+  <div class="why"><strong>Why the Git commit hash matters so much:</strong> "Update Revision on Launch" (Module 14) means every job run is tagged with the exact commit of the playbook that executed — so six months later, if someone asks "what did this automation actually do on that date," you can check out that exact commit and read the real code that ran, not just today's version of the repository.</div>
+
+  <h2 id="m23">Module 23 — ServiceNow Integration (Concept)</h2>
+  <div class="flow">ServiceNow Catalog Item  ("Request a Server")
+        |
+        v
+Requester fills the ServiceNow form
+        |
+        v
+Manager Approval  (inside ServiceNow's own approval workflow)
+        |
+        v
+ServiceNow calls the AAP API  (REST call to launch our Workflow Job Template,
+                                passing form fields as extra_vars — the Custom
+                                Credential Type built in an earlier module)
+        |
+        v
+AAP Workflow runs  (everything from Modules 13-20)
+        |
+        v
+AAP calls back to ServiceNow's API  (or ServiceNow polls the job status)
+        |
+        v
+CMDB record created/updated with VM ID, IP, owner
+        |
+        v
+ServiceNow ticket automatically closed, requester notified</div>
+  <p>The key integration idea: ServiceNow becomes the requester-facing "front door," while AAP stays the actual automation engine — neither system tries to do the other's job. ServiceNow is good at forms, approvals, and tracking tickets; AAP is good at actually talking to AWS/Azure/OpenShift.</p>
+
+  <h2 id="m24">Module 24 — Troubleshooting Masterclass</h2>
+  <table>
+    <tr><th>Platform</th><th>Symptom</th><th>Likely Cause</th><th>Solution / Prevention</th></tr>
+    <tr><td>AWS</td><td><code>UnauthorizedOperation</code></td><td>IAM policy missing the specific action (Module 3)</td><td>Check CloudTrail for the exact denied action, add it precisely to the policy — never widen to <code>"*"</code></td></tr>
+    <tr><td>AWS</td><td><code>InvalidSubnetID.NotFound</code></td><td>Wrong subnet ID, or subnet exists in a different Region than specified</td><td>Re-confirm the subnet ID with the Network Team's value from Module 2; check the Region variable</td></tr>
+    <tr><td>AWS</td><td><code>InvalidAMIID.NotFound</code></td><td>The golden AMI was deprecated/deleted, or wrong account</td><td>Re-run the AMI lookup task from Module 10; confirm the golden image pipeline still publishes to this account</td></tr>
+    <tr><td>AWS</td><td>SSH timeout after instance shows "running"</td><td>Security Group missing port 22, or instance in the wrong subnet</td><td>Verify Security Group inbound rule and subnet routing before assuming an OS-level issue</td></tr>
+    <tr><td>Azure</td><td><code>AuthenticationFailed</code></td><td>Expired or wrong Service Principal Client Secret</td><td>Rotate/recreate the Service Principal credential in AAP; consider moving to Managed Identity</td></tr>
+    <tr><td>Azure</td><td><code>QuotaExceeded</code></td><td>Subscription's vCPU quota hit for that VM family/Region</td><td>Request a quota increase from Azure support ahead of a known large rollout, don't discover it mid-deployment</td></tr>
+    <tr><td>Azure</td><td><code>VMProvisioningTimeout</code></td><td>Image or extension taking unusually long, or platform-side issue</td><td>Check Azure Activity Log for the resource; retry once before escalating</td></tr>
+    <tr><td>OpenShift</td><td><code>Forbidden</code></td><td>Service Account's Role doesn't include the needed verb/resource (Module 3)</td><td>Review the RoleBinding; add only the exact missing permission</td></tr>
+    <tr><td>OpenShift</td><td>DataVolume stuck <code>Pending</code></td><td>StorageClass doesn't exist, or storage backend is full</td><td>Confirm StorageClass name from Module 2 exactly matches what's in the cluster; check with the Storage Team</td></tr>
+    <tr><td>OpenShift</td><td>VMI never reaches <code>Running</code></td><td>Missing NetworkAttachmentDefinition, or golden DataSource not ready</td><td>Describe the VMI events (<code>oc describe vmi</code>) to see the exact scheduling/attach error</td></tr>
+  </table>
+  <div class="why"><strong>The universal troubleshooting order, regardless of platform:</strong> Symptom → check the Job's task-level log first (what exact task/module failed) → check the platform's own event/activity log (CloudTrail, Azure Activity Log, <code>oc describe</code>) → identify root cause → apply the narrowest possible fix → add a Module 9-style validation check so the same mistake can't reach production silently again.</div>
+
+  <h2 id="m25">Module 25 — Testing</h2>
+  <div class="flow">Feature branch
+      ↓
+Pull Request opened
+      ↓
+yamllint + ansible-lint run automatically (CI)
+      ↓
+Syntax check: ansible-playbook --syntax-check
+      ↓
+Molecule / role-level test (where applicable)
+      ↓
+Code Review by a teammate
+      ↓
+Merge to main
+      ↓
+AAP Project Sync picks up the new commit
+      ↓
+Test in DEV  →  QA  →  UAT  →  PROD
+   (same playbook, different environment variable each time)</div>
+  <table>
+    <tr><th>Tool</th><th>What it catches</th></tr>
+    <tr><td><code>yamllint</code></td><td>YAML formatting issues — indentation, trailing spaces, line length</td></tr>
+    <tr><td><code>ansible-lint</code></td><td>Ansible-specific best-practice violations — missing FQCN, no <code>changed_when</code> on a shell task, deprecated syntax</td></tr>
+    <tr><td><code>ansible-playbook --syntax-check</code></td><td>Basic YAML/Jinja2 syntax errors, without actually running anything</td></tr>
+    <tr><td>Molecule</td><td>Actually runs a role against a test container/instance and asserts the end state is correct — closest thing to a true unit test for a role</td></tr>
+  </table>
+  <div class="why"><strong>Why the same playbook, not different playbooks per environment:</strong> If DEV and PROD ran genuinely different code, testing in DEV would prove nothing about PROD. Our design instead keeps one playbook, and only the <code>environment</code> variable (and its associated <code>group_vars</code>) changes — so a successful DEV test is real evidence the PROD run will behave the same way.</div>
+
+  <h2 id="m26">Module 26 — The Complete Real-Time Project</h2>
+  <p>Let's take the exact Payment Gateway request from Module 1's opening story, and trace it through everything we've built, end to end.</p>
+  <div class="story">
+    <p><strong>Requirement:</strong> Application: Payment Gateway · Environment: DEV · Platform: AWS · Servers: pay-dev-app01, pay-dev-app02 · OS: RHEL 9 · CPU 4 · RAM 16GB · Disk 100GB · Port 8080 · Owner: Payments · Cost Center: PAY001</p>
+  </div>
+  <table>
+    <tr><th>Stage</th><th>What actually happens</th></tr>
+    <tr><td>Requirement</td><td>Payment team fills in the checklist from Module 1</td></tr>
+    <tr><td>Network / Firewall</td><td>Network Team confirms the DEV subnet; Firewall Team confirms the rules from Module 4 are already open</td></tr>
+    <tr><td>Authentication</td><td>AAP's AWS Credential (IAM Role via STS, Module 3) is already configured and valid</td></tr>
+    <tr><td>Git / EE / AAP Project</td><td>Our repo (Module 7) is synced; our custom EE (Module 6) is attached to the Job Template</td></tr>
+    <tr><td>Survey submitted</td><td>Requester fills the Module 15 Survey — <code>cloud_platform=aws</code>, all other fields as above</td></tr>
+    <tr><td>Workflow launches</td><td>Validate Input node runs <code>validate_request</code> (Module 9) — passes</td></tr>
+    <tr><td>Approval</td><td>Payments Team Lead approves within the 4-hour window (Module 16/20)</td></tr>
+    <tr><td>AWS provisioning</td><td><code>aws_provision</code> role (Module 10) runs twice, once per server, creating both EC2 instances, tagged correctly, idempotency-checked</td></tr>
+    <tr><td>Post-configuration</td><td><code>add_host</code> hands off to <code>linux_baseline</code> — hostname, NTP, users, SSH hardening, monitoring/logging/EDR/backup agents installed (Module 17)</td></tr>
+    <tr><td>Validation</td><td><code>validation</code> role confirms both servers are healthy and reachable</td></tr>
+    <tr><td>CMDB Update</td><td>Both new server records created with owner, cost center, IP, instance ID</td></tr>
+    <tr><td>Notification</td><td>Payments Team Lead receives a message: "pay-dev-app01 and pay-dev-app02 are ready"</td></tr>
+  </table>
+  <div class="prod">Total elapsed time: typically minutes, not the half-day from Module 1's manual story — and every single step above is logged, auditable, and identical no matter which engineer (or no engineer at all) triggered it.</div>
+
+  <div class="task" id="task">
+    <h3>Hands-On Task (covers Modules 21-26)</h3>
+    <ol>
+      <li>Write your own environment-aware rollback rule (like Module 21's) but for a QA environment that should retry once before deleting.</li>
+      <li>Pick one AWS error from the Module 24 table and explain, in your own words, how you'd confirm the root cause using only the AAP job log and one AWS console screen.</li>
+      <li>Walk through Module 26's table from memory, out loud, as if explaining it in an interview — this single exercise is one of the best ways to prepare for a "describe a project you automated" interview question.</li>
+    </ol>
+  </div>
+
+  <div class="next" id="next">
+    <strong>What comes next — Modules 27-29: Azure, then OpenShift, then Production Architecture.</strong>
+    <p style="margin-bottom:0">We repeat this exact Payment Gateway lifecycle on Azure, then on OpenShift Virtualization, explicitly comparing differences each time, before assembling the final full production architecture diagram. Reply "next" whenever you're ready.</p>
+  </div>
+
+  <footer>Enterprise Multi-Cloud Server Provisioning Masterclass — Modules 21-26 of 30</footer>
+</main>
+</div>
+</body>
+</html>

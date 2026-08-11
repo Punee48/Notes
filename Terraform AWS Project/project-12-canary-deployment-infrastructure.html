@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Project 12 — Canary Deployment Infrastructure | ABC Bank Terraform Mastery</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/10.9.0/mermaid.min.js"></script>
+<style>
+  :root{
+    --bg:#ffffff; --surface:#f7f5fc; --surface-2:#efeaf9; --border:#e3ddf4;
+    --primary:#6d28d9; --primary-dark:#4c1d95; --primary-light:#8b5cf6;
+    --accent-soft:#ede9fe; --text:#211b32; --muted:#6b6480;
+    --code-bg:#2b2140; --code-text:#e9e3fb;
+    --good:#0f7b52; --warn:#a8630a; --danger:#b3261e;
+    --radius:14px; --shadow:0 4px 20px rgba(109,40,217,0.08);
+  }
+  *{box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;font-size:16px;line-height:1.65;}
+  h1,h2,h3,h4{font-family:'Space Grotesk',sans-serif;color:var(--primary-dark);letter-spacing:-0.01em;}
+  a{color:var(--primary);}
+  .layout{display:flex;min-height:100vh;}
+  #sidebar{width:290px;flex-shrink:0;background:linear-gradient(180deg,var(--primary-dark),var(--primary));color:#f2edff;position:sticky;top:0;height:100vh;overflow-y:auto;padding:22px 18px 40px;}
+  #sidebar .brand{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:1.05rem;color:#fff;margin-bottom:4px;}
+  #sidebar .brand-sub{font-size:0.78rem;color:#d9cbff;margin-bottom:22px;display:block;}
+  #sidebar .progress-pill{display:inline-block;background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.25);border-radius:999px;padding:4px 12px;font-size:0.72rem;margin-bottom:20px;color:#fff;}
+  #sidebar nav a{display:block;color:#e6dcff;text-decoration:none;font-size:0.85rem;padding:7px 10px;border-radius:8px;margin-bottom:2px;transition:background .15s ease, color .15s ease;}
+  #sidebar nav a:hover{background:rgba(255,255,255,0.14);color:#fff;}
+  #sidebar nav a.active{background:#fff;color:var(--primary-dark);font-weight:600;}
+  #sidebar .nav-group-label{text-transform:uppercase;font-size:0.68rem;letter-spacing:0.08em;color:#c8b6f7;margin:18px 0 6px 10px;}
+  #content{flex:1;min-width:0;padding:44px 56px 120px;max-width:980px;}
+  .kicker{display:inline-block;background:var(--accent-soft);color:var(--primary-dark);font-size:0.75rem;font-weight:600;padding:5px 12px;border-radius:999px;margin-bottom:14px;letter-spacing:0.03em;}
+  header.hero{padding-bottom:28px;border-bottom:1px solid var(--border);margin-bottom:34px;}
+  header.hero h1{font-size:2.1rem;margin:0 0 10px;}
+  header.hero p.lead{font-size:1.05rem;color:var(--muted);max-width:70ch;}
+  section{margin-bottom:52px;scroll-margin-top:20px;}
+  section h2{font-size:1.4rem;display:flex;align-items:center;gap:10px;border-bottom:2px solid var(--surface-2);padding-bottom:10px;margin-bottom:18px;}
+  section h2 .num{background:var(--primary);color:#fff;font-size:0.75rem;font-family:'JetBrains Mono',monospace;padding:3px 8px;border-radius:6px;}
+  section h3{font-size:1.08rem;margin-top:26px;color:var(--primary);}
+  .story-box{background:var(--surface);border-left:4px solid var(--primary);border-radius:10px;padding:20px 22px;font-size:0.98rem;}
+  .story-box em{color:var(--muted);}
+  .card-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:18px 0;}
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px;}
+  .card h4{margin:0 0 8px;font-size:0.92rem;color:var(--primary-dark);}
+  .card p, .card ul{margin:0;font-size:0.9rem;color:var(--text);}
+  .card ul{padding-left:18px;}
+  .note, .warn, .best{border-radius:10px;padding:14px 16px;margin:16px 0;font-size:0.92rem;border:1px solid transparent;}
+  .note{background:#eef2ff;border-color:#c7d2fe;}
+  .note::before{content:"📝 Note";display:block;font-weight:700;margin-bottom:4px;color:#3730a3;}
+  .warn{background:#fff7ed;border-color:#fed7aa;}
+  .warn::before{content:"⚠️ Watch out";display:block;font-weight:700;margin-bottom:4px;color:var(--warn);}
+  .best{background:#ecfdf5;border-color:#a7f3d0;}
+  .best::before{content:"✅ Best Practice";display:block;font-weight:700;margin-bottom:4px;color:var(--good);}
+  details.collapse{border:1px solid var(--border);border-radius:var(--radius);margin:14px 0;background:#fff;box-shadow:var(--shadow);overflow:hidden;}
+  details.collapse summary{cursor:pointer;padding:14px 18px;font-weight:600;font-family:'Space Grotesk',sans-serif;color:var(--primary-dark);background:var(--surface);list-style:none;}
+  details.collapse summary::-webkit-details-marker{display:none;}
+  details.collapse summary::before{content:"▸ ";color:var(--primary);}
+  details.collapse[open] summary::before{content:"▾ ";}
+  details.collapse .inner{padding:16px 20px;}
+  table{width:100%;border-collapse:collapse;margin:14px 0;font-size:0.9rem;}
+  th,td{border:1px solid var(--border);padding:8px 10px;text-align:left;}
+  th{background:var(--surface-2);color:var(--primary-dark);}
+  .code-block{position:relative;margin:14px 0;border-radius:12px;overflow:hidden;border:1px solid #3b2c5e;}
+  .code-block .code-head{background:#231a38;color:#cbb8f5;font-family:'JetBrains Mono',monospace;font-size:0.78rem;padding:8px 14px;display:flex;justify-content:space-between;align-items:center;}
+  .code-block pre{margin:0;background:var(--code-bg);color:var(--code-text);padding:16px;overflow-x:auto;font-family:'JetBrains Mono',monospace;font-size:0.83rem;line-height:1.55;}
+  .code-block .copy-btn{background:var(--primary);color:#fff;border:none;border-radius:6px;font-size:0.72rem;padding:4px 10px;cursor:pointer;font-family:'Inter',sans-serif;}
+  .code-block .copy-btn:hover{background:var(--primary-light);}
+  .cmt{color:#8ee6a3;}
+  .mermaid-wrap{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:18px;margin:16px 0;overflow-x:auto;}
+  .tree{font-family:'JetBrains Mono',monospace;font-size:0.83rem;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px;white-space:pre;overflow-x:auto;}
+  .qa{border-top:1px solid var(--border);padding:12px 0;}
+  .qa .q{font-weight:600;color:var(--primary-dark);margin-bottom:4px;}
+  .nextbar{background:linear-gradient(135deg,var(--primary),var(--primary-dark));color:#fff;border-radius:16px;padding:26px 30px;margin-top:40px;}
+  .nextbar h3{color:#fff;margin-top:0;}
+  .nextbar p{color:#e6dcff;margin-bottom:0;}
+  @media (max-width:900px){.layout{flex-direction:column;}#sidebar{position:relative;width:100%;height:auto;}#content{padding:30px 20px 80px;}.card-grid{grid-template-columns:1fr;}}
+</style>
+</head>
+<body>
+<div class="layout">
+
+  <aside id="sidebar">
+    <span class="brand">🏦 ABC Bank — DevOps Mastery</span>
+    <span class="brand-sub">Intermediate → Advanced Terraform Track</span>
+    <span class="progress-pill">Project 12 / 40</span>
+    <nav id="navlinks">
+      <div class="nav-group-label">Orientation</div>
+      <a href="#story">The Banking Story</a>
+      <a href="#requirements">Business &amp; Risk</a>
+      <a href="#why-iac">Why Automated Canary</a>
+      <div class="nav-group-label">Concepts</div>
+      <a href="#tf-concepts">Terraform Concepts</a>
+      <a href="#aws-concepts">AWS Concepts (CodeDeploy, Alarms)</a>
+      <div class="nav-group-label">Design</div>
+      <a href="#architecture">Architecture Diagrams</a>
+      <a href="#solution-design">Solution Design</a>
+      <div class="nav-group-label">Build</div>
+      <a href="#folder-structure">Folder &amp; Repo Structure</a>
+      <a href="#implementation">Implementation (Full Code)</a>
+      <a href="#code-explained">Line-by-Line Explanation</a>
+      <div class="nav-group-label">Operate</div>
+      <a href="#execution-flow">Execution Flow</a>
+      <a href="#cicd">CI/CD Integration</a>
+      <a href="#local-lab">Local Lab &amp; Assignments</a>
+      <a href="#interview">Interview Preparation</a>
+      <a href="#next">What's Next</a>
+    </nav>
+  </aside>
+
+  <main id="content">
+    <header class="hero">
+      <span class="kicker">PROJECT 12 OF 40 · ADVANCED</span>
+      <h1>Canary Deployment Infrastructure — Deployments That Roll Themselves Back</h1>
+      <p class="lead">Project 11 gave engineers a fast, manual traffic-shifting mechanism. Today we hand the wheel to CloudWatch: an AWS-native canary deployment that shifts traffic automatically, in small steps, and reverts itself the moment error rate or latency crosses a defined threshold — no human needs to be watching at 2am for it to work correctly.</p>
+    </header>
+
+    <section id="story">
+      <h2><span class="num">01</span> The Banking Story</h2>
+      <div class="story-box">
+        Blue-green from Project 11 has already prevented one bad release from becoming an outage — an engineer noticed elevated error rates during a canary window and manually shifted weight back to blue within two minutes. It worked because someone happened to be watching the dashboard closely during that exact window.<br><br>
+        The team's next release is scheduled for 6am, ahead of the business day, specifically so a slow rollout has time to prove itself before peak traffic. No engineer wants to be manually watching a dashboard at 6am, and nobody should have to.<br><br>
+        Our manager's brief: <em>"Automate this properly. Define the exact error-rate and latency thresholds that should trigger a rollback, and hand the decision to CloudWatch and CodeDeploy — not a person's judgment call at 6am. The system should be able to detect and revert a bad release entirely on its own."</em>
+      </div>
+    </section>
+
+    <section id="requirements">
+      <h2><span class="num">02</span> Business Requirement, Risk &amp; Impact</h2>
+      <div class="card-grid">
+        <div class="card"><h4>Business Requirement</h4><p>Deployments must be able to detect their own failure against defined metrics and roll back automatically, without requiring a human to be actively monitoring at the time.</p></div>
+        <div class="card"><h4>Customer Requirement</h4><p>Releases scheduled outside business hours must be just as safe as releases made during the day, when more engineers are actively watching.</p></div>
+        <div class="card"><h4>Current Infrastructure</h4><p>Project 11's blue-green target groups and weighted listener rule, with all traffic-shifting decisions currently made manually by an engineer.</p></div>
+        <div class="card"><h4>Existing Manual Process</h4><p>An engineer watches dashboards during the canary window and manually reapplies Terraform with a lower weight if something looks wrong — entirely dependent on someone paying close attention at the right moment.</p></div>
+        <div class="card"><h4>Problems With Current Process</h4><ul><li>Detection and response time depends entirely on how closely, and how quickly, a human is watching</li><li>Off-hours or low-staffed release windows have effectively weaker safety than business-hours releases</li><li>No consistent, objective definition of "this deployment has failed" — it's currently a judgment call</li></ul></div>
+        <div class="card"><h4>Business Challenges</h4><p>The bank wants to increase release frequency for faster fixes and features — that's only safe to do if the safety net doesn't scale linearly with the number of engineers watching each release.</p></div>
+        <div class="card"><h4>Risk Analysis</h4><p><strong>Medium:</strong> the risk isn't that deployments fail (they always might) — it's that failure detection and response time is currently inconsistent and staffing-dependent.</p></div>
+        <div class="card"><h4>Business Impact</h4><p>Automated rollback directly enables safer off-hours deployments, which reduces the business pressure to deploy only during risky, high-traffic daytime windows.</p></div>
+      </div>
+    </section>
+
+    <section id="why-iac">
+      <h2><span class="num">03</span> Why AWS CodeDeploy + CloudWatch Alarms, and What We Rejected</h2>
+      <h3>Why CodeDeploy's native canary support</h3>
+      <p>AWS CodeDeploy has purpose-built support for ECS and Lambda canary/linear deployments, with CloudWatch alarm integration for automatic rollback as a first-class, declarative feature — not something we'd need to hand-build with custom Lambda functions polling metrics ourselves.</p>
+      <h3>Alternatives considered, and why they were rejected</h3>
+      <table>
+        <tr><th>Alternative</th><th>Why considered</th><th>Why rejected for ABC Bank</th></tr>
+        <tr><td>Custom Lambda + EventBridge polling metrics and calling Project 11's weight-shift logic</td><td>Full control over exact rollback logic</td><td>Rebuilds, in custom code we'd have to maintain and test, something CodeDeploy already provides natively and more reliably as a managed feature</td></tr>
+        <tr><td>Keep the manual process, just add better alerting</td><td>Smallest incremental change</td><td>Better alerting still depends on someone being available to respond quickly — doesn't solve the core off-hours safety gap</td></tr>
+        <tr><td>Third-party deployment platform (e.g. a dedicated CD tool)</td><td>Richer deployment strategy options and UI</td><td>Introduces a new tool and cost to operate when CodeDeploy already meets the requirement natively at no extra licensing cost</td></tr>
+      </table>
+    </section>
+
+    <section id="tf-concepts">
+      <h2><span class="num">04</span> Terraform Concepts You Must Understand Before We Build</h2>
+
+      <details class="collapse" open>
+        <summary>The <code>terraform_data</code> Resource (Modern Alternative to <code>null_resource</code>)</summary>
+        <div class="inner">
+          <p><strong>What it is:</strong> a built-in resource (no provider needed) that replaces the older <code>null_resource</code> + <code>random</code>/hash-based trigger pattern — it holds arbitrary values in state and supports a dedicated <code>triggers_replace</code> argument that forces recreation cleanly when specific inputs change.</p>
+          <p><strong>Why it exists:</strong> <code>null_resource</code> required pairing with the <code>random</code> provider or manual hashing tricks to force replacement on a specific change; <code>terraform_data</code> makes "recreate this placeholder when X changes" a direct, built-in argument instead of a workaround.</p>
+          <p><strong>Production example:</strong> we use <code>terraform_data</code> to track the currently deployed application revision identifier — when it changes, downstream logic can detect that a new deployment needs to be registered with CodeDeploy, without needing any real cloud resource to represent that tracking.</p>
+          <p><strong>Best practice:</strong> prefer <code>terraform_data</code> over <code>null_resource</code> in new code on modern Terraform versions — it needs no provider block and expresses trigger-based replacement more directly.</p>
+        </div>
+      </details>
+
+      <details class="collapse">
+        <summary>Reinforcing Dynamic Blocks — Alarm Thresholds from a Map</summary>
+        <div class="inner">
+          <p><strong>What it is:</strong> the CodeDeploy deployment group's <code>alarm_configuration</code> and our CloudWatch composite alarm both take a variable-length list of alarm names — built with a <code>dynamic</code> block from a structured map variable, so adding a fourth rollback-triggering metric later is a variable change, not a new resource block.</p>
+        </div>
+      </details>
+
+      <details class="collapse">
+        <summary>Reinforcing Conditional Expressions — Environment-Specific Canary Intervals</summary>
+        <div class="inner">
+          <p><strong>What it is:</strong> Production uses a slower, more cautious canary interval than UAT, computed with the same <code>condition ? a : b</code> pattern used throughout this series: <code>canary_interval_minutes = var.environment == "production" ? 15 : 5</code>.</p>
+        </div>
+      </details>
+    </section>
+
+    <section id="aws-concepts">
+      <h2><span class="num">05</span> AWS Concepts: CodeDeploy Canary &amp; Alarm-Driven Rollback</h2>
+      <div class="card-grid">
+        <div class="card"><h4>What is a CodeDeploy Deployment Group</h4><p>Defines HOW a deployment rolls out — which target groups are involved, the traffic-shifting strategy (canary, linear, or all-at-once), and what conditions trigger an automatic rollback.</p></div>
+        <div class="card"><h4>Canary vs. Linear Deployment Config</h4><p>Canary shifts a defined percentage immediately, waits an interval, then shifts the rest; Linear shifts in even increments repeatedly until 100% — canary suits ABC Bank's need to catch issues early with a small blast radius before commit to the rest.</p></div>
+        <div class="card"><h4>CloudWatch Alarm-Based Auto Rollback</h4><p>A deployment group's <code>alarm_configuration</code> references specific CloudWatch alarms — if any of them enters ALARM state during the deployment, CodeDeploy automatically reverts traffic to the previous version without waiting for the canary interval to complete naturally.</p></div>
+        <div class="card"><h4>Composite Alarms</h4><p>A single alarm that combines multiple underlying alarms with AND/OR logic — used here so "error rate high OR latency high" triggers rollback from one alarm reference, instead of managing multiple separate alarm conditions in the deployment group config.</p></div>
+        <div class="card"><h4>Security</h4><p>The CodeDeploy service role needs narrowly scoped permissions to modify the specific ALB listener rule and target groups involved — not broad ELB permissions across the whole account.</p></div>
+        <div class="card"><h4>Limitations</h4><p>Auto-rollback triggers reactively, after metrics cross a threshold — it doesn't prevent the bad version from receiving any traffic at all during the canary window; the canary percentage itself is what limits the blast radius before detection.</p></div>
+      </div>
+    </section>
+
+    <section id="architecture">
+      <h2><span class="num">06</span> Architecture Diagrams</h2>
+      <h3>Automated Canary Flow</h3>
+      <div class="mermaid-wrap"><div class="mermaid">
+flowchart TB
+  Deploy[New revision registered] --> CD[CodeDeploy Deployment]
+  CD -->|Canary 10%| Shift1[10% traffic to new version]
+  Shift1 --> Wait[Wait interval e.g. 5 min]
+  Wait --> Check{Composite Alarm<br/>triggered?}
+  Check -->|No| Shift2[Remaining 90% shifted]
+  Check -->|Yes| Rollback[Automatic rollback to previous version]
+      </div></div>
+
+      <h3>Alarm-to-Rollback Wiring</h3>
+      <div class="mermaid-wrap"><div class="mermaid">
+flowchart LR
+  ErrRate[CloudWatch Alarm<br/>5xx Error Rate > 2%] --> Composite[Composite Alarm<br/>OR logic]
+  Latency[CloudWatch Alarm<br/>p99 Latency > 800ms] --> Composite
+  Composite --> DG[CodeDeploy Deployment Group<br/>alarm_configuration]
+  DG -.triggers.-> AutoRollback[Automatic Rollback Action]
+      </div></div>
+
+      <h3>terraform_data Tracking Deployed Revision</h3>
+      <div class="mermaid-wrap"><div class="mermaid">
+flowchart LR
+  Var[var.app_revision_id] --> TD[terraform_data.deployed_revision<br/>triggers_replace = var.app_revision_id]
+  TD -->|changes trigger downstream logic| Notify[Notify pipeline: new revision ready to deploy]
+      </div></div>
+    </section>
+
+    <section id="solution-design">
+      <h2><span class="num">07</span> Complete Solution Design</h2>
+      <p>Two CloudWatch alarms (5xx error rate, p99 latency) feed into one composite alarm using OR logic. A CodeDeploy application and deployment group reference Project 11's blue and green target groups, configured with a <code>CodeDeployDefault.ECSCanary10Percent5Minutes</code>-style canary strategy and an <code>alarm_configuration</code> block pointing at the composite alarm — if it fires during the canary window, CodeDeploy automatically reverts.</p>
+      <p>A <code>terraform_data</code> resource tracks the currently deployed application revision identifier, using <code>triggers_replace</code> to detect when a new revision is ready — giving downstream CI/CD steps a clean, Terraform-native signal without a real cloud resource needed just to track this piece of state.</p>
+    </section>
+
+    <section id="folder-structure">
+      <h2><span class="num">08</span> Folder Structure &amp; Repo Layout</h2>
+      <div class="tree">terraform-abc-bank/
+└── environments/
+    └── prod/
+        ├── canary-alarms.tf         # CloudWatch alarms + composite alarm
+        ├── canary-codedeploy.tf     # CodeDeploy app, deployment group, deployment config
+        └── canary-tracking.tf       # terraform_data for revision tracking</div>
+    </section>
+
+    <section id="implementation">
+      <h2><span class="num">09</span> Implementation — Full Production Code</h2>
+
+      <h3>environments/prod/canary-alarms.tf</h3>
+      <div class="code-block">
+        <div class="code-head"><span>environments/prod/canary-alarms.tf</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre><code>resource "aws_cloudwatch_metric_alarm" "error_rate" {
+  alarm_name          = "payments-api-5xx-error-rate"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods   = 2                                              <span class="cmt"># Requires 2 consecutive breaching periods — avoids a single noisy spike triggering rollback</span>
+  metric_name          = "HTTPCode_Target_5XX_Count"
+  namespace            = "AWS/ApplicationELB"
+  period               = 60
+  statistic            = "Sum"
+  threshold            = 10                                              <span class="cmt"># More than 10 five-hundred errors per minute is considered a real problem, not noise</span>
+  alarm_description    = "Triggers CodeDeploy auto-rollback on elevated 5xx errors during canary"
+}
+
+resource "aws_cloudwatch_metric_alarm" "latency" {
+  alarm_name          = "payments-api-p99-latency"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods   = 2
+  metric_name          = "TargetResponseTime"
+  namespace            = "AWS/ApplicationELB"
+  period               = 60
+  extended_statistic    = "p99"                                          <span class="cmt"># p99, not average — a slow tail is exactly what a canary window should catch</span>
+  threshold             = 0.8                                             <span class="cmt"># 800ms — matches the bank's documented latency SLO for this service</span>
+  alarm_description     = "Triggers CodeDeploy auto-rollback on elevated p99 latency during canary"
+}
+
+resource "aws_cloudwatch_composite_alarm" "canary_rollback_trigger" {
+  alarm_name = "payments-api-canary-rollback-trigger"
+  alarm_rule = "ALARM(${aws_cloudwatch_metric_alarm.error_rate.alarm_name}) OR ALARM(${aws_cloudwatch_metric_alarm.latency.alarm_name})"  <span class="cmt"># EITHER condition alone is sufficient to trigger rollback</span>
+}</code></pre>
+      </div>
+
+      <h3>environments/prod/canary-codedeploy.tf</h3>
+      <div class="code-block">
+        <div class="code-head"><span>environments/prod/canary-codedeploy.tf</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre><code>resource "aws_codedeploy_app" "payments_api" {
+  name             = "payments-api"
+  compute_platform = "ECS"                                               <span class="cmt"># Assumes payments-api has migrated to ECS by this point in the platform's evolution</span>
+}
+
+resource "aws_codedeploy_deployment_config" "canary" {
+  deployment_config_name = "payments-api-canary-10-percent"
+  compute_platform        = "ECS"
+
+  traffic_routing_config {
+    type = "TimeBasedCanary"                                             <span class="cmt"># Shifts an initial percentage, waits, then shifts the rest — as opposed to "TimeBasedLinear"</span>
+
+    time_based_canary {
+      interval   = var.environment == "production" ? 15 : 5              <span class="cmt"># Production waits longer per step — reinforces the conditional-expression pattern from earlier projects</span>
+      percentage = 10                                                     <span class="cmt"># Only 10% of traffic during the canary window, limiting blast radius before the alarm has a chance to fire</span>
+    }
+  }
+}
+
+resource "aws_codedeploy_deployment_group" "payments_api" {
+  app_name               = aws_codedeploy_app.payments_api.name
+  deployment_group_name  = "payments-api-${var.environment}"
+  service_role_arn        = aws_iam_role.codedeploy.arn
+  deployment_config_name  = aws_codedeploy_deployment_config.canary.id
+
+  auto_rollback_configuration {
+    enabled           = true
+    events             = ["DEPLOYMENT_FAILURE", "DEPLOYMENT_STOP_ON_ALARM"]  <span class="cmt"># Rolls back on either an outright failure OR an alarm-triggered stop</span>
+  }
+
+  alarm_configuration {
+    alarms  = [aws_cloudwatch_composite_alarm.canary_rollback_trigger.alarm_name]  <span class="cmt"># The ONE composite alarm covers both underlying conditions</span>
+    enabled = true
+  }
+
+  blue_green_deployment_config {                                          <span class="cmt"># Reuses the blue/green target group PAIR from Project 11 as CodeDeploy's own managed rotation</span>
+    deployment_ready_option {
+      action_on_timeout = "CONTINUE_DEPLOYMENT"
+    }
+    terminate_blue_instances_on_deployment_success {
+      action                            = "TERMINATE"
+      termination_wait_time_in_minutes  = 5                                 <span class="cmt"># Keeps the old version briefly available even after a successful full shift, as a final safety window</span>
+    }
+  }
+
+  load_balancer_info {
+    target_group_pair_info {
+      target_group {
+        name = module.app_blue.target_group_name                          <span class="cmt"># References Project 11's blue/green modules directly — this project builds ON that infrastructure, not instead of it</span>
+      }
+      target_group {
+        name = module.app_green.target_group_name
+      }
+      prod_traffic_route {
+        listener_arns = [var.alb_listener_arn]
+      }
+    }
+  }
+}</code></pre>
+      </div>
+
+      <h3>environments/prod/canary-tracking.tf</h3>
+      <div class="code-block">
+        <div class="code-head"><span>environments/prod/canary-tracking.tf</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre><code>resource "terraform_data" "deployed_revision" {                        <span class="cmt"># Built-in resource — no provider block needed, unlike null_resource historically requiring one implicitly</span>
+  input = var.app_revision_id                                            <span class="cmt"># Stores the current revision identifier as this resource's tracked value</span>
+
+  triggers_replace = [
+    var.app_revision_id                                                   <span class="cmt"># Forces replacement of this resource specifically when the revision ID changes — nothing else triggers it</span>
+  ]
+}
+
+output "revision_change_detected" {
+  value       = terraform_data.deployed_revision.id                      <span class="cmt"># Changes every time the resource is replaced — a clean signal a downstream pipeline step can compare against its last-seen value</span>
+  description = "Changes whenever a new application revision has been registered for deployment"
+}</code></pre>
+      </div>
+    </section>
+
+    <section id="code-explained">
+      <h2><span class="num">10</span> Code Explanation Summary</h2>
+      <table>
+        <tr><th>Block / Argument</th><th>What it does</th><th>Common mistake to avoid</th></tr>
+        <tr><td><code>alarm_rule = "ALARM(...) OR ALARM(...)"</code></td><td>Composite alarm's own small expression language combining underlying alarms with boolean logic</td><td>Using AND when OR is intended (or vice versa) — with AND here, a rollback would require BOTH error rate and latency to breach simultaneously, missing either issue occurring alone</td></tr>
+        <tr><td><code>events = ["DEPLOYMENT_FAILURE", "DEPLOYMENT_STOP_ON_ALARM"]</code></td><td>Defines which categories of deployment problem trigger the automatic rollback</td><td>Only including <code>DEPLOYMENT_FAILURE</code> and omitting <code>DEPLOYMENT_STOP_ON_ALARM</code> — the alarm-triggered stop wouldn't actually cause an automatic rollback without this specific event also being listed</td></tr>
+        <tr><td><code>terraform_data</code> with <code>triggers_replace</code></td><td>Forces the resource to be destroyed and recreated (getting a new internal <code>id</code>) whenever the referenced value changes</td><td>Confusing <code>input</code> with <code>triggers_replace</code> — <code>input</code> just stores a value; only <code>triggers_replace</code> controls when the resource itself is replaced</td></tr>
+        <tr><td><code>extended_statistic = "p99"</code></td><td>Uses the 99th percentile rather than the average for the latency alarm</td><td>Using <code>statistic = "Average"</code> for a latency SLO — averages hide exactly the kind of tail latency spike a canary window is meant to catch</td></tr>
+      </table>
+    </section>
+
+    <section id="execution-flow">
+      <h2><span class="num">11</span> Execution Flow, Explained Internally</h2>
+      <div class="card-grid">
+        <div class="card"><h4>terraform apply — infrastructure setup</h4><p>Creates the alarms, composite alarm, CodeDeploy application, deployment config, and deployment group — but triggers no actual deployment; CodeDeploy deployments themselves are created by the CI/CD pipeline via the AWS API/CLI, not by <code>terraform apply</code>.</p></div>
+        <div class="card"><h4>A real deployment's automatic flow (outside Terraform)</h4><p>CI/CD calls CodeDeploy's <code>create-deployment</code> API; CodeDeploy shifts 10% of traffic per the deployment config, waits the configured interval, continuously evaluates the composite alarm, and either proceeds to 100% or automatically reverts — entirely orchestrated by CodeDeploy itself.</p></div>
+        <div class="card"><h4>terraform apply — revision change detection</h4><p>When <code>var.app_revision_id</code> changes, the plan shows <code>terraform_data.deployed_revision</code> being replaced — a visible, reviewable signal in the plan output that a new revision is about to be tracked.</p></div>
+      </div>
+      <div class="warn">Terraform manages the canary DEFINITION (thresholds, percentages, alarm wiring) — it does not manage individual deployment EVENTS. Don't try to trigger a deployment via a provisioner or external data source; that's exactly the kind of action CI/CD, not infrastructure code, should own.</div>
+    </section>
+
+    <section id="cicd">
+      <h2><span class="num">12</span> CI/CD Integration</h2>
+      <div class="code-block">
+        <div class="code-head"><span>.github/workflows/canary-deploy.yml</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre><code>name: canary-deploy
+on:
+  push:
+    branches: [main]
+    paths: ["services/payments-api/**"]
+
+jobs:
+  infra:
+    runs-on: ubuntu-latest
+    defaults: { run: { working-directory: environments/prod } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+      - run: terraform init
+      - run: terraform apply -auto-approve -var="app_revision_id=${{ github.sha }}"  <span class="cmt"># Updates tracking + ensures alarm/deployment-group config is current BEFORE triggering a real deployment</span>
+
+  deploy:
+    needs: infra
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger CodeDeploy canary deployment
+        run: |                                                          <span class="cmt"># The actual deployment trigger — deliberately NOT done via Terraform, as explained above</span>
+          aws deploy create-deployment \
+            --application-name payments-api \
+            --deployment-group-name payments-api-production \
+            --revision revisionType=AppSpecContent,appSpecContent="{content=$(cat appspec.yaml)}"</code></pre>
+      </div>
+      <div class="note">Notice the clean split: the <code>infra</code> job (Terraform) owns the deployment STRATEGY definition; the <code>deploy</code> job (AWS CLI) owns triggering an actual deployment EVENT. Keeping these separate is a deliberate architectural choice, not an oversight.</div>
+    </section>
+
+    <section id="local-lab">
+      <h2><span class="num">13</span> Local Lab — Practice This Yourself</h2>
+      <h3>Prerequisites</h3>
+      <ul>
+        <li>Project 11's blue-green target groups already applied</li>
+        <li>An ECS service (or adapt the deployment group's <code>compute_platform</code> to <code>Server</code> for EC2-based practice)</li>
+      </ul>
+      <h3>Commands</h3>
+      <div class="code-block">
+        <div class="code-head"><span>terminal</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre><code>cd environments/prod
+terraform init
+terraform apply -var="app_revision_id=test-v1"
+aws deploy create-deployment --application-name payments-api \
+  --deployment-group-name payments-api-production \
+  --revision revisionType=AppSpecContent,appSpecContent="{content=$(cat appspec-test.yaml)}"</code></pre>
+      </div>
+      <h3>Expected output</h3>
+      <p>Watching the CodeDeploy console during the deployment shows traffic shift to 10%, hold for the configured interval, then either proceed to 100% (if alarms stay OK) or automatically revert (if you deliberately trigger a test alarm during the window).</p>
+      <h3>Troubleshooting</h3>
+      <table>
+        <tr><th>Symptom</th><th>Likely cause</th></tr>
+        <tr><td>Deployment doesn't roll back even though the alarm fired</td><td>Missing <code>DEPLOYMENT_STOP_ON_ALARM</code> in the deployment group's <code>auto_rollback_configuration.events</code> list</td></tr>
+        <tr><td>Composite alarm never enters ALARM state during a real test</td><td>Check the underlying alarms' own thresholds and evaluation periods independently first — the composite only reflects what's beneath it</td></tr>
+      </table>
+      <h3>Assignments</h3>
+      <ol>
+        <li>Add a third underlying alarm for ECS task health/CPU saturation, and add it to the composite alarm's OR expression.</li>
+        <li>Add an SNS notification (reusing the pattern from Project 05's break-glass alerting) that fires whenever CodeDeploy performs an automatic rollback, so the team knows it happened even though no human intervention was needed.</li>
+      </ol>
+      <h3>Challenge Task</h3>
+      <p>Convert the deployment config's canary percentage and interval into a structured map variable with a <code>dynamic</code> block, so different services in the platform can each define their own canary profile from one shared module — extending this project's pattern into a truly reusable framework.</p>
+    </section>
+
+    <section id="interview">
+      <h2><span class="num">14</span> Interview Preparation</h2>
+      <div class="qa"><div class="q">Q: How does automatic canary rollback differ from what you built in the blue-green project?</div><div>Blue-green (Project 11) gave a fast, manually-triggered rollback mechanism; this project removes the human from the loop entirely — CloudWatch alarms and CodeDeploy's native rollback configuration detect and revert a bad deployment automatically, without anyone needing to be watching.</div></div>
+      <div class="qa"><div class="q">Q: Why use a composite alarm instead of listing multiple alarms directly in the deployment group?</div><div>A composite alarm lets you express boolean logic (like OR) between conditions cleanly in one place; CodeDeploy's alarm_configuration itself just references a list of alarms, evaluated as OR by default, but a composite alarm becomes essential once the logic needs to be more nuanced (like AND, or weighted combinations).</div></div>
+      <div class="qa"><div class="q">Q: Why doesn't Terraform trigger the actual CodeDeploy deployment?</div><div>Terraform manages the deployment STRATEGY's definition (thresholds, percentages, rollback rules) as durable infrastructure; triggering an individual deployment is an event-driven CI/CD action tied to a specific code revision, not a piece of infrastructure state Terraform should own or reapply repeatedly.</div></div>
+      <div class="qa"><div class="q">Q: What's the advantage of terraform_data over null_resource for tracking a changing value?</div><div>terraform_data is a built-in resource needing no provider, with a direct triggers_replace argument — cleaner than null_resource's older pattern of needing an external trigger mechanism like a hash or the random provider to force replacement.</div></div>
+      <div class="qa"><div class="q">Manager round: How would you choose the canary percentage and interval for a new service?</div><div>Balance blast radius against detection time — a smaller percentage and longer interval catches issues more cautiously but delays full rollout; base the choice on the service's criticality and how quickly its metrics reliably reflect real problems, tuning over successive real deployments.</div></div>
+    </section>
+
+    <div class="nextbar" id="next">
+      <h3>What's next</h3>
+      <p>Project 13 builds <strong>Zero Downtime Deployment</strong> for the underlying EC2/ASG layer itself — instance refresh strategies, connection draining, and launch template versioning — for services that haven't yet migrated to ECS and can't use today's CodeDeploy canary pattern directly. Tell me when you're ready for Project 13.</p>
+    </div>
+
+  </main>
+</div>
+
+<script>
+  mermaid.initialize({ startOnLoad: true, theme: 'base', themeVariables: {
+    primaryColor: '#ede9fe', primaryTextColor: '#4c1d95', primaryBorderColor: '#8b5cf6',
+    lineColor: '#8b5cf6', secondaryColor: '#f7f5fc', tertiaryColor: '#ffffff', fontFamily: 'Inter, sans-serif'
+  }});
+  function copyCode(btn){
+    const pre = btn.closest('.code-block').querySelector('pre');
+    const text = pre.innerText;
+    navigator.clipboard.writeText(text).then(()=>{
+      const original = btn.textContent;
+      btn.textContent = 'Copied!';
+      setTimeout(()=>{ btn.textContent = original; }, 1500);
+    });
+  }
+  const sections = document.querySelectorAll('section, .nextbar');
+  const links = document.querySelectorAll('#navlinks a');
+  const observer = new IntersectionObserver((entries)=>{
+    entries.forEach(entry=>{
+      if(entry.isIntersecting){
+        links.forEach(l=>l.classList.remove('active'));
+        const id = entry.target.getAttribute('id');
+        const match = document.querySelector(`#navlinks a[href="#${id}"]`);
+        if(match) match.classList.add('active');
+      }
+    });
+  }, { rootMargin: '-20% 0px -70% 0px' });
+  sections.forEach(s=>observer.observe(s));
+</script>
+</body>
+</html>

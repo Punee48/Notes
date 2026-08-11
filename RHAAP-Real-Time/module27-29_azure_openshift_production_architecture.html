@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Modules 27-29 — Azure Lifecycle, OpenShift Lifecycle, and the Full Production Architecture</title>
+<style>
+:root{
+  --blue:#1D4ED8; --blue-light:#DBEAFE; --blue-vlight:#EFF6FF;
+  --ink:#1F2937; --muted:#4B5563; --line:#E5E7EB; --ok:#047857; --warn:#B45309; --bad:#B91C1C;
+  --code-bg:#0F172A; --code-ink:#E2E8F0;
+}
+*{box-sizing:border-box}
+body{margin:0;font-family:Segoe UI, Arial, sans-serif;color:var(--ink);background:#fff;line-height:1.65;font-size:16px;}
+.layout{display:flex;min-height:100vh;}
+nav{width:280px;flex-shrink:0;background:var(--blue-vlight);border-right:1px solid var(--line);padding:24px 16px;position:sticky;top:0;height:100vh;overflow-y:auto;}
+nav h2{font-size:14px;text-transform:uppercase;letter-spacing:.05em;color:var(--blue);margin:0 0 12px;}
+nav a{display:block;padding:7px 10px;border-radius:6px;color:var(--ink);text-decoration:none;font-size:14px;margin-bottom:2px;}
+nav a:hover{background:var(--blue-light);}
+main{flex:1;padding:40px 60px;max-width:980px;}
+.badge{display:inline-block;background:var(--blue);color:#fff;font-size:12px;font-weight:600;padding:4px 10px;border-radius:999px;letter-spacing:.03em;}
+h1{font-size:30px;margin:14px 0 6px;color:var(--blue);}
+.subtitle{color:var(--muted);font-size:16px;margin-bottom:32px;}
+h2{font-size:22px;margin-top:48px;border-bottom:2px solid var(--blue-light);padding-bottom:8px;color:#111827;}
+h3{font-size:18px;margin-top:24px;color:#111827;}
+p{margin:12px 0;}
+.story{background:var(--blue-vlight);border-left:4px solid var(--blue);padding:16px 20px;border-radius:6px;margin:16px 0;}
+.why{background:#FFFBEB;border-left:4px solid var(--warn);padding:14px 20px;border-radius:6px;margin:14px 0;}
+.prod{background:#ECFDF5;border-left:4px solid var(--ok);padding:14px 20px;border-radius:6px;margin:14px 0;}
+.flow{background:#F9FAFB;border:1px solid var(--line);border-radius:8px;padding:18px 20px;margin:16px 0;font-family:Consolas,monospace;font-size:14px;white-space:pre;overflow-x:auto;color:#111827;}
+table{width:100%;border-collapse:collapse;margin:16px 0;font-size:14px;}
+th{background:var(--blue);color:#fff;text-align:left;padding:9px 11px;}
+td{padding:9px 11px;border-bottom:1px solid var(--line);vertical-align:top;}
+tr:nth-child(even) td{background:#F9FAFB;}
+details{border:1px solid var(--line);border-radius:8px;margin:14px 0;padding:0;}
+summary{cursor:pointer;padding:12px 16px;font-weight:600;background:#F9FAFB;border-radius:8px;}
+details[open] summary{border-bottom:1px solid var(--line);border-radius:8px 8px 0 0;}
+details .inner{padding:14px 18px;}
+.task{background:#ECFDF5;border:1px solid #A7F3D0;border-radius:8px;padding:18px 22px;margin:24px 0;}
+.task h3{margin-top:0;color:var(--ok);}
+.next{background:#111827;color:#fff;border-radius:8px;padding:20px 24px;margin-top:30px;}
+code{background:#F1F5F9;padding:1px 6px;border-radius:4px;font-size:13.5px;}
+pre{background:var(--code-bg);color:var(--code-ink);padding:16px 18px;border-radius:8px;overflow-x:auto;font-size:13.5px;margin:14px 0;}
+.line-note{font-size:14px;color:var(--muted);margin:4px 0 4px 18px;}
+footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);color:var(--muted);font-size:13px;}
+</style>
+</head>
+<body>
+<div class="layout">
+<nav>
+  <h2>Masterclass</h2>
+  <a href="#m27">27. Payment Gateway on Azure</a>
+  <a href="#m28">28. Payment Gateway on OpenShift</a>
+  <a href="#m29">29. The Full Production Architecture</a>
+  <a href="#next">What Comes Next</a>
+</nav>
+<main>
+  <span class="badge">MODULES 27 – 29</span>
+  <h1>Azure Lifecycle, OpenShift Lifecycle, and the Full Production Architecture</h1>
+  <p class="subtitle">Proving the design actually works across all three platforms, then zooming out to see the whole system</p>
+  <div class="story">
+    <p>Puneeth, Module 26 walked the Payment Gateway request through AWS, start to finish. The real test of a good multi-cloud design is: does the exact same story hold together on Azure and OpenShift too, with only the platform-specific pieces changing? Let's find out.</p>
+  </div>
+
+  <h2 id="m27">Module 27 — The Same Request, Provisioned on Azure</h2>
+  <div class="story">
+    <p><strong>Same requirement, different platform:</strong> Application: Payment Gateway · Environment: DEV · Platform: <strong>Azure</strong> · Servers: pay-dev-app01, pay-dev-app02 · OS: RHEL 9 · CPU 4 · RAM 16GB · Disk 100GB · Port 8080 · Owner: Payments · Cost Center: PAY001</p>
+  </div>
+  <table>
+    <tr><th>Stage</th><th>What changes vs. the AWS run in Module 26</th></tr>
+    <tr><td>Requirement</td><td>Nothing — same Module 1 checklist, same business need</td></tr>
+    <tr><td>Network / Firewall</td><td>Firewall rule targets <code>management.azure.com</code> and <code>login.microsoftonline.com</code> instead of the AWS EC2 endpoint (Module 4)</td></tr>
+    <tr><td>Authentication</td><td>AAP's Azure Credential (Service Principal or Managed Identity via Entra ID, Module 3) is used instead of the AWS IAM Role</td></tr>
+    <tr><td>Survey submitted</td><td>Requester picks <code>cloud_platform=azure</code> — every other Survey answer is identical</td></tr>
+    <tr><td>Workflow</td><td>Unchanged — same Validate → Approval → Provisioning → Post-Config → Validation → CMDB → Notification nodes (Module 16)</td></tr>
+    <tr><td>Provisioning</td><td><code>include_role: "{{ cloud_platform }}_provision"</code> now dynamically resolves to <code>azure_provision</code> (Module 11) instead of <code>aws_provision</code> — this is the one line from Module 13 doing all the work</td></tr>
+    <tr><td>Post-configuration onward</td><td>Identical — <code>linux_baseline</code>, <code>validation</code>, and <code>notification</code> roles don't know or care which cloud created the server</td></tr>
+  </table>
+  <div class="why"><strong>The real lesson of Module 27:</strong> Almost nothing about our Workflow, Survey, or post-provisioning code changed. The entire platform swap was absorbed by one dynamic <code>include_role</code> line and a different Credential object — this is exactly the payoff of the "one role per platform" design decision from Module 7.</div>
+
+  <h3>AWS → Azure Concept Map, Revisited</h3>
+  <table>
+    <tr><th style="background:#374151">Concept</th><th style="background:#374151">AWS</th><th style="background:#374151">Azure</th></tr>
+    <tr><td>Boundary/account</td><td>Account</td><td>Subscription</td></tr>
+    <tr><td>Network</td><td>VPC / Subnet</td><td>VNet / Subnet</td></tr>
+    <tr><td>Firewall</td><td>Security Group</td><td>Network Security Group</td></tr>
+    <tr><td>Image</td><td>AMI (single ID, looked up dynamically)</td><td>Publisher/Offer/SKU/Version (resolved natively)</td></tr>
+    <tr><td>Sizing</td><td>Instance Type (<code>m5.xlarge</code>)</td><td>VM Size (<code>Standard_D4s_v5</code>)</td></tr>
+    <tr><td>Storage</td><td>EBS Volume</td><td>Managed Disk</td></tr>
+    <tr><td>Identity</td><td>IAM Role via STS</td><td>Service Principal / Managed Identity</td></tr>
+    <tr><td>Network attach step</td><td>Implicit in instance creation</td><td>Explicit NIC resource created first</td></tr>
+    <tr><td>Monitoring</td><td>CloudWatch</td><td>Azure Monitor</td></tr>
+  </table>
+
+  <h2 id="m28">Module 28 — The Same Request, Provisioned as an OpenShift Virtualization VM</h2>
+  <div class="story">
+    <p><strong>Same requirement, third platform:</strong> Application: Payment Gateway · Environment: DEV · Platform: <strong>OpenShift Virtualization</strong> · same servers, same sizing, same business owner and cost center.</p>
+  </div>
+  <table>
+    <tr><th>Stage</th><th>What changes vs. AWS/Azure</th></tr>
+    <tr><td>Authentication</td><td>AAP's OpenShift Credential (namespace-scoped Service Account token, Module 3) instead of a cloud IAM identity</td></tr>
+    <tr><td>Provisioning</td><td><code>include_role</code> now resolves to <code>openshift_provision</code> (Module 12) — submits a <code>VirtualMachine</code> + <code>DataVolume</code> manifest instead of calling a direct create-VM API</td></tr>
+    <tr><td>IP discovery</td><td>Requires the extra "wait until phase is Running" poll from Module 12 — AWS/Azure both return the IP immediately on creation</td></tr>
+    <tr><td>Everything after that</td><td>Identical — same <code>add_host</code> handoff into <code>linux_baseline</code>, <code>validation</code>, <code>notification</code></td></tr>
+  </table>
+
+  <h3>AWS vs Azure vs OpenShift Virtualization — What's Actually Reusable</h3>
+  <table>
+    <tr><th>Layer</th><th>Reused as-is across all three?</th></tr>
+    <tr><td>Module 1 requirement checklist</td><td>✅ 100% reused — the business need never changes</td></tr>
+    <tr><td>validate_request role (Module 9)</td><td>✅ 100% reused — validation logic doesn't care which platform is chosen</td></tr>
+    <tr><td>provision_server.yml entry point (Module 13)</td><td>✅ 100% reused — only the resolved role name changes</td></tr>
+    <tr><td>Provisioning role (aws/azure/openshift_provision)</td><td>❌ Platform-specific by design (Modules 10, 11, 12)</td></tr>
+    <tr><td>linux_baseline, validation, notification roles</td><td>✅ 100% reused — they only care that a reachable Linux server landed in <code>newly_provisioned</code></td></tr>
+    <tr><td>AAP Survey (Module 15)</td><td>✅ 100% reused — same questions, <code>cloud_platform</code> just picks the branch</td></tr>
+    <tr><td>Workflow Template (Module 16)</td><td>✅ 100% reused — same nodes, same approval gate</td></tr>
+  </table>
+  <div class="why"><strong>Why this matters for your resume and interviews:</strong> You can honestly say roughly 70-80% of this codebase is shared across all three clouds — only the actual "create the compute resource" step is platform-specific. That ratio is a strong, concrete number to quote when explaining the value of this design.</div>
+
+  <h2 id="m29">Module 29 — The Complete Production Architecture</h2>
+  <div class="flow">                   ServiceNow  (Module 23)
+                       |
+                       v
+                AAP Controller
+                       |
+             Workflow Template  (Module 16)
+                       |
+          +------------+------------+
+          |            |            |
+          v            v            v
+         AWS         Azure      OpenShift
+          |            |       Virtualization
+          v            v            v
+        EC2 VM      Azure VM    KubeVirt VM
+      (Module 10)  (Module 11)  (Module 12)
+          |            |            |
+          +------------+------------+
+                       |
+                       v
+              Linux Configuration  (Module 17)
+                       |
+                       v
+               Security Baseline  (Module 18)
+                       |
+                       v
+                 Monitoring / Logging / Backup Agents
+                       |
+                       v
+                  Validation  (Module 26 pattern)
+                       |
+                       v
+                 CMDB Update  (Module 22)
+                       |
+                       v
+                 Notification</div>
+  <table>
+    <tr><th>Component</th><th>Its role in the whole system</th></tr>
+    <tr><td>ServiceNow</td><td>Requester-facing front door — form, approval routing, ticket tracking (Module 23)</td></tr>
+    <tr><td>AAP Controller</td><td>Owns Organizations, Credentials, Projects, Job/Workflow Templates — the automation brain (Module 14)</td></tr>
+    <tr><td>Workflow Template</td><td>Orchestrates every step in order, with approval gates and success/failure branching (Module 16)</td></tr>
+    <tr><td>Three platform roles</td><td>The only genuinely platform-specific code in the entire system (Modules 10-12)</td></tr>
+    <tr><td>Linux Configuration + Security Baseline</td><td>Shared, platform-agnostic post-provisioning (Modules 17-18)</td></tr>
+    <tr><td>Validation</td><td>Confirms the server is actually healthy before anyone is told it's ready</td></tr>
+    <tr><td>CMDB Update</td><td>The permanent record of truth for audit and asset tracking (Module 22)</td></tr>
+    <tr><td>Notification</td><td>Closes the loop back to the original requester</td></tr>
+  </table>
+  <div class="prod"><strong>The one-paragraph summary you should be able to say confidently in an interview:</strong> "We built one AAP-driven pipeline that can provision a server on AWS, Azure, or OpenShift Virtualization from a single ServiceNow request. Requirement gathering, validation, the Workflow structure, and all post-provisioning steps are shared code; only the actual compute-creation step is platform-specific, selected dynamically at runtime with <code>include_role</code>. Every request is validated, approved, tagged for cost tracking, rolled back safely on failure in lower environments, and fully audited from request to CMDB record."</div>
+
+  <div class="task" id="task">
+    <h3>Hands-On Task (covers Modules 27-29)</h3>
+    <ol>
+      <li>Redraw the Module 29 architecture diagram from memory, on paper, without looking — this is one of the best ways to know if you can actually explain it in an interview whiteboard round.</li>
+      <li>Write down the two or three lines of code (not full playbooks — just the key lines) that had to change to make Module 27 (Azure) work, versus Module 26 (AWS). If you can name them without looking back, you understand the design.</li>
+      <li>Practice saying the one-paragraph production architecture summary above out loud, in your own words, in under 60 seconds.</li>
+    </ol>
+  </div>
+
+  <div class="next" id="next">
+    <strong>What comes next — Module 30: Interview Preparation (the final module).</strong>
+    <p style="margin-bottom:0">We go through all 18 real interview questions from the master prompt — architecture, authentication per platform, credential management, idempotency, failure handling, rollback, firewalls, Surveys, approvals, ServiceNow, CMDB, multi-environment handling, secrets, and production lessons learned — each with a beginner answer, a 3+ years experienced answer, and an enterprise-level answer, in simple spoken English you can actually use on a call. Reply "next" whenever you're ready to finish the masterclass.</p>
+  </div>
+
+  <footer>Enterprise Multi-Cloud Server Provisioning Masterclass — Modules 27-29 of 30</footer>
+</main>
+</div>
+</body>
+</html>

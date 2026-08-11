@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Project 08 — Basic Network Troubleshooting | PowerShell Masterclass</title>
+<style>
+  :root{
+    --primary:#6D28D9; --secondary:#7C3AED; --light-purple:#EDE9FE; --xlight-purple:#F5F3FF;
+    --bg:#FFFFFF; --text:#1F2937; --muted:#6B7280; --border:#E5E1F5;
+    --success:#15803D; --warn:#B45309; --danger:#B91C1C;
+    --code-bg:#1E1B2E; --code-text:#E9E4FF;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0; font-family:"Segoe UI",Calibri,Roboto,Arial,sans-serif; background:var(--bg); color:var(--text); line-height:1.65;}
+  a{color:var(--primary);}
+  .layout{display:flex; max-width:1400px; margin:0 auto;}
+  nav.sidebar{width:270px; flex-shrink:0; position:sticky; top:0; height:100vh; overflow-y:auto; background:var(--xlight-purple); border-right:1px solid var(--border); padding:22px 16px;}
+  nav.sidebar h3{color:var(--primary); font-size:13px; text-transform:uppercase; letter-spacing:.06em; margin:18px 0 8px;}
+  nav.sidebar a{display:block; padding:7px 10px; border-radius:8px; color:var(--text); text-decoration:none; font-size:14px; margin-bottom:2px;}
+  nav.sidebar a:hover{background:var(--light-purple); color:var(--primary);}
+  #progressWrap{background:var(--light-purple); border-radius:10px; padding:10px; margin-bottom:8px;}
+  #progressBar{height:8px; background:var(--border); border-radius:6px; overflow:hidden;}
+  #progressFill{height:100%; width:0%; background:linear-gradient(90deg,var(--primary),var(--secondary)); transition:width .2s;}
+  #progressLabel{font-size:12px; color:var(--muted); margin-top:6px;}
+  main{flex:1; min-width:0; padding:0;}
+  .cover{background:linear-gradient(135deg,var(--primary),var(--secondary)); color:#fff; padding:60px 48px; position:relative; overflow:hidden;}
+  .cover::after{content:"";position:absolute;right:-80px;top:-80px;width:300px;height:300px;border-radius:50%;background:rgba(255,255,255,.08);}
+  .badge{display:inline-block; background:rgba(255,255,255,.18); padding:5px 14px; border-radius:20px; font-size:12px; letter-spacing:.05em; margin-right:8px; margin-bottom:14px;}
+  .cover h1{font-size:34px; margin:6px 0 10px; max-width:760px;}
+  .cover p.sub{font-size:16px; opacity:.92; max-width:640px;}
+  .cover-meta{display:flex; gap:28px; margin-top:26px; flex-wrap:wrap;}
+  .cover-meta div{background:rgba(255,255,255,.12); padding:12px 18px; border-radius:10px; min-width:140px;}
+  .cover-meta span{display:block; font-size:12px; opacity:.85;}
+  .cover-meta strong{font-size:16px;}
+  section{padding:34px 48px; border-bottom:1px solid var(--border);}
+  section h2{color:var(--primary); font-size:24px; border-left:5px solid var(--primary); padding-left:14px; margin-top:0;}
+  section h3{color:var(--secondary); font-size:18px; margin-top:26px;}
+  .story{background:var(--xlight-purple); border-left:5px solid var(--primary); padding:20px 24px; border-radius:0 10px 10px 0; font-size:15px;}
+  .story b{color:var(--primary);}
+  .callout{border-radius:10px; padding:16px 18px; margin:16px 0; font-size:14.5px;}
+  .callout.tip{background:#F0FDF4; border-left:5px solid var(--success);}
+  .callout.note{background:var(--xlight-purple); border-left:5px solid var(--secondary);}
+  .callout.warn{background:#FFFBEB; border-left:5px solid var(--warn);}
+  .callout.security{background:#FEF2F2; border-left:5px solid var(--danger);}
+  .callout .lbl{font-weight:700; display:block; margin-bottom:4px;}
+  table{width:100%; border-collapse:collapse; margin:16px 0; font-size:14px;}
+  th,td{border:1px solid var(--border); padding:9px 12px; text-align:left; vertical-align:top;}
+  th{background:var(--light-purple); color:var(--primary);}
+  tr:nth-child(even){background:var(--xlight-purple);}
+  .codewrap{position:relative; margin:16px 0;}
+  pre{background:var(--code-bg); color:var(--code-text); padding:18px 16px; border-radius:10px; overflow-x:auto; font-family:Consolas,"Cascadia Code",Menlo,monospace; font-size:13.5px; line-height:1.7;}
+  pre code{white-space:pre;}
+  .copybtn{position:absolute; top:10px; right:10px; background:var(--secondary); color:#fff; border:none; padding:6px 12px; border-radius:6px; font-size:12px; cursor:pointer;}
+  .copybtn:hover{background:var(--primary);}
+  .explain-list{list-style:none; padding:0; margin:14px 0;}
+  .explain-list li{background:var(--xlight-purple); border-radius:8px; padding:10px 14px; margin-bottom:6px; font-size:14.5px;}
+  .explain-list code{background:var(--light-purple); padding:2px 6px; border-radius:5px; color:var(--primary); font-weight:600;}
+  details{background:var(--xlight-purple); border-radius:10px; padding:12px 16px; margin:10px 0;}
+  details summary{cursor:pointer; font-weight:600; color:var(--primary);}
+  .diagram{background:var(--xlight-purple); border-radius:12px; padding:20px; margin:16px 0; overflow-x:auto;}
+  .flow{display:flex; flex-wrap:wrap; align-items:center; gap:10px; font-size:13.5px;}
+  .flow .box{background:#fff; border:2px solid var(--secondary); border-radius:8px; padding:8px 14px; font-weight:600; color:var(--primary);}
+  .flow .arrow{color:var(--secondary); font-size:18px;}
+  .steps{counter-reset:step;}
+  .steps .step{position:relative; padding-left:44px; margin-bottom:18px;}
+  .steps .step::before{counter-increment:step; content:counter(step); position:absolute; left:0; top:0; background:var(--primary); color:#fff; width:30px; height:30px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:700;}
+  .grid2{display:grid; grid-template-columns:1fr 1fr; gap:16px;}
+  .milestone{background:linear-gradient(135deg,var(--light-purple),var(--xlight-purple)); border:2px dashed var(--secondary); border-radius:12px; padding:22px 24px; margin:18px 0;}
+  @media(max-width:900px){.grid2{grid-template-columns:1fr;} nav.sidebar{display:none;} section{padding:26px 20px;} .cover{padding:36px 22px;}}
+  footer{padding:30px 48px; background:var(--xlight-purple); color:var(--muted); font-size:13px;}
+</style>
+</head>
+<body>
+
+<div class="layout">
+  <nav class="sidebar">
+    <div id="progressWrap">
+      <div id="progressLabel">Reading progress</div>
+      <div id="progressBar"><div id="progressFill"></div></div>
+    </div>
+    <h3>Project 08</h3>
+    <a href="#cover">Cover</a>
+    <a href="#recap1">Recap: Projects 1–7</a>
+    <a href="#story">The Story</a>
+    <a href="#concepts">Concepts First</a>
+    <a href="#lab">Hands-On Lab</a>
+    <a href="#script">Full Script</a>
+    <a href="#linebyline">Line-by-Line</a>
+    <a href="#architecture">Architecture</a>
+    <a href="#incident">Production Incident</a>
+    <a href="#troubleshoot">Troubleshooting</a>
+    <a href="#security">Security Notes</a>
+    <a href="#recap">Key Learnings</a>
+    <a href="#milestone">Beginner Stage Complete</a>
+    <a href="#interview">Interview Prep</a>
+    <a href="#challenges">Coding Challenges</a>
+    <a href="#resume">Resume Points</a>
+    <a href="#assignment">Practice Assignment</a>
+    <a href="#next">Next Project</a>
+  </nav>
+
+  <main id="top">
+    <div class="cover" id="cover">
+      <span class="badge">PROJECT 08</span><span class="badge">BEGINNER</span><span class="badge">BFSI TRACK</span>
+      <h1>Basic Network Troubleshooting</h1>
+      <p class="sub">Test reachability, TCP ports, and DNS resolution across a list of critical targets, and combine everything from Projects 1–7 into one capstone connectivity checker.</p>
+      <div class="cover-meta">
+        <div><span>Difficulty</span><strong>Beginner</strong></div>
+        <div><span>Estimated Lab Time</span><strong>60–80 min</strong></div>
+        <div><span>Concepts</span><strong>8 core concepts</strong></div>
+        <div><span>Track</span><strong>8 of 40 — Final Beginner Project</strong></div>
+      </div>
+    </div>
+
+    <section id="recap1">
+      <h2>Quick Recap of Projects 1–7</h2>
+      <p>We can now collect data, classify it, sample it over time, check named lists safely, rank and group
+      results, safely modify the file system, and search event logs. This final Beginner project introduces
+      <b>network reachability checks</b> — and deliberately reuses nearly every pattern from the last seven projects
+      rather than teaching much that's brand new, so you can see how much you've actually built up.</p>
+    </section>
+
+    <section id="story">
+      <h2>The Story — Why We're Building This</h2>
+      <div class="story">
+        A ticket comes in: <b>WINAPP15 can't reach the core banking database server</b>. Is it DNS? Is the server
+        down? Is it a firewall blocking the specific port? Nobody knows yet, and manually running <code>ping</code>,
+        then <code>telnet</code>, then <code>nslookup</code> by hand against every possible target takes time during
+        an active incident.<br><br>
+        Our manager wants one script that checks a defined list of critical targets — each with its expected port
+        (e.g. the database server on port 1433, a web service on port 443) — and reports exactly which layer is
+        failing: DNS resolution, ping reachability, or the specific port.
+      </div>
+    </section>
+
+    <section id="concepts">
+      <h2>Concepts First — Before We Touch Code</h2>
+
+      <h3>1. The Three Layers of "Can I Reach This Server?"</h3>
+      <div class="diagram">
+        <div class="flow">
+          <div class="box">1. DNS Resolution</div><div class="arrow">→</div>
+          <div class="box">2. Ping (ICMP)</div><div class="arrow">→</div>
+          <div class="box">3. Specific Port (TCP)</div>
+        </div>
+      </div>
+      <div class="callout note"><span class="lbl">Why check all three separately</span>Each layer fails for a
+      different reason: DNS failure means the name doesn't resolve to an address at all. Ping failure with working
+      DNS often means the server is down or ICMP is blocked. A working ping but a failed port test almost always
+      means a firewall or the specific application/service isn't listening — three different root causes, three
+      different fixes, and checking them separately tells you exactly where to look.</div>
+
+      <h3>2. Resolve-DnsName</h3>
+      <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code>Resolve-DnsName -Name "example.com" -ErrorAction SilentlyContinue</code></pre></div>
+      <p>Attempts to turn a hostname into an IP address, the same job <code>nslookup</code> does — if this fails,
+      nothing past this point will work, regardless of firewalls or server health.</p>
+
+      <h3>3. Test-Connection — Modern Ping</h3>
+      <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code>Test-Connection -ComputerName "example.com" -Count 2 -Quiet</code></pre></div>
+      <ul class="explain-list">
+        <li><code>-Count 2</code> — sends 2 ICMP echo requests instead of the default (which can vary by version).</li>
+        <li><code>-Quiet</code> — instead of returning detailed ping results, returns a simple
+        <code>$true</code>/<code>$false</code> — perfect for a health-check script that just needs a yes/no answer.</li>
+      </ul>
+
+      <h3>4. Test-NetConnection — Checking a Specific Port</h3>
+      <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code>Test-NetConnection -ComputerName "example.com" -Port 443 -InformationLevel Quiet</code></pre></div>
+      <ul class="explain-list">
+        <li><code>-Port 443</code> — attempts an actual TCP connection to that specific port, which is what proves an
+        application is actually listening there, not just that the server itself is reachable.</li>
+        <li><code>-InformationLevel Quiet</code> — same idea as <code>-Quiet</code> above: returns a simple boolean
+        rather than a verbose diagnostic object.</li>
+      </ul>
+      <div class="callout warn"><span class="lbl">Common ports worth knowing</span>443 (HTTPS), 80 (HTTP), 1433
+      (SQL Server), 3389 (Remote Desktop), 5985/5986 (WinRM — we'll use these heavily starting with the remoting
+      projects), 445 (SMB file shares).</div>
+
+      <h3>5. Modeling Targets as an Array of PSCustomObjects</h3>
+      <p>Instead of a flat array of names (Project 4's approach), each target here needs <i>two</i> pieces of
+      information — a name and a port — so we model the list as an array of small objects, one per target.</p>
+      <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code>$Targets = @(
+    [PSCustomObject]@{ Name = "CoreDB01";  Port = 1433; Description = "Core Banking Database" },
+    [PSCustomObject]@{ Name = "WebSvc01";  Port = 443;  Description = "Internal Web Service" }
+)</code></pre></div>
+      <div class="callout note"><span class="lbl">Pattern evolution</span>Notice the progression across this course:
+      Project 4 used a simple string array; here we need structured, multi-field data per item, so we reach for an
+      array of objects instead. Recognizing when you've outgrown a simple list and need structured objects is a
+      real design skill, not just syntax.</div>
+
+      <h3>6. Combining Multiple Checks into One Overall Status</h3>
+      <p>A target is only fully healthy if <b>all three</b> checks pass. We'll use <code>-and</code> (from Project 4)
+      again here to combine three boolean results into one overall verdict, while still reporting each layer
+      individually so the failure point is obvious.</p>
+    </section>
+
+    <section id="lab">
+      <h2>Hands-On Lab — Build It Yourself</h2>
+      <div class="steps">
+        <div class="step"><b>Create the project folder:</b>
+          <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code>New-Item -ItemType Directory -Path "C:\PS-Masterclass\Project08\reports" -Force
+Set-Location "C:\PS-Masterclass\Project08"</code></pre></div>
+        </div>
+        <div class="step"><b>Create <code>Test-NetworkConnectivity.ps1</code></b> in VS Code and paste the full
+        script below. The sample targets use real, safe-to-query public endpoints so the lab works without any
+        internal bank infrastructure.</div>
+        <div class="step"><b>Run it:</b>
+          <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code>.\Test-NetworkConnectivity.ps1</code></pre></div>
+        </div>
+        <div class="step"><b>Break something on purpose:</b> add a target with a made-up, non-existent hostname
+        (e.g. "doesnotexist.invalidbank.test") and a real hostname but an unlikely-to-be-open port (e.g. port 9999)
+        to see DNS failure and port failure reported differently from each other.</div>
+        <div class="step"><b>Validate:</b> confirm each target shows DNS/Ping/Port results individually plus an
+        overall status, and a CSV is saved to <code>.\reports\</code>.</div>
+      </div>
+    </section>
+
+    <section id="script">
+      <h2>Full Script — Test-NetworkConnectivity.ps1</h2>
+      <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code># =====================================================================
+# Test-NetworkConnectivity.ps1
+# ABC Bank - Windows Infrastructure Automation Team
+# Purpose: Check DNS, ping, and port reachability across critical targets
+# =====================================================================
+
+# ---------------------------------------------------------------
+# Defined list of targets - each with a name, expected port, and description
+# ---------------------------------------------------------------
+$Targets = @(                                                    # Array of structured target objects
+    [PSCustomObject]@{ Name = "www.microsoft.com"; Port = 443; Description = "Reference web endpoint (HTTPS)" },
+    [PSCustomObject]@{ Name = "8.8.8.8";            Port = 53;  Description = "Public DNS server (should be reachable)" },
+    [PSCustomObject]@{ Name = "doesnotexist.invalidbank.test"; Port = 443; Description = "Intentionally broken target - tests DNS failure" }
+)
+
+$Results = @()   # Will hold one result object per target
+
+Write-Host "`n=== NETWORK CONNECTIVITY CHECK ===" -ForegroundColor Magenta
+
+# ---------------------------------------------------------------
+# STEP 1: Loop through every target and run all three checks
+# ---------------------------------------------------------------
+foreach ($Target in $Targets) {                                  # $Target is one PSCustomObject per iteration
+
+    Write-Host "`nChecking $($Target.Name) ($($Target.Description))..." -ForegroundColor Cyan
+
+    # --- Check 1: DNS Resolution ---
+    $DnsOk = $false                                                # Assume failure until proven otherwise
+    try {
+        Resolve-DnsName -Name $Target.Name -ErrorAction Stop | Out-Null   # Discards the result, we only care if it succeeded
+        $DnsOk = $true                                              # Only reached if resolution succeeded
+    }
+    catch {
+        $DnsOk = $false                                             # DNS resolution failed
+    }
+
+    # --- Check 2: Ping (ICMP) - only attempted if DNS succeeded, since a name that can't resolve can't be pinged ---
+    $PingOk = $false
+    if ($DnsOk) {                                                  # No point pinging a name that doesn't even resolve
+        $PingOk = Test-Connection -ComputerName $Target.Name -Count 2 -Quiet -ErrorAction SilentlyContinue
+    }
+
+    # --- Check 3: Specific Port ---
+    $PortOk = $false
+    if ($DnsOk) {                                                  # Same reasoning - skip if DNS already failed
+        $PortResult = Test-NetConnection -ComputerName $Target.Name -Port $Target.Port -InformationLevel Quiet -WarningAction SilentlyContinue
+        $PortOk = $PortResult                                        # Test-NetConnection -InformationLevel Quiet returns a boolean directly
+    }
+
+    # --- Combine into an overall status ---
+    $OverallOk = $DnsOk -and $PingOk -and $PortOk                  # All three must be true for full health
+
+    $Status = if ($OverallOk) { "HEALTHY" }                         # if/else producing a value directly (Project 2/3/6 pattern)
+              elseif (-not $DnsOk) { "DNS FAILURE" }
+              elseif (-not $PingOk) { "UNREACHABLE (Ping Failed)" }
+              else { "PORT BLOCKED ($($Target.Port))" }
+
+    $Results += [PSCustomObject]@{                                  # Records this target's full result
+        Target      = $Target.Name
+        Description = $Target.Description
+        DnsOk       = $DnsOk
+        PingOk      = $PingOk
+        PortOk      = $PortOk
+        Port        = $Target.Port
+        Status      = $Status
+    }
+
+    $Color = switch ($Status) {                                    # Reuses the switch-on-value pattern from Project 3
+        "HEALTHY" { "Green" }
+        default    { "Red" }
+    }
+    Write-Host "  Result: $Status" -ForegroundColor $Color
+}
+
+# ---------------------------------------------------------------
+# STEP 2: Export the full report
+# ---------------------------------------------------------------
+if (-not (Test-Path ".\reports")) {                                # Creates the reports folder if missing
+    New-Item -ItemType Directory -Path ".\reports" | Out-Null
+}
+$Timestamp = Get-Date -Format "yyyyMMdd_HHmmss"                    # Sortable timestamp for the filename
+$Results | Export-Csv -Path ".\reports\NetworkCheck_$Timestamp.csv" -NoTypeInformation
+
+# ---------------------------------------------------------------
+# STEP 3: Summarize
+# ---------------------------------------------------------------
+$HealthyCount = ($Results | Where-Object { $_.Status -eq "HEALTHY" }).Count   # Counts fully healthy targets
+$TotalCount   = $Results.Count
+
+Write-Host "`n=== SUMMARY ===" -ForegroundColor Magenta
+Write-Host "$HealthyCount of $TotalCount targets fully healthy." -ForegroundColor Cyan
+Write-Host "Report saved to .\reports\" -ForegroundColor Green
+</code></pre></div>
+      </div>
+    </section>
+
+    <section id="linebyline">
+      <h2>Line-by-Line Explanation</h2>
+
+      <h3><code>Resolve-DnsName -Name $Target.Name -ErrorAction Stop | Out-Null</code></h3>
+      <ul class="explain-list">
+        <li>Same try/catch-with-ErrorAction-Stop pattern from Projects 4 and 7 — we don't actually need the returned
+        DNS records, only whether the call succeeded or threw, so the result is discarded with
+        <code>Out-Null</code> (first seen in Project 6) rather than stored.</li>
+      </ul>
+
+      <h3><code>if ($DnsOk) { $PingOk = Test-Connection ... }</code></h3>
+      <ul class="explain-list">
+        <li>Skipping the ping and port checks entirely when DNS already failed avoids wasted time waiting on
+        timeouts for a target we already know can't be reached by name — an efficiency detail that matters more as
+        the target list grows.</li>
+      </ul>
+
+      <h3><code>$OverallOk = $DnsOk -and $PingOk -and $PortOk</code></h3>
+      <ul class="explain-list">
+        <li>Chaining <code>-and</code> across three boolean variables — all three must independently be
+        <code>$true</code> for the combined expression to evaluate <code>$true</code>, extending the two-condition
+        <code>-and</code> usage from Project 4 to three.</li>
+      </ul>
+
+      <h3><code>$Status = if ($OverallOk) {"HEALTHY"} elseif (-not $DnsOk) {"DNS FAILURE"} elseif (-not $PingOk) {...} else {...}</code></h3>
+      <ul class="explain-list">
+        <li>An <code>if/elseif/elseif/else</code> chain (Project 2's pattern) that pinpoints exactly which layer
+        failed, checked in logical order: if DNS failed, nothing past it could have worked, so that's reported
+        first; only if DNS succeeded but ping failed do we report a ping problem; only if both succeeded but the
+        port didn't do we report a port-specific issue.</li>
+      </ul>
+
+      <h3><code>$Color = switch ($Status) { "HEALTHY" {"Green"} default {"Red"} }</code></h3>
+      <ul class="explain-list">
+        <li>The same status-to-color <code>switch</code> pattern from Project 3, simplified here to just two
+        outcomes since every non-healthy status should read as a problem requiring attention.</li>
+      </ul>
+    </section>
+
+    <section id="architecture">
+      <h2>Architecture &amp; Diagnostic Flow</h2>
+      <div class="diagram">
+        <div class="flow">
+          <div class="box">DNS Resolution</div><div class="arrow">→</div>
+          <div class="box">Fails?</div><div class="arrow">→</div>
+          <div class="box">DNS FAILURE (stop here)</div>
+        </div>
+        <div class="flow" style="margin-top:12px;">
+          <div class="box">DNS OK</div><div class="arrow">→</div>
+          <div class="box">Ping</div><div class="arrow">→</div>
+          <div class="box">Fails?</div><div class="arrow">→</div>
+          <div class="box">UNREACHABLE</div>
+        </div>
+        <div class="flow" style="margin-top:12px;">
+          <div class="box">Ping OK</div><div class="arrow">→</div>
+          <div class="box">Port Test</div><div class="arrow">→</div>
+          <div class="box">Fails?</div><div class="arrow">→</div>
+          <div class="box">PORT BLOCKED</div>
+        </div>
+        <div class="flow" style="margin-top:12px;">
+          <div class="box">All Three Pass</div><div class="arrow">→</div>
+          <div class="box">HEALTHY</div>
+        </div>
+      </div>
+      <p>This layered "check, and only proceed if the previous layer passed" structure is a diagnostic pattern
+      you'll see constantly in real troubleshooting — narrow down which layer of the stack is broken before assuming
+      you know the cause.</p>
+    </section>
+
+    <section id="incident">
+      <h2>Production Incident Walkthrough</h2>
+      <div class="story">
+        Back to WINAPP15's database connectivity ticket: our script reports DNS resolves fine, ping succeeds, but
+        port 1433 is blocked. That single line of output rules out "the server is down" and "DNS is broken" in
+        seconds, and points the investigation directly at a firewall rule or the SQL Server service itself — not a
+        network-wide outage.
+      </div>
+      <ul class="explain-list">
+        <li><b>Why does checking all three layers matter more than just "can I ping it"?</b> A server can be fully
+        up and pingable while the specific application port is still closed — pinging alone would have given a
+        false sense that "the network is fine," sending the investigation in the wrong direction entirely.</li>
+        <li><b>Why skip ping/port checks after a DNS failure instead of still attempting them?</b> Attempting a
+        ping or port test against a name that can't resolve just wastes time on a guaranteed failure/timeout — once
+        we know why it can't be reached, further checks at that target don't add new information.</li>
+      </ul>
+    </section>
+
+    <section id="troubleshoot">
+      <h2>Troubleshooting Cheat Sheet</h2>
+      <table>
+        <tr><th>Symptom</th><th>Likely Root Cause</th><th>Fix</th></tr>
+        <tr><td>Every target shows DNS FAILURE, even known-good ones</td><td>No internet/network connectivity from your machine, or a broken DNS client config</td><td>Confirm <code>Resolve-DnsName google.com</code> works standalone first</td></tr>
+        <tr><td>Ping fails but the server is definitely up</td><td>ICMP (ping) is blocked by a firewall even though the server itself is fine</td><td>This is expected and normal for many hardened servers — the port check is often more meaningful than ping in real environments</td></tr>
+        <tr><td>Port check always fails even for known-open ports</td><td>A local firewall or corporate proxy is blocking outbound test traffic</td><td>Test manually with <code>Test-NetConnection -ComputerName target -Port 443</code> (without -Quiet) to see the full diagnostic detail</td></tr>
+        <tr><td>Script runs very slowly</td><td>Timeouts on unreachable targets take real time to fail</td><td>Expected with several broken/blocked targets; this is why skipping later checks after a DNS failure matters</td></tr>
+      </table>
+    </section>
+
+    <section id="security">
+      <h2>Security &amp; Best Practices</h2>
+      <div class="callout tip"><span class="lbl">Best practice reinforced here</span>Structuring the target list as
+      objects with named fields (<code>Name</code>, <code>Port</code>, <code>Description</code>) instead of parallel
+      arrays keeps related data bundled together — a lesson that will matter even more once configuration moves into
+      external files (<code>servers.csv</code>, <code>config.psd1</code>) in upcoming intermediate projects.</div>
+      <div class="callout security"><span class="lbl">Read-only, still no credentials</span>DNS, ping, and port
+      testing require no authentication — this script only observes reachability, never touches application data or
+      requires credentials, which is why it's a safe first-response tool even during an active incident.</div>
+    </section>
+
+    <section id="recap">
+      <h2>Key Learnings &amp; Recap</h2>
+      <div class="grid2">
+        <div>
+          <h3>Commands/Syntax Learned</h3>
+          <ul class="explain-list">
+            <li><code>Resolve-DnsName</code></li>
+            <li><code>Test-Connection -Quiet</code></li>
+            <li><code>Test-NetConnection -Port -InformationLevel Quiet</code></li>
+            <li>Array of PSCustomObjects as structured configuration</li>
+          </ul>
+        </div>
+        <div>
+          <h3>Concepts Learned</h3>
+          <ul class="explain-list">
+            <li>The three-layer reachability model: DNS → Ping → Port</li>
+            <li>Short-circuiting later checks once an earlier layer fails</li>
+            <li>Combining several booleans with -and into one overall verdict</li>
+            <li>When to move from a simple array to an array of objects</li>
+          </ul>
+        </div>
+      </div>
+      <h3>Common Mistakes to Avoid</h3>
+      <ul class="explain-list">
+        <li>Assuming a successful ping means the application itself is reachable.</li>
+        <li>Running every check even after an earlier one already explains the failure, wasting time on timeouts.</li>
+        <li>Treating a failed ping as a definitive outage without checking whether ICMP is simply blocked by design.</li>
+      </ul>
+    </section>
+
+    <section id="milestone">
+      <h2>🎉 Beginner Stage Complete</h2>
+      <div class="milestone">
+        <p><b>You've completed all 8 Beginner projects.</b> Look at what you can now build from scratch: data
+        collection with CIM, threshold-based classification with functions and if/elseif/else, time-based sampling
+        with loops, resilient checks with try/catch, ranking and grouping with pipeline analysis, safe destructive
+        operations with -WhatIf, structured log analysis, and now layered network diagnostics — all producing
+        clean, exportable, color-coded reports.</p>
+        <p>Stage 2 (Intermediate) begins with Project 09 and moves into deeper control flow (switch in depth,
+        splatting, PSCustomObject at scale), structured data formats (CSV/JSON/XML), regex in more depth, proper
+        logging and transcripts, and your first real PowerShell modules.</p>
+      </div>
+    </section>
+
+    <section id="interview">
+      <h2>Interview Preparation</h2>
+      <details><summary>Q1. Why check DNS, ping, and the specific port separately instead of just trying to connect to the application directly?</summary>
+        <p><b>Answer:</b> Each layer isolates a different possible root cause. Checking them independently and in
+        order (DNS, then ping, then port) tells you precisely where connectivity breaks down instead of just
+        "it doesn't work," which speeds up root-cause analysis significantly during an incident.</p>
+        <p><b>Follow-up:</b> "What would you check next if all three of these pass but the application still doesn't work?"
+        — Answer: application-layer issues — authentication, application logs, or the service's own health/response,
+        since network-layer connectivity has already been ruled out at that point.</p>
+      </details>
+      <details><summary>Q2. Why might ping fail while the server and application are both completely healthy?</summary>
+        <p><b>Answer:</b> Many production servers and firewalls deliberately block ICMP (ping) traffic for security
+        reasons, even while allowing legitimate application traffic on specific ports — so a failed ping alone
+        doesn't prove an outage.</p>
+        <p><b>Follow-up:</b> "So why include a ping check in this script at all if it's not fully reliable?" —
+        Answer: it's still useful as one data point (especially in environments where ICMP is allowed), and a ping
+        failure combined with a DNS success at least narrows things toward "reachable by name but not responding at
+        the network layer," which is still meaningful alongside the port test.</p>
+      </details>
+      <details><summary>Q3. Why did the script switch from a plain string array (Project 4) to an array of PSCustomObjects for the target list?</summary>
+        <p><b>Answer:</b> Each target needs more than one associated piece of data (a port number and a description
+        alongside the name) — a plain array of strings can only hold one value per item, so structured objects were
+        needed to keep related fields bundled together per target.</p>
+        <p><b>Follow-up:</b> "How would you load this same target list from an external CSV file instead of hardcoding it?"
+        — Answer: <code>Import-Csv -Path "targets.csv"</code> returns exactly this same shape of objects
+        automatically — we'll do exactly this in the upcoming CSV/data-driven configuration projects.</p>
+      </details>
+    </section>
+
+    <section id="challenges">
+      <h2>Coding Challenges</h2>
+      <details><summary>Challenge 1: Add a fourth target checking your own machine's localhost on port 3389 (RDP)</summary>
+        <details><summary>Show answer</summary>
+        <pre><code>[PSCustomObject]@{ Name = "localhost"; Port = 3389; Description = "Local RDP check" }   # Add this to the $Targets array</code></pre>
+        </details>
+      </details>
+      <details><summary>Challenge 2: Only export unhealthy targets to a separate "problems only" CSV</summary>
+        <details><summary>Show answer</summary>
+        <pre><code>$Results | Where-Object { $_.Status -ne "HEALTHY" } |
+    Export-Csv -Path ".\reports\Problems_$Timestamp.csv" -NoTypeInformation</code></pre>
+        </details>
+      </details>
+      <details><summary>Challenge 3: Measure and report how long each target's checks took, using Measure-Command</summary>
+        <details><summary>Show answer</summary>
+        <pre><code>$Elapsed = Measure-Command {                       # Measure-Command times whatever runs inside the block
+    Test-Connection -ComputerName $Target.Name -Count 2 -Quiet -ErrorAction SilentlyContinue
+}
+Write-Host "Ping check took $($Elapsed.TotalSeconds) seconds"</code></pre>
+        </details>
+      </details>
+    </section>
+
+    <section id="resume">
+      <h2>Resume Points</h2>
+      <ul class="explain-list">
+        <li>Built a layered PowerShell network diagnostic tool checking DNS resolution, ICMP reachability, and TCP port connectivity across critical infrastructure targets.</li>
+        <li>Designed structured, object-based target configuration enabling clear per-layer failure reporting during incident triage.</li>
+        <li>Consolidated monitoring, error-handling, and reporting patterns from prior automation projects into one capstone diagnostic script.</li>
+      </ul>
+    </section>
+
+    <section id="assignment">
+      <h2>Practice Assignment</h2>
+      <div class="callout note">
+        Add three more real targets you commonly interact with (e.g. your company's website on 443, your DNS server
+        on 53) to the <code>$Targets</code> array, re-run the script, and review the CSV. Write one sentence
+        identifying which layer (DNS/Ping/Port) you'd investigate first if any of them showed as unhealthy, and why.
+      </div>
+    </section>
+
+    <section id="next">
+      <h2>Next Project Prerequisites</h2>
+      <p>Project 09 (Enterprise Server Health Check) opens Stage 2 (Intermediate) by combining disk, service, and
+      connectivity checks from Projects 2, 4, and 8 into one unified health-check script driven by an external
+      config file — your first step toward data-driven, reusable automation instead of hardcoded values. Make sure
+      you're comfortable with every Beginner project before continuing. When ready, say <b>"Next Project."</b></p>
+    </section>
+
+    <footer>
+      PowerShell Masterclass — ABC Bank Automation Track · Project 08 of 40 · Generated for offline, self-contained use.
+    </footer>
+  </main>
+</div>
+
+<script>
+function copyCode(btn){
+  const code = btn.parentElement.querySelector('pre').innerText;
+  navigator.clipboard.writeText(code).then(()=>{
+    const old = btn.innerText; btn.innerText = "Copied!";
+    setTimeout(()=>btn.innerText = old, 1200);
+  });
+}
+window.addEventListener('scroll', ()=>{
+  const h = document.documentElement;
+  const pct = (h.scrollTop) / (h.scrollHeight - h.clientHeight) * 100;
+  document.getElementById('progressFill').style.width = pct + '%';
+  document.getElementById('progressLabel').innerText = 'Reading progress: ' + Math.round(pct) + '%';
+});
+</script>
+</body>
+</html>

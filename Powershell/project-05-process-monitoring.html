@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Project 05 — Process Monitoring | PowerShell Masterclass</title>
+<style>
+  :root{
+    --primary:#6D28D9; --secondary:#7C3AED; --light-purple:#EDE9FE; --xlight-purple:#F5F3FF;
+    --bg:#FFFFFF; --text:#1F2937; --muted:#6B7280; --border:#E5E1F5;
+    --success:#15803D; --warn:#B45309; --danger:#B91C1C;
+    --code-bg:#1E1B2E; --code-text:#E9E4FF;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0; font-family:"Segoe UI",Calibri,Roboto,Arial,sans-serif; background:var(--bg); color:var(--text); line-height:1.65;}
+  a{color:var(--primary);}
+  .layout{display:flex; max-width:1400px; margin:0 auto;}
+  nav.sidebar{width:270px; flex-shrink:0; position:sticky; top:0; height:100vh; overflow-y:auto; background:var(--xlight-purple); border-right:1px solid var(--border); padding:22px 16px;}
+  nav.sidebar h3{color:var(--primary); font-size:13px; text-transform:uppercase; letter-spacing:.06em; margin:18px 0 8px;}
+  nav.sidebar a{display:block; padding:7px 10px; border-radius:8px; color:var(--text); text-decoration:none; font-size:14px; margin-bottom:2px;}
+  nav.sidebar a:hover{background:var(--light-purple); color:var(--primary);}
+  #progressWrap{background:var(--light-purple); border-radius:10px; padding:10px; margin-bottom:8px;}
+  #progressBar{height:8px; background:var(--border); border-radius:6px; overflow:hidden;}
+  #progressFill{height:100%; width:0%; background:linear-gradient(90deg,var(--primary),var(--secondary)); transition:width .2s;}
+  #progressLabel{font-size:12px; color:var(--muted); margin-top:6px;}
+  main{flex:1; min-width:0; padding:0;}
+  .cover{background:linear-gradient(135deg,var(--primary),var(--secondary)); color:#fff; padding:60px 48px; position:relative; overflow:hidden;}
+  .cover::after{content:"";position:absolute;right:-80px;top:-80px;width:300px;height:300px;border-radius:50%;background:rgba(255,255,255,.08);}
+  .badge{display:inline-block; background:rgba(255,255,255,.18); padding:5px 14px; border-radius:20px; font-size:12px; letter-spacing:.05em; margin-right:8px; margin-bottom:14px;}
+  .cover h1{font-size:34px; margin:6px 0 10px; max-width:760px;}
+  .cover p.sub{font-size:16px; opacity:.92; max-width:640px;}
+  .cover-meta{display:flex; gap:28px; margin-top:26px; flex-wrap:wrap;}
+  .cover-meta div{background:rgba(255,255,255,.12); padding:12px 18px; border-radius:10px; min-width:140px;}
+  .cover-meta span{display:block; font-size:12px; opacity:.85;}
+  .cover-meta strong{font-size:16px;}
+  section{padding:34px 48px; border-bottom:1px solid var(--border);}
+  section h2{color:var(--primary); font-size:24px; border-left:5px solid var(--primary); padding-left:14px; margin-top:0;}
+  section h3{color:var(--secondary); font-size:18px; margin-top:26px;}
+  .story{background:var(--xlight-purple); border-left:5px solid var(--primary); padding:20px 24px; border-radius:0 10px 10px 0; font-size:15px;}
+  .story b{color:var(--primary);}
+  .callout{border-radius:10px; padding:16px 18px; margin:16px 0; font-size:14.5px;}
+  .callout.tip{background:#F0FDF4; border-left:5px solid var(--success);}
+  .callout.note{background:var(--xlight-purple); border-left:5px solid var(--secondary);}
+  .callout.warn{background:#FFFBEB; border-left:5px solid var(--warn);}
+  .callout.security{background:#FEF2F2; border-left:5px solid var(--danger);}
+  .callout .lbl{font-weight:700; display:block; margin-bottom:4px;}
+  table{width:100%; border-collapse:collapse; margin:16px 0; font-size:14px;}
+  th,td{border:1px solid var(--border); padding:9px 12px; text-align:left; vertical-align:top;}
+  th{background:var(--light-purple); color:var(--primary);}
+  tr:nth-child(even){background:var(--xlight-purple);}
+  .codewrap{position:relative; margin:16px 0;}
+  pre{background:var(--code-bg); color:var(--code-text); padding:18px 16px; border-radius:10px; overflow-x:auto; font-family:Consolas,"Cascadia Code",Menlo,monospace; font-size:13.5px; line-height:1.7;}
+  pre code{white-space:pre;}
+  .copybtn{position:absolute; top:10px; right:10px; background:var(--secondary); color:#fff; border:none; padding:6px 12px; border-radius:6px; font-size:12px; cursor:pointer;}
+  .copybtn:hover{background:var(--primary);}
+  .explain-list{list-style:none; padding:0; margin:14px 0;}
+  .explain-list li{background:var(--xlight-purple); border-radius:8px; padding:10px 14px; margin-bottom:6px; font-size:14.5px;}
+  .explain-list code{background:var(--light-purple); padding:2px 6px; border-radius:5px; color:var(--primary); font-weight:600;}
+  details{background:var(--xlight-purple); border-radius:10px; padding:12px 16px; margin:10px 0;}
+  details summary{cursor:pointer; font-weight:600; color:var(--primary);}
+  .diagram{background:var(--xlight-purple); border-radius:12px; padding:20px; margin:16px 0; overflow-x:auto;}
+  .flow{display:flex; flex-wrap:wrap; align-items:center; gap:10px; font-size:13.5px;}
+  .flow .box{background:#fff; border:2px solid var(--secondary); border-radius:8px; padding:8px 14px; font-weight:600; color:var(--primary);}
+  .flow .arrow{color:var(--secondary); font-size:18px;}
+  .steps{counter-reset:step;}
+  .steps .step{position:relative; padding-left:44px; margin-bottom:18px;}
+  .steps .step::before{counter-increment:step; content:counter(step); position:absolute; left:0; top:0; background:var(--primary); color:#fff; width:30px; height:30px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:700;}
+  .grid2{display:grid; grid-template-columns:1fr 1fr; gap:16px;}
+  @media(max-width:900px){.grid2{grid-template-columns:1fr;} nav.sidebar{display:none;} section{padding:26px 20px;} .cover{padding:36px 22px;}}
+  footer{padding:30px 48px; background:var(--xlight-purple); color:var(--muted); font-size:13px;}
+</style>
+</head>
+<body>
+
+<div class="layout">
+  <nav class="sidebar">
+    <div id="progressWrap">
+      <div id="progressLabel">Reading progress</div>
+      <div id="progressBar"><div id="progressFill"></div></div>
+    </div>
+    <h3>Project 05</h3>
+    <a href="#cover">Cover</a>
+    <a href="#recap1">Recap: Projects 1–4</a>
+    <a href="#story">The Story</a>
+    <a href="#concepts">Concepts First</a>
+    <a href="#lab">Hands-On Lab</a>
+    <a href="#script">Full Script</a>
+    <a href="#linebyline">Line-by-Line</a>
+    <a href="#architecture">Architecture</a>
+    <a href="#incident">Production Incident</a>
+    <a href="#troubleshoot">Troubleshooting</a>
+    <a href="#security">Security Notes</a>
+    <a href="#recap">Key Learnings</a>
+    <a href="#interview">Interview Prep</a>
+    <a href="#challenges">Coding Challenges</a>
+    <a href="#resume">Resume Points</a>
+    <a href="#assignment">Practice Assignment</a>
+    <a href="#next">Next Project</a>
+  </nav>
+
+  <main id="top">
+    <div class="cover" id="cover">
+      <span class="badge">PROJECT 05</span><span class="badge">BEGINNER</span><span class="badge">BFSI TRACK</span>
+      <h1>Windows Process Monitoring</h1>
+      <p class="sub">Find the top CPU and memory consumers, and catch runaway processes that spawn far too many copies of themselves — before they take a server down.</p>
+      <div class="cover-meta">
+        <div><span>Difficulty</span><strong>Beginner</strong></div>
+        <div><span>Estimated Lab Time</span><strong>60–75 min</strong></div>
+        <div><span>Concepts</span><strong>8 core concepts</strong></div>
+        <div><span>Track</span><strong>5 of 40</strong></div>
+      </div>
+    </div>
+
+    <section id="recap1">
+      <h2>Quick Recap of Projects 1–4</h2>
+      <p>We've collected data (Project 1), classified it against thresholds (Project 2), sampled it over time
+      (Project 3), and checked a named list with error handling (Project 4). This project shifts focus from
+      "servers and services" to <b>individual running processes</b> — and introduces sorting, ranking, and grouping,
+      which we haven't needed until now.</p>
+    </section>
+
+    <section id="story">
+      <h2>The Story — Why We're Building This</h2>
+      <div class="story">
+        A batch reconciliation job on <b>WINBATCH04</b> went wrong last week — a bug caused it to spawn a new
+        worker process every few seconds without closing the old ones. By the time anyone noticed, there were over
+        80 copies of the same executable running, and the server ground to a halt.<br><br>
+        Our manager wants two things from this project: a report of the <b>top CPU and memory consuming
+        processes</b> on a server (so we can spot something abnormal at a glance), and a check for <b>any process
+        name running more instances than expected</b> — which would have caught the batch job problem long before
+        it became an outage.
+      </div>
+    </section>
+
+    <section id="concepts">
+      <h2>Concepts First — Before We Touch Code</h2>
+
+      <h3>1. Get-Process and Its Key Properties</h3>
+      <table>
+        <tr><th>Property</th><th>Meaning</th></tr>
+        <tr><td><code>Id</code></td><td>The process ID (PID) — unique per running instance</td></tr>
+        <tr><td><code>ProcessName</code></td><td>The executable name without ".exe"</td></tr>
+        <tr><td><code>CPU</code></td><td>Total processor time consumed since the process started, in seconds</td></tr>
+        <tr><td><code>WorkingSet64</code></td><td>Current physical memory usage, in bytes</td></tr>
+      </table>
+      <div class="callout note"><span class="lbl">A subtlety worth knowing</span><code>CPU</code> here is
+      cumulative total seconds of processor time used since the process started — not a live percentage like
+      Project 3's <code>LoadPercentage</code>. A process that's been running for days will naturally show a high CPU
+      number even if it's idle right now; that's a different measurement than "percent busy at this instant."</div>
+
+      <h3>2. Sort-Object -Descending</h3>
+      <p>By default <code>Sort-Object</code> sorts ascending (smallest/earliest first). <code>-Descending</code>
+      flips that — essential for "show me the biggest consumers first."</p>
+
+      <h3>3. Select-Object -First N</h3>
+      <p>After sorting, <code>Select-Object -First 5</code> keeps only the first 5 objects from the pipeline —
+      combined with descending sort, this gives us "top 5 by whatever we sorted on."</p>
+      <div class="diagram">
+        <div class="flow">
+          <div class="box">Get-Process</div><div class="arrow">→</div>
+          <div class="box">Sort-Object CPU -Descending</div><div class="arrow">→</div>
+          <div class="box">Select-Object -First 5</div><div class="arrow">→</div>
+          <div class="box">Top 5 CPU Consumers</div>
+        </div>
+      </div>
+
+      <h3>4. Group-Object — Counting Instances</h3>
+      <p><code>Group-Object ProcessName</code> gathers all processes that share the same name into groups. Each
+      group object has a <code>Count</code> property (how many instances) and a <code>Group</code> property (the
+      actual process objects in that group) — exactly what we need to detect "too many copies of the same process."</p>
+      <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code>Get-Process | Group-Object ProcessName | Sort-Object Count -Descending | Select-Object -First 5</code></pre></div>
+
+      <h3>5. Measure-Object -Sum</h3>
+      <p>We used <code>-Average</code> and <code>-Maximum</code> in Project 3; <code>-Sum</code> adds every value
+      together — useful here for "total memory used by all instances of this process combined," which can matter
+      more than any single instance's memory usage.</p>
+
+      <h3>6. Byte-to-MB Conversion, Revisited</h3>
+      <p>Same idea as Project 1's GB conversion, but processes are usually small enough that megabytes
+      (<code>1MB</code>) are the more readable unit than gigabytes.</p>
+    </section>
+
+    <section id="lab">
+      <h2>Hands-On Lab — Build It Yourself</h2>
+      <div class="steps">
+        <div class="step"><b>Create the project folder:</b>
+          <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code>New-Item -ItemType Directory -Path "C:\PS-Masterclass\Project05\reports" -Force
+Set-Location "C:\PS-Masterclass\Project05"</code></pre></div>
+        </div>
+        <div class="step"><b>Create <code>Get-ProcessHealthReport.ps1</code></b> in VS Code and paste the full script below.</div>
+        <div class="step"><b>Run it:</b>
+          <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code>.\Get-ProcessHealthReport.ps1</code></pre></div>
+        </div>
+        <div class="step"><b>Optional simulation:</b> open several extra copies of Notepad or your browser
+        (multiple windows count as multiple processes for some apps, single process with multiple tabs for others —
+        check which applies) to see the Group-Object instance count change between runs.</div>
+        <div class="step"><b>Validate:</b> confirm you see a Top 5 CPU table, a Top 5 Memory table, an instance-count
+        report, and a CSV saved to <code>.\reports\</code>.</div>
+      </div>
+    </section>
+
+    <section id="script">
+      <h2>Full Script — Get-ProcessHealthReport.ps1</h2>
+      <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code># =====================================================================
+# Get-ProcessHealthReport.ps1
+# ABC Bank - Windows Infrastructure Automation Team
+# Purpose: Identify top resource-consuming processes and runaway instance counts
+# =====================================================================
+
+$ComputerName        = $env:COMPUTERNAME     # The server being checked
+$TopCount             = 5                     # How many top processes to show per metric
+$MaxInstancesAllowed  = 10                    # Any process name running more copies than this is flagged
+
+Write-Host "`n=== PROCESS HEALTH REPORT: $ComputerName ===" -ForegroundColor Magenta   # Section header
+
+# ---------------------------------------------------------------
+# STEP 1: Get all running processes once, reuse the data for everything below
+# ---------------------------------------------------------------
+$AllProcesses = Get-Process   # One call, reused for CPU ranking, memory ranking, and grouping
+
+# ---------------------------------------------------------------
+# STEP 2: Top CPU consumers
+# ---------------------------------------------------------------
+$TopCpu = $AllProcesses |                       # Starts from every process we collected
+    Sort-Object CPU -Descending |               # Orders them highest CPU-seconds first
+    Select-Object -First $TopCount |            # Keeps only the top N
+    Select-Object ProcessName, Id,              # Chooses which properties to keep for display
+                  @{Name="CPU_Seconds"; Expression={ [math]::Round($_.CPU, 1) }}   # Custom calculated property, rounded
+
+Write-Host "`n--- Top $TopCount by CPU (seconds) ---" -ForegroundColor Cyan
+$TopCpu | Format-Table -AutoSize                # Displays as a neat table
+
+# ---------------------------------------------------------------
+# STEP 3: Top Memory consumers
+# ---------------------------------------------------------------
+$TopMemory = $AllProcesses |
+    Sort-Object WorkingSet64 -Descending |      # Orders them highest memory usage first
+    Select-Object -First $TopCount |
+    Select-Object ProcessName, Id,
+                  @{Name="MemoryMB"; Expression={ [math]::Round($_.WorkingSet64 / 1MB, 1) }}   # Bytes converted to MB
+
+Write-Host "`n--- Top $TopCount by Memory (MB) ---" -ForegroundColor Cyan
+$TopMemory | Format-Table -AutoSize
+
+# ---------------------------------------------------------------
+# STEP 4: Detect runaway instance counts (same process name running too many times)
+# ---------------------------------------------------------------
+$InstanceGroups = $AllProcesses |               # Starts from every process again
+    Group-Object ProcessName |                  # Groups by shared process name
+    ForEach-Object {                            # Processes each group one at a time
+
+        $TotalMemoryMB = ($_.Group | Measure-Object -Property WorkingSet64 -Sum).Sum / 1MB   # Sums memory across the whole group
+
+        [PSCustomObject]@{
+            ProcessName   = $_.Name                                   # The shared process name for this group
+            InstanceCount = $_.Count                                    # How many copies are running
+            TotalMemoryMB = [math]::Round($TotalMemoryMB, 1)           # Combined memory across all instances
+            Status        = if ($_.Count -gt $MaxInstancesAllowed) { "TOO MANY INSTANCES" } else { "NORMAL" }   # if can produce a value directly
+        }
+    }
+
+$Problems = $InstanceGroups | Where-Object { $_.Status -eq "TOO MANY INSTANCES" }   # Filters down to only flagged groups
+
+Write-Host "`n--- Instance Count Check (limit: $MaxInstancesAllowed) ---" -ForegroundColor Cyan
+if ($Problems.Count -gt 0) {                    # Only true if at least one process name exceeded the limit
+    $Problems | Sort-Object InstanceCount -Descending | Format-Table -AutoSize   # Shows worst offenders first
+    Write-Host "$($Problems.Count) process name(s) exceeded the instance limit!" -ForegroundColor Red
+}
+else {
+    Write-Host "No process exceeded $MaxInstancesAllowed instances." -ForegroundColor Green
+}
+
+# ---------------------------------------------------------------
+# STEP 5: Export everything to CSV for record-keeping
+# ---------------------------------------------------------------
+if (-not (Test-Path ".\reports")) {             # Creates the reports folder if it doesn't exist
+    New-Item -ItemType Directory -Path ".\reports" | Out-Null
+}
+$Timestamp = Get-Date -Format "yyyyMMdd_HHmmss"  # Sortable timestamp for filenames
+
+$InstanceGroups | Export-Csv -Path ".\reports\ProcessInstances_$Timestamp.csv" -NoTypeInformation   # Full instance report
+$TopCpu         | Export-Csv -Path ".\reports\TopCpu_$Timestamp.csv" -NoTypeInformation             # Top CPU snapshot
+$TopMemory      | Export-Csv -Path ".\reports\TopMemory_$Timestamp.csv" -NoTypeInformation           # Top memory snapshot
+
+Write-Host "`nReports saved to .\reports\" -ForegroundColor Green
+</code></pre></div>
+      </div>
+    </section>
+
+    <section id="linebyline">
+      <h2>Line-by-Line Explanation</h2>
+
+      <h3><code>Select-Object ProcessName, Id, @{Name="CPU_Seconds"; Expression={ ... }}</code></h3>
+      <ul class="explain-list">
+        <li><code>ProcessName, Id</code> — plain property names are kept as-is.</li>
+        <li><code>@{Name="CPU_Seconds"; Expression={...}}</code> — this is a <b>calculated property</b>: a hash
+        table telling <code>Select-Object</code> "create a new column called CPU_Seconds, whose value comes from
+        running this script block against each object." This is how we rename and reshape data on the fly, rather
+        than being stuck with the original property names and raw values.</li>
+        <li><code>$_</code> inside the <code>Expression</code> script block refers to the current process being
+        processed — same meaning as in <code>Where-Object</code>/<code>ForEach-Object</code>.</li>
+      </ul>
+
+      <h3><code>Group-Object ProcessName | ForEach-Object { ... $_.Group ... $_.Count ... $_.Name ... }</code></h3>
+      <ul class="explain-list">
+        <li>After <code>Group-Object</code>, each object in the pipeline is a <b>group</b>, not an individual
+        process. <code>$_.Name</code> is the shared process name for that group; <code>$_.Count</code> is how many
+        processes are in it; <code>$_.Group</code> is an array containing the actual original process objects,
+        which is why we can pipe <code>$_.Group</code> into <code>Measure-Object</code> to sum their memory.</li>
+      </ul>
+
+      <h3><code>($_.Group | Measure-Object -Property WorkingSet64 -Sum).Sum / 1MB</code></h3>
+      <ul class="explain-list">
+        <li><code>-Sum</code> — requests the total across all objects instead of an average or maximum.</li>
+        <li><code>.Sum</code> — pulls that specific number out of the object <code>Measure-Object</code> returns,
+        same pattern as <code>.Average</code> in Project 3.</li>
+      </ul>
+
+      <h3><code>Status = if ($_.Count -gt $MaxInstancesAllowed) { "TOO MANY INSTANCES" } else { "NORMAL" }</code></h3>
+      <ul class="explain-list">
+        <li>Just like Project 3's Challenge 3 showed, an <code>if/else</code> statement can be used directly as an
+        expression that produces a value — here it's assigned straight into a property inside the object
+        constructor, without needing a separate variable first.</li>
+      </ul>
+    </section>
+
+    <section id="architecture">
+      <h2>Architecture &amp; Data Flow</h2>
+      <div class="diagram">
+        <div class="flow">
+          <div class="box">Get-Process (once)</div><div class="arrow">→</div>
+          <div class="box">Sort + Select (CPU)</div>
+        </div>
+        <div class="flow" style="margin-top:10px;">
+          <div class="box">Get-Process (once)</div><div class="arrow">→</div>
+          <div class="box">Sort + Select (Memory)</div>
+        </div>
+        <div class="flow" style="margin-top:10px;">
+          <div class="box">Get-Process (once)</div><div class="arrow">→</div>
+          <div class="box">Group-Object → Sum Memory per Group</div><div class="arrow">→</div>
+          <div class="box">Flag Instance Overload</div>
+        </div>
+      </div>
+      <p>Notice we called <code>Get-Process</code> exactly once and stored it in <code>$AllProcesses</code>, then
+      reused that same snapshot three different ways. Calling a data-collection cmdlet repeatedly when you already
+      have the data in memory wastes effort and — worse — could give inconsistent results if the process list
+      changes slightly between separate calls.</p>
+    </section>
+
+    <section id="incident">
+      <h2>Production Incident Walkthrough</h2>
+      <div class="story">
+        Applying this script retroactively to the WINBATCH04 incident: the instance-count check would have shown
+        <code>ReconcileWorker.exe — InstanceCount: 84 — TOO MANY INSTANCES</code> the moment the count crossed our
+        10-instance limit, likely hours before the server became unresponsive.
+      </div>
+      <ul class="explain-list">
+        <li><b>Why flag by count instead of only by total CPU/memory?</b> Early on, 15 lightweight worker processes
+        might not show up in a Top-5-by-memory list at all — each individually looks small. The instance count is
+        often the earliest warning sign, well before combined resource usage becomes visibly abnormal.</li>
+        <li><b>Why not hardcode the limit as "10" directly inside the if statement?</b> Exactly the same reasoning
+        as every threshold in this course so far — <code>$MaxInstancesAllowed</code> as a named variable means
+        Operations can tune it per server role without touching the logic itself.</li>
+      </ul>
+    </section>
+
+    <section id="troubleshoot">
+      <h2>Troubleshooting Cheat Sheet</h2>
+      <table>
+        <tr><th>Symptom</th><th>Likely Root Cause</th><th>Fix</th></tr>
+        <tr><td>CPU column shows blank for some processes</td><td>System/protected processes may not expose CPU time to a standard user</td><td>Expected behavior; these can be ignored for this beginner-level report</td></tr>
+        <tr><td>Every process shows InstanceCount of 1</td><td>Normal on a lightly loaded machine — nothing wrong with the script</td><td>Open several copies of the same app to test the grouping logic works</td></tr>
+        <tr><td>"Cannot process argument... WorkingSet64"</td><td>Older PowerShell versions may expose this property under a slightly different name</td><td>Run <code>Get-Process | Get-Member</code> to confirm the exact property name on your version</td></tr>
+        <tr><td>Instance check never triggers even with many windows open</td><td>Some applications use one process for many windows (tabs), so the count genuinely stays low</td><td>Check Task Manager's "Details" tab to confirm how many real separate processes exist</td></tr>
+      </table>
+    </section>
+
+    <section id="security">
+      <h2>Security &amp; Best Practices</h2>
+      <div class="callout tip"><span class="lbl">Best practice reinforced here</span>Just like Project 4, this
+      script only <b>detects and reports</b> — it does not call <code>Stop-Process</code> automatically. Killing
+      processes automatically based on a threshold is risky (what if it's a legitimate, temporarily busy batch job?)
+      and belongs in the Advanced stage with proper <code>-WhatIf</code>/<code>-Confirm</code> safeguards.</div>
+      <div class="callout security"><span class="lbl">Standard user is enough</span>Reading process information for
+      reporting purposes doesn't require administrative rights on most systems — keep monitoring scripts running
+      with the least privilege that gets the job done.</div>
+    </section>
+
+    <section id="recap">
+      <h2>Key Learnings &amp; Recap</h2>
+      <div class="grid2">
+        <div>
+          <h3>Commands/Syntax Learned</h3>
+          <ul class="explain-list">
+            <li><code>Get-Process</code></li>
+            <li><code>Sort-Object -Descending</code></li>
+            <li><code>Select-Object -First</code></li>
+            <li>Calculated properties (<code>@{Name=...; Expression={...}}</code>)</li>
+            <li><code>Group-Object</code> and its <code>.Count</code> / <code>.Group</code> / <code>.Name</code></li>
+            <li><code>Measure-Object -Sum</code></li>
+          </ul>
+        </div>
+        <div>
+          <h3>Concepts Learned</h3>
+          <ul class="explain-list">
+            <li>Ranking/top-N reporting patterns</li>
+            <li>Grouping and aggregating by a shared property</li>
+            <li>Instance-count as an early warning signal</li>
+            <li>Reusing one data snapshot instead of re-querying</li>
+          </ul>
+        </div>
+      </div>
+      <h3>Common Mistakes to Avoid</h3>
+      <ul class="explain-list">
+        <li>Calling <code>Get-Process</code> multiple times when one call and a stored variable would do.</li>
+        <li>Confusing cumulative CPU-seconds with a live CPU percentage.</li>
+        <li>Flagging problems purely on total resource use while ignoring instance count as an earlier signal.</li>
+      </ul>
+    </section>
+
+    <section id="interview">
+      <h2>Interview Preparation</h2>
+      <details><summary>Q1. What's the difference between the CPU property on Get-Process and the LoadPercentage we used in Project 3?</summary>
+        <p><b>Answer:</b> <code>CPU</code> on a process is cumulative processor-seconds consumed since that process
+        started — it only ever goes up. <code>LoadPercentage</code> is a live, instantaneous percentage of overall
+        system CPU usage. They answer different questions: "how much total work has this process done" versus
+        "how busy is the CPU right now."</p>
+        <p><b>Follow-up:</b> "How would you estimate a process's live CPU percentage instead?" — Answer: sample its
+        CPU-seconds value twice with a known time gap between samples and calculate the rate of change — a
+        technique we'll formalize with <code>Get-Counter</code> in a later project.</p>
+      </details>
+      <details><summary>Q2. Why did the script call Get-Process only once and reuse the result?</summary>
+        <p><b>Answer:</b> Process lists can change between calls (processes starting/stopping), so re-querying for
+        each report risks inconsistent data across the CPU, memory, and instance-count sections. Storing one
+        snapshot and reusing it also avoids unnecessary repeated system calls.</p>
+        <p><b>Follow-up:</b> "Is there a downside to using one snapshot for everything?" — Answer: yes — if the
+        report runs for a long time, that snapshot could go stale relative to the live system by the time you
+        review it; for very time-sensitive checks you'd re-snapshot deliberately, not accidentally.</p>
+      </details>
+      <details><summary>Q3. What does Group-Object actually return, and how did we use .Group?</summary>
+        <p><b>Answer:</b> It returns one object per unique value of the grouped property, each with
+        <code>Name</code> (the value), <code>Count</code> (how many items shared it), and <code>Group</code> (the
+        original items themselves). We used <code>.Group</code> to pipe the original process objects for each name
+        into <code>Measure-Object -Sum</code> to total their memory.</p>
+        <p><b>Follow-up:</b> "Could you get the same total without Group-Object?" — Answer: yes, with
+        <code>Where-Object { $_.ProcessName -eq $Name }</code> per name in a loop, but that's far less efficient and
+        more code than one <code>Group-Object</code> call.</p>
+      </details>
+    </section>
+
+    <section id="challenges">
+      <h2>Coding Challenges</h2>
+      <details><summary>Challenge 1: Show the Top 5 processes by number of threads instead of CPU</summary>
+        <details><summary>Show answer</summary>
+        <pre><code>Get-Process | Sort-Object Threads -Descending | Select-Object -First 5 ProcessName, Id, @{Name="ThreadCount";Expression={$_.Threads.Count}}</code></pre>
+        </details>
+      </details>
+      <details><summary>Challenge 2: Find any process using more than 500MB of memory, regardless of rank</summary>
+        <details><summary>Show answer</summary>
+        <pre><code>Get-Process | Where-Object { $_.WorkingSet64 / 1MB -gt 500 } | Select-Object ProcessName, Id</code></pre>
+        </details>
+      </details>
+      <details><summary>Challenge 3: Add a second, higher threshold for a "SEVERE" instance-count status</summary>
+        <details><summary>Show answer</summary>
+        <pre><code>Status = if ($_.Count -gt 20) { "SEVERE - TOO MANY INSTANCES" }
+         elseif ($_.Count -gt $MaxInstancesAllowed) { "WARNING - TOO MANY INSTANCES" }
+         else { "NORMAL" }</code></pre>
+        </details>
+      </details>
+    </section>
+
+    <section id="resume">
+      <h2>Resume Points</h2>
+      <ul class="explain-list">
+        <li>Built a PowerShell process-monitoring script identifying top CPU and memory consumers and detecting runaway process instance counts.</li>
+        <li>Used grouping and aggregation techniques to calculate combined resource usage across multiple instances of the same process.</li>
+        <li>Designed configurable, threshold-driven detection logic to surface early warning signs before resource exhaustion incidents.</li>
+      </ul>
+    </section>
+
+    <section id="assignment">
+      <h2>Practice Assignment</h2>
+      <div class="callout note">
+        Change <code>$MaxInstancesAllowed</code> to a very low number like 2, re-run the script, and note which
+        everyday processes on your machine (browsers, background services) legitimately run more than 2 instances.
+        Write one sentence on how you'd set a sensible default for a real server versus a personal laptop.
+      </div>
+    </section>
+
+    <section id="next">
+      <h2>Next Project Prerequisites</h2>
+      <p>Project 06 (File and Folder Automation) shifts focus to the file system — creating, moving, cleaning up, and
+      reporting on files and folders, which will matter a lot once we start managing logs and reports at scale. When
+      ready, say <b>"Next Project."</b></p>
+    </section>
+
+    <footer>
+      PowerShell Masterclass — ABC Bank Automation Track · Project 05 of 40 · Generated for offline, self-contained use.
+    </footer>
+  </main>
+</div>
+
+<script>
+function copyCode(btn){
+  const code = btn.parentElement.querySelector('pre').innerText;
+  navigator.clipboard.writeText(code).then(()=>{
+    const old = btn.innerText; btn.innerText = "Copied!";
+    setTimeout(()=>btn.innerText = old, 1200);
+  });
+}
+window.addEventListener('scroll', ()=>{
+  const h = document.documentElement;
+  const pct = (h.scrollTop) / (h.scrollHeight - h.clientHeight) * 100;
+  document.getElementById('progressFill').style.width = pct + '%';
+  document.getElementById('progressLabel').innerText = 'Reading progress: ' + Math.round(pct) + '%';
+});
+</script>
+</body>
+</html>

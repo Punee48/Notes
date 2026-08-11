@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Project 3: Terraform Workspaces for Dev/QA/Staging/Prod Environment Isolation</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --bg-panel: #161b22;
+    --bg-code: #0a0e14;
+    --border: #30363d;
+    --text: #c9d1d9;
+    --text-dim: #8b949e;
+    --accent: #58a6ff;
+    --accent2: #79c0ff;
+    --green: #7ee787;
+    --orange: #ffa657;
+    --pink: #ff7b72;
+    --purple: #d2a8ff;
+    --yellow: #e3b341;
+  }
+  * { box-sizing: border-box; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    line-height: 1.65;
+    margin: 0;
+    padding: 0;
+  }
+  .wrap { max-width: 980px; margin: 0 auto; padding: 40px 24px 100px; }
+  header.hero { border-bottom: 1px solid var(--border); padding-bottom: 28px; margin-bottom: 36px; }
+  .kicker { color: var(--accent); text-transform: uppercase; letter-spacing: 2px; font-size: 13px; font-weight: 600; }
+  h1 { font-size: 32px; margin: 10px 0 12px; color: #fff; line-height: 1.25; }
+  .subtitle { color: var(--text-dim); font-size: 16px; }
+  .badges { margin-top: 18px; display: flex; flex-wrap: wrap; gap: 8px; }
+  .badge { background: var(--bg-panel); border: 1px solid var(--border); color: var(--accent2); font-size: 12.5px; padding: 4px 10px; border-radius: 999px; }
+  h2 { color: #fff; font-size: 23px; margin-top: 52px; margin-bottom: 16px; padding-bottom: 10px; border-bottom: 1px solid var(--border); }
+  h2 .num { color: var(--accent); font-family: "SFMono-Regular", Consolas, monospace; margin-right: 10px; }
+  h3 { color: var(--accent2); font-size: 18px; margin-top: 28px; }
+  p { margin: 12px 0; }
+  a { color: var(--accent); }
+  .story { background: linear-gradient(135deg, #1a1f2b, #14181f); border-left: 3px solid var(--orange); padding: 20px 22px; border-radius: 6px; font-size: 15.5px; color: #dcdfe4; }
+  .story .tag { color: var(--orange); font-weight: 700; font-size: 12px; letter-spacing: 1.5px; text-transform: uppercase; display: block; margin-bottom: 8px; }
+  .callout { background: var(--bg-panel); border: 1px solid var(--border); border-left: 3px solid var(--accent); padding: 16px 20px; border-radius: 6px; margin: 18px 0; }
+  .callout.warn { border-left-color: var(--pink); }
+  .callout.tip { border-left-color: var(--green); }
+  .callout .label { font-weight: 700; font-size: 12px; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 6px; display: block; }
+  .callout.warn .label { color: var(--pink); }
+  .callout.tip .label { color: var(--green); }
+  pre { background: var(--bg-code); border: 1px solid var(--border); border-radius: 8px; padding: 18px 20px; overflow-x: auto; font-size: 13.2px; line-height: 1.55; margin: 16px 0; }
+  code { font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace; }
+  .filename { font-family: "SFMono-Regular", Consolas, monospace; color: var(--yellow); font-size: 12.5px; background: var(--bg-panel); display: inline-block; padding: 4px 10px; border: 1px solid var(--border); border-bottom: none; border-radius: 6px 6px 0 0; margin-top: 16px; }
+  .filename + pre { margin-top: 0; border-radius: 0 6px 6px 6px; }
+  .kw { color: var(--pink); }
+  .str { color: var(--green); }
+  .cmt { color: var(--text-dim); font-style: italic; }
+  .type { color: var(--purple); }
+  .fn { color: var(--accent2); }
+  .walkthrough { background: var(--bg-panel); border: 1px solid var(--border); border-radius: 6px; padding: 18px 20px; margin: 16px 0; }
+  .walkthrough h4 { margin-top: 0; color: var(--accent2); font-size: 14px; text-transform: uppercase; letter-spacing: 1px; }
+  ul, ol { padding-left: 22px; }
+  li { margin: 8px 0; }
+  table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 14px; }
+  th, td { border: 1px solid var(--border); padding: 10px 14px; text-align: left; }
+  th { background: var(--bg-panel); color: var(--accent2); font-size: 12.5px; text-transform: uppercase; letter-spacing: 0.5px; }
+  tr:nth-child(even) td { background: #12161d; }
+  .diagram { background: var(--bg-code); border: 1px solid var(--border); border-radius: 8px; padding: 20px; font-family: "SFMono-Regular", Consolas, monospace; font-size: 12.5px; color: var(--accent2); white-space: pre; overflow-x: auto; line-height: 1.4; }
+  .interview-q { background: var(--bg-panel); border-radius: 6px; padding: 14px 18px; margin: 10px 0; border: 1px solid var(--border); }
+  .interview-q .q { color: var(--yellow); font-weight: 600; margin-bottom: 6px; }
+  footer { margin-top: 60px; padding-top: 20px; border-top: 1px solid var(--border); color: var(--text-dim); font-size: 13px; text-align: center; }
+  .progress { display: flex; gap: 4px; margin-top: 18px; }
+  .progress .seg { height: 5px; flex: 1; background: var(--border); border-radius: 3px; }
+  .progress .seg.done { background: var(--accent); }
+
+  /* --- resume section --- */
+  .resume-box {
+    background: linear-gradient(135deg, #131a12, #0f150f);
+    border: 1px solid #24361f;
+    border-left: 3px solid var(--green);
+    border-radius: 8px;
+    padding: 24px 26px;
+    margin-top: 18px;
+  }
+  .resume-box h3 { margin-top: 0; color: var(--green); }
+  .resume-sub { color: var(--text-dim); font-size: 13px; margin-bottom: 18px; }
+  .resume-block { margin-bottom: 22px; }
+  .resume-block .rb-label {
+    font-size: 11.5px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--accent2);
+    font-weight: 700;
+    margin-bottom: 8px;
+  }
+  .resume-bullets { list-style: none; padding-left: 0; }
+  .resume-bullets li {
+    padding-left: 20px;
+    position: relative;
+    margin: 9px 0;
+    font-size: 14.5px;
+    color: #dcdfe4;
+  }
+  .resume-bullets li::before {
+    content: "▸";
+    position: absolute;
+    left: 0;
+    color: var(--green);
+  }
+  .copy-hint {
+    display: inline-block;
+    margin-top: 4px;
+    font-size: 11.5px;
+    color: var(--text-dim);
+    font-style: italic;
+  }
+  .skill-pills { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+  .skill-pill {
+    background: #172013;
+    border: 1px solid #2b3a24;
+    color: var(--green);
+    font-size: 12px;
+    padding: 3px 10px;
+    border-radius: 999px;
+    font-family: "SFMono-Regular", Consolas, monospace;
+  }
+  .linkedin-box {
+    background: var(--bg-code);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 14px 16px;
+    font-size: 13.5px;
+    color: #dcdfe4;
+    font-style: italic;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="hero">
+  <span class="kicker">Terraform on AWS &middot; Project 3 of 25</span>
+  <h1>Terraform Workspaces for Dev/QA/Staging/Prod Environment Isolation</h1>
+  <p class="subtitle">Foundational-Intermediate &middot; When to reach for workspaces, and — just as important — when NOT to.</p>
+  <div class="badges">
+    <span class="badge">terraform workspace</span>
+    <span class="badge">terraform.workspace</span>
+    <span class="badge">State Isolation</span>
+    <span class="badge">Workspace vs. Directory</span>
+    <span class="badge">CI Integration</span>
+  </div>
+  <div class="progress" title="Handbook progress: Project 3 of 25">
+    <div class="seg done"></div><div class="seg done"></div><div class="seg done"></div>
+    <div class="seg"></div><div class="seg"></div><div class="seg"></div><div class="seg"></div>
+    <div class="seg"></div><div class="seg"></div><div class="seg"></div><div class="seg"></div>
+    <div class="seg"></div><div class="seg"></div><div class="seg"></div><div class="seg"></div>
+    <div class="seg"></div><div class="seg"></div><div class="seg"></div><div class="seg"></div>
+    <div class="seg"></div><div class="seg"></div><div class="seg"></div><div class="seg"></div>
+  </div>
+</header>
+
+<h2><span class="num">01</span>The Enterprise Problem This Solves</h2>
+<p>
+Project 1 solved environment isolation with separate <em>directories</em>, each with its own hardcoded backend
+key. That approach is deliberately explicit and safe, but it doesn't scale cleanly when a team needs many
+short-lived, near-identical environments — a QA environment per feature branch, an ephemeral environment per pull
+request, a personal sandbox per engineer. Copy-pasting a whole directory tree for every one of those is its own
+maintenance burden. <strong>Terraform workspaces</strong> solve a narrower version of the isolation problem: the
+same configuration, the same code, applied against multiple independent state files, switched with a single
+command. This project teaches workspaces properly — including the sharp edges that make them the wrong tool for
+permanent environments like prod, which is exactly why Project 1 used directories instead for the four core
+environments, and workspaces get reserved for the ephemeral, high-churn use case they're actually good at.
+</p>
+
+<h2><span class="num">02</span>The Story: The Workspace That Looked Like Prod But Wasn't</h2>
+<div class="story">
+<span class="tag">Production Incident Replay</span>
+A platform engineer, moving fast, decides workspaces are cleaner than Project 1's directory-per-environment
+layout and migrates the whole team over — one root module, four workspaces: <code>dev</code>, <code>qa</code>,
+<code>staging</code>, <code>prod</code>. Everything works for weeks. Then a junior engineer, following a runbook
+that says "run <code>terraform apply</code> from the infra repo," does exactly that — from whatever workspace
+happened to be selected on their machine from the last thing they worked on. Nothing in the command, the
+directory, or the visible file tree told them which environment they were about to modify; <code>terraform.workspace</code>
+is invisible unless you explicitly run <code>terraform workspace show</code> first, and the runbook never
+mentioned it. The apply lands against <code>prod</code>. Nothing catastrophic happens — this time — but the
+retro is blunt: workspaces made every environment look identical at the point where a human makes the highest-risk
+decision, right before hitting enter on <code>apply</code>. The team's fix wasn't to abandon workspaces entirely;
+it was to confine them to disposable QA/feature environments where the blast radius of a mistake is small, and
+keep directories — with their unmistakably different file paths — for anything a mistake could actually hurt.
+</div>
+
+<h2><span class="num">03</span>Deep Technical Explanation</h2>
+
+<h3>What a workspace actually changes under the hood</h3>
+<p>
+A Terraform workspace does exactly one thing mechanically: it changes the state file path the current backend
+reads and writes. With the S3 backend from Project 1, switching workspaces inserts a
+<code>env:/&lt;workspace-name&gt;/</code> prefix in front of the configured <code>key</code> automatically —
+<code>terraform workspace select qa</code> against a <code>key = "features/network.tfstate"</code> backend reads
+and writes <code>env:/qa/features/network.tfstate</code>. Nothing else changes: not the code, not the provider
+config, not any file on disk. That's the entire mechanism — and also exactly why it's dangerous for anything where
+the code path visibly changing (like Project 1's separate directories) is a safety feature, not overhead.
+</p>
+
+<h3>The <code>terraform.workspace</code> interpolation</h3>
+<p>
+Because the code itself never changes between workspaces, any actual difference in behavior — instance sizing,
+tagging, feature flags — has to be driven from inside HCL using the built-in
+<code>terraform.workspace</code> value, typically through a lookup map keyed by workspace name. This is different
+from Project 1's approach, where each environment directory has its own <code>terraform.tfvars</code> file; here,
+all environments share one <code>.tfvars</code>-equivalent lookup table embedded directly in the code.
+</p>
+
+<h3>When workspaces are the right tool (and when they're not)</h3>
+<p>
+Workspaces fit best for <strong>ephemeral, structurally identical</strong> environments: a temporary QA stack spun
+up per feature branch and torn down after merge, or a personal dev sandbox. They fit poorly for environments that
+diverge structurally over time — prod typically ends up with different instance types, different HA settings,
+extra monitoring, and different variable values than dev, and forcing all of that through one shared code path
+with conditionals becomes harder to read than just letting the directories diverge, which is exactly why Project 1
+did not use workspaces for the four core environments. The enterprise rule of thumb this project teaches: use
+directories (Project 1's pattern) for anything long-lived and structurally different; use workspaces for anything
+short-lived and structurally identical.
+</p>
+
+<h2><span class="num">04</span>Architecture</h2>
+<div class="diagram">
+Same root module, one code path, many state files:
+
+  modules/feature-qa-stack/  (single shared root module)
+        │
+        ├── terraform workspace select pr-1423 ──► env:/pr-1423/terraform.tfstate
+        ├── terraform workspace select pr-1509 ──► env:/pr-1509/terraform.tfstate
+        └── terraform workspace select pr-1587 ──► env:/pr-1587/terraform.tfstate
+
+              all three point at the SAME S3 bucket + DynamoDB
+              lock table from Project 1's bootstrap — only the
+              state KEY prefix differs, injected automatically
+              by the workspace name.
+</div>
+
+<h2><span class="num">05</span>Step-by-Step Implementation</h2>
+
+<h3>5.1 — A root module for ephemeral per-PR QA stacks</h3>
+<span class="filename">feature-qa-stack/backend.tf</span>
+<pre><code><span class="kw">terraform</span> {
+  backend <span class="str">"s3"</span> {
+    bucket         = <span class="str">"acme-tfstate-123456789012"</span> <span class="cmt"># same bucket from Project 1's bootstrap</span>
+    key            = <span class="str">"features/qa-stack/terraform.tfstate"</span> <span class="cmt"># workspace name is auto-prefixed onto this</span>
+    region         = <span class="str">"us-east-1"</span>
+    dynamodb_table = <span class="str">"terraform-lock-table"</span>
+    encrypt        = <span class="kw">true</span>
+  }
+}
+</code></pre>
+
+<span class="filename">feature-qa-stack/main.tf</span>
+<pre><code><span class="cmt"># A lookup table keyed by workspace name — this is the ONLY place</span>
+<span class="cmt"># behavior differs between workspaces, since the rest of the code</span>
+<span class="cmt"># is identical for every one of them.</span>
+<span class="kw">locals</span> {
+  size_by_workspace = {
+    default = <span class="str">"t3.micro"</span> <span class="cmt"># "default" is the workspace that always exists, pre-created by Terraform</span>
+  }
+  instance_type = lookup(local.size_by_workspace, terraform.workspace, <span class="str">"t3.micro"</span>)
+  <span class="cmt"># lookup()'s third argument is the fallback for any workspace not</span>
+  <span class="cmt"># explicitly listed — every new PR workspace gets t3.micro by default.</span>
+}
+
+<span class="kw">resource</span> <span class="type">"aws_instance"</span> <span class="str">"qa_app"</span> {
+  ami           = var.qa_ami_id
+  instance_type = local.instance_type
+
+  tags = {
+    Name      = <span class="str">"qa-${terraform.workspace}"</span> <span class="cmt"># e.g. "qa-pr-1423" — visibly ties the instance to its workspace</span>
+    Workspace = terraform.workspace
+    Ephemeral = <span class="str">"true"</span> <span class="cmt"># flags this for the idle-resource cleanup module built in Project 19</span>
+  }
+}
+</code></pre>
+
+<h3>5.2 — CI-driven lifecycle for a per-PR workspace</h3>
+<span class="filename">.github/workflows/pr-qa-stack.yml (excerpt)</span>
+<pre><code><span class="kw">on</span>:
+  pull_request:
+    types: [opened, synchronize, closed]
+
+<span class="kw">jobs</span>:
+  qa-stack:
+    <span class="kw">runs-on</span>: ubuntu-latest
+    <span class="kw">steps</span>:
+      - <span class="kw">uses</span>: actions/checkout@v4
+
+      - <span class="kw">name</span>: Select or create this PR's workspace
+        <span class="kw">run</span>: |
+          <span class="cmt"># -or-create avoids a separate existence-check step —</span>
+          <span class="cmt"># idempotent whether this is PR open or PR update.</span>
+          terraform workspace select -or-create pr-<span class="fn">${{ github.event.pull_request.number }}</span>
+
+      - <span class="kw">name</span>: Apply (only when PR is open/updated)
+        <span class="kw">if</span>: github.event.action != <span class="str">'closed'</span>
+        <span class="kw">run</span>: terraform apply -auto-approve
+
+      - <span class="kw">name</span>: Destroy and delete workspace (PR closed)
+        <span class="kw">if</span>: github.event.action == <span class="str">'closed'</span>
+        <span class="kw">run</span>: |
+          terraform destroy -auto-approve
+          terraform workspace select default
+          terraform workspace delete pr-<span class="fn">${{ github.event.pull_request.number }}</span>
+          <span class="cmt"># must switch back to "default" first — Terraform refuses to</span>
+          <span class="cmt"># delete whichever workspace is currently selected.</span>
+</code></pre>
+
+<div class="walkthrough">
+<h4>Plain-English walkthrough</h4>
+<p>
+This CI job treats a workspace's entire lifecycle as tied to a pull request's lifecycle: opening or updating a PR
+selects-or-creates a workspace named after the PR number and applies against it; closing the PR destroys that
+workspace's resources and deletes the workspace itself, so state never accumulates for PRs that no longer exist.
+The <code>lookup()</code> pattern in <code>main.tf</code> means every one of these dozens of ephemeral workspaces
+runs identical code — no one is hand-editing a new directory per PR the way Project 1's four core environments are
+maintained. Note the explicit switch back to the <code>default</code> workspace before deletion — this is a real
+Terraform CLI constraint, not a style choice, and forgetting it is the most common way this kind of pipeline
+breaks.
+</p>
+</div>
+
+<h2><span class="num">06</span>Failure Scenarios — What Breaks in Real Life</h2>
+
+<div class="callout warn">
+<span class="label">Failure: apply lands in the wrong workspace, invisibly</span>
+As in the story above — an engineer runs <code>apply</code> without checking <code>terraform workspace show</code>
+first, and it lands against whatever workspace was last selected on that machine. <strong>Debug/Prevent:</strong>
+never rely on workspaces for anything a mistaken apply could meaningfully damage; for those, use Project 1's
+directory pattern instead, where the working directory itself makes the target unmistakable.
+</div>
+
+<div class="callout warn">
+<span class="label">Failure: orphaned workspaces accumulate forever</span>
+A CI pipeline crashes between the <code>destroy</code> step and the <code>workspace delete</code> step for a
+closed PR. The workspace — and a lingering state file — is left behind indefinitely, and nobody notices until
+someone runs <code>terraform workspace list</code> and finds forty stale entries. <strong>Debug:</strong> a
+scheduled cleanup job (built out fully as part of Project 19's idle-resource cleanup) that lists workspaces older
+than N days with no corresponding open PR and destroys + deletes them.
+</div>
+
+<div class="callout warn">
+<span class="label">Failure: shared code path masks real environment drift</span>
+A "temporary" QA workspace lives for six months because nobody closed the PR, and the team starts treating it like
+a real environment — adding manual out-of-band changes the shared code doesn't account for. <strong>Debug:</strong>
+enforce a hard TTL on any workspace-based environment; if something needs to live longer than a sprint, that's the
+signal it belongs in Project 1's directory pattern instead, not a sign to special-case the workspace code further.
+</div>
+
+<h2><span class="num">07</span>Interview Talking Points</h2>
+
+<div class="interview-q">
+<div class="q">"When would you use Terraform workspaces versus separate root modules per environment?"</div>
+Give the rule directly: workspaces for ephemeral, structurally-identical environments (per-PR QA stacks); separate
+directories for long-lived environments that diverge structurally (prod vs. dev). Cite the invisible-context risk
+as the reason prod should never live in a workspace.
+</div>
+
+<div class="interview-q">
+<div class="q">"What actually changes in Terraform's behavior when you switch workspaces?"</div>
+Be precise: only the state file key changes (via the automatic <code>env:/&lt;workspace&gt;/</code> prefix); the
+code, provider config, and everything else stays identical, which is exactly why any per-environment difference
+has to be driven explicitly through <code>terraform.workspace</code> lookups in code.
+</div>
+
+<h2><span class="num">08</span>Skills Gained Checklist</h2>
+<table>
+<tr><th>Skill</th><th>YOE-Equivalent Signal</th></tr>
+<tr><td>Terraform workspace lifecycle management</td><td>Can design and safely operate ephemeral per-branch/per-PR environments</td></tr>
+<tr><td><code>terraform.workspace</code>-driven configuration</td><td>Can parameterize a single code path across many isolated states</td></tr>
+<tr><td>Judging workspaces vs. directory-per-environment</td><td>Makes senior-level architectural tradeoffs, not just "how do I do X" answers</td></tr>
+<tr><td>CI-managed workspace create/destroy lifecycle</td><td>Prevents orphaned infrastructure and state sprawl at scale</td></tr>
+</table>
+
+<h2><span class="num">09</span>Resume &amp; Portfolio Section</h2>
+<div class="resume-box">
+<h3>📌 Showcase This Project</h3>
+<p class="resume-sub">Ready-to-use bullets and framing for your resume, LinkedIn, and portfolio site. Pick the phrasing that best matches your actual seniority and tailor numbers to anything you genuinely measured.</p>
+
+<div class="resume-block">
+  <div class="rb-label">Resume Bullet Points</div>
+  <ul class="resume-bullets">
+    <li>Designed and implemented an ephemeral per-pull-request QA environment strategy using Terraform workspaces, eliminating manual environment provisioning for feature testing.</li>
+    <li>Built a CI/CD-driven workspace lifecycle (GitHub Actions) that automatically creates, applies, and tears down isolated infrastructure per pull request, preventing state and resource sprawl.</li>
+    <li>Established and documented workspace-vs-directory architectural guidelines for environment isolation, reducing the risk of accidental production changes across a multi-environment Terraform codebase.</li>
+  </ul>
+  <span class="copy-hint">Copy any of these directly into a resume "Experience" or "Projects" section.</span>
+</div>
+
+<div class="resume-block">
+  <div class="rb-label">LinkedIn Project / Featured Post Blurb</div>
+  <div class="linkedin-box">
+    "Built an ephemeral infrastructure pattern with Terraform workspaces so every pull request gets its own
+    disposable AWS environment — spun up automatically on PR open, torn down automatically on PR close. Cut down
+    on manual QA environment requests and eliminated leftover 'zombie' infrastructure from abandoned branches."
+  </div>
+</div>
+
+<div class="resume-block">
+  <div class="rb-label">Skills to Tag / Add to Resume Skills Section</div>
+  <div class="skill-pills">
+    <span class="skill-pill">Terraform Workspaces</span>
+    <span class="skill-pill">Ephemeral Infrastructure</span>
+    <span class="skill-pill">GitHub Actions CI/CD</span>
+    <span class="skill-pill">Environment Isolation</span>
+    <span class="skill-pill">Infrastructure as Code</span>
+    <span class="skill-pill">AWS</span>
+  </div>
+</div>
+
+<div class="resume-block">
+  <div class="rb-label">Interview-Ready Project Summary (30-second version)</div>
+  <p style="margin:0; color:#dcdfe4; font-size:14.5px;">
+  "I built a self-service QA environment system where every pull request automatically gets its own isolated AWS
+  environment via Terraform workspaces, wired into CI so it's created on PR open and destroyed on PR close. It
+  removed manual environment requests from the team's workflow and stopped abandoned branches from leaving orphaned
+  infrastructure running."
+  </p>
+</div>
+</div>
+
+<footer>
+Project 3 of 25 &middot; HashiCorp Terraform on AWS Handbook &middot; Say <strong>"next project"</strong> to generate Project 4: Least-Privilege IAM Architecture as Code.
+</footer>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Project 15 — NTFS Permission Audit | PowerShell Masterclass</title>
+<style>
+  :root{
+    --primary:#6D28D9; --secondary:#7C3AED; --light-purple:#EDE9FE; --xlight-purple:#F5F3FF;
+    --bg:#FFFFFF; --text:#1F2937; --muted:#6B7280; --border:#E5E1F5;
+    --success:#15803D; --warn:#B45309; --danger:#B91C1C;
+    --code-bg:#1E1B2E; --code-text:#E9E4FF;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0; font-family:"Segoe UI",Calibri,Roboto,Arial,sans-serif; background:var(--bg); color:var(--text); line-height:1.65;}
+  a{color:var(--primary);}
+  .layout{display:flex; max-width:1400px; margin:0 auto;}
+  nav.sidebar{width:270px; flex-shrink:0; position:sticky; top:0; height:100vh; overflow-y:auto; background:var(--xlight-purple); border-right:1px solid var(--border); padding:22px 16px;}
+  nav.sidebar h3{color:var(--primary); font-size:13px; text-transform:uppercase; letter-spacing:.06em; margin:18px 0 8px;}
+  nav.sidebar a{display:block; padding:7px 10px; border-radius:8px; color:var(--text); text-decoration:none; font-size:14px; margin-bottom:2px;}
+  nav.sidebar a:hover{background:var(--light-purple); color:var(--primary);}
+  #progressWrap{background:var(--light-purple); border-radius:10px; padding:10px; margin-bottom:8px;}
+  #progressBar{height:8px; background:var(--border); border-radius:6px; overflow:hidden;}
+  #progressFill{height:100%; width:0%; background:linear-gradient(90deg,var(--primary),var(--secondary)); transition:width .2s;}
+  #progressLabel{font-size:12px; color:var(--muted); margin-top:6px;}
+  main{flex:1; min-width:0; padding:0;}
+  .cover{background:linear-gradient(135deg,var(--primary),var(--secondary)); color:#fff; padding:60px 48px; position:relative; overflow:hidden;}
+  .cover::after{content:"";position:absolute;right:-80px;top:-80px;width:300px;height:300px;border-radius:50%;background:rgba(255,255,255,.08);}
+  .badge{display:inline-block; background:rgba(255,255,255,.18); padding:5px 14px; border-radius:20px; font-size:12px; letter-spacing:.05em; margin-right:8px; margin-bottom:14px;}
+  .cover h1{font-size:34px; margin:6px 0 10px; max-width:760px;}
+  .cover p.sub{font-size:16px; opacity:.92; max-width:640px;}
+  .cover-meta{display:flex; gap:28px; margin-top:26px; flex-wrap:wrap;}
+  .cover-meta div{background:rgba(255,255,255,.12); padding:12px 18px; border-radius:10px; min-width:140px;}
+  .cover-meta span{display:block; font-size:12px; opacity:.85;}
+  .cover-meta strong{font-size:16px;}
+  section{padding:34px 48px; border-bottom:1px solid var(--border);}
+  section h2{color:var(--primary); font-size:24px; border-left:5px solid var(--primary); padding-left:14px; margin-top:0;}
+  section h3{color:var(--secondary); font-size:18px; margin-top:26px;}
+  .story{background:var(--xlight-purple); border-left:5px solid var(--primary); padding:20px 24px; border-radius:0 10px 10px 0; font-size:15px;}
+  .story b{color:var(--primary);}
+  .callout{border-radius:10px; padding:16px 18px; margin:16px 0; font-size:14.5px;}
+  .callout.tip{background:#F0FDF4; border-left:5px solid var(--success);}
+  .callout.note{background:var(--xlight-purple); border-left:5px solid var(--secondary);}
+  .callout.warn{background:#FFFBEB; border-left:5px solid var(--warn);}
+  .callout.security{background:#FEF2F2; border-left:5px solid var(--danger);}
+  .callout .lbl{font-weight:700; display:block; margin-bottom:4px;}
+  table{width:100%; border-collapse:collapse; margin:16px 0; font-size:14px;}
+  th,td{border:1px solid var(--border); padding:9px 12px; text-align:left; vertical-align:top;}
+  th{background:var(--light-purple); color:var(--primary);}
+  tr:nth-child(even){background:var(--xlight-purple);}
+  .codewrap{position:relative; margin:16px 0;}
+  pre{background:var(--code-bg); color:var(--code-text); padding:18px 16px; border-radius:10px; overflow-x:auto; font-family:Consolas,"Cascadia Code",Menlo,monospace; font-size:13.5px; line-height:1.7;}
+  pre code{white-space:pre;}
+  .copybtn{position:absolute; top:10px; right:10px; background:var(--secondary); color:#fff; border:none; padding:6px 12px; border-radius:6px; font-size:12px; cursor:pointer;}
+  .copybtn:hover{background:var(--primary);}
+  .explain-list{list-style:none; padding:0; margin:14px 0;}
+  .explain-list li{background:var(--xlight-purple); border-radius:8px; padding:10px 14px; margin-bottom:6px; font-size:14.5px;}
+  .explain-list code{background:var(--light-purple); padding:2px 6px; border-radius:5px; color:var(--primary); font-weight:600;}
+  details{background:var(--xlight-purple); border-radius:10px; padding:12px 16px; margin:10px 0;}
+  details summary{cursor:pointer; font-weight:600; color:var(--primary);}
+  .diagram{background:var(--xlight-purple); border-radius:12px; padding:20px; margin:16px 0; overflow-x:auto;}
+  .flow{display:flex; flex-wrap:wrap; align-items:center; gap:10px; font-size:13.5px;}
+  .flow .box{background:#fff; border:2px solid var(--secondary); border-radius:8px; padding:8px 14px; font-weight:600; color:var(--primary);}
+  .flow .arrow{color:var(--secondary); font-size:18px;}
+  .steps{counter-reset:step;}
+  .steps .step{position:relative; padding-left:44px; margin-bottom:18px;}
+  .steps .step::before{counter-increment:step; content:counter(step); position:absolute; left:0; top:0; background:var(--primary); color:#fff; width:30px; height:30px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:700;}
+  .grid2{display:grid; grid-template-columns:1fr 1fr; gap:16px;}
+  @media(max-width:900px){.grid2{grid-template-columns:1fr;} nav.sidebar{display:none;} section{padding:26px 20px;} .cover{padding:36px 22px;}}
+  footer{padding:30px 48px; background:var(--xlight-purple); color:var(--muted); font-size:13px;}
+</style>
+</head>
+<body>
+
+<div class="layout">
+  <nav class="sidebar">
+    <div id="progressWrap">
+      <div id="progressLabel">Reading progress</div>
+      <div id="progressBar"><div id="progressFill"></div></div>
+    </div>
+    <h3>Project 15</h3>
+    <a href="#cover">Cover</a>
+    <a href="#recap1">Recap: Projects 1–14</a>
+    <a href="#story">The Story</a>
+    <a href="#concepts">Concepts First</a>
+    <a href="#lab">Hands-On Lab</a>
+    <a href="#script">Full Script</a>
+    <a href="#linebyline">Line-by-Line</a>
+    <a href="#architecture">Architecture</a>
+    <a href="#incident">Production Incident</a>
+    <a href="#troubleshoot">Troubleshooting</a>
+    <a href="#security">Security Notes</a>
+    <a href="#recap">Key Learnings</a>
+    <a href="#interview">Interview Prep</a>
+    <a href="#challenges">Coding Challenges</a>
+    <a href="#resume">Resume Points</a>
+    <a href="#assignment">Practice Assignment</a>
+    <a href="#next">Next Project</a>
+  </nav>
+
+  <main id="top">
+    <div class="cover" id="cover">
+      <span class="badge">PROJECT 15</span><span class="badge">INTERMEDIATE</span><span class="badge">BFSI TRACK</span>
+      <h1>NTFS Permission Audit</h1>
+      <p class="sub">Audit folder permissions for overly broad access grants — and understand why this is the first project in the course that deliberately never auto-fixes anything.</p>
+      <div class="cover-meta">
+        <div><span>Difficulty</span><strong>Intermediate</strong></div>
+        <div><span>Estimated Lab Time</span><strong>75–90 min</strong></div>
+        <div><span>Concepts</span><strong>8 core concepts</strong></div>
+        <div><span>Track</span><strong>15 of 40</strong></div>
+      </div>
+    </div>
+
+    <section id="recap1">
+      <h2>Quick Recap of Projects 1–14</h2>
+      <p>Project 14 drew a line: auto-create missing firewall rules, but never auto-modify existing ones. This
+      project draws that line even earlier — auditing NTFS permissions is valuable, but <b>changing</b> them
+      automatically is genuinely dangerous (a wrong permission change can lock out a service account and take down
+      an application instantly). We'll build a thorough, read-only audit and explicitly explain why remediation
+      stays a human decision here.</p>
+    </section>
+
+    <section id="story">
+      <h2>The Story — Why We're Building This</h2>
+      <div class="story">
+        A routine security review at ABC Bank found that a folder containing customer statement exports had
+        <b>"Everyone: Modify"</b> permissions — meaning literally any authenticated user on the network could read,
+        edit, or delete customer financial documents. Nobody remembers granting that; it likely happened months ago
+        during a rushed troubleshooting session and was never reverted. Our manager wants a script that
+        <b>audits folder permissions</b> across a list of sensitive paths and flags any grant to broad,
+        higher-risk identities like "Everyone" or "Authenticated Users" — <i>without</i> changing anything
+        automatically.
+      </div>
+    </section>
+
+    <section id="concepts">
+      <h2>Concepts First — Before We Touch Code</h2>
+
+      <h3>1. ACL and ACE — The Two Core Concepts</h3>
+      <div class="callout note"><span class="lbl">Terminology worth getting exactly right</span>An
+      <b>ACL (Access Control List)</b> is the complete set of permissions attached to a file or folder. Each
+      individual permission grant or denial within that list is a separate <b>ACE (Access Control Entry)</b> — "who
+      gets what access, allow or deny." A folder has one ACL, made up of potentially many ACEs.</div>
+
+      <h3>2. Get-Acl and the Access Property</h3>
+      <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code>$Acl = Get-Acl -Path "C:\SomeFolder"
+$Acl.Access   # An array of individual ACEs (FileSystemAccessRule objects)</code></pre></div>
+      <ul class="explain-list">
+        <li><code>Get-Acl</code> — reads the full ACL for a file or folder path.</li>
+        <li><code>.Access</code> — the property containing every individual ACE as a separate object — this is what
+        we'll loop through to examine each permission grant one at a time.</li>
+      </ul>
+
+      <h3>3. Key ACE Properties</h3>
+      <table>
+        <tr><th>Property</th><th>Meaning</th></tr>
+        <tr><td><code>IdentityReference</code></td><td>Who this entry applies to (a user, group, or built-in identity like "Everyone")</td></tr>
+        <tr><td><code>FileSystemRights</code></td><td>What access is granted (Read, Write, Modify, FullControl, etc.)</td></tr>
+        <tr><td><code>AccessControlType</code></td><td>Allow or Deny</td></tr>
+        <tr><td><code>IsInherited</code></td><td><code>True</code> if this permission came from a parent folder rather than being set directly here</td></tr>
+      </table>
+
+      <h3>4. Why IsInherited Matters for Prioritizing Findings</h3>
+      <div class="callout warn"><span class="lbl">Explicit vs inherited grants</span>A permission inherited from a
+      parent folder is usually part of the organization's standard structure and less likely to be a one-off
+      mistake. A permission set <i>explicitly</i> on this specific folder (<code>IsInherited = $false</code>) is
+      more likely to be a deliberate — or accidental — override, and deserves closer scrutiny during an audit.</div>
+
+      <h3>5. Identifying High-Risk Broad Identities</h3>
+      <p>Certain built-in Windows identities represent an extremely wide audience:</p>
+      <table>
+        <tr><th>Identity</th><th>Represents</th></tr>
+        <tr><td>Everyone</td><td>Every user, including unauthenticated/anonymous access in some configurations</td></tr>
+        <tr><td>Authenticated Users</td><td>Any successfully logged-in user, domain-wide</td></tr>
+        <tr><td>Users</td><td>The built-in local/domain Users group — typically very broad membership</td></tr>
+      </table>
+      <p>A Write, Modify, or FullControl grant to any of these on a sensitive folder is almost always worth flagging
+      for review.</p>
+
+      <h3>6. Config-Driven Audit Targets — Reusing the Project 9/14 Pattern</h3>
+      <p>Which folders count as "sensitive" and which identities are actually expected/approved both belong in
+      configuration, not hardcoded in the script — the same separation of concerns we've applied since Project 9.</p>
+
+      <h3>7. Why This Project Never Auto-Remediates</h3>
+      <div class="callout security"><span class="lbl">The most important lesson in this project</span>Unlike a
+      missing firewall rule (safe to create — it can only add access that was supposed to exist), an NTFS permission
+      change can <i>remove</i> access a legitimate service account or application depends on to function. Getting it
+      wrong can cause an outage instantly, and untangling exactly what access was needed after the fact can be
+      surprisingly hard. This is a case where detection provides nearly all the value, and remediation absolutely
+      requires a human who understands the business context.</div>
+    </section>
+
+    <section id="lab">
+      <h2>Hands-On Lab — Build It Yourself</h2>
+      <div class="steps">
+        <div class="step"><b>Create the project structure and a test folder to audit:</b>
+          <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code>New-Item -ItemType Directory -Path "C:\PS-Masterclass\Project15\config" -Force
+New-Item -ItemType Directory -Path "C:\PS-Masterclass\Project15\reports" -Force
+New-Item -ItemType Directory -Path "C:\PS-Masterclass\Project15\TestData\SensitiveFolder" -Force
+Set-Location "C:\PS-Masterclass\Project15"</code></pre></div>
+        </div>
+        <div class="step"><b>Deliberately create an overly broad permission on the test folder</b>, so the script
+        has something real to find:
+          <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code>$Acl = Get-Acl ".\TestData\SensitiveFolder"
+$Rule = New-Object System.Security.AccessControl.FileSystemAccessRule("Everyone","Modify","Allow")
+$Acl.AddAccessRule($Rule)
+Set-Acl -Path ".\TestData\SensitiveFolder" -AclObject $Acl</code></pre></div>
+        </div>
+        <div class="step"><b>Create <code>config\audit-paths.csv</code>:</b>
+          <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code>FolderPath
+.\TestData\SensitiveFolder</code></pre></div>
+        </div>
+        <div class="step"><b>Create <code>Invoke-NtfsPermissionAudit.ps1</code></b> and paste the full script below.</div>
+        <div class="step"><b>Run it:</b>
+          <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code>.\Invoke-NtfsPermissionAudit.ps1</code></pre></div>
+        </div>
+        <div class="step"><b>Validate:</b> confirm the "Everyone: Modify" grant is flagged as HIGH RISK in the
+        console and CSV, and notice the script never attempts to remove it.</div>
+      </div>
+    </section>
+
+    <section id="script">
+      <h2>Full Script — Invoke-NtfsPermissionAudit.ps1</h2>
+      <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code># =====================================================================
+# Invoke-NtfsPermissionAudit.ps1
+# ABC Bank - Windows Infrastructure Automation Team
+# Purpose: Audit-only report of NTFS permissions on sensitive folders
+# NOTE: This script NEVER modifies permissions - detection only, by design.
+# =====================================================================
+
+$AuditPaths     = Import-Csv -Path ".\config\audit-paths.csv"     # Config-driven target list (Project 9/14 pattern)
+$HighRiskGroups = @("Everyone", "Authenticated Users", "BUILTIN\Users")   # Broad identities worth flagging
+$RiskyRights    = @("Modify", "FullControl", "Write")               # Access levels serious enough to flag
+
+$Findings = @()   # Will hold every ACE we examine, flagged or not
+
+Write-Host "`n=== NTFS PERMISSION AUDIT (READ-ONLY) ===" -ForegroundColor Magenta
+Write-Host "This script only reports findings - it never modifies permissions.`n" -ForegroundColor Yellow
+
+foreach ($Target in $AuditPaths) {                                  # $Target is one row from audit-paths.csv
+
+    $Path = $Target.FolderPath
+    Write-Host "Auditing $Path..." -ForegroundColor Cyan
+
+    if (-not (Test-Path $Path)) {                                    # Confirms the folder actually exists first
+        Write-Host "  Path not found - skipping." -ForegroundColor Yellow
+        continue                                                       # Moves to the next target without erroring the whole script
+    }
+
+    $Acl = Get-Acl -Path $Path                                        # Reads the full ACL for this folder
+
+    foreach ($Ace in $Acl.Access) {                                    # Loops through every individual ACE (permission entry)
+
+        $Identity = $Ace.IdentityReference.ToString()                   # The "who" - converted to a plain string for comparison
+        $Rights   = $Ace.FileSystemRights.ToString()                     # The "what access" - as a string, may combine multiple rights
+
+        # Checks whether this identity is one of our known broad/high-risk groups
+        $IsHighRiskIdentity = $HighRiskGroups | Where-Object { $Identity -like "*$_*" }
+
+        # Checks whether the granted rights include anything from our risky list
+        $HasRiskyRights = $false
+        foreach ($Risky in $RiskyRights) {                                # Checks each risky right individually
+            if ($Rights -like "*$Risky*") { $HasRiskyRights = $true }       # FileSystemRights can combine multiple flags in one string
+        }
+
+        $IsFlagged = ($IsHighRiskIdentity -and $HasRiskyRights -and $Ace.AccessControlType -eq "Allow")
+
+        $Findings += [PSCustomObject]@{                                  # Records EVERY ACE examined, flagged or not - full transparency
+            FolderPath   = $Path
+            Identity     = $Identity
+            Rights       = $Rights
+            AccessType   = $Ace.AccessControlType
+            IsInherited  = $Ace.IsInherited
+            RiskLevel    = if ($IsFlagged) { "HIGH RISK" } else { "Normal" }
+        }
+
+        if ($IsFlagged) {                                                # Only prints a warning line for actual findings
+            $InheritedNote = if ($Ace.IsInherited) { "(inherited)" } else { "(explicitly set on this folder)" }
+            Write-Host "  HIGH RISK: '$Identity' has '$Rights' access $InheritedNote" -ForegroundColor Red
+        }
+    }
+}
+
+# ---------------------------------------------------------------
+# Export the full findings report and summarize
+# ---------------------------------------------------------------
+if (-not (Test-Path ".\reports")) { New-Item -ItemType Directory -Path ".\reports" | Out-Null }
+$Timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
+$Findings | Export-Csv -Path ".\reports\NtfsAudit_$Timestamp.csv" -NoTypeInformation
+
+$HighRiskCount = ($Findings | Where-Object { $_.RiskLevel -eq "HIGH RISK" }).Count
+Write-Host "`nSummary: $HighRiskCount high-risk permission grant(s) found across $($AuditPaths.Count) folder(s)." -ForegroundColor Cyan
+Write-Host "Full report (including normal entries, for complete transparency): .\reports\" -ForegroundColor Green
+Write-Host "`nREMINDER: No permissions were changed. Review findings and remediate manually with proper change control." -ForegroundColor Yellow
+</code></pre></div>
+      </div>
+    </section>
+
+    <section id="linebyline">
+      <h2>Line-by-Line Explanation</h2>
+
+      <h3><code>$Acl = Get-Acl -Path $Path</code> / <code>foreach ($Ace in $Acl.Access)</code></h3>
+      <ul class="explain-list">
+        <li>One <code>Get-Acl</code> call retrieves the entire permission set for the folder at once; the
+        <code>foreach</code> loop then examines each individual grant separately, since a folder typically has
+        several ACEs (one for Administrators, one for SYSTEM, one for a specific application account, etc.), not
+        just one.</li>
+      </ul>
+
+      <h3><code>$IsHighRiskIdentity = $HighRiskGroups | Where-Object { $Identity -like "*$_*" }</code></h3>
+      <ul class="explain-list">
+        <li>This checks whether <code>$Identity</code> <i>contains</i> any of our known risky group names, using
+        <code>-like</code> with wildcards on both sides — necessary because <code>IdentityReference</code> often
+        includes a domain or machine prefix (e.g. <code>"BUILTIN\Users"</code> or
+        <code>"NT AUTHORITY\Authenticated Users"</code>), so an exact match against a bare name like "Users" would
+        miss real matches.</li>
+        <li>Notice <code>$_</code> here refers to each item from <code>$HighRiskGroups</code> as
+        <code>Where-Object</code> loops through them — a different pipeline than the ACE loop we're inside, a good
+        reminder that <code>$_</code>'s meaning always depends on which immediately-surrounding pipeline it belongs to.</li>
+      </ul>
+
+      <h3><code>foreach ($Risky in $RiskyRights) { if ($Rights -like "*$Risky*") { $HasRiskyRights = $true } }</code></h3>
+      <ul class="explain-list">
+        <li><code>FileSystemRights</code> is a <b>flags enumeration</b> — a single ACE's rights value can represent
+        multiple combined permissions at once (e.g. "Modify, Synchronize"), which is why we check whether the
+        <i>string</i> contains any risky keyword rather than trying to match the whole value exactly.</li>
+      </ul>
+
+      <h3><code>$IsFlagged = ($IsHighRiskIdentity -and $HasRiskyRights -and $Ace.AccessControlType -eq "Allow")</code></h3>
+      <ul class="explain-list">
+        <li>Three conditions chained with <code>-and</code>: the identity must be broad/risky, AND the rights must
+        include something serious, AND — importantly — the entry must actually be an <b>Allow</b> rule. A
+        <b>Deny</b> entry for "Everyone: Modify" would mean the opposite of what we're looking for (explicitly
+        blocking broad access, which is a good thing), so excluding Deny entries from being flagged prevents a
+        confusing false positive.</li>
+      </ul>
+
+      <h3>Recording every ACE, flagged or not, into <code>$Findings</code></h3>
+      <ul class="explain-list">
+        <li>Same "log everything checked, not just problems" philosophy from Project 4's service audit — a complete
+        record proves the audit actually examined every permission on every folder, not just the ones that turned
+        out to be interesting.</li>
+      </ul>
+    </section>
+
+    <section id="architecture">
+      <h2>Architecture &amp; Audit Flow</h2>
+      <div class="diagram">
+        <div class="flow">
+          <div class="box">audit-paths.csv</div><div class="arrow">→</div>
+          <div class="box">foreach Folder</div><div class="arrow">→</div>
+          <div class="box">Get-Acl</div>
+        </div>
+        <div class="flow" style="margin-top:12px;">
+          <div class="box">foreach ACE</div><div class="arrow">→</div>
+          <div class="box">Identity Check + Rights Check + Allow Check</div><div class="arrow">→</div>
+          <div class="box">Flag or Normal</div>
+        </div>
+        <div class="flow" style="margin-top:12px;">
+          <div class="box">Every ACE Recorded</div><div class="arrow">→</div>
+          <div class="box">CSV Report</div><div class="arrow">→</div>
+          <div class="box">Human Review &amp; Manual Remediation</div>
+        </div>
+      </div>
+      <p>The flow deliberately ends at <b>"human review"</b>, not at "fix." This is the architectural expression of
+      the security principle from Project 14 taken one step further — some categories of change are simply outside
+      what automation should decide on its own, however confident the detection logic is.</p>
+    </section>
+
+    <section id="incident">
+      <h2>Production Incident Walkthrough</h2>
+      <div class="story">
+        Six months earlier, a well-meaning script <i>did</i> attempt automatic NTFS remediation — stripping
+        "Everyone" access from a folder flagged as risky. It turned out a legacy reporting service account was
+        actually a member of a group nested inside "Authenticated Users" and depended on that broad grant to
+        function; the automated fix broke nightly reconciliation reports for two days before anyone traced it back
+        to the "helpful" permission change. That incident is exactly why this project's script only ever reports.
+      </div>
+      <ul class="explain-list">
+        <li><b>Why is this failure mode worse than, say, Project 10's failed service restart?</b> A failed restart
+        is visible almost immediately and is itself reversible (try again, or start manually). A permission removal
+        can silently break something that only runs occasionally (like a nightly batch job) — the failure might not
+        surface for hours or days, by which point tracing it back to "a script changed a permission" is much harder.</li>
+        <li><b>Doesn't flagging without fixing waste the automation's potential?</b> Not in this case — the hardest
+        and most time-consuming part of the original problem was <i>finding</i> the risky grant across hundreds of
+        folders manually; automating detection captures nearly all the value, while leaving the comparatively quick
+        "someone reviews and approves the fix" step to a human who has the business context to do it safely.</li>
+      </ul>
+    </section>
+
+    <section id="troubleshoot">
+      <h2>Troubleshooting Cheat Sheet</h2>
+      <table>
+        <tr><th>Symptom</th><th>Likely Root Cause</th><th>Fix</th></tr>
+        <tr><td>"Access is denied" on Get-Acl</td><td>Insufficient permissions to even read the ACL of a protected folder</td><td>Run as Administrator, or as an account with at least Read Permissions rights on that folder</td></tr>
+        <tr><td>No high-risk findings even after the lab's deliberate test grant</td><td>The Set-Acl step in the lab didn't run successfully, or targeted the wrong path</td><td>Re-run <code>(Get-Acl ".\TestData\SensitiveFolder").Access</code> directly to confirm the Everyone rule is actually present</td></tr>
+        <tr><td>Every single entry gets flagged, including normal ones like Administrators</td><td>$HighRiskGroups wildcard match is too broad (e.g. matching partial substrings unexpectedly)</td><td>Print $Identity for each ACE to see exactly what string is being matched against</td></tr>
+        <tr><td>Script skips a folder unexpectedly</td><td>FolderPath in the CSV has a typo or uses a path relative to the wrong working directory</td><td>Confirm with Get-Location that you're running from the Project15 folder</td></tr>
+      </table>
+    </section>
+
+    <section id="security">
+      <h2>Security &amp; Best Practices</h2>
+      <div class="callout security"><span class="lbl">The core lesson of this entire project</span>Not every
+      detected problem should be auto-remediated, even when the fix seems technically obvious. Permission changes on
+      shared resources can have consequences that aren't visible from the permission data alone — this is a
+      judgment call that belongs to a human with business context, supported by good tooling (this script), not
+      replaced by it.</div>
+      <div class="callout tip"><span class="lbl">Best practice reinforced here</span>Recording every ACE examined
+      (not just the flagged ones) into the report gives an auditor complete confidence the check was thorough —
+      partial visibility into an audit is almost as bad as no audit at all when compliance is on the line.</div>
+    </section>
+
+    <section id="recap">
+      <h2>Key Learnings &amp; Recap</h2>
+      <div class="grid2">
+        <div>
+          <h3>Commands/Syntax Learned</h3>
+          <ul class="explain-list">
+            <li><code>Get-Acl</code> and the <code>.Access</code> property</li>
+            <li>ACE properties: IdentityReference, FileSystemRights, AccessControlType, IsInherited</li>
+            <li><code>continue</code> to skip a loop iteration</li>
+          </ul>
+        </div>
+        <div>
+          <h3>Concepts Learned</h3>
+          <ul class="explain-list">
+            <li>ACL vs ACE — the precise relationship</li>
+            <li>Inherited vs explicit permissions, and why the distinction matters</li>
+            <li>FileSystemRights as a flags enumeration (can combine multiple values)</li>
+            <li>When detection-only is the right architectural choice, not a limitation</li>
+          </ul>
+        </div>
+      </div>
+      <h3>Common Mistakes to Avoid</h3>
+      <ul class="explain-list">
+        <li>Flagging Deny entries as if they were risky grants — they're the opposite.</li>
+        <li>Exact-matching identity names instead of accounting for domain/BUILTIN prefixes.</li>
+        <li>Building automatic permission remediation without a very strong reason and strict controls.</li>
+        <li>Only recording flagged findings, losing the ability to prove the whole audit was thorough.</li>
+      </ul>
+    </section>
+
+    <section id="interview">
+      <h2>Interview Preparation</h2>
+      <details><summary>Q1. What's the difference between an ACL and an ACE?</summary>
+        <p><b>Answer:</b> An ACL is the complete permission set on an object; an ACE is one individual entry within
+        that set — one specific identity's specific grant or denial. A folder has one ACL made up of potentially
+        many ACEs.</p>
+        <p><b>Follow-up:</b> "What's the difference between a DACL and a SACL?" — Answer: a DACL (Discretionary ACL)
+        controls who has access; a SACL (System ACL) controls what gets audited/logged — <code>Get-Acl</code> by
+        default works with the DACL, which is what this script inspects.</p>
+      </details>
+      <details><summary>Q2. Why exclude Deny entries from being flagged as high risk in this script?</summary>
+        <p><b>Answer:</b> A Deny entry for a broad group like "Everyone" is the security team actively restricting
+        access, not granting it — flagging it as a risk would be exactly backwards; only Allow entries granting
+        risky rights to broad identities represent the exposure we're auditing for.</p>
+        <p><b>Follow-up:</b> "Are there scenarios where a Deny entry itself is worth reviewing?" — Answer: yes — an
+        unexpected Deny entry could be blocking a legitimate account from needed access, which is a different kind
+        of problem (availability, not security exposure) that a separate check could look for.</p>
+      </details>
+      <details><summary>Q3. Why does this script never attempt to remove or modify a flagged permission automatically?</summary>
+        <p><b>Answer:</b> Permission data alone doesn't reveal business context — a broad-looking grant might be
+        load-bearing for something that only runs occasionally, and removing it automatically risks breaking
+        functionality in a way that may not surface immediately, making root-cause tracing much harder than with
+        more immediately-visible failures.</p>
+        <p><b>Follow-up:</b> "If the business insisted on some level of automated remediation here, what controls
+        would you want in place first?" — Answer: at minimum, a documented approval/change-ticket requirement per
+        change, a dry-run/impact-analysis step showing exactly what would be affected, and likely a rollback
+        snapshot of the ACL taken immediately before any change — substantially more governance than Project 14's
+        firewall rule creation needed.</p>
+      </details>
+    </section>
+
+    <section id="challenges">
+      <h2>Coding Challenges</h2>
+      <details><summary>Challenge 1: Only flag EXPLICIT (non-inherited) high-risk grants, treating inherited ones as lower priority</summary>
+        <details><summary>Show answer</summary>
+        <pre><code>$IsFlagged = ($IsHighRiskIdentity -and $HasRiskyRights -and $Ace.AccessControlType -eq "Allow" -and -not $Ace.IsInherited)</code></pre>
+        </details>
+      </details>
+      <details><summary>Challenge 2: Add -Recurse support to also audit every subfolder under each configured path</summary>
+        <details><summary>Show answer</summary>
+        <pre><code>$SubFolders = Get-ChildItem -Path $Path -Directory -Recurse
+$AllPathsToCheck = @($Path) + $SubFolders.FullName   # Combines the root folder with every subfolder found</code></pre>
+        </details>
+      </details>
+      <details><summary>Challenge 3: Group the final findings by FolderPath to show a per-folder risk count summary</summary>
+        <details><summary>Show answer</summary>
+        <pre><code>$Findings | Where-Object { $_.RiskLevel -eq "HIGH RISK" } |
+    Group-Object FolderPath | Select-Object Name, Count</code></pre>
+        </details>
+      </details>
+    </section>
+
+    <section id="resume">
+      <h2>Resume Points</h2>
+      <ul class="explain-list">
+        <li>Built a config-driven, read-only PowerShell NTFS permission audit tool identifying overly broad access grants on sensitive folders.</li>
+        <li>Implemented risk classification logic distinguishing high-risk identities, dangerous rights, and inherited vs explicit permission grants.</li>
+        <li>Applied a deliberate detection-only design boundary, recognizing NTFS permission remediation as requiring human business-context judgment.</li>
+      </ul>
+    </section>
+
+    <section id="assignment">
+      <h2>Practice Assignment</h2>
+      <div class="callout note">
+        Manually remove the "Everyone: Modify" test permission you added during the lab (using the Security tab in
+        File Explorer, or <code>$Acl.RemoveAccessRule($Rule)</code> followed by <code>Set-Acl</code>), re-run the
+        audit script, and confirm it now reports zero high-risk findings for that folder — proving you can verify
+        remediation with the same tool used to detect the problem.
+      </div>
+    </section>
+
+    <section id="next">
+      <h2>Next Project Prerequisites</h2>
+      <p>Project 16 (SMB Share Validation) extends this same audit mindset to network file shares — validating share
+      permissions and configuration, another area where detection matters far more than automatic correction. Be
+      comfortable with Get-Acl and the ACL/ACE distinction before moving on. When ready, say
+      <b>"Next Project."</b></p>
+    </section>
+
+    <footer>
+      PowerShell Masterclass — ABC Bank Automation Track · Project 15 of 40 · Generated for offline, self-contained use.
+    </footer>
+  </main>
+</div>
+
+<script>
+function copyCode(btn){
+  const code = btn.parentElement.querySelector('pre').innerText;
+  navigator.clipboard.writeText(code).then(()=>{
+    const old = btn.innerText; btn.innerText = "Copied!";
+    setTimeout(()=>btn.innerText = old, 1200);
+  });
+}
+window.addEventListener('scroll', ()=>{
+  const h = document.documentElement;
+  const pct = (h.scrollTop) / (h.scrollHeight - h.clientHeight) * 100;
+  document.getElementById('progressFill').style.width = pct + '%';
+  document.getElementById('progressLabel').innerText = 'Reading progress: ' + Math.round(pct) + '%';
+});
+</script>
+</body>
+</html>

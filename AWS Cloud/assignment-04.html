@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Assignment 04 — S3/EBS Reliable Storage &amp; Backup Workflows</title>
+<style>
+:root{
+  --bg:#0B1120; --bg-2:#111827; --card:#17202F; --card-2:#1C2536; --border:#26314A;
+  --orange:#FF9900; --orange-dim:#B96E00; --blue:#00A8E1; --green:#34D399;
+  --warning:#FBBF24; --error:#F87171; --text:#E5E9F0; --text-dim:#94A3B8;
+  --code-bg:#0A0E17; --code-text:#D1D9E6;
+  --mono:'JetBrains Mono','Fira Code',ui-monospace,monospace;
+  --sans:'Inter',-apple-system,sans-serif; --display:'Space Grotesk','Inter',sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html{scroll-behavior:smooth;}
+body{background:var(--bg);color:var(--text);font-family:var(--sans);line-height:1.65;font-size:16px;}
+a{color:var(--blue);text-decoration:none;} a:hover{text-decoration:underline;}
+::selection{background:var(--orange);color:#0B1120;}
+.shell{display:flex;min-height:100vh;}
+.sidebar{width:270px;flex-shrink:0;background:var(--bg-2);border-right:1px solid var(--border);
+  position:sticky;top:0;height:100vh;overflow-y:auto;padding:24px 0 60px;}
+.sidebar-brand{padding:0 20px 20px;border-bottom:1px solid var(--border);margin-bottom:12px;}
+.sidebar-brand .tag{font-family:var(--mono);font-size:11px;color:var(--orange);letter-spacing:.12em;text-transform:uppercase;}
+.sidebar-brand h1{font-family:var(--display);font-size:17px;margin-top:6px;line-height:1.3;}
+.sidebar nav a{display:block;padding:8px 20px;font-size:13.5px;color:var(--text-dim);border-left:2px solid transparent;}
+.sidebar nav a:hover{color:var(--text);text-decoration:none;background:var(--card);}
+.sidebar nav a.active{color:var(--orange);border-left-color:var(--orange);background:var(--card);}
+.main{flex:1;min-width:0;}
+.container{max-width:900px;margin:0 auto;padding:56px 40px 120px;}
+.cover{background:linear-gradient(160deg,#131C2E 0%, #0B1120 70%);border:1px solid var(--border);border-radius:14px;
+  padding:44px 40px;margin-bottom:48px;position:relative;overflow:hidden;}
+.cover::before{content:"";position:absolute;top:-60px;right:-60px;width:260px;height:260px;
+  background:radial-gradient(circle,rgba(255,153,0,.18),transparent 70%);}
+.cover .eyebrow{font-family:var(--mono);color:var(--orange);font-size:12px;letter-spacing:.14em;text-transform:uppercase;}
+.cover h1{font-family:var(--display);font-size:34px;margin:12px 0 14px;max-width:640px;position:relative;}
+.cover p.lede{color:var(--text-dim);max-width:560px;font-size:15px;position:relative;}
+.cover-meta{display:flex;flex-wrap:wrap;gap:10px;margin-top:24px;position:relative;}
+.chip{background:var(--card);border:1px solid var(--border);border-radius:999px;padding:6px 14px;font-size:12.5px;color:var(--text-dim);font-family:var(--mono);}
+.chip b{color:var(--text);}
+h2.section-title{font-family:var(--display);font-size:24px;margin:56px 0 18px;padding-bottom:10px;border-bottom:1px solid var(--border);
+  display:flex;align-items:center;gap:10px;scroll-margin-top:24px;}
+h2.section-title .num{font-family:var(--mono);color:var(--orange-dim);font-size:15px;}
+h3{font-family:var(--display);font-size:18px;margin:26px 0 10px;color:var(--text);}
+h4{font-size:15px;margin:18px 0 8px;color:var(--orange);font-family:var(--mono);}
+p{margin-bottom:14px;color:#C7CEDB;}
+ul,ol{margin:0 0 14px 22px;color:#C7CEDB;} li{margin-bottom:6px;}
+strong{color:var(--text);}
+.card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:20px 22px;margin:16px 0;}
+.story-card{background:linear-gradient(135deg,#1A2333,#161E2C);border-left:3px solid var(--orange);border-radius:8px;padding:22px 24px;margin:16px 0;}
+.story-card p{color:#D7DCE8;font-style:italic;} .story-card p:last-child{margin-bottom:0;}
+.role-tag{display:inline-block;font-family:var(--mono);font-size:11px;color:var(--orange);background:rgba(255,153,0,.1);
+  border:1px solid rgba(255,153,0,.3);border-radius:5px;padding:2px 8px;margin-bottom:10px;letter-spacing:.05em;}
+.box{border-radius:8px;padding:16px 18px;margin:16px 0;border:1px solid;}
+.box.tip{background:rgba(0,168,225,.07);border-color:rgba(0,168,225,.35);}
+.box.warn{background:rgba(251,191,36,.07);border-color:rgba(251,191,36,.35);}
+.box.security{background:rgba(248,113,113,.07);border-color:rgba(248,113,113,.35);}
+.box.win{background:rgba(52,211,153,.07);border-color:rgba(52,211,153,.35);}
+.box .label{font-family:var(--mono);font-size:11px;text-transform:uppercase;letter-spacing:.1em;display:block;margin-bottom:6px;}
+.box.tip .label{color:var(--blue);} .box.warn .label{color:var(--warning);}
+.box.security .label{color:var(--error);} .box.win .label{color:var(--green);}
+.box p:last-child{margin-bottom:0;}
+table{width:100%;border-collapse:collapse;margin:16px 0;font-size:14px;}
+th{background:var(--card-2);color:var(--orange);text-align:left;padding:10px 12px;font-family:var(--mono);
+  font-size:12px;text-transform:uppercase;letter-spacing:.04em;border-bottom:1px solid var(--border);}
+td{padding:10px 12px;border-bottom:1px solid var(--border);color:#C7CEDB;vertical-align:top;}
+tr:last-child td{border-bottom:none;} tr:hover td{background:rgba(255,255,255,.02);}
+.code-wrap{position:relative;margin:16px 0;border-radius:8px;overflow:hidden;border:1px solid var(--border);}
+.code-head{background:var(--card-2);padding:8px 14px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border);}
+.code-head span{font-family:var(--mono);font-size:11.5px;color:var(--text-dim);}
+.copy-btn{background:transparent;border:1px solid var(--border);color:var(--text-dim);font-family:var(--mono);font-size:11px;
+  padding:4px 10px;border-radius:5px;cursor:pointer;}
+.copy-btn:hover{border-color:var(--orange);color:var(--orange);}
+pre{background:var(--code-bg);padding:16px 18px;overflow-x:auto;font-family:var(--mono);font-size:13px;line-height:1.6;color:var(--code-text);}
+code{font-family:var(--mono);}
+p code, li code{background:var(--card-2);padding:1px 6px;border-radius:4px;font-size:13px;color:#FFC876;}
+.comment{color:#5E7099;} .kw{color:var(--blue);} .str{color:var(--green);}
+.diagram{background:var(--code-bg);border:1px solid var(--border);border-radius:10px;padding:28px;margin:20px 0;overflow-x:auto;}
+.timeline{display:flex;justify-content:space-between;font-family:var(--mono);font-size:11.5px;position:relative;padding:20px 0;}
+.timeline::before{content:"";position:absolute;top:50%;left:0;right:0;height:2px;background:var(--border);}
+.tl-stop{background:var(--card);border:1px solid var(--orange-dim);border-radius:8px;padding:8px 12px;text-align:center;
+  position:relative;z-index:1;opacity:0;transform:translateY(8px);animation:reveal .5s ease forwards;min-width:100px;}
+.tl-stop small{display:block;color:var(--text-dim);margin-top:3px;}
+@keyframes reveal{to{opacity:1;transform:translateY(0);}}
+details{background:var(--card);border:1px solid var(--border);border-radius:8px;margin:10px 0;padding:0;}
+details summary{cursor:pointer;padding:14px 18px;font-family:var(--mono);font-size:13.5px;color:var(--orange);
+  list-style:none;display:flex;justify-content:space-between;align-items:center;}
+details summary::-webkit-details-marker{display:none;}
+details summary::after{content:"+";color:var(--text-dim);font-size:16px;}
+details[open] summary::after{content:"–";}
+details .inner{padding:0 18px 16px;border-top:1px solid var(--border);padding-top:12px;}
+details .inner p:last-child{margin-bottom:0;}
+.qa{margin:14px 0;padding:16px 18px;background:var(--card-2);border-radius:8px;border:1px solid var(--border);}
+.qa .q{font-family:var(--display);font-size:14.5px;color:var(--text);margin-bottom:8px;}
+.qa .q .qn{color:var(--orange);font-family:var(--mono);margin-right:6px;}
+.qa .follow{margin-top:10px;padding-top:10px;border-top:1px dashed var(--border);color:var(--text-dim);font-size:13px;}
+.qa .follow b{color:var(--blue);}
+.resume-list{list-style:none;margin:14px 0;}
+.resume-list li{padding:12px 16px;background:var(--card);border-left:3px solid var(--green);border-radius:0 6px 6px 0;
+  margin-bottom:8px;font-size:14px;color:#D7DCE8;}
+.criteria{list-style:none;margin:14px 0;}
+.criteria li{padding-left:28px;position:relative;margin-bottom:8px;color:#C7CEDB;}
+.criteria li::before{content:"✓";position:absolute;left:0;color:var(--green);font-family:var(--mono);}
+.progress-bar{height:6px;background:var(--card-2);border-radius:999px;overflow:hidden;margin:14px 0 4px;}
+.progress-bar-fill{height:100%;width:16%;background:linear-gradient(90deg,var(--orange),var(--blue));}
+.progress-label{font-family:var(--mono);font-size:11px;color:var(--text-dim);}
+footer{text-align:center;padding:40px;color:#4B5875;font-family:var(--mono);font-size:12px;border-top:1px solid var(--border);margin-top:60px;}
+.steps{list-style:none;margin:16px 0;counter-reset:step;}
+.steps li{position:relative;padding:14px 18px 14px 52px;margin-bottom:10px;background:var(--card);border:1px solid var(--border);
+  border-radius:8px;counter-increment:step;}
+.steps li::before{content:counter(step);position:absolute;left:16px;top:14px;width:24px;height:24px;border-radius:50%;
+  background:var(--orange);color:#0B1120;font-family:var(--mono);font-weight:700;font-size:12px;
+  display:flex;align-items:center;justify-content:center;}
+.steps li b{color:var(--text);}
+@media(max-width:860px){
+  .sidebar{position:fixed;left:-270px;transition:left .2s;z-index:50;box-shadow:20px 0 40px rgba(0,0,0,.4);}
+  .sidebar.open{left:0;} .container{padding:24px 18px 100px;}
+  .timeline{flex-direction:column;gap:10px;} .timeline::before{display:none;}
+  .mobile-toggle{position:fixed;bottom:20px;right:20px;z-index:60;background:var(--orange);color:#0B1120;border:none;
+    border-radius:50%;width:52px;height:52px;font-size:20px;cursor:pointer;box-shadow:0 6px 20px rgba(0,0,0,.4);}
+}
+@media(min-width:861px){.mobile-toggle{display:none;}}
+@media(prefers-reduced-motion:reduce){*{animation:none !important;transition:none !important;}}
+</style>
+</head>
+<body>
+<div class="shell">
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-brand">
+      <span class="tag">AWS Cloud Engineering</span>
+      <h1>Assignment 04<br>Foundation Stage</h1>
+    </div>
+    <nav>
+      <a href="#story">Production Story</a>
+      <a href="#requirements">Requirements</a>
+      <a href="#architecture">Architecture</a>
+      <a href="#decisions">Architecture Decisions</a>
+      <a href="#console">Manual Console Steps</a>
+      <a href="#cli">AWS CLI</a>
+      <a href="#terraform">Terraform</a>
+      <a href="#validation">Validation &amp; Testing</a>
+      <a href="#monitoring">Monitoring</a>
+      <a href="#incident">Production Incident</a>
+      <a href="#troubleshooting">Troubleshooting Method</a>
+      <a href="#cost">Cost Awareness</a>
+      <a href="#review">Architecture Review</a>
+      <a href="#cleanup">Cleanup</a>
+      <a href="#acceptance">Acceptance Criteria</a>
+      <a href="#challenge">Practice Challenge</a>
+      <a href="#interview">Interview Prep</a>
+      <a href="#resume">Resume Points</a>
+      <a href="#next">Next Project</a>
+    </nav>
+  </aside>
+
+  <div class="main">
+    <div class="container">
+
+      <div class="cover">
+        <span class="eyebrow">Assignment 04 of 25 · Foundation</span>
+        <h1>Building Reliable S3 and EBS Storage &amp; Backup Workflows</h1>
+        <p class="lede">Two workloads are now live — Raj's reconciliation job and Karthik's quote portal. Neither has a real backup story yet: reports could be deleted or overwritten with no way back, and the app instance's disk has never been snapshotted. Finance also wants to know why the S3 bucket's storage bill keeps climbing.</p>
+        <div class="cover-meta">
+          <span class="chip">Difficulty: <b>Foundation</b></span>
+          <span class="chip">Domain: <b>Insurance</b></span>
+          <span class="chip">Services: <b>S3 · Versioning · Lifecycle · EBS Snapshots · DLM</b></span>
+          <span class="chip">IaC: <b>Console + CLI + Terraform</b></span>
+          <span class="chip">Est. lab time: <b>2–3 hrs</b></span>
+        </div>
+        <div class="progress-bar"><div class="progress-bar-fill"></div></div>
+        <span class="progress-label">Progress: Assignment 4 of 25</span>
+      </div>
+
+      <!-- STORY -->
+      <h2 class="section-title" id="story"><span class="num">01</span> Production Story</h2>
+      <div class="story-card">
+        <span class="role-tag">Finance — Deepa Krishnan</span>
+        <p>"I'm looking at this month's AWS bill and the S3 line item has grown every single month since Assignment 1 went live. Nothing's being deleted, apparently — is that expected?"</p>
+        <span class="role-tag" style="margin-top:14px;display:inline-block;">Infrastructure Manager — Priya Nandan</span>
+        <p>"Separately — I asked Karthik what happens if the quote portal's EC2 instance disk gets corrupted, and the honest answer was 'we'd have to rebuild it from scratch and lose whatever's on it.' That's not acceptable for something customer-facing. And on the reconciliation side — what happens if the report-writing script has a bug and overwrites three months of good reports with garbage in one bad run? Right now, nothing stops that and nothing gets us the old version back. Fix both."</p>
+      </div>
+      <div class="box tip">
+        <span class="label">Why this is Assignment 4</span>
+        <p>Assignment 1 created an S3 bucket with versioning already enabled — but versioning alone with no lifecycle policy is exactly why Deepa's bill keeps growing: every overwritten object keeps every old version forever, billed forever. Assignment 3 created an EC2 instance with an EBS root volume that has never been backed up. This assignment fixes both: S3 lifecycle rules that make versioning sustainable, and an automated EBS snapshot schedule.</p>
+      </div>
+
+      <!-- REQUIREMENTS -->
+      <h2 class="section-title" id="requirements"><span class="num">02</span> Business &amp; Technical Requirements</h2>
+      <table>
+        <tr><th>Type</th><th>Requirement</th></tr>
+        <tr><td>Business</td><td>A bad reconciliation run must be recoverable — the previous good report version must be retrievable, not just "gone."</td></tr>
+        <tr><td>Business</td><td>The quote portal's EC2 disk must be recoverable from a recent point in time if it's lost or corrupted.</td></tr>
+        <tr><td>Technical</td><td>S3 versioning stays enabled, but old versions must transition to cheaper storage and eventually expire — not accumulate at Standard pricing forever.</td></tr>
+        <tr><td>Technical</td><td>EBS snapshots must be automated on a schedule — no engineer manually remembering to run one.</td></tr>
+        <tr><td>Security</td><td>S3 bucket must enforce encryption at rest and block any public access, even by accident.</td></tr>
+        <tr><td>Cost</td><td>Old versions/snapshots must expire on a defined retention schedule — "keep everything forever" is explicitly rejected by both Priya and Deepa.</td></tr>
+      </table>
+
+      <!-- ARCHITECTURE -->
+      <h2 class="section-title" id="architecture"><span class="num">03</span> Architecture Design</h2>
+      <p>Two independent backup mechanisms for two different kinds of data: S3 lifecycle management for object versions (the reconciliation reports), and Amazon Data Lifecycle Manager for EBS snapshots (the app instance's disk). Neither needs any new compute or network component — this is entirely a policy/configuration layer on top of what Assignments 1 and 3 already built.</p>
+
+      <div class="diagram">
+        <div class="timeline">
+          <div class="tl-stop" style="animation-delay:.05s">Object written<small>Day 0 · Standard</small></div>
+          <div class="tl-stop" style="animation-delay:.25s">Overwritten<small>old version kept</small></div>
+          <div class="tl-stop" style="animation-delay:.45s">Day 30<small>old version → Standard-IA</small></div>
+          <div class="tl-stop" style="animation-delay:.65s">Day 90<small>old version → Glacier IR</small></div>
+          <div class="tl-stop" style="animation-delay:.85s">Day 365<small>old version expired/deleted</small></div>
+        </div>
+      </div>
+      <p>Only <em>non-current</em> (old, overwritten) versions move through this lifecycle — the current version of every object stays in Standard storage, fully and immediately readable, exactly as it is today. This is the detail that makes the policy safe: nothing about today's data access pattern changes; only the cost of keeping history around changes.</p>
+
+      <h3>EBS Snapshot Architecture</h3>
+      <p>A Data Lifecycle Manager (DLM) policy targets the app instance's volume by tag, takes a snapshot daily, and automatically deletes snapshots older than the retention window — no Lambda function or cron job required, since DLM is a native, managed AWS scheduler for exactly this job.</p>
+
+      <!-- DECISIONS -->
+      <h2 class="section-title" id="decisions"><span class="num">04</span> Architecture Decision Making</h2>
+
+      <h3>Decision: S3 Storage Class Transition Path</h3>
+      <table>
+        <tr><th>Class</th><th>Retrieval</th><th>Relative Cost</th><th>Use here</th></tr>
+        <tr><td>S3 Standard</td><td>Immediate</td><td>Highest</td><td>Current version of every object — actively used</td></tr>
+        <tr><td>S3 Standard-IA</td><td>Immediate, per-GB retrieval fee</td><td>~45% cheaper storage</td><td>Old versions 30–90 days old — rarely accessed but occasionally needed</td></tr>
+        <tr><td>S3 Glacier Instant Retrieval</td><td>Immediate, higher retrieval fee</td><td>~68% cheaper storage</td><td>Old versions 90–365 days old — audit/recovery only</td></tr>
+        <tr><td>Expire (delete)</td><td>—</td><td>Zero</td><td>Old versions past 365 days — no business or compliance reason to keep them longer</td></tr>
+      </table>
+      <p><strong>Decision: the transition path above.</strong> Deep Archive was considered and rejected — its multi-hour retrieval time is a poor fit for "we might need last quarter's report during an audit conversation this afternoon," which Glacier Instant Retrieval still satisfies at a much lower cost than Standard.</p>
+
+      <h3>Decision: DLM vs. Manual Snapshots vs. AWS Backup</h3>
+      <table>
+        <tr><th></th><th>Manual snapshot</th><th>Data Lifecycle Manager</th><th>AWS Backup</th></tr>
+        <tr><td>Scheduling</td><td>None — someone has to remember</td><td>Native tag-based scheduling, built for exactly EBS/AMI</td><td>Centralized, cross-service (EBS, RDS, DynamoDB, EFS...) with one policy engine</td></tr>
+        <tr><td>Fits this need</td><td>No — exactly the problem being fixed</td><td>Yes — this is a single-service (EBS), straightforward daily-snapshot need</td><td>Overkill for one EBS volume; earns its complexity once multiple services need centralized backup (introduced later once RDS is in the picture)</td></tr>
+      </table>
+      <p><strong>Decision: DLM</strong> for this assignment. AWS Backup becomes the right answer once we're coordinating backup policy across EBS <em>and</em> RDS <em>and</em> other services from one place — worth revisiting once the database assignment (8) adds a second thing to back up.</p>
+
+      <!-- CONSOLE -->
+      <h2 class="section-title" id="console"><span class="num">05</span> AWS Console — Manual Steps</h2>
+      <ol class="steps">
+        <li><b>Add a lifecycle rule to the existing reconciliation bucket.</b> S3 console → select the bucket from Assignment 1 → <em>Management</em> tab → <em>Create lifecycle rule</em> → scope: apply to all objects → under "Noncurrent version transitions," add Standard-IA at 30 days and Glacier Instant Retrieval at 90 days → under "Noncurrent version expiration," set 365 days.</li>
+        <li><b>Enable default encryption and Block Public Access.</b> Same bucket → <em>Properties</em> → <em>Default encryption</em> → enable SSE-S3 (or SSE-KMS if a customer-managed key is required later) → <em>Permissions</em> tab → confirm all four "Block Public Access" settings are ON (they're on by default for new buckets, but confirm explicitly rather than assume).</li>
+        <li><b>Tag the app instance's EBS volume.</b> EC2 console → <em>Volumes</em> → select the app instance's root volume → <em>Tags</em> → add <code>Backup = daily</code>. DLM policies target by tag, so this is what makes the volume discoverable to the policy created next.</li>
+        <li><b>Create the DLM lifecycle policy.</b> EC2 console → <em>Lifecycle Manager</em> → <em>Create lifecycle policy</em> → resource type EBS volume → target tag <code>Backup = daily</code> → schedule: daily at a chosen time → retention: keep 7 most recent snapshots → assign the IAM role DLM needs (AWS offers a default service-linked role for this).</li>
+        <li><b>Verify.</b> Wait for the first scheduled run (or trigger manually if the console offers it) → <em>Snapshots</em> → confirm a new snapshot tagged by the DLM policy appears against the app instance's volume.</li>
+      </ol>
+
+      <!-- CLI -->
+      <h2 class="section-title" id="cli"><span class="num">06</span> AWS CLI</h2>
+      <div class="code-wrap">
+        <div class="code-head"><span>bash</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre><span class="comment"># Tag the app instance's volume so DLM can find it</span>
+VOL_ID=$(aws ec2 describe-volumes \
+  --filters "Name=attachment.instance-id,Values=$APP_INSTANCE_ID" \
+  --query 'Volumes[0].VolumeId' --output text)
+aws ec2 create-tags --resources $VOL_ID --tags Key=Backup,Value=daily
+
+<span class="comment"># Check current S3 bucket lifecycle configuration (read-only, safe anytime)</span>
+aws s3api get-bucket-lifecycle-configuration --bucket &lt;bucket-name&gt;
+
+<span class="comment"># Confirm Block Public Access is fully enabled</span>
+aws s3api get-public-access-block --bucket &lt;bucket-name&gt; \
+  --query 'PublicAccessBlockConfiguration'</pre>
+      </div>
+      <table>
+        <tr><th>Command</th><th>Meaning</th><th>Reversible?</th></tr>
+        <tr><td><code>create-tags</code></td><td>Adds the tag DLM's target-selection filter matches against</td><td>Yes — remove the tag, though that only stops future targeting, not past snapshots</td></tr>
+        <tr><td><code>get-bucket-lifecycle-configuration</code></td><td>Read-only — returns the current lifecycle rules as JSON</td><td>N/A — makes no change</td></tr>
+        <tr><td><code>get-public-access-block</code></td><td>Read-only — confirms all four block-settings are true</td><td>N/A</td></tr>
+      </table>
+
+      <!-- TERRAFORM -->
+      <h2 class="section-title" id="terraform"><span class="num">07</span> Terraform Implementation</h2>
+
+      <h3>main.tf — S3 Lifecycle, Encryption, Public Access Block</h3>
+      <div class="code-wrap">
+        <div class="code-head"><span>main.tf (part 1 of 2)</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre><span class="kw">resource</span> "aws_s3_bucket_server_side_encryption_configuration" "reconcile" {
+  bucket = aws_s3_bucket.reconcile_bucket.id  <span class="comment"># references Assignment 1's bucket resource</span>
+  rule {
+    apply_server_side_encryption_by_default { sse_algorithm = "AES256" }
+    <span class="comment"># SSE-S3 (AES256) — AWS-managed keys, no extra KMS cost or key management</span>
+    <span class="comment"># overhead. Sufficient here; SSE-KMS is revisited once compliance work in</span>
+    <span class="comment"># Assignment 23 may require customer-managed keys specifically.</span>
+  }
+}
+
+<span class="kw">resource</span> "aws_s3_bucket_public_access_block" "reconcile" {
+  bucket                  = aws_s3_bucket.reconcile_bucket.id
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets = true
+  <span class="comment"># All four set true explicitly rather than relying on the account-level</span>
+  <span class="comment"># default — this bucket's security posture doesn't depend on account-wide</span>
+  <span class="comment"># settings someone else might change later.</span>
+}
+
+<span class="kw">resource</span> "aws_s3_bucket_lifecycle_configuration" "reconcile" {
+  bucket = aws_s3_bucket.reconcile_bucket.id
+
+  rule {
+    id     = "noncurrent-version-management"
+    status = "Enabled"
+
+    noncurrent_version_transition {
+      noncurrent_days = 30
+      storage_class   = "STANDARD_IA"
+    }
+    noncurrent_version_transition {
+      noncurrent_days = 90
+      storage_class   = "GLACIER_IR"
+    }
+    noncurrent_version_expiration {
+      noncurrent_days = 365
+    }
+    <span class="comment"># All three actions apply ONLY to noncurrent (old, overwritten) versions —</span>
+    <span class="comment"># the current/live version of every object is untouched by this rule,</span>
+    <span class="comment"># which is exactly why this doesn't change how the reconciliation job</span>
+    <span class="comment"># reads today's report.</span>
+  }
+}</pre>
+      </div>
+
+      <h3>main.tf — EBS Snapshot Automation via DLM</h3>
+      <div class="code-wrap">
+        <div class="code-head"><span>main.tf (part 2 of 2)</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre><span class="kw">resource</span> "aws_ebs_volume" "app_root_tag" {
+  <span class="comment"># NOTE: the root volume itself is created implicitly by aws_instance.app</span>
+  <span class="comment"># from Assignment 3. We tag it via aws_ec2_tag rather than redefining the</span>
+  <span class="comment"># volume resource, since Terraform doesn't manage an instance's root</span>
+  <span class="comment"># volume as a separate top-level resource by default.</span>
+}
+
+<span class="kw">resource</span> "aws_ec2_tag" "app_volume_backup_tag" {
+  resource_id = data.aws_ebs_volume.app_root.id
+  key         = "Backup"
+  value       = "daily"
+}
+
+<span class="kw">data</span> "aws_ebs_volume" "app_root" {
+  filter {
+    name   = "attachment.instance-id"
+    values = [aws_instance.app.id]
+  }
+  filter {
+    name   = "attachment.device"
+    values = ["/dev/xvda"]
+  }
+}
+
+<span class="kw">resource</span> "aws_iam_role" "dlm_role" {
+  name = "dlm-lifecycle-role"
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Action    = "sts:AssumeRole"
+      Effect    = "Allow"
+      Principal = { Service = "dlm.amazonaws.com" }
+    }]
+  })
+}
+
+<span class="kw">resource</span> "aws_iam_role_policy_attachment" "dlm_policy" {
+  role       = aws_iam_role.dlm_role.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSDataLifecycleManagerServiceRole"
+  <span class="comment"># AWS-managed policy scoped specifically to DLM's snapshot/delete actions —</span>
+  <span class="comment"># no need to hand-write a custom policy for a well-defined AWS service role.</span>
+}
+
+<span class="kw">resource</span> "aws_dlm_lifecycle_policy" "app_daily_snapshot" {
+  description        = "Daily snapshot of quote-portal app root volume"
+  execution_role_arn = aws_iam_role.dlm_role.arn
+  state              = "ENABLED"
+
+  policy_details {
+    resource_types = ["VOLUME"]
+
+    target_tags = {
+      Backup = "daily"
+      <span class="comment"># Matches the tag applied above — DLM discovers volumes by tag, not by</span>
+      <span class="comment"># explicit ID, so any future volume tagged the same way is auto-included.</span>
+    }
+
+    schedule {
+      name = "daily-snapshot-schedule"
+      create_rule {
+        interval      = 24
+        interval_unit = "HOURS"
+        times         = ["03:00"]
+      }
+      retain_rule {
+        count = 7
+        <span class="comment"># Keeps the 7 most recent snapshots (one week); older ones are auto-</span>
+        <span class="comment"># deleted by DLM itself — no separate cleanup job needed.</span>
+      }
+      tags_to_add = { SnapshotCreator = "DLM" }
+      copy_tags    = true
+    }
+  }
+}</pre>
+      </div>
+
+      <!-- VALIDATION -->
+      <h2 class="section-title" id="validation"><span class="num">08</span> Validation &amp; Testing</h2>
+      <ul>
+        <li><strong>Lifecycle test:</strong> overwrite a test object in the bucket twice, then confirm via <code>aws s3api list-object-versions</code> that both the current and noncurrent versions exist and are retrievable by version ID.</li>
+        <li><strong>Encryption test:</strong> <code>aws s3api head-object</code> on any object confirms <code>ServerSideEncryption: AES256</code> is present without having specified it at upload time.</li>
+        <li><strong>Public access test:</strong> attempt to make an object public via a bucket policy change — must be rejected by the Block Public Access settings, proving the control actually blocks rather than just warns.</li>
+        <li><strong>DLM test:</strong> confirm a snapshot with the <code>SnapshotCreator=DLM</code> tag appears against the app volume within 24 hours, or trigger an on-demand policy run if testing without waiting a full day.</li>
+        <li><strong>Restore test:</strong> create a new EBS volume from the most recent snapshot and confirm it mounts with the expected data — a snapshot that's never been test-restored isn't a verified backup, it's an assumption.</li>
+      </ul>
+
+      <!-- MONITORING -->
+      <h2 class="section-title" id="monitoring"><span class="num">09</span> Monitoring &amp; Observability</h2>
+      <table>
+        <tr><th>What</th><th>Why</th></tr>
+        <tr><td>DLM policy execution history (console/CLI)</td><td>Confirms snapshots are actually being taken on schedule, not just that the policy exists</td></tr>
+        <tr><td>S3 bucket size by storage class (S3 Storage Lens or CloudWatch metrics)</td><td>Gives Deepa visibility into whether the lifecycle policy is actually reducing Standard-class storage growth over time</td></tr>
+      </table>
+
+      <!-- INCIDENT -->
+      <h2 class="section-title" id="incident"><span class="num">10</span> Production Incident</h2>
+      <div class="story-card">
+        <span class="role-tag">Three weeks after go-live</span>
+        <p>Raj reports that a bug in a recent reconciliation script deployment overwrote two weeks of good reports with malformed output before anyone noticed. Merchandising needs the original good reports back today.</p>
+      </div>
+      <h4>Investigation</h4>
+      <div class="code-wrap">
+        <div class="code-head"><span>bash</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre>aws s3api list-object-versions \
+  --bucket &lt;bucket-name&gt; --prefix "reports/" \
+  --query "Versions[?Key=='reports/2026-07-20.csv']" --output table</pre>
+      </div>
+      <p>The command returns multiple versions per affected key — the malformed current version plus the good noncurrent version from before the bad deployment, exactly as versioning was designed to preserve.</p>
+      <h4>Root Cause</h4>
+      <p>A code bug in the reconciliation script (unrelated to storage/backup configuration) wrote malformed data. This is included as an incident here specifically because it's the first real test of whether the versioning/lifecycle setup actually pays off in practice.</p>
+      <h4>Immediate Fix</h4>
+      <div class="code-wrap">
+        <div class="code-head"><span>bash</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre><span class="comment"># Restore a specific object to its prior good version by copying that</span>
+<span class="comment"># version ID over the current one (S3 has no in-place "revert" operation —</span>
+<span class="comment"># a copy is how you make an old version the new current version)</span>
+aws s3api copy-object --bucket &lt;bucket-name&gt; \
+  --copy-source "&lt;bucket-name&gt;/reports/2026-07-20.csv?versionId=&lt;good-version-id&gt;" \
+  --key reports/2026-07-20.csv</pre>
+      </div>
+      <p>Repeated per affected object across the two-week window to fully restore Merchandising's data.</p>
+      <h4>Permanent Fix</h4>
+      <p>Not a storage-layer fix this time — the real fix is upstream, in the reconciliation script's own output validation (flagged back to Raj's team) — but this incident is exactly why the noncurrent-version retention window is 365 days and not something shorter: a two-week-old bug being caught late was still well within the recovery window.</p>
+      <h4>Lessons Learned</h4>
+      <ul>
+        <li>Versioning is only useful if the retention window is long enough to cover realistic "how long before someone notices" timelines — a 7-day expiration would have already lost this data.</li>
+        <li>S3 has no "undo" — recovery is always a copy-forward of an old version, worth knowing before you're doing it under time pressure.</li>
+      </ul>
+
+      <!-- TROUBLESHOOTING -->
+      <h2 class="section-title" id="troubleshooting"><span class="num">11</span> Troubleshooting Methodology</h2>
+      <table>
+        <tr><th>Symptom</th><th>Check First</th><th>Likely Cause</th></tr>
+        <tr><td>DLM policy shows "Enabled" but no snapshots appear</td><td>Whether the target volume actually carries the exact matching tag key/value</td><td>Tag mismatch (case-sensitive) or IAM role missing required permissions</td></tr>
+        <tr><td>S3 bucket size not shrinking after lifecycle rule added</td><td>Whether the rule targets noncurrent versions specifically vs. current objects, and how recently it was added</td><td>Lifecycle transitions run on a schedule, not instantly — can take up to 48 hours to first apply, and only ever act on objects meeting the age threshold</td></tr>
+        <tr><td>Can't make a bucket/object public even intentionally</td><td>Block Public Access settings at both bucket and account level</td><td>Working as designed — must explicitly disable Block Public Access first, which should require a deliberate, reviewed change</td></tr>
+      </table>
+
+      <!-- COST -->
+      <h2 class="section-title" id="cost"><span class="num">12</span> Cost Optimization</h2>
+      <table>
+        <tr><th>Resource</th><th>Before</th><th>After</th></tr>
+        <tr><td>S3 noncurrent versions</td><td>Accumulate forever at Standard pricing</td><td>Transition to IA (~45% cheaper) at 30 days, Glacier IR (~68% cheaper) at 90 days, expire at 365 days</td></tr>
+        <tr><td>EBS snapshots</td><td>None existed — zero cost, zero protection</td><td>7 rolling daily snapshots, incremental (each snapshot only stores changed blocks vs. the previous one, not a full copy) — modest, bounded cost</td></tr>
+      </table>
+      <div class="box tip">
+        <span class="label">Why this directly answers Deepa's question</span>
+        <p>The bucket's growing bill wasn't a bug — it was versioning doing exactly what it's designed to do with no lifecycle policy attached. The fix isn't "turn off versioning" (that would have made the incident above unrecoverable) — it's "make old versions cheap instead of turning off the safety net that just proved its value."</p>
+      </div>
+
+      <!-- REVIEW -->
+      <h2 class="section-title" id="review"><span class="num">13</span> Solutions Architect Review</h2>
+      <table>
+        <tr><th>Lens</th><th>Assessment</th></tr>
+        <tr><td>Reliability</td><td>Both the object-version incident and (untested-until-restored) EBS snapshots now provide real recovery paths for both workloads</td></tr>
+        <tr><td>Security</td><td>Encryption at rest and Block Public Access enforced explicitly rather than assumed from account defaults</td></tr>
+        <tr><td>Cost</td><td>Directly answers Finance's growing-bill question with a bounded, self-managing retention policy instead of unbounded accumulation</td></tr>
+        <tr><td>Operations</td><td>DLM and S3 lifecycle rules are both fully automated — no engineer has to remember to run or expire anything manually</td></tr>
+        <tr><td>Maintainability</td><td>Policy lives entirely in Terraform, reviewable the same way as the network and compute from prior assignments</td></tr>
+      </table>
+
+      <!-- CLEANUP -->
+      <h2 class="section-title" id="cleanup"><span class="num">14</span> Cleanup</h2>
+      <div class="code-wrap">
+        <div class="code-head"><span>bash</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre><span class="comment"># DLM-created snapshots are NOT deleted by terraform destroy — they're data,</span>
+<span class="comment"># not infrastructure, and Terraform correctly leaves them alone. Clean up</span>
+<span class="comment"># manually if this is a throwaway lab environment:</span>
+aws ec2 describe-snapshots --owner-ids self \
+  --filters "Name=tag:SnapshotCreator,Values=DLM" --query "Snapshots[].SnapshotId" --output text \
+  | xargs -n1 aws ec2 delete-snapshot --snapshot-id
+
+terraform destroy</pre>
+      </div>
+
+      <!-- ACCEPTANCE -->
+      <h2 class="section-title" id="acceptance"><span class="num">15</span> Acceptance Criteria</h2>
+      <ul class="criteria">
+        <li>S3 bucket enforces default encryption and full Block Public Access</li>
+        <li>Noncurrent object versions transition to IA at 30 days, Glacier IR at 90 days, expire at 365 days</li>
+        <li>Current (live) object versions are completely unaffected by the lifecycle rule</li>
+        <li>App instance's root EBS volume is snapshotted daily via an automated DLM policy, retaining 7 versions</li>
+        <li>A snapshot has been successfully test-restored to a new volume at least once</li>
+        <li>An overwritten S3 object has been successfully recovered from a prior version at least once</li>
+      </ul>
+
+      <!-- CHALLENGE -->
+      <h2 class="section-title" id="challenge"><span class="num">16</span> Practice Challenge</h2>
+      <div class="card">
+        <p><strong>Priya comes back:</strong> "What if someone — accidentally or maliciously — deletes an object entirely, not just overwrites it? Does versioning even help with that?"</p>
+        <p><strong>Requirement:</strong> Prevent an object from being permanently, irrecoverably deleted from the reconciliation bucket, even by someone with delete permissions.</p>
+        <p><strong>Acceptance Criteria:</strong> A "delete" action against a versioned object must still leave the object recoverable. A separate, harder-to-invoke action should be required to truly, permanently purge data.</p>
+        <p><strong>Hints:</strong> What does S3 versioning actually do when you call DeleteObject on a versioned bucket, as opposed to a non-versioned one? What additional bucket-level feature adds a time-boxed grace period on top of that?</p>
+      </div>
+      <details>
+        <summary>Challenge Solution</summary>
+        <div class="inner">
+          <p>In a versioned bucket, a normal <code>DeleteObject</code> call doesn't actually erase data — it adds a "delete marker" as the new current version, while the previous version remains in the bucket, fully recoverable by removing the delete marker or restoring the prior version ID. True permanent deletion requires a separate call specifying the exact version ID to purge — a materially different, harder-to-invoke action than an everyday delete. For additional protection against even that, enable <strong>S3 Object Lock</strong> in governance or compliance mode with a retention period, which prevents version deletion outright until the retention period expires, even for an IAM principal that otherwise has delete permissions — the strongest guarantee available, and the right answer if Priya's concern extends to malicious/insider deletion, not just accidental.</p>
+        </div>
+      </details>
+
+      <!-- INTERVIEW -->
+      <h2 class="section-title" id="interview"><span class="num">17</span> Interview Preparation</h2>
+
+      <div class="qa">
+        <div class="q"><span class="qn">Q1 · AWS Fundamentals</span>Does enabling S3 versioning cost anything by itself?</div>
+        <p>Not directly — enabling versioning has no charge on its own. The cost comes from what versioning causes: every overwritten or deleted object keeps its prior versions in storage, and you pay standard storage rates for all of them unless a lifecycle policy manages that growth. This is exactly the gap this assignment closed.</p>
+        <div class="follow"><b>Follow-up:</b> "Could you have unbounded cost growth even with a lifecycle policy?" — Only if the policy's expiration action is missing or set too far out relative to actual write frequency — the policy bounds the cost, but only if its retention window is deliberately chosen, not left at "forever" by default.</div>
+      </div>
+
+      <div class="qa">
+        <div class="q"><span class="qn">Q2 · Security</span>What's the difference between S3 default encryption and Block Public Access, and why do you need both?</div>
+        <p>They protect against different things. Default encryption ensures data at rest is encrypted regardless of who uploaded it or how — protects against unauthorized access to the underlying storage. Block Public Access prevents the bucket or its objects from ever being made publicly reachable, regardless of any bucket policy or ACL someone might apply — protects against exposure. A bucket can be fully encrypted and still be world-readable if Block Public Access isn't enabled, and vice versa — they're independent controls addressing independent risks.</p>
+        <div class="follow"><b>Follow-up:</b> "If someone explicitly needs a public bucket later — say, for static website hosting — what would you do?" — Explicitly disable Block Public Access only on that specific bucket, as a deliberate, reviewed exception — never as an account-wide default.</div>
+      </div>
+
+      <div class="qa">
+        <div class="q"><span class="qn">Q3 · Production Scenario</span>Someone reports an important S3 object is "gone." Walk through your recovery steps.</div>
+        <p>First confirm the bucket has versioning enabled at all — if not, this may be genuinely unrecoverable and that's a hard truth to deliver. If it does, run <code>list-object-versions</code> on that key to see whether there's a delete marker (meaning it was "deleted," recoverable) versus the object having actually never existed or been permanently purged. If a delete marker exists, remove it or copy the prior version back into place as the new current version.</p>
+        <div class="follow"><b>Follow-up:</b> "What if list-object-versions shows nothing at all for that key?" — That means either the key never existed as typed (check for a typo/prefix mismatch first) or it was permanently purged via a version-specific delete — the latter is unrecoverable without Object Lock having been enabled beforehand.</div>
+      </div>
+
+      <div class="qa">
+        <div class="q"><span class="qn">Q4 · Cost Optimization</span>Why Glacier Instant Retrieval instead of regular Glacier or Glacier Deep Archive for old report versions?</div>
+        <p>Regular Glacier and Deep Archive both require an explicit restore request with a retrieval delay ranging from minutes to many hours before the data is accessible again — fine for true archival, poor fit for "we might need last quarter's report during a same-day audit conversation." Glacier Instant Retrieval gives nearly all of the storage-cost savings of the deeper tiers while keeping millisecond retrieval, which matches how this data actually gets accessed in practice — rarely, but without notice.</p>
+        <div class="follow"><b>Follow-up:</b> "When would Deep Archive actually be the right choice?" — Data with a genuinely long, known-rare access pattern and a real tolerance for retrieval delay — e.g. multi-year regulatory records nobody expects to touch except in a formal audit with lead time.</div>
+      </div>
+
+      <div class="qa">
+        <div class="q"><span class="qn">Q5 · Terraform</span>Why is EBS snapshot automation done via a separate DLM resource instead of an attribute on the aws_instance resource?</div>
+        <p>Snapshot scheduling is a lifecycle policy that operates independently of the instance's own lifecycle — the instance could be terminated and recreated while the snapshot policy (and its historical snapshots) persists untouched, since it targets by tag rather than by a hard reference to one specific instance. Coupling it directly to the instance resource would mean losing snapshot history the moment the instance is replaced, which defeats the purpose of a backup.</p>
+        <div class="follow"><b>Follow-up:</b> "What happens to existing snapshots if you delete the aws_dlm_lifecycle_policy resource?" — The policy itself is deleted (no more new snapshots scheduled), but existing snapshots it already created are untouched — Terraform doesn't cascade-delete data resources a policy created, only the policy resource itself.</div>
+      </div>
+
+      <div class="qa">
+        <div class="q"><span class="qn">Q6 · Manager Round</span>Finance wants to cut backup/versioning retention to save cost. How do you have that conversation?</div>
+        <p>I'd bring the actual incident data — this exact reconciliation bug was caught two weeks after the fact and was still recoverable because the retention window was 365 days, not 7 or 30. I'd frame the retention window as directly tied to "how long could a real problem go unnoticed," not as an arbitrary number, and let Finance weigh the storage cost (which, after the lifecycle policy, is already a fraction of the original unbounded growth) against a concrete example of what a shorter window would have cost the business in lost, unrecoverable data.</p>
+        <div class="follow"><b>Follow-up:</b> "What if Finance still wants it shorter after that?" — That's a legitimate business risk trade-off for them to make with full information — my job is to make sure the trade-off is visible and quantified, not to unilaterally decide it, and to document the decision so it isn't silently reversed later without anyone remembering why 365 days was chosen.</div>
+      </div>
+
+      <!-- RESUME -->
+      <h2 class="section-title" id="resume"><span class="num">18</span> Resume Points</h2>
+      <ul class="resume-list">
+        <li>Designed and implemented S3 lifecycle policies transitioning noncurrent object versions through Standard-IA and Glacier Instant Retrieval tiers, controlling unbounded storage cost growth from versioning</li>
+        <li>Automated EBS volume backup using AWS Data Lifecycle Manager with tag-based targeting and rolling 7-day retention, replacing a previously nonexistent backup process</li>
+        <li>Enforced S3 encryption at rest and Block Public Access controls as explicit, auditable Terraform-managed configuration rather than relying on account defaults</li>
+        <li>Recovered production data from a script-induced data corruption incident using S3 object versioning, validating the backup strategy under real conditions</li>
+        <li>Performed and validated a full EBS snapshot restore-to-volume test, confirming backup integrity rather than assuming it</li>
+      </ul>
+
+      <!-- NEXT -->
+      <h2 class="section-title" id="next"><span class="num">19</span> Next Project</h2>
+      <div class="box win">
+        <span class="label">When you're ready</span>
+        <p>Implement the lifecycle and DLM policies, run the restore tests, and say <strong>"Next Project"</strong> when ready. Assignment 5 closes out the Foundation stage: IAM, encryption, secrets, and secure access patterns done properly — including finally replacing the placeholder security posture from earlier assignments with real least-privilege IAM policies, Secrets Manager, and MFA enforcement.</p>
+      </div>
+
+    </div>
+    <footer>AWS Cloud Engineering Masterclass · Assignment 04 of 25 · Foundation Stage</footer>
+  </div>
+</div>
+
+<button class="mobile-toggle" id="mobileToggle" aria-label="Toggle menu">☰</button>
+<script>
+const sections = document.querySelectorAll('h2.section-title[id]');
+const navLinks = document.querySelectorAll('.sidebar nav a');
+function onScroll(){
+  let current = '';
+  sections.forEach(s=>{ if(window.scrollY >= s.offsetTop - 80) current = s.id; });
+  navLinks.forEach(a=> a.classList.toggle('active', a.getAttribute('href') === '#'+current));
+}
+window.addEventListener('scroll', onScroll); onScroll();
+document.getElementById('mobileToggle').addEventListener('click', ()=> document.getElementById('sidebar').classList.toggle('open'));
+document.querySelectorAll('.sidebar nav a').forEach(a=> a.addEventListener('click', ()=> document.getElementById('sidebar').classList.remove('open')));
+function copyCode(btn){
+  const pre = btn.closest('.code-wrap').querySelector('pre');
+  navigator.clipboard.writeText(pre.innerText).then(()=>{
+    const orig = btn.textContent; btn.textContent = 'Copied!';
+    setTimeout(()=> btn.textContent = orig, 1500);
+  });
+}
+</script>
+</body>
+</html>

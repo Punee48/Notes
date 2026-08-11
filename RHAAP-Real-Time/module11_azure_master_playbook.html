@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Module 11 — The Azure Master Playbook</title>
+<style>
+:root{
+  --blue:#1D4ED8; --blue-light:#DBEAFE; --blue-vlight:#EFF6FF;
+  --ink:#1F2937; --muted:#4B5563; --line:#E5E7EB; --ok:#047857; --warn:#B45309; --bad:#B91C1C;
+  --code-bg:#0F172A; --code-ink:#E2E8F0;
+}
+*{box-sizing:border-box}
+body{margin:0;font-family:Segoe UI, Arial, sans-serif;color:var(--ink);background:#fff;line-height:1.65;font-size:16px;}
+.layout{display:flex;min-height:100vh;}
+nav{width:280px;flex-shrink:0;background:var(--blue-vlight);border-right:1px solid var(--line);padding:24px 16px;position:sticky;top:0;height:100vh;overflow-y:auto;}
+nav h2{font-size:14px;text-transform:uppercase;letter-spacing:.05em;color:var(--blue);margin:0 0 12px;}
+nav a{display:block;padding:7px 10px;border-radius:6px;color:var(--ink);text-decoration:none;font-size:14px;margin-bottom:2px;}
+nav a:hover{background:var(--blue-light);}
+main{flex:1;padding:40px 60px;max-width:980px;}
+.badge{display:inline-block;background:var(--blue);color:#fff;font-size:12px;font-weight:600;padding:4px 10px;border-radius:999px;letter-spacing:.03em;}
+h1{font-size:30px;margin:14px 0 6px;color:var(--blue);}
+.subtitle{color:var(--muted);font-size:16px;margin-bottom:32px;}
+h2{font-size:22px;margin-top:48px;border-bottom:2px solid var(--blue-light);padding-bottom:8px;color:#111827;}
+h3{font-size:18px;margin-top:24px;color:#111827;}
+p{margin:12px 0;}
+.story{background:var(--blue-vlight);border-left:4px solid var(--blue);padding:16px 20px;border-radius:6px;margin:16px 0;}
+.why{background:#FFFBEB;border-left:4px solid var(--warn);padding:14px 20px;border-radius:6px;margin:14px 0;}
+.prod{background:#ECFDF5;border-left:4px solid var(--ok);padding:14px 20px;border-radius:6px;margin:14px 0;}
+.flow{background:#F9FAFB;border:1px solid var(--line);border-radius:8px;padding:18px 20px;margin:16px 0;font-family:Consolas,monospace;font-size:14px;white-space:pre;overflow-x:auto;color:#111827;}
+table{width:100%;border-collapse:collapse;margin:16px 0;font-size:14px;}
+th{background:var(--blue);color:#fff;text-align:left;padding:9px 11px;}
+td{padding:9px 11px;border-bottom:1px solid var(--line);vertical-align:top;}
+tr:nth-child(even) td{background:#F9FAFB;}
+details{border:1px solid var(--line);border-radius:8px;margin:14px 0;padding:0;}
+summary{cursor:pointer;padding:12px 16px;font-weight:600;background:#F9FAFB;border-radius:8px;}
+details[open] summary{border-bottom:1px solid var(--line);border-radius:8px 8px 0 0;}
+details .inner{padding:14px 18px;}
+.task{background:#ECFDF5;border:1px solid #A7F3D0;border-radius:8px;padding:18px 22px;margin:24px 0;}
+.task h3{margin-top:0;color:var(--ok);}
+.next{background:#111827;color:#fff;border-radius:8px;padding:20px 24px;margin-top:30px;}
+code{background:#F1F5F9;padding:1px 6px;border-radius:4px;font-size:13.5px;}
+pre{background:var(--code-bg);color:var(--code-ink);padding:16px 18px;border-radius:8px;overflow-x:auto;font-size:13.5px;margin:14px 0;}
+.line-note{font-size:14px;color:var(--muted);margin:4px 0 4px 18px;}
+footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);color:var(--muted);font-size:13px;}
+</style>
+</head>
+<body>
+<div class="layout">
+<nav>
+  <h2>Masterclass</h2>
+  <a href="#recap">1. Same Story, Different Cloud</a>
+  <a href="#playbook">2. The Full Role</a>
+  <a href="#linebyline">3. Line-by-Line Explanation</a>
+  <a href="#compare">4. AWS vs Azure, Task by Task</a>
+  <a href="#task">5. Hands-On Task</a>
+  <a href="#next">6. What Comes Next</a>
+</nav>
+<main>
+  <span class="badge">MODULE 11</span>
+  <h1>The Azure Master Playbook</h1>
+  <p class="subtitle">The same Payment Gateway request, provisioned on Azure — every line explained</p>
+
+  <h2 id="recap">1. Same Story, Different Cloud</h2>
+  <div class="story">
+    <p>Puneeth, the business need has not changed at all — the Payment team still wants a RHEL 9 server, 4 CPU, 16GB RAM, tagged correctly. What changes is purely the vocabulary and the specific API calls, exactly like the concept map you memorized in Module 2. Read this module actively comparing it against Module 10 — that comparison is what will make you fluent across clouds instead of only knowing one.</p>
+  </div>
+
+  <h2 id="playbook">2. The Full Role</h2>
+  <pre>---
+# roles/azure_provision/tasks/main.yml
+
+- name: Check whether this VM already exists (idempotency)
+  azure.azcollection.azure_rm_virtualmachine_info:
+    resource_group: "{{ resource_group }}"
+    name: "{{ vm_name }}"
+  register: existing_vm
+  ignore_errors: true
+
+- name: Create the Network Interface for the VM
+  azure.azcollection.azure_rm_networkinterface:
+    resource_group: "{{ resource_group }}"
+    name: "{{ vm_name }}-nic"
+    virtual_network: "{{ vnet_name }}"
+    subnet: "{{ subnet_name }}"
+    security_group: "{{ nsg_name }}"
+  register: nic_result
+  when: existing_vm.vms | default([]) | length == 0
+
+- name: Provision the Azure Virtual Machine
+  azure.azcollection.azure_rm_virtualmachine:
+    resource_group: "{{ resource_group }}"
+    name: "{{ vm_name }}"
+    vm_size: "{{ vm_size_map[cpu ~ '-' ~ memory] | default('Standard_D2s_v5') }}"
+    admin_username: "{{ admin_username }}"
+    ssh_password_enabled: false
+    ssh_public_keys:
+      - path: "/home/{{ admin_username }}/.ssh/authorized_keys"
+        key_data: "{{ ssh_public_key }}"
+    image:
+      offer: RHEL
+      publisher: RedHat
+      sku: "9-lvm-gen2"
+      version: latest
+    os_disk_size_gb: "{{ disk_size }}"
+    managed_disk_type: "Premium_LRS"
+    network_interfaces: "{{ vm_name }}-nic"
+    tags:
+      Application: "{{ application }}"
+      Environment: "{{ environment }}"
+      Owner: "{{ owner }}"
+      CostCenter: "{{ cost_center }}"
+  register: azure_result
+  when: existing_vm.vms | default([]) | length == 0
+
+- name: Wait for SSH to become reachable
+  ansible.builtin.wait_for:
+    host: "{{ azure_result.ansible_facts.azure_vm.properties.networkProfile.networkInterfaces[0].properties.ipConfigurations[0].properties.privateIPAddress }}"
+    port: 22
+    delay: 10
+    timeout: 300
+  when: azure_result is changed
+
+- name: Add the new VM to in-memory inventory for post-config
+  ansible.builtin.add_host:
+    name: "{{ vm_name }}"
+    groups: newly_provisioned
+    ansible_host: "{{ azure_result.ansible_facts.azure_vm.properties.networkProfile.networkInterfaces[0].properties.ipConfigurations[0].properties.privateIPAddress }}"
+  when: azure_result is changed
+
+- name: Produce the provisioning report
+  ansible.builtin.set_stats:
+    data:
+      vm_name: "{{ vm_name }}"
+      cloud_platform: azure
+      status: "{{ 'created' if azure_result is changed else 'already_existed' }}"</pre>
+
+  <h2 id="linebyline">3. Line-by-Line Explanation</h2>
+  <p class="line-note"><code>azure_rm_virtualmachine_info</code> — Azure's equivalent of the AWS <code>_info</code> pattern from Module 10; a read-only lookup used purely for our idempotency check, wrapped in <code>ignore_errors: true</code> because this call actually raises an error (rather than returning an empty list) when the VM doesn't exist yet — a real Azure-specific quirk worth remembering for interviews.</p>
+  <p class="line-note"><code>azure_rm_networkinterface</code> — unlike AWS, where the network interface is usually created implicitly as part of <code>ec2_instance</code>, Azure requires the NIC to be created as its own separate resource first, and then attached to the VM by name; this is one of the real structural differences between the platforms, not just naming.</p>
+  <p class="line-note"><code>vm_size_map[cpu ~ '-' ~ memory]</code> — the exact same pattern from Module 10, just mapping to Azure VM size names like <code>Standard_D4s_v5</code> instead of AWS instance types.</p>
+  <p class="line-note"><code>ssh_password_enabled: false</code> plus <code>ssh_public_keys</code> — explicitly disables password-based login and injects an SSH public key instead, enforcing the same key-based access standard from Module 1's Security fields.</p>
+  <p class="line-note"><code>image: offer/publisher/sku/version</code> — Azure identifies a VM image with four separate fields instead of AWS's single AMI ID; <code>version: latest</code> plays the same "always use the newest approved image" role that our AMI-sorting logic played in Module 10, but here Azure handles it natively.</p>
+  <p class="line-note"><code>managed_disk_type: "Premium_LRS"</code> — chooses SSD-backed Premium storage with Locally Redundant Storage (three copies within one data center); this is Azure's version of the EBS <code>encrypted</code>/volume-type settings from Module 10, though note encryption itself is enabled separately through Azure's platform-managed key default or Key Vault, not this field.</p>
+  <p class="line-note"><code>tags:</code> block — functionally identical purpose to the AWS tags block; same CostCenter/Application/Environment/Owner metadata, just using Azure's tagging mechanism.</p>
+  <p class="line-note">The long <code>azure_result.ansible_facts.azure_vm.properties.networkProfile...privateIPAddress</code> path — Azure's module returns a deeply nested JSON structure describing the whole VM resource; this dotted path is simply "walking down" that structure to reach the actual private IP address, which is far more deeply nested than AWS's flatter <code>instances[0].private_ip_address</code>.</p>
+  <p class="line-note"><code>add_host</code> and <code>set_stats</code> — identical in purpose and structure to Module 10; this is intentional — our downstream <code>linux_baseline</code>, <code>validation</code>, and <code>notification</code> roles from Module 7 do not care which cloud created the server, only that it landed in the <code>newly_provisioned</code> group with a reachable IP.</p>
+
+  <h2 id="compare">4. AWS vs Azure, Task by Task</h2>
+  <table>
+    <tr><th>Step</th><th>AWS (Module 10)</th><th>Azure (this module)</th></tr>
+    <tr><td>Idempotency check</td><td><code>ec2_instance_info</code> filtered by Name tag</td><td><code>azure_rm_virtualmachine_info</code> by resource group + name (errors if missing)</td></tr>
+    <tr><td>Network setup</td><td>Implicit — subnet/SG passed directly to instance module</td><td>Explicit — NIC created as its own resource first</td></tr>
+    <tr><td>Image reference</td><td>Single AMI ID, resolved dynamically by our own lookup task</td><td>Four fields (publisher/offer/sku/version), resolved natively by Azure</td></tr>
+    <tr><td>Sizing</td><td>Our own CPU/memory → instance_type map</td><td>Our own CPU/memory → vm_size map (same pattern, different names)</td></tr>
+    <tr><td>Result structure</td><td>Flat — <code>instances[0].private_ip_address</code></td><td>Deeply nested JSON under <code>ansible_facts.azure_vm.properties...</code></td></tr>
+  </table>
+  <div class="why"><strong>Interview tip:</strong> Being able to explain <em>why</em> Azure needs an explicit NIC step while AWS doesn't shows real hands-on depth, not memorized syntax — this is exactly the kind of comparison interviewers probe for.</div>
+
+  <div class="task" id="task">
+    <h3>5. Hands-On Task</h3>
+    <p>Write the single sentence you would say out loud in an interview if asked: "What is the biggest structural difference between provisioning on AWS versus Azure in your automation?" Use the network interface difference as your answer.</p>
+  </div>
+
+  <div class="next" id="next">
+    <strong>What comes next — Module 12: The OpenShift Virtualization Master Playbook.</strong>
+    <p style="margin-bottom:0">We provision the same Payment Gateway servers as KubeVirt VirtualMachines, working through DataVolumes, NetworkAttachmentDefinitions, and cloud-init, with every Kubernetes manifest field explained.</p>
+  </div>
+
+  <footer>Enterprise Multi-Cloud Server Provisioning Masterclass — Module 11 of 30</footer>
+</main>
+</div>
+</body>
+</html>

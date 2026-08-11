@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Project 02 — Multi-OS Patch Compliance Automation | RHEL + Windows Fleet</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&family=JetBrains+Mono:wght@400;500;700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg: #0b0e0f; --bg-panel: #12171a; --bg-panel-2: #161c20;
+    --line: #23303580; --line-strong: #2c3b3f;
+    --amber: #ff9d3d; --amber-dim: #7a5326;
+    --teal: #35d6b0; --teal-dim: #1c6a58;
+    --red: #ff5c5c; --red-dim: #5a2323;
+    --blue: #6db8ff; --blue-dim: #234a6b;
+    --text: #dbe4e6; --text-dim: #8fa1a6; --text-faint: #5c6d71;
+    --mono: 'JetBrains Mono', monospace; --display: 'Sora', sans-serif; --body: 'Manrope', sans-serif;
+  }
+  *{box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{margin:0; background:var(--bg); color:var(--text); font-family:var(--body); line-height:1.65; font-size:15.5px;}
+  ::selection{background:var(--amber); color:#101314;}
+  .rail{position:sticky; top:0; z-index:50; background:linear-gradient(180deg,#0d1113 0%, #0d1113ee 100%); border-bottom:1px solid var(--line-strong); backdrop-filter: blur(6px);}
+  .rail-inner{max-width:1180px; margin:0 auto; padding:10px 28px; display:flex; align-items:center; gap:14px; overflow-x:auto;}
+  .rail-tag{font-family:var(--mono); font-size:11px; letter-spacing:.08em; color:var(--text-faint); white-space:nowrap; padding-right:10px; border-right:1px solid var(--line-strong);}
+  .rail-steps{display:flex; gap:0; align-items:center; white-space:nowrap;}
+  .rail-step{font-family:var(--mono); font-size:11.5px; color:var(--text-faint); padding:4px 10px; border-radius:3px;}
+  .rail-step.done{color:var(--teal);}
+  .rail-step.active{color:var(--amber); background:#1c1512; border:1px solid var(--amber-dim);}
+  .rail-arrow{color:var(--text-faint); font-size:11px; opacity:.5;}
+  header.hero{max-width:1180px; margin:0 auto; padding:64px 28px 40px; border-bottom:1px solid var(--line);}
+  .eyebrow{font-family:var(--mono); font-size:12px; color:var(--amber); letter-spacing:.14em; text-transform:uppercase; display:flex; align-items:center; gap:10px;}
+  .eyebrow::before{content:"●"; font-size:8px; color:var(--teal); animation:pulse 2s infinite;}
+  @keyframes pulse{0%,100%{opacity:1;}50%{opacity:.3;}}
+  h1.title{font-family:var(--display); font-weight:800; font-size:clamp(28px,4vw,44px); margin:14px 0 10px; letter-spacing:-0.01em; color:#f2f6f6;}
+  .subtitle{color:var(--text-dim); font-size:16px; max-width:760px;}
+  .meta-strip{display:flex; flex-wrap:wrap; gap:10px; margin-top:26px;}
+  .meta-chip{font-family:var(--mono); font-size:11.5px; color:var(--text-dim); background:var(--bg-panel); border:1px solid var(--line-strong); padding:6px 12px; border-radius:20px;}
+  .meta-chip b{color:var(--text);}
+  main{max-width:1180px; margin:0 auto; padding:0 28px 100px; display:flex; gap:40px;}
+  nav.toc{width:230px; flex-shrink:0; position:sticky; top:64px; align-self:flex-start; padding-top:36px; max-height:calc(100vh - 80px); overflow-y:auto;}
+  nav.toc a{display:block; font-size:12.5px; color:var(--text-faint); text-decoration:none; padding:6px 0 6px 14px; border-left:2px solid var(--line); transition:.15s;}
+  nav.toc a:hover{color:var(--amber); border-left-color:var(--amber);}
+  .content{flex:1; min-width:0; padding-top:36px;}
+  section{margin-bottom:64px; scroll-margin-top:80px;}
+  .sec-head{display:flex; align-items:baseline; gap:12px; margin-bottom:20px;}
+  .sec-num{font-family:var(--mono); color:var(--amber); font-size:13px;}
+  h2{font-family:var(--display); font-weight:700; font-size:22px; color:#f2f6f6; margin:0;}
+  h3{font-family:var(--display); font-weight:600; font-size:16px; color:var(--teal); margin:26px 0 10px;}
+  p{color:var(--text-dim); margin:10px 0;}
+  strong{color:var(--text);}
+  a{color:var(--amber);}
+  .callout{background:var(--bg-panel); border:1px solid var(--line-strong); border-left:3px solid var(--amber); padding:16px 20px; border-radius:4px; margin:16px 0; color:var(--text-dim); font-size:14.5px;}
+  .callout.red{border-left-color:var(--red);}
+  .callout.blue{border-left-color:var(--blue);}
+  .callout b{color:var(--text); display:block; font-family:var(--mono); font-size:11.5px; letter-spacing:.06em; text-transform:uppercase; margin-bottom:6px;}
+  table{width:100%; border-collapse:collapse; margin:16px 0; font-size:13.5px;}
+  th,td{text-align:left; padding:9px 12px; border-bottom:1px solid var(--line);}
+  th{font-family:var(--mono); font-size:11px; letter-spacing:.05em; text-transform:uppercase; color:var(--text-faint); font-weight:500;}
+  td{color:var(--text-dim);}
+  tr:hover td{color:var(--text);}
+  ul,ol{color:var(--text-dim); padding-left:22px;}
+  li{margin:6px 0;}
+  li::marker{color:var(--amber);}
+  pre{background:#0a0d0e; border:1px solid var(--line-strong); border-radius:6px; padding:18px 20px; overflow-x:auto; font-family:var(--mono); font-size:12.6px; line-height:1.7; color:#c9d6d8; margin:16px 0;}
+  .code-label{font-family:var(--mono); font-size:11px; color:var(--bg); background:var(--teal); display:inline-block; padding:3px 10px; border-radius:4px 4px 0 0; letter-spacing:.05em; margin-bottom:-1px; position:relative; top:1px;}
+  .cmt{color:#5c8f7f;} .kw{color:#ff9d3d;} .str{color:#8fd0e6;}
+  code.inline{font-family:var(--mono); background:#1a2225; color:var(--teal); padding:2px 6px; border-radius:3px; font-size:12.8px;}
+  .flow{display:flex; flex-direction:column; gap:0; margin:20px 0;}
+  .flow-node{display:flex; align-items:center; gap:14px; padding:12px 16px; background:var(--bg-panel); border:1px solid var(--line-strong); border-radius:6px;}
+  .flow-node .n{font-family:var(--mono); font-size:11px; color:var(--bg); background:var(--amber); width:26px; height:26px; border-radius:50%; display:flex; align-items:center; justify-content:center; flex-shrink:0; font-weight:700;}
+  .flow-node .label{font-family:var(--display); font-weight:600; color:var(--text); font-size:14px;}
+  .flow-node .desc{color:var(--text-faint); font-size:12.5px;}
+  .flow-connector{width:1px; height:20px; background:var(--line-strong); margin-left:29px;}
+  .team-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(230px,1fr)); gap:14px; margin:16px 0;}
+  .team-card{background:var(--bg-panel); border:1px solid var(--line-strong); border-radius:6px; padding:16px;}
+  .team-card h4{font-family:var(--mono); font-size:12px; color:var(--amber); margin:0 0 8px; letter-spacing:.04em;}
+  .team-card ul{margin:0; padding-left:16px; font-size:13px;}
+  .ticket{background:var(--bg-panel-2); border:1px solid var(--line-strong); border-radius:6px; overflow:hidden; margin:16px 0;}
+  .ticket-head{display:flex; justify-content:space-between; align-items:center; background:#191f22; padding:10px 18px; border-bottom:1px solid var(--line-strong); font-family:var(--mono); font-size:12px;}
+  .ticket-id{color:var(--teal);}
+  .ticket-badge{padding:2px 10px; border-radius:10px; font-size:10.5px; letter-spacing:.05em; text-transform:uppercase;}
+  .ticket-badge.change{background:var(--amber-dim); color:var(--amber);}
+  .ticket-body{padding:16px 18px;}
+  .ticket-row{display:flex; gap:10px; margin:6px 0; font-size:13px;}
+  .ticket-row .k{width:150px; flex-shrink:0; color:var(--text-faint); font-family:var(--mono); font-size:11.5px;}
+  .ticket-row .v{color:var(--text-dim);}
+  .chain{display:flex; align-items:center; flex-wrap:wrap; gap:8px; margin:16px 0;}
+  .chain-item{font-family:var(--mono); font-size:12px; background:var(--bg-panel); border:1px solid var(--line-strong); padding:8px 14px; border-radius:4px; color:var(--text-dim);}
+  .chain-arrow{color:var(--amber);}
+  .qa{background:var(--bg-panel); border:1px solid var(--line-strong); border-radius:6px; padding:18px 20px; margin:14px 0;}
+  .qa .q{font-family:var(--display); font-weight:600; color:var(--amber); font-size:14.5px; margin-bottom:8px;}
+  .qa .a{color:var(--text-dim); font-size:13.8px;}
+  .os-split{display:grid; grid-template-columns:1fr 1fr; gap:16px; margin:16px 0;}
+  .os-card{background:var(--bg-panel); border:1px solid var(--line-strong); border-radius:6px; padding:16px;}
+  .os-card h4{font-family:var(--mono); font-size:12px; letter-spacing:.05em; margin:0 0 10px;}
+  .os-card.linux h4{color:var(--teal);}
+  .os-card.windows h4{color:var(--blue);}
+  footer{max-width:1180px; margin:0 auto; padding:30px 28px 60px; color:var(--text-faint); font-family:var(--mono); font-size:11.5px; border-top:1px solid var(--line);}
+  @media (max-width:900px){ main{flex-direction:column;} nav.toc{display:none;} }
+</style>
+</head>
+<body>
+
+<div class="rail">
+  <div class="rail-inner">
+    <span class="rail-tag">NOVASTACK BANK · AUTOMATION ENGINEERING</span>
+    <div class="rail-steps">
+      <span class="rail-step done">TICKET</span><span class="rail-arrow">→</span>
+      <span class="rail-step done">DESIGN</span><span class="rail-arrow">→</span>
+      <span class="rail-step done">DEV</span><span class="rail-arrow">→</span>
+      <span class="rail-step active">UAT</span><span class="rail-arrow">→</span>
+      <span class="rail-step">CAB</span><span class="rail-arrow">→</span>
+      <span class="rail-step">PROD</span><span class="rail-arrow">→</span>
+      <span class="rail-step">CLOSE</span>
+    </div>
+  </div>
+</div>
+
+<header class="hero">
+  <div class="eyebrow">Project 02 of 25 · Intermediate</div>
+  <h1 class="title">Multi-OS Patch Compliance Automation<br>RHEL + Windows Fleet</h1>
+  <p class="subtitle">Monthly patch cycle automation across mixed RHEL and Windows Server estates, orchestrated through AAP with OS-aware logic, reboot handling, and ServiceNow-driven compliance evidence.</p>
+  <div class="meta-strip">
+    <span class="meta-chip">Company: <b>NovaStack Bank</b></span>
+    <span class="meta-chip">Fleet: <b>310 RHEL + 180 Windows Server hosts</b></span>
+    <span class="meta-chip">Trigger: <b>Monthly patch SLA / CVE cycle</b></span>
+    <span class="meta-chip">Environments: <b>DEV · UAT · PROD</b></span>
+    <span class="meta-chip">Change: <b>CHG0041915</b></span>
+  </div>
+</header>
+
+<main>
+<nav class="toc">
+  <a href="#scenario">01 · Business Scenario</a>
+  <a href="#arch">02 · Architecture</a>
+  <a href="#workflow">03 · Project Workflow</a>
+  <a href="#teams">04 · Team Responsibilities</a>
+  <a href="#tickets">05 · Ticket Flow</a>
+  <a href="#approval">06 · Approval Flow</a>
+  <a href="#requirements">07 · Requirement Gathering</a>
+  <a href="#auth">08 · Authentication</a>
+  <a href="#design">09 · Ansible Design</a>
+  <a href="#code">10 · Code &amp; Roles</a>
+  <a href="#aap">11 · RHAAP / AAP</a>
+  <a href="#testing">12 · Testing Strategy</a>
+  <a href="#prod">13 · Production Deployment</a>
+  <a href="#rollback">14 · Rollback</a>
+  <a href="#troubleshoot">15 · Troubleshooting</a>
+  <a href="#monitoring">16 · Monitoring</a>
+  <a href="#security">17 · Security</a>
+  <a href="#docs">18 · Documentation</a>
+  <a href="#interview">19 · Interview Prep</a>
+  <a href="#takeaways">20 · Key Takeaways</a>
+</nav>
+
+<div class="content">
+
+<section id="scenario">
+  <div class="sec-head"><span class="sec-num">01</span><h2>Business Scenario</h2></div>
+  <p>NovaStack Bank runs monthly patching under a regulatory-driven policy: all Critical and High CVEs must be remediated within 14 days of vendor release, applied first in DEV, then UAT, then PROD, always inside an approved maintenance window. The estate is mixed — 310 RHEL servers (yum/dnf, patched via a Satellite content view) and 180 Windows Servers (patched via WSUS-approved update groups).</p>
+  <p>Until now, patching has been handled by two separate teams running two separate manual processes — Linux Ops using shell scripts, Windows Ops using WSUS console clicks. This is inconsistent, slow (roughly 4 engineer-days per cycle), leaves inconsistent evidence, and has twice caused a patch cycle to miss the regulatory SLA. Infrastructure leadership has asked Automation Engineering to build one consolidated, OS-aware pipeline that treats patching as a single governed process regardless of platform.</p>
+  <div class="callout">
+    <b>Why this can't stay manual</b>
+    Two disconnected manual processes means two different audit trails, two different failure-recovery approaches, and no single dashboard leadership can trust for the regulator. A single automated pipeline with OS-specific logic gives one consistent evidence trail and a much smaller SLA-miss risk.
+  </div>
+  <p>This builds directly on <strong>Project 1's foundation</strong> — same dynamic inventory approach, same AAP workflow-with-approval pattern — but introduces reboot orchestration, Windows/WinRM authentication, and a scheduled recurring job rather than a one-time remediation.</p>
+</section>
+
+<section id="arch">
+  <div class="sec-head"><span class="sec-num">02</span><h2>Architecture</h2></div>
+  <div class="flow">
+    <div class="flow-node"><div class="n">1</div><div><div class="label">Git Repository</div><div class="desc">ansible-patch-mgmt — single repo, OS-conditional roles</div></div></div>
+    <div class="flow-connector"></div>
+    <div class="flow-node"><div class="n">2</div><div><div class="label">AAP Scheduled Workflow</div><div class="desc">Fires on the monthly patch calendar date</div></div></div>
+    <div class="flow-connector"></div>
+    <div class="flow-node"><div class="n">3</div><div><div class="label">Dynamic Inventory</div><div class="desc">AWS EC2 plugin — grouped by tag Platform=RHEL / Platform=Windows</div></div></div>
+    <div class="flow-connector"></div>
+    <div class="flow-node"><div class="n">4</div><div><div class="label">Credentials</div><div class="desc">SSH machine credential (Linux) + WinRM credential (Windows)</div></div></div>
+    <div class="flow-connector"></div>
+    <div class="flow-node"><div class="n">5</div><div><div class="label">OS-conditional Playbook</div><div class="desc">Routes each host to the correct role based on ansible_os_family</div></div></div>
+    <div class="flow-connector"></div>
+    <div class="flow-node"><div class="n">6</div><div><div class="label">Target Fleet</div><div class="desc">490 hosts, serial batching, reboot orchestration</div></div></div>
+  </div>
+</section>
+
+<section id="workflow">
+  <div class="sec-head"><span class="sec-num">03</span><h2>Project Workflow</h2></div>
+  <div class="flow">
+    <div class="flow-node"><div class="n">1</div><div><div class="label">Patch SLA Calendar Trigger</div><div class="desc">Monthly cycle date reached, or an out-of-band Critical CVE</div></div></div>
+    <div class="flow-connector"></div>
+    <div class="flow-node"><div class="n">2</div><div><div class="label">Infra Ops Confirms Scope</div><div class="desc">Which content view / WSUS group applies this cycle</div></div></div>
+    <div class="flow-connector"></div>
+    <div class="flow-node"><div class="n">3</div><div><div class="label">Requirement Confirmation</div><div class="desc">You verify reboot policy and exclusion list with app teams</div></div></div>
+    <div class="flow-connector"></div>
+    <div class="flow-node"><div class="n">4</div><div><div class="label">Role Update if Needed</div><div class="desc">Most months this is a routine re-run, not new development</div></div></div>
+    <div class="flow-connector"></div>
+    <div class="flow-node"><div class="n">5</div><div><div class="label">DEV → UAT Execution</div><div class="desc">Auto-scheduled, validated by app teams</div></div></div>
+    <div class="flow-connector"></div>
+    <div class="flow-node"><div class="n">6</div><div><div class="label">Standard Change (Pre-approved)</div><div class="desc">Recurring patch cycles usually run as a Standard Change, not a full CAB review</div></div></div>
+    <div class="flow-connector"></div>
+    <div class="flow-node"><div class="n">7</div><div><div class="label">Production Execution</div><div class="desc">Batched, health-checked between batches</div></div></div>
+    <div class="flow-connector"></div>
+    <div class="flow-node"><div class="n">8</div><div><div class="label">Compliance Evidence + Closure</div><div class="desc">Patch compliance report attached, ticket closed</div></div></div>
+  </div>
+  <div class="callout blue">
+    <b>New concept: Standard Change</b>
+    Unlike Project 1's Normal Change (full CAB review every time), a recurring, low-risk, well-tested change like monthly patching is usually pre-approved once as a <strong>Standard Change template</strong> in ServiceNow. Each month you raise an instance of that template rather than going through CAB from scratch — this is how real enterprises avoid re-litigating routine work every cycle.
+  </div>
+</section>
+
+<section id="teams">
+  <div class="sec-head"><span class="sec-num">04</span><h2>Team Responsibilities</h2></div>
+  <div class="team-grid">
+    <div class="team-card"><h4>YOU — AUTOMATION ENGINEER</h4><ul>
+      <li>Maintain the OS-conditional patch role</li>
+      <li>Confirm scope and reboot policy each cycle</li>
+      <li>Execute and monitor the AAP workflow</li>
+      <li>Produce and attach compliance evidence</li>
+    </ul></div>
+    <div class="team-card"><h4>LINUX OPS</h4><ul>
+      <li>Maintains the Satellite content view</li>
+      <li>Confirms package baseline for the cycle</li>
+    </ul></div>
+    <div class="team-card"><h4>WINDOWS OPS</h4><ul>
+      <li>Maintains WSUS approved update groups</li>
+      <li>Confirms Windows reboot policy exceptions</li>
+    </ul></div>
+    <div class="team-card"><h4>APPLICATION TEAMS</h4><ul>
+      <li>Provide reboot exclusion requests with justification</li>
+      <li>Validate app health post-patch</li>
+    </ul></div>
+    <div class="team-card"><h4>CHANGE MANAGEMENT</h4><ul>
+      <li>Maintains the Standard Change template</li>
+      <li>Reviews template annually or after any incident</li>
+    </ul></div>
+  </div>
+</section>
+
+<section id="tickets">
+  <div class="sec-head"><span class="sec-num">05</span><h2>Ticket Flow (ServiceNow)</h2></div>
+  <div class="ticket">
+    <div class="ticket-head"><span class="ticket-id">CHG0041915</span><span class="ticket-badge change">STANDARD CHANGE</span></div>
+    <div class="ticket-body">
+      <div class="ticket-row"><div class="k">TEMPLATE</div><div class="v">STD-PATCH-MONTHLY-v3 (pre-approved by CAB, reviewed annually)</div></div>
+      <div class="ticket-row"><div class="k">SCOPE</div><div class="v">310 RHEL + 180 Windows hosts, Critical/High CVEs for August cycle</div></div>
+      <div class="ticket-row"><div class="k">IMPLEMENTATION PLAN</div><div class="v">AAP workflow "Patch-Cycle-PROD", serial batches of 20, health check between batches</div></div>
+      <div class="ticket-row"><div class="k">ROLLBACK PLAN</div><div class="v">Yum/dnf history undo (Linux); WSUS update uninstall (Windows) — see rollback section</div></div>
+      <div class="ticket-row"><div class="k">MAINTENANCE WINDOW</div><div class="v">Second Saturday, 00:00–06:00 IST</div></div>
+    </div>
+  </div>
+</section>
+
+<section id="approval">
+  <div class="sec-head"><span class="sec-num">06</span><h2>Approval Flow</h2></div>
+  <div class="chain">
+    <span class="chain-item">You (Engineer)</span><span class="chain-arrow">→</span>
+    <span class="chain-item">Automation Lead</span><span class="chain-arrow">→</span>
+    <span class="chain-item">Linux Ops + Windows Ops Owners</span><span class="chain-arrow">→</span>
+    <span class="chain-item">Standard Change Auto-Approval</span>
+  </div>
+  <p>Because this runs against a pre-approved Standard Change template, there's no ad-hoc CAB meeting each month — approval is effectively automatic once the template conditions (scope, window, rollback plan) are met. A full CAB review only re-triggers if scope changes materially, e.g. patching a new tier of PCI-scoped hosts for the first time.</p>
+</section>
+
+<section id="requirements">
+  <div class="sec-head"><span class="sec-num">07</span><h2>Requirement Gathering</h2></div>
+  <table>
+    <tr><th>Question</th><th>Why it matters</th></tr>
+    <tr><td>Is this a routine monthly cycle or an out-of-band Critical CVE?</td><td>Out-of-band CVEs may need an expedited Emergency Change instead of the Standard template</td></tr>
+    <tr><td>Which hosts are on the reboot exclusion list this cycle, and why?</td><td>Some hosts (e.g. active core-ledger batch processing windows) can't reboot on the standard schedule</td></tr>
+    <tr><td>Does the Windows patch set include a kernel-level or .NET update requiring a mandatory reboot?</td><td>Determines whether reboot orchestration is even needed this cycle</td></tr>
+    <tr><td>What is the acceptable patch-batch failure threshold before pausing the whole run?</td><td>Prevents one bad batch from silently degrading the entire fleet</td></tr>
+    <tr><td>Who validates each application post-patch, and by when?</td><td>Defines the UAT sign-off SLA before PROD can proceed</td></tr>
+  </table>
+</section>
+
+<section id="auth">
+  <div class="sec-head"><span class="sec-num">08</span><h2>Authentication &amp; Access</h2></div>
+  <div class="os-split">
+    <div class="os-card linux"><h4>LINUX (SSH)</h4>
+      <ul><li>Service account key, same pattern as Project 1</li><li>Sudo scoped to yum/dnf and systemctl reboot only</li></ul>
+    </div>
+    <div class="os-card windows"><h4>WINDOWS (WinRM)</h4>
+      <ul><li>Domain service account, authenticated over WinRM (HTTPS, port 5986)</li><li>Stored as an AAP Machine Credential of type "Windows"</li><li>Local admin rights scoped via a dedicated AD group, not Domain Admins</li></ul>
+    </div>
+  </div>
+  <p>WinRM is new here versus Project 1's pure-SSH world: it needs a certificate-backed HTTPS listener configured on each Windows host (owned by Windows Ops), and the AAP execution environment must have <code class="inline">pywinrm</code> available.</p>
+</section>
+
+<section id="design">
+  <div class="sec-head"><span class="sec-num">09</span><h2>Ansible Design — Repository Structure</h2></div>
+  <pre><span class="cmt"># ansible-patch-mgmt/</span>
+├── inventories/{dev,uat,prod}/hosts.aws_ec2.yml
+├── group_vars/
+│   ├── all.yml
+│   ├── linux.yml
+│   └── windows.yml
+├── roles/
+│   ├── patch_linux/{tasks,defaults,handlers}/main.yml
+│   └── patch_windows/{tasks,defaults,handlers}/main.yml
+├── playbooks/
+│   └── patch_cycle.yml       <span class="cmt"># routes hosts to the correct role by OS family</span>
+└── README.md</pre>
+</section>
+
+<section id="code">
+  <div class="sec-head"><span class="sec-num">10</span><h2>Code &amp; Role Implementation</h2></div>
+
+  <span class="code-label">playbooks/patch_cycle.yml</span>
+  <pre><span class="kw">---</span>
+<span class="cmt"># A single entry point that fans out to the correct OS-specific role.</span>
+<span class="cmt"># This keeps the AAP job template simple -- one template, two roles.</span>
+- name: Enterprise patch cycle
+  hosts: all
+  gather_facts: true
+  serial: 20                     <span class="cmt"># batch size -- limits blast radius of a bad batch</span>
+  max_fail_percentage: 10        <span class="cmt"># pause the whole run if more than 10% of a batch fails</span>
+  tasks:
+    - name: Apply Linux patching role
+      ansible.builtin.include_role:
+        name: patch_linux
+      when: ansible_os_family == "RedHat"
+
+    - name: Apply Windows patching role
+      ansible.builtin.include_role:
+        name: patch_windows
+      when: ansible_os_family == "Windows"</pre>
+
+  <span class="code-label">roles/patch_linux/tasks/main.yml</span>
+  <pre><span class="kw">---</span>
+- name: Record pre-patch package state for rollback evidence
+  ansible.builtin.command: rpm -qa
+  register: pre_patch_state
+  changed_when: false
+
+- name: Apply available security patches via Satellite content view
+  ansible.builtin.dnf:
+    name: "*"
+    security: true
+    state: latest
+  register: patch_result
+
+<span class="cmt"># Only reboot if the patch set actually requires it (kernel/glibc) --</span>
+<span class="cmt"># unnecessary reboots on a banking host are themselves a risk.</span>
+- name: Check if a reboot is required
+  ansible.builtin.stat:
+    path: /var/run/reboot-required
+  register: reboot_check
+  failed_when: false
+
+- name: Reboot host if required and not in exclusion list
+  ansible.builtin.reboot:
+    reboot_timeout: 600
+    post_reboot_delay: 30
+  when:
+    - reboot_check.stat.exists | default(false)
+    - inventory_hostname not in reboot_exclusion_list
+
+- name: Verify critical services are active post-patch
+  ansible.builtin.systemd:
+    name: "{{ item }}"
+    state: started
+  loop: "{{ critical_services }}"    <span class="cmt"># e.g. sshd, chronyd, app-specific agents</span></pre>
+
+  <span class="code-label">roles/patch_windows/tasks/main.yml</span>
+  <pre><span class="kw">---</span>
+- name: Install approved Windows updates from WSUS
+  ansible.windows.win_updates:
+    category_names:
+      - CriticalUpdates
+      - SecurityUpdates
+    state: installed
+  register: win_patch_result
+
+- name: Reboot if updates require it and host is not excluded
+  ansible.windows.win_reboot:
+    reboot_timeout: 900
+  when:
+    - win_patch_result.reboot_required
+    - inventory_hostname not in reboot_exclusion_list
+
+- name: Confirm target Windows services are running post-patch
+  ansible.windows.win_service:
+    name: "{{ item }}"
+    state: started
+  loop: "{{ critical_windows_services }}"</pre>
+
+  <h3>Execution flow, in plain terms</h3>
+  <p>The top-level playbook fans out by OS family so one AAP job template can patch the entire mixed fleet. Each OS role patches, checks whether a reboot is genuinely required, skips hosts on the exclusion list, reboots safely with a timeout, and then confirms the critical services actually came back up — patching without that final check is how "patch succeeded" silently turns into "app is down" the next morning.</p>
+</section>
+
+<section id="aap">
+  <div class="sec-head"><span class="sec-num">11</span><h2>RHAAP / AAP Configuration</h2></div>
+  <table>
+    <tr><th>Component</th><th>Configuration</th></tr>
+    <tr><td>Job Template</td><td><code class="inline">Patch-Cycle-{ENV}</code>, scheduled monthly + available for ad-hoc launch</td></tr>
+    <tr><td>Credentials</td><td>Two machine credentials attached: SSH for Linux group, WinRM for Windows group</td></tr>
+    <tr><td>Execution Environment</td><td>Custom EE image including <code class="inline">pywinrm</code> and <code class="inline">ansible.windows</code> collection</td></tr>
+    <tr><td>Survey</td><td>Reboot exclusion list (multi-select from inventory), emergency/out-of-band flag</td></tr>
+    <tr><td>Notifications</td><td>Slack + email to Infra Ops on job completion or failure</td></tr>
+  </table>
+</section>
+
+<section id="testing">
+  <div class="sec-head"><span class="sec-num">12</span><h2>Testing Strategy</h2></div>
+  <ul>
+    <li>DEV run against a small mixed batch first (5 Linux + 5 Windows) to validate both roles in one pass</li>
+    <li>UAT run validated by each application team against their specific stack</li>
+    <li>Chaos check: intentionally exclude one host to confirm the exclusion-list logic actually skips it</li>
+  </ul>
+</section>
+
+<section id="prod">
+  <div class="sec-head"><span class="sec-num">13</span><h2>Production Deployment</h2></div>
+  <p>Batches of 20 hosts run serially with a health check gate between each batch. If <code class="inline">max_fail_percentage</code> is breached in any batch, the workflow halts automatically rather than continuing into the next batch — this is the single most important safety control in a fleet-wide patch run.</p>
+</section>
+
+<section id="rollback">
+  <div class="sec-head"><span class="sec-num">14</span><h2>Rollback Procedure</h2></div>
+  <div class="os-split">
+    <div class="os-card linux"><h4>LINUX</h4><p style="margin:0; color:var(--text-dim); font-size:13.5px;"><code class="inline">dnf history undo &lt;transaction-id&gt;</code> using the transaction ID captured in the pre-patch evidence, followed by a service restart and validation.</p></div>
+    <div class="os-card windows"><h4>WINDOWS</h4><p style="margin:0; color:var(--text-dim); font-size:13.5px;"><code class="inline">Get-WindowsUpdateLog</code> to identify the KB, then <code class="inline">wusa /uninstall /kb:&lt;id&gt;</code> via a targeted Ansible task, followed by a reboot and service validation.</p></div>
+  </div>
+</section>
+
+<section id="troubleshoot">
+  <div class="sec-head"><span class="sec-num">15</span><h2>Troubleshooting</h2></div>
+  <div class="callout red">
+    <b>WinRM connection timeout</b>
+    <strong>Symptom:</strong> Job fails at "Gathering Facts" for Windows hosts only.<br>
+    <strong>Investigate:</strong> Test manually with <code class="inline">Test-WSMan &lt;host&gt;</code> from a jump box.<br>
+    <strong>Root cause (typical):</strong> WinRM HTTPS listener certificate expired.<br>
+    <strong>Fix:</strong> Windows Ops renews the listener cert; re-run the job.<br>
+    <strong>Prevention:</strong> Add a certificate-expiry check to the monthly pre-flight.
+  </div>
+  <div class="callout red">
+    <b>Host doesn't come back after reboot</b>
+    <strong>Symptom:</strong> <code class="inline">ansible.builtin.reboot</code> times out waiting for reconnection.<br>
+    <strong>Investigate:</strong> Check AWS console for instance status; check system log via Systems Manager.<br>
+    <strong>Root cause (typical):</strong> Kernel update boots into a version missing a required driver.<br>
+    <strong>Fix:</strong> Boot into the previous kernel via GRUB (Infra Ops), then investigate the DKMS/module issue before re-patching.<br>
+    <strong>Prevention:</strong> DEV/UAT patch cycles should already surface driver-incompatible kernels before PROD.
+  </div>
+</section>
+
+<section id="monitoring">
+  <div class="sec-head"><span class="sec-num">16</span><h2>Monitoring &amp; Validation</h2></div>
+  <p>Post-patch, CloudWatch/host-agent dashboards are checked for each batch, and a compliance scan (via the same Satellite/WSUS tooling) confirms actual applied-patch state matches what Ansible reported — closing the loop between "the playbook said success" and "the host is provably compliant."</p>
+</section>
+
+<section id="security">
+  <div class="sec-head"><span class="sec-num">17</span><h2>Security Considerations</h2></div>
+  <ul>
+    <li>WinRM traffic is HTTPS-only, never unencrypted HTTP</li>
+    <li>Patch content is only ever pulled from the bank's internal Satellite/WSUS — no host reaches public patch repositories directly</li>
+    <li>Reboot exclusions require documented justification, reviewed quarterly by Security to prevent permanent unpatched exceptions</li>
+  </ul>
+</section>
+
+<section id="docs">
+  <div class="sec-head"><span class="sec-num">18</span><h2>Documentation Maintained</h2></div>
+  <ul>
+    <li>Monthly patch compliance report template</li>
+    <li>Reboot exclusion list with owner and justification, reviewed quarterly</li>
+    <li>Standard Change template reference and renewal date</li>
+  </ul>
+</section>
+
+<section id="interview">
+  <div class="sec-head"><span class="sec-num">19</span><h2>Interview Preparation</h2></div>
+  <div class="qa"><div class="q">Why route by ansible_os_family instead of separate playbooks per OS?</div>
+  <div class="a">One entry point makes the AAP job template simpler to operate and schedule, while each OS still gets fully separate, independently testable logic in its own role. It also means the batching/serial/max_fail_percentage safety controls apply uniformly across the whole mixed fleet.</div></div>
+  <div class="qa"><div class="q">How do you avoid unnecessary reboots?</div>
+  <div class="a">Both roles explicitly check whether the patch set actually requires a reboot — via reboot-required file on Linux and the win_updates reboot_required fact on Windows — instead of rebooting unconditionally after every patch run.</div></div>
+  <div class="qa"><div class="q">What's the difference between a Standard Change and a Normal Change here versus Project 1?</div>
+  <div class="a">Project 1's SSH hardening was a one-time remediation needing full CAB review each time. This is a recurring, well-understood, low-risk process, so it runs under a pre-approved Standard Change template — CAB reviews the template itself periodically rather than every monthly run.</div></div>
+</section>
+
+<section id="takeaways">
+  <div class="sec-head"><span class="sec-num">20</span><h2>Skills Learned</h2></div>
+  <ul>
+    <li>Building a single OS-aware pipeline spanning Linux and Windows</li>
+    <li>WinRM authentication and Windows-specific Ansible modules</li>
+    <li>Safe reboot orchestration with exclusion-list logic</li>
+    <li>Batch-based execution with automatic failure-threshold halting</li>
+    <li>Understanding Standard vs Normal change governance in a regulated environment</li>
+  </ul>
+</section>
+
+</div>
+</main>
+
+<footer>
+  NovaStack Bank — Automation Engineering Internal Documentation · Project 02/25 · Generated for training purposes, no real infrastructure or credentials represented.
+</footer>
+
+</body>
+</html>

@@ -1,0 +1,614 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Project 4 — TCP Connection Troubleshooting</title>
+<style>
+:root{
+  --blue:#2563EB; --blue-bg:#EFF6FF;
+  --purple:#7C3AED; --purple-bg:#F5F3FF;
+  --teal:#0F766E; --teal-bg:#F0FDFA;
+  --green:#16A34A; --green-bg:#F0FDF4;
+  --orange:#EA580C; --orange-bg:#FFF7ED;
+  --red:#DC2626; --red-bg:#FEF2F2;
+  --bg:#FFFFFF; --text:#1F2937; --muted:#6B7280;
+  --border:#E5E7EB; --sidebar-w:280px;
+}
+*{box-sizing:border-box;}
+body{margin:0;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--text);line-height:1.65;}
+a{color:var(--blue);text-decoration:none;}
+a:hover{text-decoration:underline;}
+code{font-family:"SFMono-Regular",Consolas,"Liberation Mono",Menlo,monospace;}
+
+.cover{padding:60px 24px 40px;background:linear-gradient(135deg,var(--blue-bg),var(--purple-bg));border-bottom:1px solid var(--border);}
+.cover-inner{max-width:900px;margin:0 auto;}
+.badge-row{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:18px;}
+.badge{font-size:12.5px;font-weight:600;padding:5px 12px;border-radius:20px;letter-spacing:.02em;}
+.badge.blue{background:var(--blue);color:#fff;}
+.badge.purple{background:var(--purple);color:#fff;}
+.badge.teal{background:var(--teal);color:#fff;}
+.badge.orange{background:var(--orange);color:#fff;}
+.cover h1{font-size:2.1rem;margin:0 0 8px;color:#111827;}
+.cover .subtitle{font-size:1.05rem;color:var(--muted);margin-bottom:26px;}
+.cover-meta{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;}
+.meta-card{background:#fff;border:1px solid var(--border);border-radius:10px;padding:12px 14px;}
+.meta-card .label{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:700;}
+.meta-card .value{font-size:14.5px;font-weight:600;margin-top:2px;}
+
+.layout{display:flex;max-width:1400px;margin:0 auto;}
+.sidebar{width:var(--sidebar-w);flex-shrink:0;position:sticky;top:0;align-self:flex-start;height:100vh;overflow-y:auto;border-right:1px solid var(--border);padding:22px 14px;}
+.sidebar h4{font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin:18px 0 6px 10px;}
+.sidebar h4:first-child{margin-top:0;}
+.sidebar a{display:block;padding:7px 10px;border-radius:8px;font-size:13.5px;color:#374151;margin-bottom:1px;}
+.sidebar a:hover{background:var(--blue-bg);text-decoration:none;color:var(--blue);}
+.progress-wrap{margin:10px 10px 4px;}
+.progress-bar{height:6px;background:var(--border);border-radius:4px;overflow:hidden;}
+.progress-fill{height:100%;width:0%;background:linear-gradient(90deg,var(--blue),var(--purple));transition:width .2s;}
+.progress-label{font-size:11px;color:var(--muted);margin-top:4px;}
+
+.content{flex:1;min-width:0;padding:34px 40px 100px;}
+section{margin-bottom:48px;scroll-margin-top:20px;}
+h2.sec-title{font-size:1.5rem;border-bottom:2px solid var(--border);padding-bottom:10px;margin-bottom:18px;display:flex;align-items:center;gap:10px;}
+h2.sec-title .num{background:var(--blue);color:#fff;width:30px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;}
+h3{font-size:1.15rem;margin-top:28px;color:#111827;}
+
+.box{border-radius:10px;padding:16px 18px;margin:16px 0;border:1px solid transparent;}
+.box .box-title{font-weight:700;font-size:13px;text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px;display:flex;align-items:center;gap:6px;}
+.box.concept{background:var(--blue-bg);border-color:#BFDBFE;}
+.box.concept .box-title{color:var(--blue);}
+.box.architecture{background:var(--purple-bg);border-color:#DDD6FE;}
+.box.architecture .box-title{color:var(--purple);}
+.box.success{background:var(--green-bg);border-color:#BBF7D0;}
+.box.success .box-title{color:var(--green);}
+.box.warning{background:var(--orange-bg);border-color:#FED7AA;}
+.box.warning .box-title{color:var(--orange);}
+.box.failure{background:var(--red-bg);border-color:#FECACA;}
+.box.failure .box-title{color:var(--red);}
+.box.bestpractice{background:var(--teal-bg);border-color:#99F6E4;}
+.box.bestpractice .box-title{color:var(--teal);}
+.box.story{background:#F9FAFB;border-color:var(--border);border-left:4px solid var(--purple);}
+
+.story p{margin:0 0 10px;}
+.story .quote{font-style:italic;color:#374151;border-left:3px solid var(--purple);padding-left:12px;margin:10px 0;}
+
+.term{background:#0F172A;color:#E2E8F0;border-radius:10px;margin:14px 0;overflow:hidden;border:1px solid #1E293B;}
+.term-header{display:flex;justify-content:space-between;align-items:center;background:#1E293B;padding:8px 14px;font-size:12px;color:#94A3B8;}
+.copy-btn{background:#334155;color:#E2E8F0;border:none;border-radius:6px;padding:4px 10px;font-size:11.5px;cursor:pointer;}
+.copy-btn:hover{background:#475569;}
+.term pre{margin:0;padding:14px 16px;overflow-x:auto;font-size:13.5px;line-height:1.6;}
+.term .cmdno{color:#64748B;margin-right:8px;}
+.term .cmd{color:#7DD3FC;}
+.term .out{color:#CBD5E1;}
+.term .out-err{color:#FCA5A5;}
+.term .out-ok{color:#86EFAC;}
+.term .comment{color:#64748B;}
+
+table.breakdown{width:100%;border-collapse:collapse;margin:12px 0 20px;font-size:14px;}
+table.breakdown th{background:#F3F4F6;text-align:left;padding:8px 10px;font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);}
+table.breakdown td{padding:9px 10px;border-top:1px solid var(--border);vertical-align:top;}
+table.breakdown td.token{font-family:monospace;color:var(--blue);font-weight:700;white-space:nowrap;}
+
+details.collapse{border:1px solid var(--border);border-radius:10px;margin:14px 0;overflow:hidden;}
+details.collapse summary{cursor:pointer;padding:12px 16px;font-weight:600;background:#F9FAFB;list-style:none;display:flex;align-items:center;gap:8px;}
+details.collapse summary::-webkit-details-marker{display:none;}
+details.collapse summary:before{content:"▶";font-size:11px;color:var(--muted);transition:transform .15s;}
+details.collapse[open] summary:before{transform:rotate(90deg);}
+details.collapse .collapse-body{padding:4px 16px 16px;}
+
+.diagram-frame{background:#FAFAFA;border:1px solid var(--border);border-radius:12px;padding:18px;margin:16px 0;overflow-x:auto;}
+.diagram-caption{font-size:12.5px;color:var(--muted);text-align:center;margin-top:8px;}
+
+table.ref{width:100%;border-collapse:collapse;font-size:14px;margin:14px 0;}
+table.ref th{background:#F3F4F6;padding:8px 10px;text-align:left;font-size:12.5px;}
+table.ref td{padding:8px 10px;border-top:1px solid var(--border);}
+
+.dtree{list-style:none;padding-left:0;font-size:14px;}
+.dtree li{padding:8px 12px;margin-bottom:6px;border-radius:8px;border:1px solid var(--border);position:relative;}
+.dtree li.q{background:var(--blue-bg);}
+.dtree li.ok{background:var(--green-bg);}
+.dtree li.bad{background:var(--red-bg);}
+.dtree .arrow{text-align:center;color:var(--muted);font-size:12px;margin:2px 0;}
+
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin:16px 0;}
+.card{border:1px solid var(--border);border-radius:10px;padding:14px 16px;}
+.card h4{margin:0 0 6px;font-size:14.5px;}
+.card p{margin:0;font-size:13.5px;color:var(--muted);}
+
+.qa{border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin:12px 0;background:#FCFCFD;}
+.qa .q{font-weight:700;color:#111827;margin-bottom:6px;}
+.qa .q .qtag{background:var(--purple);color:#fff;font-size:10.5px;padding:2px 8px;border-radius:10px;margin-right:8px;text-transform:uppercase;}
+.qa .followup{margin-top:8px;padding-top:8px;border-top:1px dashed var(--border);font-size:13.5px;color:var(--muted);}
+
+.top-link{position:fixed;bottom:22px;right:22px;background:var(--blue);color:#fff;width:42px;height:42px;border-radius:50%;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(0,0,0,.15);font-size:18px;}
+.top-link:hover{text-decoration:none;background:#1D4ED8;}
+
+@media (max-width:900px){
+  .sidebar{display:none;}
+  .content{padding:22px 18px 80px;}
+}
+</style>
+</head>
+<body>
+
+<div class="cover">
+  <div class="cover-inner">
+    <div class="badge-row">
+      <span class="badge blue">Project 4 of ~38</span>
+      <span class="badge purple">Linux Networking Masterclass</span>
+      <span class="badge teal">Domain: DevOps / CI-CD</span>
+      <span class="badge orange">Difficulty: Intermediate</span>
+    </div>
+    <h1>TCP Connection Troubleshooting</h1>
+    <div class="subtitle">A CI/CD pipeline server is slowly running out of file descriptors, and some build jobs hang forever waiting to reach the internal artifact registry. Time to actually understand the TCP state machine instead of just recognizing "ESTAB" and "LISTEN".</div>
+    <div class="cover-meta">
+      <div class="meta-card"><div class="label">Estimated Lab Time</div><div class="value">3 – 4 hours</div></div>
+      <div class="meta-card"><div class="label">Prerequisites</div><div class="value">Projects 1–3 completed</div></div>
+      <div class="meta-card"><div class="label">Lab Environment</div><div class="value">2 namespaces, Python test servers, tcpdump</div></div>
+      <div class="meta-card"><div class="label">Concepts Learned</div><div class="value">TCP states, handshake, teardown, RST, CLOSE_WAIT, TIME_WAIT, backlog</div></div>
+    </div>
+  </div>
+</div>
+
+<div class="layout">
+  <nav class="sidebar" id="sidebar">
+    <div class="progress-wrap">
+      <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+      <div class="progress-label" id="progressLabel">0% through Project 4</div>
+    </div>
+    <h4>Orientation</h4>
+    <a href="#story">1. The Incident</a>
+    <a href="#foundation">2. TCP State Foundation</a>
+    <a href="#architecture">3. Handshake &amp; Teardown</a>
+    <a href="#statetable">4. The Full State Table</a>
+    <a href="#methodology">5. Troubleshooting Method</a>
+    <h4>Hands-On Lab</h4>
+    <a href="#labsetup">6. Lab Setup</a>
+    <a href="#verify">7. Verify Baseline</a>
+    <h4>Break / Fix (4 Incidents)</h4>
+    <a href="#break1">8. Stuck in SYN-SENT</a>
+    <a href="#break2">9. Connection Reset (RST)</a>
+    <a href="#break3">10. CLOSE_WAIT Accumulation</a>
+    <a href="#break4">11. TIME_WAIT Growth</a>
+    <h4>Wrap-Up</h4>
+    <a href="#bestpractices">12. Best Practices</a>
+    <a href="#cheatsheet">13. Cheat Sheet</a>
+    <a href="#interview">14. Interview Prep</a>
+    <a href="#practice">15. Practice Tasks</a>
+    <a href="#resume">16. Resume Points</a>
+    <a href="#next">17. Next Project</a>
+  </nav>
+
+  <main class="content">
+
+  <section id="story">
+    <h2 class="sec-title"><span class="num">1</span>The Incident</h2>
+    <div class="box story">
+      <p>We support the DevOps platform team's CI/CD infrastructure. Build agents on <code>ci-runner-03</code> pull dependencies from an internal artifact registry over TCP. Two separate but related symptoms have been reported this week.</p>
+      <p class="quote">"Some build jobs just hang forever trying to reach the artifact registry — no error, they just never finish. Separately, our monitoring says ci-runner-03 is slowly running out of available file descriptors and has to be restarted every few days. Nobody can explain either one."</p>
+      <p>Both symptoms are TCP state problems in disguise. To find them, we need to stop thinking of TCP connections as "working" or "not working" and start thinking of them as a state machine — a connection is always in one specific, nameable state, and the state itself tells you exactly what's wrong.</p>
+    </div>
+    <div class="box concept">
+      <div class="box-title">🔵 Why this project matters</div>
+      <p>Every "hung connection," "resource exhaustion," or "connection reset" ticket you'll ever get as a Linux/DevOps engineer is really a question about which TCP state a connection is stuck in and why. Being able to read <code>ss</code> output and instantly know whether you're looking at a client problem, a server problem, or an application bug is one of the highest-leverage skills in this entire masterclass.</p>
+    </div>
+  </section>
+
+  <section id="foundation">
+    <h2 class="sec-title"><span class="num">2</span>TCP State Foundation</h2>
+
+    <h3>2.1 A TCP connection is a state machine, not a boolean</h3>
+    <div class="box concept">
+      <div class="box-title">🔵 Concept</div>
+      <p>"Connected" isn't one state — it's the end result of a sequence of states the kernel walks through, and both sides of a connection track their own state independently. Every packet exchanged (SYN, SYN-ACK, ACK, FIN, RST) is a trigger that moves a connection from one state to the next. If you know the current state, you know exactly what has and hasn't happened yet.</p>
+    </div>
+
+    <h3>2.2 The three-way handshake, revisited with state names</h3>
+    <div class="box concept">
+      <div class="box-title">🔵 Concept</div>
+      <p>Client sends SYN, and its state becomes <b>SYN-SENT</b>. Server receives it, replies SYN-ACK, and its state becomes <b>SYN-RECEIVED</b>. Client receives the SYN-ACK, sends the final ACK, and both sides move to <b>ESTABLISHED</b>. A connection stuck in SYN-SENT means the client is still waiting for a SYN-ACK that never arrived — the exact symptom our CI runner is showing.</p>
+    </div>
+
+    <h3>2.3 Closing a connection takes FOUR steps, not one</h3>
+    <div class="box concept">
+      <div class="box-title">🔵 Concept</div>
+      <p>Unlike opening (3 steps), closing a TCP connection is a 4-way process because each side must close its own direction of the conversation independently. Side A sends FIN ("I'm done sending"), Side B acknowledges it and moves to <b>CLOSE-WAIT</b> — meaning "the other side is done, but I might still have data to send, and my application hasn't called close() yet." Side B eventually sends its own FIN, Side A acknowledges, and Side A enters <b>TIME-WAIT</b> for a cooldown period before fully closing.</p>
+    </div>
+
+    <h3>2.4 CLOSE-WAIT is an application bug, not a network bug</h3>
+    <div class="box concept">
+      <div class="box-title">🔵 Concept</div>
+      <p>This is one of the most important facts in this entire project: a connection sitting in CLOSE-WAIT means the remote side has already said "I'm done" (sent FIN), but OUR OWN application process has not yet called <code>close()</code> on its socket. It is never a network problem — a connection cannot get stuck in CLOSE-WAIT because of a firewall or routing issue. It is always, 100% of the time, a local application that forgot to close a socket.</p>
+    </div>
+
+    <h3>2.5 TIME-WAIT exists on purpose — it's not a bug</h3>
+    <div class="box concept">
+      <div class="box-title">🔵 Concept</div>
+      <p>After a connection fully closes on the side that initiated the close, the kernel holds it in TIME-WAIT for a cooldown period (commonly 60 seconds, tunable) to guarantee any last, delayed duplicate packets from the old connection can't be confused with a brand-new connection reusing the same ports. A moderate number of TIME-WAIT connections is completely normal and healthy. A very large, growing number usually means an application is opening huge numbers of very short-lived connections instead of reusing them.</p>
+    </div>
+  </section>
+
+  <section id="architecture">
+    <h2 class="sec-title"><span class="num">3</span>Handshake &amp; Teardown, Visualized</h2>
+    <div class="diagram-frame">
+<svg viewBox="0 0 820 420" xmlns="http://www.w3.org/2000/svg" width="100%">
+<style>
+  .lbl{font:600 12.5px sans-serif;fill:#1F2937;}
+  .st{font:11px sans-serif;fill:#7C3AED;font-weight:600;}
+  .pk{font:11px sans-serif;fill:#2563EB;}
+  .lineC{stroke:#9CA3AF;stroke-width:1.4;stroke-dasharray:3,3;}
+  .arrP{stroke:#374151;stroke-width:2;marker-end:url(#a6);}
+</style>
+<defs><marker id="a6" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#374151"/></marker></defs>
+
+<text x="150" y="24" text-anchor="middle" class="lbl">CLIENT (ci-runner-03)</text>
+<text x="650" y="24" text-anchor="middle" class="lbl">SERVER (artifact registry)</text>
+<line x1="150" y1="34" x2="150" y2="400" class="lineC"/>
+<line x1="650" y1="34" x2="650" y2="400" class="lineC"/>
+
+<line x1="150" y1="60" x2="650" y2="90" class="arrP"/>
+<text x="400" y="55" text-anchor="middle" class="pk">SYN →</text>
+<text x="160" y="78" class="st">state: SYN-SENT</text>
+
+<line x1="650" y1="110" x2="150" y2="140" class="arrP"/>
+<text x="400" y="105" text-anchor="middle" class="pk">← SYN-ACK</text>
+<text x="500" y="128" class="st">state: SYN-RECEIVED</text>
+
+<line x1="150" y1="160" x2="650" y2="190" class="arrP"/>
+<text x="400" y="155" text-anchor="middle" class="pk">ACK →</text>
+<text x="160" y="178" class="st">state: ESTABLISHED</text>
+<text x="500" y="205" class="st">state: ESTABLISHED</text>
+
+<text x="400" y="235" text-anchor="middle" class="lbl">— data transfer —</text>
+
+<line x1="650" y1="260" x2="150" y2="290" class="arrP"/>
+<text x="400" y="255" text-anchor="middle" class="pk">← FIN (server done sending)</text>
+<text x="160" y="308" class="st">state: CLOSE-WAIT</text>
+
+<line x1="150" y1="320" x2="650" y2="350" class="arrP"/>
+<text x="400" y="315" text-anchor="middle" class="pk">ACK →</text>
+
+<line x1="150" y1="340" x2="650" y2="370" class="arrP"/>
+<text x="400" y="335" text-anchor="middle" class="pk">FIN → (client done too, after app calls close())</text>
+<text x="160" y="358" class="st">state: TIME-WAIT (60s cooldown)</text>
+
+<line x1="650" y1="380" x2="150" y2="400" class="arrP"/>
+<text x="400" y="375" text-anchor="middle" class="pk">← ACK</text>
+<text x="500" y="395" class="st">state: CLOSED</text>
+</svg>
+    </div>
+    <div class="diagram-caption">Figure 1 — Full lifecycle of one connection. Notice CLOSE-WAIT appears on the side that received the FIN but hasn't closed its own socket yet — in our incident, that's ci-runner-03's build-agent process.</div>
+  </section>
+
+  <section id="statetable">
+    <h2 class="sec-title"><span class="num">4</span>The Full TCP State Table</h2>
+    <table class="ref">
+      <tr><th>State</th><th>Meaning</th><th>Who typically sees it</th></tr>
+      <tr><td><code>LISTEN</code></td><td>A socket is bound and waiting to accept new incoming connections.</td><td>Server only</td></tr>
+      <tr><td><code>SYN-SENT</code></td><td>We sent a SYN and are waiting for a SYN-ACK reply.</td><td>Client (connection initiator)</td></tr>
+      <tr><td><code>SYN-RECEIVED</code></td><td>We received a SYN, replied with SYN-ACK, waiting for the final ACK.</td><td>Server</td></tr>
+      <tr><td><code>ESTABLISHED</code></td><td>Handshake complete — normal, healthy, data-flowing state.</td><td>Both sides</td></tr>
+      <tr><td><code>FIN-WAIT-1</code></td><td>We sent a FIN (we're done sending) and are waiting for it to be acknowledged.</td><td>The side that closes first</td></tr>
+      <tr><td><code>FIN-WAIT-2</code></td><td>Our FIN was acknowledged; now waiting for the other side's own FIN.</td><td>The side that closed first</td></tr>
+      <tr><td><code>CLOSE-WAIT</code></td><td>The other side sent FIN; we haven't called close() on our own socket yet. <b>Always an application-layer issue.</b></td><td>The side that receives FIN first</td></tr>
+      <tr><td><code>LAST-ACK</code></td><td>We sent our own FIN (after CLOSE-WAIT) and are waiting for the final ACK.</td><td>The side that closed second</td></tr>
+      <tr><td><code>TIME-WAIT</code></td><td>Fully closed on our side; holding briefly to catch any stray duplicate packets.</td><td>The side that closed first (normal, active closer)</td></tr>
+      <tr><td><code>CLOSED</code></td><td>No connection exists — the theoretical starting/ending state.</td><td>Both, before/after</td></tr>
+    </table>
+  </section>
+
+  <section id="methodology">
+    <h2 class="sec-title"><span class="num">5</span>Troubleshooting Method for TCP State Incidents</h2>
+    <ul class="dtree">
+      <li class="q">1. Reproduce and immediately capture the connection's state with ss -tn state &lt;state&gt;</li>
+      <div class="arrow">↓</div>
+      <li class="q">2. SYN-SENT stuck? → suspect firewall drop / routing black hole (revisit Projects 1 &amp; 2's method)</li>
+      <div class="arrow">↓</div>
+      <li class="q">3. Seeing RST via tcpdump? → something actively refused or reset the connection — check firewall REJECT rules and app crash logs</li>
+      <div class="arrow">↓</div>
+      <li class="q">4. Large/growing CLOSE-WAIT count? → this is always local — check which PID owns those sockets and why it isn't calling close()</li>
+      <div class="arrow">↓</div>
+      <li class="q">5. Large/growing TIME-WAIT count? → check for excessive short-lived connection churn; consider connection reuse/pooling</li>
+      <div class="arrow">↓</div>
+      <li class="ok">Match the exact state to the exact cause — never guess "it's probably the network" without checking ss first</li>
+    </ul>
+    <div class="box warning"><div class="box-title">🟠 Warning</div><p>CLOSE-WAIT accumulation is one of the most commonly misdiagnosed production issues — engineers often blame "the network" or "the other server," when the fix is almost always in their OWN application's connection-handling code.</p></div>
+  </section>
+
+  <section id="labsetup">
+    <h2 class="sec-title"><span class="num">6</span>Lab Setup</h2>
+    <div class="term">
+      <div class="term-header"><span>bash — run as root/sudo</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button></div>
+      <pre><span class="cmdno">1</span><span class="cmd">sudo ip netns add ns-runner</span>
+<span class="cmdno">2</span><span class="cmd">sudo ip netns add ns-registry</span>
+<span class="cmdno">3</span><span class="cmd">sudo ip link add veth-runner type veth peer name veth-registry</span>
+<span class="cmdno">4</span><span class="cmd">sudo ip link set veth-runner netns ns-runner</span>
+<span class="cmdno">5</span><span class="cmd">sudo ip link set veth-registry netns ns-registry</span>
+<span class="cmdno">6</span><span class="cmd">sudo ip netns exec ns-runner ip addr add 10.40.1.10/24 dev veth-runner</span>
+<span class="cmdno">7</span><span class="cmd">sudo ip netns exec ns-registry ip addr add 10.40.1.20/24 dev veth-registry</span>
+<span class="cmdno">8</span><span class="cmd">sudo ip netns exec ns-runner ip link set veth-runner up</span>
+<span class="cmdno">9</span><span class="cmd">sudo ip netns exec ns-registry ip link set veth-registry up</span>
+<span class="cmdno">10</span><span class="cmd">for ns in ns-runner ns-registry; do sudo ip netns exec $ns ip link set lo up; done</span></pre>
+    </div>
+    <p>We'll use a tiny Python TCP server that we can control precisely — including making it deliberately misbehave (never calling close()) to reproduce CLOSE-WAIT on demand.</p>
+    <div class="term">
+      <div class="term-header"><span>bash — create the misbehaving server script on ns-registry</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button></div>
+      <pre><span class="cmdno">1</span><span class="cmd">sudo ip netns exec ns-registry bash -c "cat > /tmp/leaky_server.py" &lt;&lt;'EOF'
+import socket
+s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+s.bind(('10.40.1.20', 9443))
+s.listen(50)
+print("listening on 9443")
+conns = []
+while True:
+    c, addr = s.accept()
+    print("accepted", addr, "- never closing it")
+    conns.append(c)   # BUG: we accept but never call c.close()
+EOF</span></pre>
+    </div>
+    <table class="breakdown">
+      <tr><th>Token</th><th>Meaning</th></tr>
+      <tr><td class="token">s.listen(50)</td><td>Sets the accept backlog to 50 — the maximum number of fully-handshaked connections the kernel will queue waiting for our application to call accept().</td></tr>
+      <tr><td class="token">conns.append(c)</td><td>The deliberate bug: we keep every accepted connection object alive in a list but never call <code>.close()</code> on it — this is exactly the pattern that leaves sockets in CLOSE-WAIT in real production code, often caused by an exception path that skips a cleanup/finally block.</td></tr>
+    </table>
+  </section>
+
+  <section id="verify">
+    <h2 class="sec-title"><span class="num">7</span>Verify the Baseline</h2>
+    <div class="term">
+      <div class="term-header"><span>bash — on ns-registry, start a HEALTHY server for baseline testing</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button></div>
+      <pre><span class="cmdno">1</span><span class="cmd">sudo ip netns exec ns-registry python3 -m http.server 9443 --bind 10.40.1.20 &amp;</span>
+<span class="cmdno">2</span><span class="cmd">sudo ip netns exec ns-runner curl -s -o /dev/null -w "%{http_code}\n" http://10.40.1.20:9443/</span>
+<span class="out-ok">    200</span>
+<span class="cmdno">3</span><span class="cmd">sudo ip netns exec ns-registry ss -tn state established</span>
+<span class="out-ok">    (connection appears briefly, then disappears after the request completes — healthy)</span></pre>
+    </div>
+    <div class="box success"><div class="box-title">🟢 Validation</div><p>Requests complete quickly and connections don't accumulate anywhere. This is our known-good baseline.</p></div>
+  </section>
+
+  <!-- BREAK 1 -->
+  <section id="break1">
+    <h2 class="sec-title"><span class="num">8</span>Break-Fix #1 — Stuck in SYN-SENT</h2>
+    <div class="box failure"><div class="box-title">🔴 Break It</div><p>Stop the registry server and add a firewall DROP rule so the SYN just disappears (same underlying cause as Project 1's firewall break, but now we read it through the TCP-state lens specifically).</p></div>
+    <div class="term">
+      <div class="term-header"><span>bash — on ns-registry</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button></div>
+      <pre><span class="cmdno">1</span><span class="cmd">sudo ip netns exec ns-registry iptables -A INPUT -p tcp --dport 9443 -j DROP</span></pre>
+    </div>
+    <h3>Observe from the client</h3>
+    <div class="term">
+      <div class="term-header"><span>bash — on ns-runner, in one terminal start a connection attempt, in another watch its state</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button></div>
+      <pre><span class="cmdno">1</span><span class="cmd">sudo ip netns exec ns-runner curl --max-time 20 http://10.40.1.20:9443/ &amp;</span>
+<span class="cmdno">2</span><span class="cmd">sudo ip netns exec ns-runner ss -tn state syn-sent</span>
+<span class="out-err">    SYN-SENT 0  1  10.40.1.10:51222  10.40.1.20:9443</span></pre>
+    </div>
+    <table class="breakdown">
+      <tr><th>Token</th><th>Meaning</th></tr>
+      <tr><td class="token">ss -tn state syn-sent</td><td>Filters socket output to show ONLY connections currently in the SYN-SENT state — extremely useful for finding exactly which stuck connections are affecting a host during an incident.</td></tr>
+    </table>
+    <div class="box concept"><div class="box-title">🔵 Reading the symptom</div><p>The connection sits in SYN-SENT — the kernel is retransmitting the SYN a few times internally (visible in tcpdump as repeated SYN packets a few seconds apart, with increasing backoff) before eventually giving up. This is exactly what "build jobs just hang" looks like — the process isn't frozen, it's legitimately still waiting on a TCP handshake that will never complete.</p></div>
+    <div class="box failure"><div class="box-title">🔴 Root Cause</div><p>A firewall rule silently dropped the SYN packet, so the handshake could never progress past its very first step.</p></div>
+    <div class="term">
+      <div class="term-header"><span>bash — fix</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button></div>
+      <pre><span class="cmdno">1</span><span class="cmd">sudo ip netns exec ns-registry iptables -D INPUT -p tcp --dport 9443 -j DROP</span></pre>
+    </div>
+  </section>
+
+  <!-- BREAK 2 -->
+  <section id="break2">
+    <h2 class="sec-title"><span class="num">9</span>Break-Fix #2 — Connection Reset (RST)</h2>
+    <div class="box failure"><div class="box-title">🔴 Break It</div><p>Instead of DROP, use REJECT — which sends an active RST back instead of staying silent. This simulates either a firewall explicitly refusing the connection, or a server-side crash mid-handshake.</p></div>
+    <div class="term">
+      <div class="term-header"><span>bash — on ns-registry, make sure the healthy server is stopped first</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button></div>
+      <pre><span class="cmdno">1</span><span class="cmd">sudo ip netns exec ns-registry iptables -A INPUT -p tcp --dport 9443 -j REJECT --reject-with tcp-reset</span></pre>
+    </div>
+    <h3>Observe</h3>
+    <div class="term">
+      <div class="term-header"><span>bash — on ns-runner</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button></div>
+      <pre><span class="cmdno">1</span><span class="cmd">sudo ip netns exec ns-runner curl -v http://10.40.1.20:9443/</span>
+<span class="out-err">    curl: (56) Recv failure: Connection reset by peer</span>
+<span class="cmdno">2</span><span class="cmd">sudo ip netns exec ns-registry tcpdump -i veth-registry -nn 'tcp port 9443'</span>
+<span class="out">    ...Flags [S]...
+    ...Flags [R.]  ← RST-ACK sent back immediately</span></pre>
+    </div>
+    <div class="box concept"><div class="box-title">🔵 Reading the symptom</div><p>Unlike Break #1 (silence, then timeout), this fails immediately with an explicit reset. "Connection reset by peer" always means some machine — client, server, or something in between like a firewall or load balancer — actively and deliberately terminated the connection, as opposed to the packet simply vanishing. This distinction (RST vs. silence) is one of the fastest ways to know whether to investigate a firewall DROP rule or a firewall REJECT rule / crashing service.</p></div>
+    <div class="box failure"><div class="box-title">🔴 Root Cause</div><p>A firewall REJECT rule (or, in a real incident, potentially a crashing/restarting service) actively sent a TCP reset instead of allowing the connection.</p></div>
+    <div class="term">
+      <div class="term-header"><span>bash — fix</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button></div>
+      <pre><span class="cmdno">1</span><span class="cmd">sudo ip netns exec ns-registry iptables -D INPUT -p tcp --dport 9443 -j REJECT --reject-with tcp-reset</span></pre>
+    </div>
+  </section>
+
+  <!-- BREAK 3 -->
+  <section id="break3">
+    <h2 class="sec-title"><span class="num">10</span>Break-Fix #3 — CLOSE_WAIT Accumulation (the File-Descriptor Leak)</h2>
+    <div class="box failure"><div class="box-title">🔴 Break It</div><p>Start our deliberately buggy leaky_server.py from Section 6, then send it several requests and close the CLIENT side each time — but the server never calls close(), so its side of each connection piles up in CLOSE-WAIT.</p></div>
+    <div class="term">
+      <div class="term-header"><span>bash — on ns-registry</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button></div>
+      <pre><span class="cmdno">1</span><span class="cmd">sudo ip netns exec ns-registry python3 /tmp/leaky_server.py &amp;</span></pre>
+    </div>
+    <div class="term">
+      <div class="term-header"><span>bash — on ns-runner, open and close several connections</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button></div>
+      <pre><span class="cmdno">1</span><span class="cmd">for i in 1 2 3 4 5; do sudo ip netns exec ns-runner bash -c "exec 3&lt;&gt;/dev/tcp/10.40.1.20/9443; exec 3&lt;&amp;-"; done</span></pre>
+    </div>
+    <h3>Observe</h3>
+    <div class="term">
+      <div class="term-header"><span>bash — on ns-registry</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button></div>
+      <pre><span class="cmdno">1</span><span class="cmd">sudo ip netns exec ns-registry ss -tn state close-wait</span>
+<span class="out-err">    CLOSE-WAIT  0  0  10.40.1.20:9443  10.40.1.10:51301
+    CLOSE-WAIT  0  0  10.40.1.20:9443  10.40.1.10:51305
+    CLOSE-WAIT  0  0  10.40.1.20:9443  10.40.1.10:51309
+    ... (one per client connection, and it keeps growing)</span>
+<span class="cmdno">2</span><span class="cmd">sudo ip netns exec ns-registry ss -tnp state close-wait</span>
+<span class="out">    ... users:(("python3",pid=4821,fd=7))</span></pre>
+    </div>
+    <table class="breakdown">
+      <tr><th>Token</th><th>Meaning</th></tr>
+      <tr><td class="token">ss -tnp state close-wait</td><td>Same filter as before, plus <code>-p</code> to reveal exactly which process (PID and name) owns each stuck socket — this is how you find the guilty application in a real incident with many processes running.</td></tr>
+    </table>
+    <div class="box concept"><div class="box-title">🔵 Reading the symptom</div><p>Every client already closed its side cleanly — but the count of CLOSE-WAIT sockets on the SERVER keeps growing with every new request, and each one holds an open file descriptor for as long as the process runs. This is precisely the "slowly running out of file descriptors" symptom from the incident report — it's a slow leak, one unclosed connection at a time, and it is 100% caused by application code on ns-registry, not by ci-runner-03, the network, or the firewall.</p></div>
+    <div class="box failure"><div class="box-title">🔴 Root Cause</div><p>The server application accepted connections but never called close() on them after use — likely an error-handling path in real code that skips cleanup — leaving every finished connection permanently parked in CLOSE-WAIT, consuming a file descriptor forever.</p></div>
+    <div class="box bestpractice">
+      <div class="box-title">🟦 Fix — this is a code fix, not a network fix</div>
+      <p>The real fix is in the application: always close sockets in a <code>finally</code> block (or use a context manager / connection pool with proper lifecycle handling) so a connection is closed no matter which code path finishes. For this lab, kill the leaky server and restart the healthy one from Section 7 to represent the deployed fix.</p>
+      <div class="term">
+        <div class="term-header"><span>bash — stop the leaky server</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button></div>
+        <pre><span class="cmdno">1</span><span class="cmd">sudo ip netns exec ns-registry pkill -f leaky_server.py</span></pre>
+      </div>
+    </div>
+    <div class="box success"><div class="box-title">🟢 Validate</div><p>Re-run <code>ss -tn state close-wait</code> — the list should now be empty (or non-growing) after deploying a server that properly closes its sockets.</p></div>
+  </section>
+
+  <!-- BREAK 4 -->
+  <section id="break4">
+    <h2 class="sec-title"><span class="num">11</span>Break-Fix #4 — TIME-WAIT Growth from Connection Churn</h2>
+    <div class="box failure"><div class="box-title">🔴 Break It</div><p>Simulate a build script that opens a brand-new short-lived connection for every tiny operation instead of reusing one connection — a very common anti-pattern in scripts calling an API in a tight loop.</p></div>
+    <div class="term">
+      <div class="term-header"><span>bash — on ns-registry, healthy server running from Section 7</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button></div>
+      <pre><span class="cmdno">1</span><span class="cmd">sudo ip netns exec ns-runner bash -c "for i in \$(seq 1 40); do curl -s -o /dev/null http://10.40.1.20:9443/; done"</span></pre>
+    </div>
+    <h3>Observe</h3>
+    <div class="term">
+      <div class="term-header"><span>bash — on ns-runner, immediately after</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button></div>
+      <pre><span class="cmdno">1</span><span class="cmd">sudo ip netns exec ns-runner ss -tn state time-wait | wc -l</span>
+<span class="out-err">    41</span></pre>
+    </div>
+    <div class="box concept"><div class="box-title">🔵 Reading the symptom</div><p>Each of those 40 curl calls opened a brand-new TCP connection, used it once, and closed it — leaving 40 connections parked in TIME-WAIT on the client (each holding a local ephemeral port for the cooldown period). This is harmless at small scale, but at high volume — think a build script hammering an API thousands of times per minute — TIME-WAIT entries can exhaust the available local ephemeral port range, causing brand-new connection attempts to fail with "cannot assign requested address," which looks like a totally unrelated networking failure.</p></div>
+    <div class="box failure"><div class="box-title">🔴 Root Cause</div><p>The client script opened a new short-lived TCP connection per request instead of reusing a persistent connection, causing unnecessary TIME-WAIT churn.</p></div>
+    <div class="box bestpractice">
+      <div class="box-title">🟦 Fix — connection reuse, not a kernel tweak</div>
+      <p>The durable fix is at the application level: use HTTP keep-alive / a connection pool (e.g. curl's <code>-K</code> reused connections, or a requests.Session() in Python, or an HTTP client with pooling) so many requests share one TCP connection instead of opening a new one each time.</p>
+      <div class="term">
+        <div class="term-header"><span>bash — demonstrate connection reuse with curl</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button></div>
+        <pre><span class="cmdno">1</span><span class="cmd">sudo ip netns exec ns-runner curl -s -o /dev/null http://10.40.1.20:9443/ http://10.40.1.20:9443/ http://10.40.1.20:9443/</span>
+<span class="comment"># curl automatically reuses one connection across multiple URLs to the same host in a single invocation</span></pre>
+      </div>
+    </div>
+    <div class="box warning"><div class="box-title">🟠 Note on kernel tuning</div><p>Tunables like <code>net.ipv4.tcp_tw_reuse</code> exist and can help in specific, well-understood cases, but reducing unnecessary connection churn at the application level is almost always the better and safer first fix — we'll cover these sysctl tunables properly in the Performance Troubleshooting phase later in this masterclass.</p></div>
+  </section>
+
+  <section id="bestpractices">
+    <h2 class="sec-title"><span class="num">12</span>Production Best Practices</h2>
+    <div class="cards">
+      <div class="card"><h4>🟦 Filter ss by state</h4><p>ss -tn state &lt;state&gt; is far faster than scrolling through every connection — learn to jump straight to the state you're investigating.</p></div>
+      <div class="card"><h4>🟦 CLOSE-WAIT is always your code</h4><p>Never spend time blaming the network or the remote server for CLOSE-WAIT accumulation — go straight to the local process holding the socket.</p></div>
+      <div class="card"><h4>🟦 RST vs silence tells you where to look</h4><p>An explicit reset means something actively intervened; silence means the packet vanished — these point you toward completely different root causes.</p></div>
+      <div class="card"><h4>🟦 Prefer connection reuse for high-volume clients</h4><p>Scripts and services making many rapid requests to the same host should use keep-alive/pooling to avoid unnecessary TIME-WAIT churn and ephemeral port exhaustion.</p></div>
+      <div class="card"><h4>🟦 Always confirm with -p</h4><p>ss -tnp tells you exactly which PID owns a problem socket — essential for finding the guilty process quickly during an incident.</p></div>
+    </div>
+  </section>
+
+  <section id="cheatsheet">
+    <h2 class="sec-title"><span class="num">13</span>Troubleshooting Cheat Sheet</h2>
+    <table class="ref">
+      <tr><th>Symptom</th><th>State to Check</th><th>Likely Cause</th></tr>
+      <tr><td>Connection hangs, no error</td><td>SYN-SENT</td><td>Firewall drop or routing black hole (client side)</td></tr>
+      <tr><td>Immediate "connection reset by peer"</td><td>N/A — check tcpdump for RST flag</td><td>Firewall REJECT rule, or remote app crash</td></tr>
+      <tr><td>File descriptors slowly exhausted over time</td><td>CLOSE-WAIT (growing count)</td><td>Local application not calling close() on sockets</td></tr>
+      <tr><td>New connections fail under high request volume</td><td>TIME-WAIT (very large count)</td><td>Excessive short-lived connection churn; needs connection reuse</td></tr>
+    </table>
+  </section>
+
+  <section id="interview">
+    <h2 class="sec-title"><span class="num">14</span>Interview Preparation</h2>
+
+    <div class="qa"><div class="q"><span class="qtag">Scenario</span>A server is slowly running out of file descriptors and you notice thousands of connections in CLOSE-WAIT. What's your diagnosis?</div>
+    <p>CLOSE-WAIT means the remote side already sent a FIN and closed their end, but our local application never called close() on its socket. It's always a local application bug, never a network issue. I'd use ss -tnp state close-wait to find exactly which process and PID owns those sockets, then look at that application's connection handling code — usually the fix is making sure sockets are closed in a finally block or equivalent so cleanup happens even on error paths.</p>
+    <div class="followup">Interviewer follow-up: "Could restarting the service fix it temporarily?" — Answer: yes, restarting releases all the leaked file descriptors immediately, but that's a mitigation, not a fix — the leak will return at the same rate until the underlying code is patched to properly close connections.</div>
+    </div>
+
+    <div class="qa"><div class="q"><span class="qtag">TCP/IP</span>Explain the difference between a connection stuck in SYN-SENT versus one that receives an immediate RST.</div>
+    <p>SYN-SENT stuck means our SYN packet went out but nothing ever came back — commonly a firewall silently dropping the packet or a routing issue, and it fails slowly via timeout. An immediate RST means a machine somewhere actively refused or terminated the connection right away — commonly a firewall REJECT rule, a service that isn't listening, or an application crash mid-handshake. The key distinguishing factor is silence versus an explicit, fast response.</p>
+    </div>
+
+    <div class="qa"><div class="q"><span class="qtag">Concept</span>Why does TCP need a four-step close instead of just closing both sides at once?</div>
+    <p>Because each direction of a TCP connection is independent — one side might be done sending but still willing to receive more data. The four-way close lets each side announce "I'm done sending" (FIN) separately, so a connection can be half-closed instead of forcing both directions to end at the exact same moment.</p>
+    </div>
+
+    <div class="qa"><div class="q"><span class="qtag">Production</span>What would you check if you saw a very high number of TIME-WAIT connections on a client host?</div>
+    <p>I'd first confirm it's actually a problem and not just healthy high-volume traffic — some TIME-WAIT is completely normal. If it's growing to the point of exhausting the local ephemeral port range, I'd look at whether the application is opening a new connection per request instead of reusing connections via keep-alive or a connection pool, since that's the most common and most correct fix, rather than jumping straight to kernel-level tunables.</p>
+    </div>
+  </section>
+
+  <section id="practice">
+    <h2 class="sec-title"><span class="num">15</span>Practice Tasks &amp; Break-Fix Challenge</h2>
+    <div class="box warning">
+      <div class="box-title">🟠 Practice Tasks</div>
+      <ol>
+        <li>Rebuild the runner/registry lab from memory, including the deliberately leaky Python server.</li>
+        <li>Reproduce all 4 break-fix scenarios, and for each, predict in writing which ss state filter you'd check FIRST before looking at the answer.</li>
+        <li>Modify leaky_server.py to properly close connections (add the missing close() call) and prove with ss -tn state close-wait that the leak is gone.</li>
+      </ol>
+    </div>
+    <div class="box failure">
+      <div class="box-title">🔴 Break-Fix Challenge</div>
+      <p>Have someone else apply exactly one of the four breaks without telling you which. Diagnose it cold using only ss (with state filters and -p), and tcpdump for flag-level detail — state your root cause before undoing the break.</p>
+    </div>
+  </section>
+
+  <section id="resume">
+    <h2 class="sec-title"><span class="num">16</span>Resume Points &amp; How to Explain This Project</h2>
+    <div class="box bestpractice">
+      <div class="box-title">🟦 Realistic resume bullet points</div>
+      <ul>
+        <li>Diagnosed TCP connection state issues on Linux including hung SYN-SENT connections, connection resets, CLOSE-WAIT file-descriptor leaks, and TIME-WAIT churn from connection-per-request anti-patterns.</li>
+        <li>Identified and root-caused a file-descriptor exhaustion issue traced to an application not closing TCP sockets, using ss state filtering and process-level socket ownership inspection.</li>
+        <li>Built a controlled Linux lab environment to safely reproduce and study the full TCP connection state machine, including handshake and four-way teardown behavior.</li>
+      </ul>
+    </div>
+    <div class="box concept">
+      <div class="box-title">🔵 Natural spoken interview answer</div>
+      <p>"I built a lab simulating a CI/CD runner talking to an internal registry, and used it to reproduce four different TCP connection problems — a connection stuck in SYN-SENT because of a firewall drop, an immediate connection reset from a firewall reject rule, a file-descriptor leak caused by a deliberately buggy server that never closed its sockets, which left connections stuck in CLOSE-WAIT, and TIME-WAIT growth from a script opening too many short-lived connections instead of reusing one. The biggest lesson was realizing that CLOSE-WAIT is always a local application problem, never a network problem, and that learning to filter ss output by exact TCP state turns a vague 'something's hanging' complaint into a precise, fast diagnosis."</p>
+    </div>
+  </section>
+
+  <section id="next">
+    <h2 class="sec-title"><span class="num">17</span>Next Project Prerequisites</h2>
+    <div class="box architecture">
+      <div class="box-title">🟣 Coming up in Project 5 — Packet Capture and Analysis</div>
+      <p>We'll go much deeper into tcpdump — filters, flags, capturing safely in production, and reading captures to answer questions this project's tools can only hint at, like exact retransmission timing and duplicate ACKs.</p>
+      <p>Say <b>"Next Project"</b> when you're ready to continue.</p>
+    </div>
+  </section>
+
+  </main>
+</div>
+
+<a href="#" class="top-link" title="Back to top">↑</a>
+
+<script>
+function copyBlock(btn){
+  const pre = btn.closest('.term').querySelector('pre');
+  const text = pre.innerText;
+  navigator.clipboard.writeText(text).then(()=>{
+    const old = btn.textContent;
+    btn.textContent = "Copied!";
+    setTimeout(()=>btn.textContent = old, 1400);
+  });
+}
+window.addEventListener('scroll', function(){
+  const sections = document.querySelectorAll('section');
+  const total = document.body.scrollHeight - window.innerHeight;
+  const pct = Math.min(100, Math.round((window.scrollY/total)*100));
+  document.getElementById('progressFill').style.width = pct + '%';
+  document.getElementById('progressLabel').textContent = pct + '% through Project 4';
+
+  let current = '';
+  sections.forEach(sec=>{
+    const rect = sec.getBoundingClientRect();
+    if(rect.top <= 120) current = sec.id;
+  });
+  document.querySelectorAll('.sidebar a').forEach(a=>{
+    a.style.background = '';
+    a.style.color = '';
+    a.style.fontWeight = '';
+    if(a.getAttribute('href') === '#'+current){
+      a.style.background = 'var(--blue-bg)';
+      a.style.color = 'var(--blue)';
+      a.style.fontWeight = '700';
+    }
+  });
+});
+</script>
+</body>
+</html>

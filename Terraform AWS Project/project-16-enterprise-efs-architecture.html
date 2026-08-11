@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Project 16 — Enterprise EFS Architecture | ABC Bank Terraform Mastery</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/10.9.0/mermaid.min.js"></script>
+<style>
+  :root{
+    --bg:#ffffff; --surface:#f7f5fc; --surface-2:#efeaf9; --border:#e3ddf4;
+    --primary:#6d28d9; --primary-dark:#4c1d95; --primary-light:#8b5cf6;
+    --accent-soft:#ede9fe; --text:#211b32; --muted:#6b6480;
+    --code-bg:#2b2140; --code-text:#e9e3fb;
+    --good:#0f7b52; --warn:#a8630a; --danger:#b3261e;
+    --radius:14px; --shadow:0 4px 20px rgba(109,40,217,0.08);
+  }
+  *{box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;font-size:16px;line-height:1.65;}
+  h1,h2,h3,h4{font-family:'Space Grotesk',sans-serif;color:var(--primary-dark);letter-spacing:-0.01em;}
+  a{color:var(--primary);}
+  .layout{display:flex;min-height:100vh;}
+  #sidebar{width:290px;flex-shrink:0;background:linear-gradient(180deg,var(--primary-dark),var(--primary));color:#f2edff;position:sticky;top:0;height:100vh;overflow-y:auto;padding:22px 18px 40px;}
+  #sidebar .brand{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:1.05rem;color:#fff;margin-bottom:4px;}
+  #sidebar .brand-sub{font-size:0.78rem;color:#d9cbff;margin-bottom:22px;display:block;}
+  #sidebar .progress-pill{display:inline-block;background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.25);border-radius:999px;padding:4px 12px;font-size:0.72rem;margin-bottom:20px;color:#fff;}
+  #sidebar nav a{display:block;color:#e6dcff;text-decoration:none;font-size:0.85rem;padding:7px 10px;border-radius:8px;margin-bottom:2px;transition:background .15s ease, color .15s ease;}
+  #sidebar nav a:hover{background:rgba(255,255,255,0.14);color:#fff;}
+  #sidebar nav a.active{background:#fff;color:var(--primary-dark);font-weight:600;}
+  #sidebar .nav-group-label{text-transform:uppercase;font-size:0.68rem;letter-spacing:0.08em;color:#c8b6f7;margin:18px 0 6px 10px;}
+  #content{flex:1;min-width:0;padding:44px 56px 120px;max-width:980px;}
+  .kicker{display:inline-block;background:var(--accent-soft);color:var(--primary-dark);font-size:0.75rem;font-weight:600;padding:5px 12px;border-radius:999px;margin-bottom:14px;letter-spacing:0.03em;}
+  header.hero{padding-bottom:28px;border-bottom:1px solid var(--border);margin-bottom:34px;}
+  header.hero h1{font-size:2.1rem;margin:0 0 10px;}
+  header.hero p.lead{font-size:1.05rem;color:var(--muted);max-width:70ch;}
+  section{margin-bottom:52px;scroll-margin-top:20px;}
+  section h2{font-size:1.4rem;display:flex;align-items:center;gap:10px;border-bottom:2px solid var(--surface-2);padding-bottom:10px;margin-bottom:18px;}
+  section h2 .num{background:var(--primary);color:#fff;font-size:0.75rem;font-family:'JetBrains Mono',monospace;padding:3px 8px;border-radius:6px;}
+  section h3{font-size:1.08rem;margin-top:26px;color:var(--primary);}
+  .story-box{background:var(--surface);border-left:4px solid var(--primary);border-radius:10px;padding:20px 22px;font-size:0.98rem;}
+  .story-box em{color:var(--muted);}
+  .card-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:18px 0;}
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px;}
+  .card h4{margin:0 0 8px;font-size:0.92rem;color:var(--primary-dark);}
+  .card p, .card ul{margin:0;font-size:0.9rem;color:var(--text);}
+  .card ul{padding-left:18px;}
+  .note, .warn, .best{border-radius:10px;padding:14px 16px;margin:16px 0;font-size:0.92rem;border:1px solid transparent;}
+  .note{background:#eef2ff;border-color:#c7d2fe;}
+  .note::before{content:"📝 Note";display:block;font-weight:700;margin-bottom:4px;color:#3730a3;}
+  .warn{background:#fff7ed;border-color:#fed7aa;}
+  .warn::before{content:"⚠️ Watch out";display:block;font-weight:700;margin-bottom:4px;color:var(--warn);}
+  .best{background:#ecfdf5;border-color:#a7f3d0;}
+  .best::before{content:"✅ Best Practice";display:block;font-weight:700;margin-bottom:4px;color:var(--good);}
+  details.collapse{border:1px solid var(--border);border-radius:var(--radius);margin:14px 0;background:#fff;box-shadow:var(--shadow);overflow:hidden;}
+  details.collapse summary{cursor:pointer;padding:14px 18px;font-weight:600;font-family:'Space Grotesk',sans-serif;color:var(--primary-dark);background:var(--surface);list-style:none;}
+  details.collapse summary::-webkit-details-marker{display:none;}
+  details.collapse summary::before{content:"▸ ";color:var(--primary);}
+  details.collapse[open] summary::before{content:"▾ ";}
+  details.collapse .inner{padding:16px 20px;}
+  table{width:100%;border-collapse:collapse;margin:14px 0;font-size:0.9rem;}
+  th,td{border:1px solid var(--border);padding:8px 10px;text-align:left;}
+  th{background:var(--surface-2);color:var(--primary-dark);}
+  .code-block{position:relative;margin:14px 0;border-radius:12px;overflow:hidden;border:1px solid #3b2c5e;}
+  .code-block .code-head{background:#231a38;color:#cbb8f5;font-family:'JetBrains Mono',monospace;font-size:0.78rem;padding:8px 14px;display:flex;justify-content:space-between;align-items:center;}
+  .code-block pre{margin:0;background:var(--code-bg);color:var(--code-text);padding:16px;overflow-x:auto;font-family:'JetBrains Mono',monospace;font-size:0.83rem;line-height:1.55;}
+  .code-block .copy-btn{background:var(--primary);color:#fff;border:none;border-radius:6px;font-size:0.72rem;padding:4px 10px;cursor:pointer;font-family:'Inter',sans-serif;}
+  .code-block .copy-btn:hover{background:var(--primary-light);}
+  .cmt{color:#8ee6a3;}
+  .mermaid-wrap{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:18px;margin:16px 0;overflow-x:auto;}
+  .tree{font-family:'JetBrains Mono',monospace;font-size:0.83rem;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px;white-space:pre;overflow-x:auto;}
+  .qa{border-top:1px solid var(--border);padding:12px 0;}
+  .qa .q{font-weight:600;color:var(--primary-dark);margin-bottom:4px;}
+  .nextbar{background:linear-gradient(135deg,var(--primary),var(--primary-dark));color:#fff;border-radius:16px;padding:26px 30px;margin-top:40px;}
+  .nextbar h3{color:#fff;margin-top:0;}
+  .nextbar p{color:#e6dcff;margin-bottom:0;}
+  @media (max-width:900px){.layout{flex-direction:column;}#sidebar{position:relative;width:100%;height:auto;}#content{padding:30px 20px 80px;}.card-grid{grid-template-columns:1fr;}}
+</style>
+</head>
+<body>
+<div class="layout">
+
+  <aside id="sidebar">
+    <span class="brand">🏦 ABC Bank — DevOps Mastery</span>
+    <span class="brand-sub">Intermediate → Advanced Terraform Track</span>
+    <span class="progress-pill">Project 16 / 40</span>
+    <nav id="navlinks">
+      <div class="nav-group-label">Orientation</div>
+      <a href="#story">The Banking Story</a>
+      <a href="#requirements">Business &amp; Risk</a>
+      <a href="#why-iac">Why EFS</a>
+      <div class="nav-group-label">Concepts</div>
+      <a href="#tf-concepts">Terraform Concepts</a>
+      <a href="#aws-concepts">AWS Concepts (EFS)</a>
+      <div class="nav-group-label">Design</div>
+      <a href="#architecture">Architecture Diagrams</a>
+      <a href="#solution-design">Solution Design</a>
+      <div class="nav-group-label">Build</div>
+      <a href="#folder-structure">Folder &amp; Repo Structure</a>
+      <a href="#implementation">Implementation (Full Code)</a>
+      <a href="#code-explained">Line-by-Line Explanation</a>
+      <div class="nav-group-label">Operate</div>
+      <a href="#execution-flow">Execution Flow</a>
+      <a href="#cicd">CI/CD Integration</a>
+      <a href="#local-lab">Local Lab &amp; Assignments</a>
+      <a href="#interview">Interview Preparation</a>
+      <a href="#next">What's Next</a>
+    </nav>
+  </aside>
+
+  <main id="content">
+    <header class="hero">
+      <span class="kicker">PROJECT 16 OF 40 · ADVANCED</span>
+      <h1>Enterprise EFS Architecture — Shared Storage, Isolated by Design</h1>
+      <p class="lead">A new document-processing workload needs every instance in the fleet to read and write the same files, at the same time — something no EBS volume can do. Today we build shared file storage that scales elastically and stays multi-tenant-safe, so three different services sharing one file system can never see each other's files.</p>
+    </header>
+
+    <section id="story">
+      <h2><span class="num">01</span> The Banking Story</h2>
+      <div class="story-box">
+        The compliance team's new document-processing pipeline scans uploaded loan documents across a fleet of worker instances — any worker might pick up any document, and several workers may need to read the same reference dataset simultaneously. An EBS volume (used everywhere else in this series) can only attach to one instance at a time, making it fundamentally the wrong tool here; the team's stopgap has been syncing files through S3 with a polling script, which is slow and occasionally leaves workers processing a half-uploaded file.<br><br>
+        Looking ahead, two more teams — the statements-generation service and a new fraud-analytics batch job — have asked to share the same underlying file system for their own, unrelated document sets, to save on storage costs and operational overhead. That raises an immediate concern: nothing should let the fraud-analytics job accidentally read loan documents, or vice versa, even though they'd technically share the same EFS file system.<br><br>
+        Our manager's brief: <em>"Build proper shared storage — POSIX-compliant, mountable by many instances at once, encrypted at rest. And make sure that even though multiple teams will share one file system for cost reasons, each team is structurally confined to their own slice of it."</em>
+      </div>
+    </section>
+
+    <section id="requirements">
+      <h2><span class="num">02</span> Business Requirement, Risk &amp; Impact</h2>
+      <div class="card-grid">
+        <div class="card"><h4>Business Requirement</h4><p>Multiple instances across multiple AZs must be able to read and write the same files concurrently, with encryption at rest and strict isolation between different teams' data sharing the same underlying file system.</p></div>
+        <div class="card"><h4>Customer Requirement</h4><p>The compliance team needs reliable, immediately-consistent file visibility across all workers — no polling delay, no risk of a worker reading a partially written file.</p></div>
+        <div class="card"><h4>Current Infrastructure</h4><p>An S3-based polling workaround for the compliance pipeline; no shared file storage solution exists yet for the other two teams' upcoming needs.</p></div>
+        <div class="card"><h4>Existing Manual Process</h4><p>A cron-scheduled script polls S3 for new objects and copies them locally to each worker — slow, occasionally inconsistent, and entirely custom-built rather than using a purpose-built shared storage service.</p></div>
+        <div class="card"><h4>Problems With Current Process</h4><ul><li>S3 polling introduces delay and potential partial-file read races that a true shared file system doesn't have</li><li>No existing pattern for safely sharing one storage resource across multiple, mutually distrusting teams</li><li>Custom polling scripts are additional undocumented infrastructure the team has to maintain themselves</li></ul></div>
+        <div class="card"><h4>Business Challenges</h4><p>Loan and fraud-analytics data both carry regulatory sensitivity — a shared storage design that doesn't structurally prevent cross-team access would itself become a compliance finding.</p></div>
+        <div class="card"><h4>Risk Analysis</h4><p><strong>Medium:</strong> the risk isn't in EFS itself but in getting the multi-tenant isolation design wrong — a misconfigured access point could expose one team's documents to another's workers.</p></div>
+        <div class="card"><h4>Business Impact</h4><p>Slow, unreliable document availability directly delays loan processing turnaround times — a customer-facing metric the business actively tracks.</p></div>
+      </div>
+    </section>
+
+    <section id="why-iac">
+      <h2><span class="num">03</span> Why EFS, and What We Rejected</h2>
+      <h3>Why Amazon EFS</h3>
+      <p>EFS is a fully managed, POSIX-compliant, elastic file system natively mountable by many instances across multiple AZs simultaneously — solving the concurrent-access requirement no EBS volume can meet, without the custom polling infrastructure the team has been maintaining as a workaround.</p>
+      <h3>Alternatives considered, and why they were rejected</h3>
+      <table>
+        <tr><th>Alternative</th><th>Why considered</th><th>Why rejected for ABC Bank</th></tr>
+        <tr><td>Continue the S3 polling script, just improve it</td><td>No new AWS service to learn or operate</td><td>Still fundamentally a workaround for the lack of true shared, immediately-consistent file storage — doesn't solve the partial-read race condition or the polling delay</td></tr>
+        <tr><td>Amazon FSx for Windows/Lustre</td><td>Higher performance ceiling for specific workloads</td><td>FSx for Lustre suits HPC-style workloads this pipeline doesn't need; FSx for Windows is unnecessary since the fleet is entirely Linux-based — EFS is the better-fit, simpler managed option here</td></tr>
+        <tr><td>One EFS file system PER team, fully separate</td><td>Simplest possible isolation model</td><td>Loses the shared cost-efficiency and single-operational-surface benefit the teams specifically asked for — EFS Access Points achieve the same isolation guarantee within one shared file system</td></tr>
+      </table>
+    </section>
+
+    <section id="tf-concepts">
+      <h2><span class="num">04</span> Terraform Concepts You Must Understand Before We Build</h2>
+
+      <details class="collapse" open>
+        <summary>Reinforcing <code>for_each</code> — Mount Targets per AZ</summary>
+        <div class="inner">
+          <p><strong>What it is:</strong> an EFS file system needs one mount target per AZ it should be reachable from — built with <code>for_each</code> over Project 02's private subnet map, exactly the same multi-AZ resource pattern used for NAT Gateways and VPC endpoints throughout this series.</p>
+        </div>
+      </details>
+
+      <details class="collapse">
+        <summary>Reinforcing Complex Variables — Access Points per Team</summary>
+        <div class="inner">
+          <p><strong>What it is:</strong> a structured map variable defines each team's access point — its POSIX UID/GID and its confined root directory path — and a single <code>for_each</code>-driven <code>aws_efs_access_point</code> resource creates all of them, so onboarding a fourth team sharing this file system later is a one-line variable addition.</p>
+          <p><strong>Why this matters for isolation specifically:</strong> each access point enforces its own root directory as that mount's effective root — a worker mounting via the fraud-analytics access point can never see or navigate to the compliance team's directory, even though both live on the same underlying EFS file system, because the access point makes the rest of the file system invisible to that mount entirely, not just access-denied.</p>
+        </div>
+      </details>
+
+      <details class="collapse">
+        <summary>Reinforcing Lifecycle &amp; Encryption Patterns from Earlier Projects</summary>
+        <div class="inner">
+          <p><strong>What it is:</strong> the file system's own KMS encryption configuration follows the same dedicated-key-per-purpose pattern established in Project 04 (logging) and Project 06 (secrets) — a distinct key specifically for this shared file system, not a reused key from an unrelated purpose.</p>
+        </div>
+      </details>
+    </section>
+
+    <section id="aws-concepts">
+      <h2><span class="num">05</span> AWS Concepts: EFS, Mount Targets &amp; Access Points</h2>
+      <div class="card-grid">
+        <div class="card"><h4>What is Amazon EFS</h4><p>A managed NFS file system that scales storage capacity automatically and can be mounted concurrently by many EC2 instances (or other compute) across multiple AZs, with standard POSIX file permissions.</p></div>
+        <div class="card"><h4>What is a Mount Target</h4><p>An ENI, one per AZ, that gives instances in that AZ a local IP address to mount the file system through — required in every AZ any consuming instance runs in.</p></div>
+        <div class="card"><h4>What is an EFS Access Point</h4><p>An application-specific entry point into an EFS file system that enforces a specific POSIX user/group identity and a fixed root directory — the mount effectively cannot "see" anything outside that directory, providing real isolation, not just a permissions convention.</p></div>
+        <div class="card"><h4>Why Access Points, Not Just Directory Permissions</h4><p>Standard Unix directory permissions rely on every client correctly enforcing them — an access point makes the restriction structural at the AWS API level, so even a misconfigured or compromised worker instance mounting via the wrong access point simply cannot reach another team's directory.</p></div>
+        <div class="card"><h4>Storage Classes &amp; Lifecycle Management</h4><p>EFS Lifecycle Management automatically moves files not accessed for a defined period (e.g. 30 days) to Infrequent Access storage, reducing cost for the (likely common) case of documents that are frequently read shortly after upload, then rarely touched again.</p></div>
+        <div class="card"><h4>Security</h4><p>Encryption at rest via a dedicated KMS key, combined with a security group restricting NFS (port 2049) access to only the fleet's own security groups — the same security-group-chaining pattern from Project 14.</p></div>
+        <div class="card"><h4>Performance</h4><p>EFS's "Elastic" throughput mode scales automatically with workload, removing the need to pre-provision throughput — a good default unless a workload has unusually predictable, sustained high-throughput needs.</p></div>
+      </div>
+    </section>
+
+    <section id="architecture">
+      <h2><span class="num">06</span> Architecture Diagrams</h2>
+      <h3>Shared File System, Isolated Access Points</h3>
+      <div class="mermaid-wrap"><div class="mermaid">
+flowchart TB
+  EFS[(EFS File System<br/>Encrypted, KMS)]
+  EFS --> AP1[Access Point: compliance<br/>root: /compliance, uid 1001]
+  EFS --> AP2[Access Point: statements<br/>root: /statements, uid 1002]
+  EFS --> AP3[Access Point: fraud-analytics<br/>root: /fraud, uid 1003]
+  AP1 --> W1[Compliance Workers]
+  AP2 --> W2[Statements Workers]
+  AP3 --> W3[Fraud Analytics Workers]
+  W1 -.cannot see.-> AP2
+  W1 -.cannot see.-> AP3
+      </div></div>
+
+      <h3>Multi-AZ Mount Targets</h3>
+      <div class="mermaid-wrap"><div class="mermaid">
+flowchart LR
+  EFS2[(EFS File System)] --> MTa[Mount Target — AZ-a]
+  EFS2 --> MTb[Mount Target — AZ-b]
+  EFS2 --> MTc[Mount Target — AZ-c]
+  MTa --> Wa[Workers in AZ-a]
+  MTb --> Wb[Workers in AZ-b]
+  MTc --> Wc[Workers in AZ-c]
+      </div></div>
+
+      <h3>Access Point Isolation Detail</h3>
+      <div class="mermaid-wrap"><div class="mermaid">
+sequenceDiagram
+  participant Worker as Fraud-Analytics Worker
+  participant AP as Access Point: fraud-analytics
+  participant FS as Underlying EFS File System
+  Worker->>AP: Mount via fraud-analytics access point
+  AP->>FS: Enforces root = /fraud, uid = 1003
+  FS-->>AP: Only /fraud subtree visible
+  AP-->>Worker: Mounted filesystem shows ONLY /fraud contents — /compliance invisible entirely
+      </div></div>
+    </section>
+
+    <section id="solution-design">
+      <h2><span class="num">07</span> Complete Solution Design</h2>
+      <p>One <code>aws_efs_file_system</code> is created with encryption enabled via a dedicated KMS key and Lifecycle Management transitioning files to Infrequent Access after 30 days of no access. Mount targets are created via <code>for_each</code> across every private subnet from Project 02's VPC framework, with a security group permitting NFS only from the application fleet's own security groups (Project 14's chaining pattern).</p>
+      <p>A structured map variable defines each team's access point — POSIX UID/GID and confined root path — and a single <code>for_each</code>-driven resource creates one <code>aws_efs_access_point</code> per team. Each team's instances mount the file system using their own access point ID specifically, never the raw file system ID directly, which is what makes the isolation structural rather than convention-based.</p>
+    </section>
+
+    <section id="folder-structure">
+      <h2><span class="num">08</span> Folder Structure &amp; Repo Layout</h2>
+      <div class="tree">terraform-abc-bank/
+└── environments/
+    └── prod/
+        └── shared-efs.tf         # File system, mount targets, security group, access points</div>
+    </section>
+
+    <section id="implementation">
+      <h2><span class="num">09</span> Implementation — Full Production Code</h2>
+
+      <h3>environments/prod/shared-efs.tf</h3>
+      <div class="code-block">
+        <div class="code-head"><span>environments/prod/shared-efs.tf</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre><code>resource "aws_kms_key" "efs" {                                        <span class="cmt"># Dedicated key for this file system — same one-key-per-purpose pattern as Projects 04 and 06</span
+  description             = "ABC Bank shared EFS encryption key"
+  deletion_window_in_days = 30
+}
+
+resource "aws_efs_file_system" "shared" {
+  creation_token   = "abc-bank-shared-documents"
+  encrypted        = true
+  kms_key_id       = aws_kms_key.efs.arn
+  throughput_mode  = "elastic"                                          <span class="cmt"># Scales automatically with workload — no manual throughput provisioning needed</span
+
+  lifecycle_policy {
+    transition_to_ia = "AFTER_30_DAYS"                                   <span class="cmt"># Cost optimization — moves cold files to cheaper storage automatically</span
+  }
+
+  tags = { Name = "abc-bank-shared-documents" }
+}
+
+resource "aws_security_group" "efs" {
+  name   = "shared-efs-sg"
+  vpc_id = var.vpc_id
+
+  ingress {
+    from_port                = 2049                                       <span class="cmt"># NFS port — the only port EFS mount targets need</span
+    to_port                  = 2049
+    protocol                  = "tcp"
+    security_groups           = var.allowed_worker_security_group_ids      <span class="cmt"># Reinforces Project 14's security-group-chaining pattern — never a raw CIDR here either</span
+  }
+}
+
+resource "aws_efs_mount_target" "shared" {
+  for_each        = var.private_subnet_ids_by_az                          <span class="cmt"># One mount target per AZ, same multi-AZ for_each pattern used throughout this series</span
+  file_system_id  = aws_efs_file_system.shared.id
+  subnet_id       = each.value
+  security_groups = [aws_security_group.efs.id]
+}
+
+variable "team_access_points" {                                           <span class="cmt"># Complex variable — one entry per team sharing this file system</span
+  type = map(object({
+    posix_uid      = number
+    posix_gid      = number
+    root_directory = string
+  }))
+  default = {
+    compliance = {
+      posix_uid      = 1001
+      posix_gid      = 1001
+      root_directory = "/compliance"
+    }
+    statements = {
+      posix_uid      = 1002
+      posix_gid      = 1002
+      root_directory = "/statements"
+    }
+    fraud_analytics = {
+      posix_uid      = 1003
+      posix_gid      = 1003
+      root_directory = "/fraud"
+    }
+  }
+}
+
+resource "aws_efs_access_point" "team" {
+  for_each       = var.team_access_points                                 <span class="cmt"># One access point PER TEAM — keyed by name, safe to onboard a 4th team with a one-line addition</span
+  file_system_id = aws_efs_file_system.shared.id
+
+  posix_user {
+    uid = each.value.posix_uid
+    gid = each.value.posix_gid
+  }
+
+  root_directory {
+    path = each.value.root_directory
+    creation_info {
+      owner_uid   = each.value.posix_uid
+      owner_gid   = each.value.posix_gid
+      permissions = "0750"                                                  <span class="cmt"># Owner read/write/execute, group read/execute, others NOTHING — enforced at directory creation</span
+    }
+  }
+
+  tags = { Name = "efs-ap-${each.key}" }
+}
+
+output "access_point_ids" {
+  value       = { for team, ap in aws_efs_access_point.team : team => ap.id }
+  description = "Access Point IDs — each team's instances must mount using THEIR OWN access point ID, never the raw file system ID"
+}</code></pre>
+      </div>
+
+      <h3>Example: mount command using an access point (documentation, not Terraform)</h3>
+      <div class="code-block">
+        <div class="code-head"><span>reference — instance user-data or fstab entry</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre><code><span class="cmt"># Compliance team's worker instances mount ONLY via their own access point:</span>
+sudo mount -t efs -o tls,accesspoint=fsap-0abc123compliance fs-0shared456:/ /mnt/documents
+
+<span class="cmt"># Fraud-analytics worker mounting the SAME file system, DIFFERENT access point:</span>
+sudo mount -t efs -o tls,accesspoint=fsap-0xyz789fraud fs-0shared456:/ /mnt/documents
+<span class="cmt"># Even though both commands reference the SAME file system ID (fs-0shared456),
+# each worker's /mnt/documents shows ONLY its own team's confined directory.</span></code></pre>
+      </div>
+    </section>
+
+    <section id="code-explained">
+      <h2><span class="num">10</span> Code Explanation Summary</h2>
+      <table>
+        <tr><th>Block / Argument</th><th>What it does</th><th>Common mistake to avoid</th></tr>
+        <tr><td><code>root_directory { path = ... }</code> on an access point</td><td>Confines that access point's mount to only the specified subtree of the file system</td><td>Mounting the raw file system directly (bypassing access points) for convenience — this defeats the entire isolation model this project was built to provide</td></tr>
+        <tr><td><code>creation_info { permissions = "0750" }</code></td><td>Sets Unix permissions on the root directory AT CREATION TIME if it doesn't already exist</td><td>Assuming this changes permissions on an EXISTING directory — <code>creation_info</code> only applies the first time the directory is created by the access point, not on subsequent applies</td></tr>
+        <tr><td><code>security_groups = var.allowed_worker_security_group_ids</code></td><td>Restricts NFS access to only explicitly named security groups, never a broad CIDR</td><td>Opening port 2049 to the whole VPC CIDR "to make it easier" — reintroduces exactly the over-broad access Project 14 was built to eliminate</td></tr>
+        <tr><td><code>throughput_mode = "elastic"</code></td><td>Automatically scales throughput with actual workload demand</td><td>Using <code>"provisioned"</code> mode without a clear, sustained high-throughput requirement — pays for capacity that elastic mode would provide on-demand at lower cost for variable workloads</td></tr>
+      </table>
+    </section>
+
+    <section id="execution-flow">
+      <h2><span class="num">11</span> Execution Flow, Explained Internally</h2>
+      <div class="card-grid">
+        <div class="card"><h4>terraform apply — file system and mount targets</h4><p>Creates the KMS key and file system first, then one mount target per AZ in parallel (no dependency between different AZs' mount targets), then the security group and access points.</p></div>
+        <div class="card"><h4>terraform apply — adding a fourth team</h4><p>Adding one entry to the <code>team_access_points</code> map and reapplying shows exactly one new <code>aws_efs_access_point</code> resource in the plan — nothing about the existing three teams' access points is touched.</p></div>
+        <div class="card"><h4>terraform destroy considerations</h4><p>Mount targets must be destroyed before the file system itself — Terraform's dependency graph handles this ordering automatically, but any instance still actively mounted via NFS at destroy time will experience a hard failure, not a graceful unmount.</p></div>
+      </div>
+      <div class="warn">Never grant a worker instance's IAM role or security group access to more than one team's mount path "just in case" — the whole point of this design is that each fleet's blast radius is structurally confined to its own directory, and that guarantee only holds if access truly is one-team-per-access-point in practice, not just in the Terraform code.</div>
+    </section>
+
+    <section id="cicd">
+      <h2><span class="num">12</span> CI/CD Integration</h2>
+      <div class="code-block">
+        <div class="code-head"><span>.github/workflows/terraform-shared-efs.yml</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre><code>name: terraform-shared-efs
+on:
+  pull_request:
+    paths: ["environments/prod/shared-efs.tf"]
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    defaults: { run: { working-directory: environments/prod } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+      - run: terraform init
+      - run: terraform plan -out=tfplan
+      - name: Flag any change to an access point's root_directory
+        run: |                                                          <span class="cmt"># A changed root path is high-impact — it changes what a team's existing mounts can see</span>
+          terraform show -json tfplan | jq -e '
+            [.resource_changes[] | select(.type=="aws_efs_access_point") |
+             select(.change.actions != ["no-op"])] | length == 0
+          ' || echo "::warning::This plan changes an EFS access point — verify isolation boundaries are still correct before merging"</code></pre>
+      </div>
+    </section>
+
+    <section id="local-lab">
+      <h2><span class="num">13</span> Local Lab — Practice This Yourself</h2>
+      <h3>Prerequisites</h3>
+      <ul>
+        <li>Two EC2 instances (from Project 14's hardened module) in different AZs, both intended to mount the shared file system</li>
+        <li><code>amazon-efs-utils</code> installed on both instances for the <code>mount -t efs</code> syntax</li>
+      </ul>
+      <h3>Commands</h3>
+      <div class="code-block">
+        <div class="code-head"><span>terminal</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre><code>cd environments/prod
+terraform init
+terraform apply
+terraform output access_point_ids
+<span class="cmt"># On instance 1 (simulating compliance):</span>
+sudo mount -t efs -o tls,accesspoint=&lt;compliance-ap-id&gt; &lt;fs-id&gt;:/ /mnt/documents
+echo "test file" | sudo tee /mnt/documents/test.txt
+<span class="cmt"># On instance 2 (simulating fraud-analytics), attempt to see instance 1's file:</span>
+sudo mount -t efs -o tls,accesspoint=&lt;fraud-ap-id&gt; &lt;fs-id&gt;:/ /mnt/documents
+ls /mnt/documents   <span class="cmt"># Should NOT show test.txt — confirms isolation is real, not just documented</span></code></pre>
+      </div>
+      <h3>Expected output</h3>
+      <p>The second instance's mount shows an empty (or fraud-analytics-only) directory listing, with no visibility into the compliance team's file at all — direct, hands-on proof the access point isolation works as designed.</p>
+      <h3>Troubleshooting</h3>
+      <table>
+        <tr><th>Symptom</th><th>Likely cause</th></tr>
+        <tr><td>Mount command hangs or times out</td><td>The EFS security group doesn't allow inbound NFS from that instance's security group — check the chained security group reference</td></tr>
+        <tr><td>Permission denied writing to the mounted directory</td><td>The instance's own OS-level user doesn't match the access point's configured POSIX UID/GID — the access point enforces identity, so the connecting process's UID matters too</td></tr>
+      </table>
+      <h3>Assignments</h3>
+      <ol>
+        <li>Add AWS Backup integration (a preview of a later project in this series) to automatically back up the shared file system on a defined schedule.</li>
+        <li>Add a CloudWatch alarm on the file system's <code>PercentIOLimit</code> metric to catch throughput bottlenecks before they affect the pipeline.</li>
+      </ol>
+      <h3>Challenge Task</h3>
+      <p>Extend the <code>team_access_points</code> pattern to also generate a matching IAM policy per team (restricting <code>elasticfilesystem:ClientMount</code> to only that team's specific access point ARN), adding a second, IAM-level layer of enforcement on top of the access point's own structural isolation.</p>
+    </section>
+
+    <section id="interview">
+      <h2><span class="num">14</span> Interview Preparation</h2>
+      <div class="qa"><div class="q">Q: Why can't an EBS volume solve the concurrent multi-instance access requirement in this story?</div><div>EBS volumes attach to only one instance at a time (with a narrow multi-attach exception for specific instance types and use cases) — EFS is a genuinely shared, POSIX-compliant network file system designed for many concurrent readers and writers across multiple AZs.</div></div>
+      <div class="qa"><div class="q">Q: How do EFS Access Points provide real isolation, not just a permissions convention?</div><div>An access point confines a mount to a specific root subtree — anything outside that path is structurally invisible to that mount, not merely access-denied, so even a misconfigured client can't accidentally browse into another team's directory.</div></div>
+      <div class="qa"><div class="q">Q: Why give each team a separate access point instead of one shared mount with directory permissions?</div><div>Directory permissions rely on every client correctly enforcing them at the OS level; access points enforce the boundary at the AWS API level regardless of client behavior, which is a stronger and more auditable isolation guarantee for regulated data.</div></div>
+      <div class="qa"><div class="q">Q: What's the purpose of creation_info on an access point's root_directory block?</div><div>It defines the owner UID/GID and permissions applied WHEN the directory is first created by the access point — it has no effect on a directory that already exists, so it's specifically a bootstrap-time setting.</div></div>
+      <div class="qa"><div class="q">Manager round: Three teams want to share infrastructure to save cost — how do you evaluate whether that's safe?</div><div>Identify whether the underlying service offers a structural (not just conventional) isolation mechanism — as EFS Access Points do here — and only proceed with shared infrastructure when that mechanism exists; otherwise, the cost savings aren't worth the isolation risk, and separate resources are the safer choice.</div></div>
+    </section>
+
+    <div class="nextbar" id="next">
+      <h3>What's next</h3>
+      <p>Project 17 builds <strong>FSx Infrastructure</strong> — specifically FSx for Windows File Server, for a legacy .NET reporting application the bank acquired through a recent merger that requires native SMB and Active Directory integration EFS can't provide. Tell me when you're ready for Project 17.</p>
+    </div>
+
+  </main>
+</div>
+
+<script>
+  mermaid.initialize({ startOnLoad: true, theme: 'base', themeVariables: {
+    primaryColor: '#ede9fe', primaryTextColor: '#4c1d95', primaryBorderColor: '#8b5cf6',
+    lineColor: '#8b5cf6', secondaryColor: '#f7f5fc', tertiaryColor: '#ffffff', fontFamily: 'Inter, sans-serif'
+  }});
+  function copyCode(btn){
+    const pre = btn.closest('.code-block').querySelector('pre');
+    const text = pre.innerText;
+    navigator.clipboard.writeText(text).then(()=>{
+      const original = btn.textContent;
+      btn.textContent = 'Copied!';
+      setTimeout(()=>{ btn.textContent = original; }, 1500);
+    });
+  }
+  const sections = document.querySelectorAll('section, .nextbar');
+  const links = document.querySelectorAll('#navlinks a');
+  const observer = new IntersectionObserver((entries)=>{
+    entries.forEach(entry=>{
+      if(entry.isIntersecting){
+        links.forEach(l=>l.classList.remove('active'));
+        const id = entry.target.getAttribute('id');
+        const match = document.querySelector(`#navlinks a[href="#${id}"]`);
+        if(match) match.classList.add('active');
+      }
+    });
+  }, { rootMargin: '-20% 0px -70% 0px' });
+  sections.forEach(s=>observer.observe(s));
+</script>
+</body>
+</html>

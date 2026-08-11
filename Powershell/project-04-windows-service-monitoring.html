@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Project 04 — Windows Service Monitoring | PowerShell Masterclass</title>
+<style>
+  :root{
+    --primary:#6D28D9; --secondary:#7C3AED; --light-purple:#EDE9FE; --xlight-purple:#F5F3FF;
+    --bg:#FFFFFF; --text:#1F2937; --muted:#6B7280; --border:#E5E1F5;
+    --success:#15803D; --warn:#B45309; --danger:#B91C1C;
+    --code-bg:#1E1B2E; --code-text:#E9E4FF;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0; font-family:"Segoe UI",Calibri,Roboto,Arial,sans-serif; background:var(--bg); color:var(--text); line-height:1.65;}
+  a{color:var(--primary);}
+  .layout{display:flex; max-width:1400px; margin:0 auto;}
+  nav.sidebar{width:270px; flex-shrink:0; position:sticky; top:0; height:100vh; overflow-y:auto; background:var(--xlight-purple); border-right:1px solid var(--border); padding:22px 16px;}
+  nav.sidebar h3{color:var(--primary); font-size:13px; text-transform:uppercase; letter-spacing:.06em; margin:18px 0 8px;}
+  nav.sidebar a{display:block; padding:7px 10px; border-radius:8px; color:var(--text); text-decoration:none; font-size:14px; margin-bottom:2px;}
+  nav.sidebar a:hover{background:var(--light-purple); color:var(--primary);}
+  #progressWrap{background:var(--light-purple); border-radius:10px; padding:10px; margin-bottom:8px;}
+  #progressBar{height:8px; background:var(--border); border-radius:6px; overflow:hidden;}
+  #progressFill{height:100%; width:0%; background:linear-gradient(90deg,var(--primary),var(--secondary)); transition:width .2s;}
+  #progressLabel{font-size:12px; color:var(--muted); margin-top:6px;}
+  main{flex:1; min-width:0; padding:0;}
+  .cover{background:linear-gradient(135deg,var(--primary),var(--secondary)); color:#fff; padding:60px 48px; position:relative; overflow:hidden;}
+  .cover::after{content:"";position:absolute;right:-80px;top:-80px;width:300px;height:300px;border-radius:50%;background:rgba(255,255,255,.08);}
+  .badge{display:inline-block; background:rgba(255,255,255,.18); padding:5px 14px; border-radius:20px; font-size:12px; letter-spacing:.05em; margin-right:8px; margin-bottom:14px;}
+  .cover h1{font-size:34px; margin:6px 0 10px; max-width:760px;}
+  .cover p.sub{font-size:16px; opacity:.92; max-width:640px;}
+  .cover-meta{display:flex; gap:28px; margin-top:26px; flex-wrap:wrap;}
+  .cover-meta div{background:rgba(255,255,255,.12); padding:12px 18px; border-radius:10px; min-width:140px;}
+  .cover-meta span{display:block; font-size:12px; opacity:.85;}
+  .cover-meta strong{font-size:16px;}
+  section{padding:34px 48px; border-bottom:1px solid var(--border);}
+  section h2{color:var(--primary); font-size:24px; border-left:5px solid var(--primary); padding-left:14px; margin-top:0;}
+  section h3{color:var(--secondary); font-size:18px; margin-top:26px;}
+  .story{background:var(--xlight-purple); border-left:5px solid var(--primary); padding:20px 24px; border-radius:0 10px 10px 0; font-size:15px;}
+  .story b{color:var(--primary);}
+  .callout{border-radius:10px; padding:16px 18px; margin:16px 0; font-size:14.5px;}
+  .callout.tip{background:#F0FDF4; border-left:5px solid var(--success);}
+  .callout.note{background:var(--xlight-purple); border-left:5px solid var(--secondary);}
+  .callout.warn{background:#FFFBEB; border-left:5px solid var(--warn);}
+  .callout.security{background:#FEF2F2; border-left:5px solid var(--danger);}
+  .callout .lbl{font-weight:700; display:block; margin-bottom:4px;}
+  table{width:100%; border-collapse:collapse; margin:16px 0; font-size:14px;}
+  th,td{border:1px solid var(--border); padding:9px 12px; text-align:left; vertical-align:top;}
+  th{background:var(--light-purple); color:var(--primary);}
+  tr:nth-child(even){background:var(--xlight-purple);}
+  .codewrap{position:relative; margin:16px 0;}
+  pre{background:var(--code-bg); color:var(--code-text); padding:18px 16px; border-radius:10px; overflow-x:auto; font-family:Consolas,"Cascadia Code",Menlo,monospace; font-size:13.5px; line-height:1.7;}
+  pre code{white-space:pre;}
+  .copybtn{position:absolute; top:10px; right:10px; background:var(--secondary); color:#fff; border:none; padding:6px 12px; border-radius:6px; font-size:12px; cursor:pointer;}
+  .copybtn:hover{background:var(--primary);}
+  .explain-list{list-style:none; padding:0; margin:14px 0;}
+  .explain-list li{background:var(--xlight-purple); border-radius:8px; padding:10px 14px; margin-bottom:6px; font-size:14.5px;}
+  .explain-list code{background:var(--light-purple); padding:2px 6px; border-radius:5px; color:var(--primary); font-weight:600;}
+  details{background:var(--xlight-purple); border-radius:10px; padding:12px 16px; margin:10px 0;}
+  details summary{cursor:pointer; font-weight:600; color:var(--primary);}
+  .diagram{background:var(--xlight-purple); border-radius:12px; padding:20px; margin:16px 0; overflow-x:auto;}
+  .flow{display:flex; flex-wrap:wrap; align-items:center; gap:10px; font-size:13.5px;}
+  .flow .box{background:#fff; border:2px solid var(--secondary); border-radius:8px; padding:8px 14px; font-weight:600; color:var(--primary);}
+  .flow .arrow{color:var(--secondary); font-size:18px;}
+  .steps{counter-reset:step;}
+  .steps .step{position:relative; padding-left:44px; margin-bottom:18px;}
+  .steps .step::before{counter-increment:step; content:counter(step); position:absolute; left:0; top:0; background:var(--primary); color:#fff; width:30px; height:30px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:700;}
+  .grid2{display:grid; grid-template-columns:1fr 1fr; gap:16px;}
+  @media(max-width:900px){.grid2{grid-template-columns:1fr;} nav.sidebar{display:none;} section{padding:26px 20px;} .cover{padding:36px 22px;}}
+  footer{padding:30px 48px; background:var(--xlight-purple); color:var(--muted); font-size:13px;}
+</style>
+</head>
+<body>
+
+<div class="layout">
+  <nav class="sidebar">
+    <div id="progressWrap">
+      <div id="progressLabel">Reading progress</div>
+      <div id="progressBar"><div id="progressFill"></div></div>
+    </div>
+    <h3>Project 04</h3>
+    <a href="#cover">Cover</a>
+    <a href="#recap1">Recap: Projects 1–3</a>
+    <a href="#story">The Story</a>
+    <a href="#concepts">Concepts First</a>
+    <a href="#lab">Hands-On Lab</a>
+    <a href="#script">Full Script</a>
+    <a href="#linebyline">Line-by-Line</a>
+    <a href="#architecture">Architecture</a>
+    <a href="#incident">Production Incident</a>
+    <a href="#troubleshoot">Troubleshooting</a>
+    <a href="#security">Security Notes</a>
+    <a href="#recap">Key Learnings</a>
+    <a href="#interview">Interview Prep</a>
+    <a href="#challenges">Coding Challenges</a>
+    <a href="#resume">Resume Points</a>
+    <a href="#assignment">Practice Assignment</a>
+    <a href="#next">Next Project</a>
+  </nav>
+
+  <main id="top">
+    <div class="cover" id="cover">
+      <span class="badge">PROJECT 04</span><span class="badge">BEGINNER</span><span class="badge">BFSI TRACK</span>
+      <h1>Windows Service Monitoring</h1>
+      <p class="sub">Check a named list of critical Windows services, catch the ones that are Automatic but not running, and handle the case where a service doesn't even exist — without crashing the script.</p>
+      <div class="cover-meta">
+        <div><span>Difficulty</span><strong>Beginner</strong></div>
+        <div><span>Estimated Lab Time</span><strong>60–75 min</strong></div>
+        <div><span>Concepts</span><strong>8 core concepts</strong></div>
+        <div><span>Track</span><strong>4 of 40</strong></div>
+      </div>
+    </div>
+
+    <section id="recap1">
+      <h2>Quick Recap of Projects 1–3</h2>
+      <p>So far we've collected inventory data, added threshold-based status classification with functions and
+      if/elseif/else, and sampled changing metrics with loops and switch statements. This project introduces
+      <b>checking a specific named list of things we care about</b> — not "all services", but "the services this
+      bank considers critical" — plus our first real error handling.</p>
+    </section>
+
+    <section id="story">
+      <h2>The Story — Why We're Building This</h2>
+      <div class="story">
+        ABC Bank runs a small set of Windows services that absolutely must stay running on application servers —
+        things like the print spooler for statement printing, the Windows Time service (critical for transaction
+        timestamps and Kerberos authentication), and a few internal application services. Last month, someone
+        manually disabled a service during troubleshooting and forgot to turn it back on. It stayed down for three
+        days before anyone noticed.<br><br>
+        Our manager wants a script that checks a defined list of critical services, reports which are running,
+        which are stopped, and — importantly — which ones are supposed to start automatically but currently aren't
+        running. It should also handle gracefully checking for a service that doesn't exist on a given server,
+        rather than crashing.
+      </div>
+    </section>
+
+    <section id="concepts">
+      <h2>Concepts First — Before We Touch Code</h2>
+
+      <h3>1. Get-Service and Its Key Properties</h3>
+      <table>
+        <tr><th>Property</th><th>Meaning</th></tr>
+        <tr><td><code>Name</code></td><td>The service's short internal name (e.g. "Spooler")</td></tr>
+        <tr><td><code>DisplayName</code></td><td>The human-friendly name shown in Services.msc</td></tr>
+        <tr><td><code>Status</code></td><td>Current state: Running, Stopped, Paused, etc.</td></tr>
+        <tr><td><code>StartType</code></td><td>How the service is configured to start: Automatic, Manual, Disabled</td></tr>
+      </table>
+
+      <h3>2. Why a Fixed List of Service Names, Not "Check Everything"</h3>
+      <div class="callout note"><span class="lbl">Design decision</span>A server can have 150+ services, most of
+      which nobody cares about. Production monitoring should check a deliberately chosen, named list of services
+      that actually matter to the business — this keeps alerts meaningful instead of drowning Operations in noise
+      about irrelevant services.</div>
+
+      <h3>3. Arrays of Strings</h3>
+      <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code>$CriticalServices = @("Spooler", "W32Time", "BITS")   # An ordered list of service names to check</code></pre></div>
+      <p>Each item here is a plain string — the internal <code>Name</code> value Get-Service expects, not the
+      DisplayName shown in the Services app.</p>
+
+      <h3>4. try / catch / finally — Handling Errors Gracefully</h3>
+      <p>By default, asking for a service that doesn't exist causes <code>Get-Service</code> to write a
+      non-terminating error and return nothing. To handle this deliberately — and to prepare you for cases later
+      where errors <i>are</i> terminating (like remote connection failures) — we wrap the check in
+      <code>try/catch</code>.</p>
+      <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code>try {
+    $Service = Get-Service -Name "SomeService" -ErrorAction Stop   # Forces the error to be terminating so catch can react
+}
+catch {
+    Write-Warning "Service not found: $($_.Exception.Message)"     # Runs only if the try block threw an error
+}
+finally {
+    Write-Verbose "Check attempted for SomeService"                 # Always runs, whether it succeeded or failed
+}</code></pre></div>
+      <ul class="explain-list">
+        <li><code>try { }</code> — the block of code we want to attempt, watching for errors.</li>
+        <li><code>-ErrorAction Stop</code> — by default many cmdlet errors are "non-terminating" and won't trigger
+        <code>catch</code> at all; this parameter forces the error to stop and be catchable.</li>
+        <li><code>catch { }</code> — runs only if the try block threw a terminating error; <code>$_</code> here
+        refers to the error record, and <code>$_.Exception.Message</code> gives the human-readable error text.</li>
+        <li><code>finally { }</code> — always runs, whether or not an error occurred — useful for cleanup steps that
+        must happen either way (we'll lean on this more once we're opening remote connections).</li>
+      </ul>
+
+      <h3>5. The <code>-in</code> Operator</h3>
+      <p><code>$Value -in $Array</code> checks whether a single value exists anywhere inside a collection — cleaner
+      than writing a manual loop just to check membership.</p>
+
+      <h3>6. The "Automatic but Stopped" Problem</h3>
+      <div class="callout warn"><span class="lbl">Why this specific combination matters</span>A service set to
+      <code>Manual</code> or <code>Disabled</code> and currently stopped might be perfectly intentional. But a
+      service configured as <code>Automatic</code> (meaning "start with Windows") that is currently
+      <code>Stopped</code> almost always signals something went wrong — either it crashed, or someone stopped it and
+      never restarted it. This exact combination is one of the most common real-world Windows health checks.</div>
+    </section>
+
+    <section id="lab">
+      <h2>Hands-On Lab — Build It Yourself</h2>
+      <div class="steps">
+        <div class="step"><b>Create the project folder:</b>
+          <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code>New-Item -ItemType Directory -Path "C:\PS-Masterclass\Project04\reports" -Force
+Set-Location "C:\PS-Masterclass\Project04"</code></pre></div>
+        </div>
+        <div class="step"><b>Check which services actually exist on your machine</b> so your list is realistic:
+          <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code>Get-Service | Select-Object Name, DisplayName, Status, StartType | Sort-Object Name</code></pre></div>
+          Pick 3–4 real service names from your own machine (Spooler and BITS exist on almost every Windows install).
+        </div>
+        <div class="step"><b>Create <code>Test-ServiceHealth.ps1</code></b> in VS Code and paste the full script below,
+        adjusting <code>$CriticalServices</code> to include one intentionally fake name (e.g. "FakeServiceXYZ") so
+        you can see the try/catch handling work.</div>
+        <div class="step"><b>Run it:</b>
+          <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code>.\Test-ServiceHealth.ps1</code></pre></div>
+        </div>
+        <div class="step"><b>Validate:</b> confirm real services show RUNNING or STOPPED correctly, the fake service
+        shows NOT FOUND without crashing the script, and a CSV is saved to <code>.\reports\</code>.</div>
+      </div>
+    </section>
+
+    <section id="script">
+      <h2>Full Script — Test-ServiceHealth.ps1</h2>
+      <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code># =====================================================================
+# Test-ServiceHealth.ps1
+# ABC Bank - Windows Infrastructure Automation Team
+# Purpose: Verify a named list of critical Windows services are healthy
+# =====================================================================
+
+$ComputerName = $env:COMPUTERNAME     # The server being checked
+
+# ---------------------------------------------------------------
+# The list of services ABC Bank considers critical on this server role.
+# Replace with real names from your machine, plus one fake one to test error handling.
+# ---------------------------------------------------------------
+$CriticalServices = @("Spooler", "BITS", "FakeServiceXYZ")   # Ordered list of internal service names to check
+
+$Results = @()   # Empty array that will hold one result object per service
+
+Write-Host "`n=== SERVICE HEALTH CHECK: $ComputerName ===" -ForegroundColor Magenta   # Section header
+
+# ---------------------------------------------------------------
+# STEP 1: Loop through the named list and check each service
+# ---------------------------------------------------------------
+foreach ($ServiceName in $CriticalServices) {          # $ServiceName becomes each string in the array, one at a time
+
+    try {                                                # Attempt the check; watch for a "service not found" error
+        $Service = Get-Service -Name $ServiceName -ErrorAction Stop   # -ErrorAction Stop makes a missing service throw
+
+        # Decide the health status for a service that WAS found
+        if ($Service.Status -eq "Running") {             # Simple case: it's running, so it's healthy
+            $Status = "RUNNING"
+        }
+        elseif ($Service.StartType -eq "Automatic" -and $Service.Status -ne "Running") {  # The dangerous combination
+            $Status = "STOPPED (SHOULD BE RUNNING)"        # Automatic service that isn't running - a real problem
+        }
+        else {
+            $Status = "STOPPED (BY DESIGN)"                # Manual/Disabled and stopped - likely intentional
+        }
+
+        $Results += [PSCustomObject]@{                     # Adds a result row for this service
+            ServerName  = $ComputerName
+            ServiceName = $ServiceName
+            DisplayName = $Service.DisplayName               # Human-friendly name from the found service object
+            StartType   = $Service.StartType                 # Automatic / Manual / Disabled
+            Status      = $Status                              # Our computed health label
+        }
+    }
+    catch {                                                 # Runs only if Get-Service could not find the service
+        $Results += [PSCustomObject]@{                       # Still adds a row, so the report shows every service we checked
+            ServerName  = $ComputerName
+            ServiceName = $ServiceName
+            DisplayName = "N/A"                                # No display name available - the service doesn't exist
+            StartType   = "N/A"
+            Status      = "NOT FOUND"                           # Clear label for a missing service, not a crash
+        }
+        Write-Warning "Service '$ServiceName' was not found on $ComputerName."   # Also logs a warning to the console
+    }
+}
+
+# ---------------------------------------------------------------
+# STEP 2: Print color-coded results
+# ---------------------------------------------------------------
+foreach ($Result in $Results) {                            # Loops through every result we collected above
+
+    $Line = "{0,-16} {1,-30} {2}" -f $Result.ServiceName, $Result.DisplayName, $Result.Status   # Aligned columns
+
+    if ($Result.Status -eq "RUNNING") {
+        Write-Host $Line -ForegroundColor Green              # Healthy
+    }
+    elseif ($Result.Status -like "STOPPED (SHOULD BE RUNNING)*") {   # -like allows a simple wildcard match
+        Write-Host $Line -ForegroundColor Red                 # Real problem
+    }
+    elseif ($Result.Status -eq "NOT FOUND") {
+        Write-Host $Line -ForegroundColor DarkYellow          # Configuration mismatch, needs review
+    }
+    else {
+        Write-Host $Line -ForegroundColor Gray                # Stopped by design - informational only
+    }
+}
+
+# ---------------------------------------------------------------
+# STEP 3: Export to CSV
+# ---------------------------------------------------------------
+if (-not (Test-Path ".\reports")) {                          # Creates the reports folder if it's missing
+    New-Item -ItemType Directory -Path ".\reports" | Out-Null
+}
+$Timestamp = Get-Date -Format "yyyyMMdd_HHmmss"               # Sortable timestamp for the filename
+$Results | Export-Csv -Path ".\reports\ServiceHealth_$Timestamp.csv" -NoTypeInformation   # Saves every row
+
+# ---------------------------------------------------------------
+# STEP 4: Summarize problems found
+# ---------------------------------------------------------------
+$ProblemCount = ($Results | Where-Object { $_.Status -like "STOPPED (SHOULD BE RUNNING)*" -or $_.Status -eq "NOT FOUND" }).Count
+
+Write-Host "`nSummary: $ProblemCount service(s) need attention." -ForegroundColor Cyan
+Write-Host "Report saved to .\reports\" -ForegroundColor Green
+</code></pre></div>
+      </div>
+    </section>
+
+    <section id="linebyline">
+      <h2>Line-by-Line Explanation</h2>
+
+      <h3><code>foreach ($ServiceName in $CriticalServices) { ... }</code></h3>
+      <ul class="explain-list">
+        <li>Same <code>foreach</code> keyword from Project 2, now looping over an array of <b>strings</b> we defined
+        ourselves rather than objects returned by a cmdlet — a reminder that <code>foreach</code> works on any
+        collection, not just CIM results.</li>
+      </ul>
+
+      <h3><code>Get-Service -Name $ServiceName -ErrorAction Stop</code></h3>
+      <ul class="explain-list">
+        <li><code>-Name $ServiceName</code> — passes our loop variable as the service name to look up; on each loop
+        iteration this points at a different string from the array.</li>
+        <li><code>-ErrorAction Stop</code> — overrides the cmdlet's default error behavior for this one call, turning
+        a "service not found" into a terminating error our <code>catch</code> block can react to.</li>
+      </ul>
+
+      <h3><code>elseif ($Service.StartType -eq "Automatic" -and $Service.Status -ne "Running")</code></h3>
+      <ul class="explain-list">
+        <li><code>-and</code> — both sides must be true for the whole condition to match: the service must be
+        configured as Automatic <b>and</b> not currently running.</li>
+        <li><code>-ne</code> — "not equal to"; used here instead of checking every non-running state individually
+        (Stopped, Paused, etc.) since we just care that it isn't Running.</li>
+      </ul>
+
+      <h3><code>catch { $Results += [PSCustomObject]@{ ... Status = "NOT FOUND" } ... }</code></h3>
+      <ul class="explain-list">
+        <li>Notice the catch block still builds a result row rather than just printing a warning and moving on —
+        this keeps every checked service represented in the final report, which matters for auditing: "we checked
+        this and it wasn't there" is different information from "we never checked it."</li>
+        <li><code>$_</code> inside a <code>catch</code> block refers to the <b>error record</b>, not a pipeline
+        object — a different meaning of <code>$_</code> than the one from earlier projects, depending on context.</li>
+      </ul>
+
+      <h3><code>"{0,-16} {1,-30} {2}" -f $Result.ServiceName, $Result.DisplayName, $Result.Status</code></h3>
+      <ul class="explain-list">
+        <li><code>{0,-16}</code> — inside the format string, the number after the comma sets a minimum field width;
+        the minus sign left-aligns the text and pads it with spaces, so columns line up visually in the console.</li>
+      </ul>
+
+      <h3><code>$Result.Status -like "STOPPED (SHOULD BE RUNNING)*"</code></h3>
+      <ul class="explain-list">
+        <li><code>-like</code> — a wildcard comparison operator (different from <code>-eq</code>). The trailing
+        <code>*</code> matches "anything after this point," letting us match the status string even though we don't
+        repeat the exact same text everywhere it's used.</li>
+      </ul>
+    </section>
+
+    <section id="architecture">
+      <h2>Architecture &amp; Execution Flow</h2>
+      <div class="diagram">
+        <div class="flow">
+          <div class="box">$CriticalServices array</div><div class="arrow">→</div>
+          <div class="box">foreach loop</div><div class="arrow">→</div>
+          <div class="box">try: Get-Service</div><div class="arrow">→</div>
+          <div class="box">Found?</div>
+        </div>
+        <div class="flow" style="margin-top:12px;">
+          <div class="box">Yes → classify Status</div><div class="arrow">→</div>
+          <div class="box">Add result row</div>
+        </div>
+        <div class="flow" style="margin-top:12px;">
+          <div class="box">No → catch block</div><div class="arrow">→</div>
+          <div class="box">Add "NOT FOUND" row + Warning</div>
+        </div>
+      </div>
+      <p>Every path through the loop — found-and-healthy, found-and-broken, or not-found — ends up producing exactly
+      one result row. That consistency is what makes the final report trustworthy: nothing silently disappears.</p>
+      <h3>Windows Internals: How Get-Service Talks to Windows</h3>
+      <div class="diagram">
+        <div class="flow">
+          <div class="box">PowerShell</div><div class="arrow">→</div>
+          <div class="box">Get-Service cmdlet</div><div class="arrow">→</div>
+          <div class="box">Service Control Manager (SCM)</div><div class="arrow">→</div>
+          <div class="box">Registered Windows Services</div><div class="arrow">→</div>
+          <div class="box">ServiceController Objects Returned</div>
+        </div>
+      </div>
+      <p>The <b>Service Control Manager</b> is the Windows component responsible for starting, stopping, and
+      tracking every registered service. When a service name doesn't exist in the SCM's registry of known services,
+      that's exactly the condition our <code>try/catch</code> is built to handle.</p>
+    </section>
+
+    <section id="incident">
+      <h2>Production Incident Walkthrough</h2>
+      <div class="story">
+        This script runs nightly across 50 application servers. Tonight, 47 report all-green, 2 report a service
+        stopped-but-should-be-running, and 1 fails entirely because someone typo'd a service name in the config list
+        months ago and nobody noticed.
+      </div>
+      <ul class="explain-list">
+        <li><b>Why does a typo'd service name matter as much as a real outage?</b> A permanently mistyped name means
+        that "service" has never actually been checked — it's a silent monitoring gap that looks like coverage but
+        isn't. This is exactly why NOT FOUND gets its own distinct status instead of being lumped in with STOPPED.</li>
+        <li><b>Should the script exit early when it hits the first NOT FOUND?</b> No — for the same reason as
+        Project 2's incident: stopping early would mean the 2 real stopped-service problems on other servers never
+        get reported.</li>
+      </ul>
+    </section>
+
+    <section id="troubleshoot">
+      <h2>Troubleshooting Cheat Sheet</h2>
+      <table>
+        <tr><th>Symptom</th><th>Likely Root Cause</th><th>Fix</th></tr>
+        <tr><td>Every service shows NOT FOUND</td><td>Service names in the array don't match real internal names (DisplayName was used instead of Name)</td><td>Run <code>Get-Service | Select Name, DisplayName</code> and copy from the <code>Name</code> column</td></tr>
+        <tr><td>Script stops completely instead of catching the error</td><td><code>-ErrorAction Stop</code> was left off the Get-Service call</td><td>Confirm the parameter is present exactly as shown</td></tr>
+        <tr><td>A Manual service shows as a problem</td><td>The elseif logic didn't correctly exclude non-Automatic services</td><td>Re-check the <code>-and</code> condition includes both StartType and Status checks</td></tr>
+        <tr><td>Columns don't line up in console output</td><td>DisplayName longer than the fixed width in the format string</td><td>Increase the width number in <code>{1,-30}</code> to fit your longest expected name</td></tr>
+      </table>
+    </section>
+
+    <section id="security">
+      <h2>Security &amp; Best Practices</h2>
+      <div class="callout tip"><span class="lbl">Best practice reinforced here</span>We deliberately did
+      <b>not</b> add code to automatically restart stopped services in this project. Detecting and reporting a
+      problem is a separate, safer first step from taking automated corrective action — we'll introduce controlled,
+      auditable remediation (with <code>-WhatIf</code>/<code>-Confirm</code> support) in the Advanced stage.</div>
+      <div class="callout security"><span class="lbl">Least privilege reminder</span>Reading service status requires
+      only standard read access; restarting services requires elevated rights. Keep detection scripts running with
+      the minimum privilege they actually need.</div>
+    </section>
+
+    <section id="recap">
+      <h2>Key Learnings &amp; Recap</h2>
+      <div class="grid2">
+        <div>
+          <h3>Commands/Syntax Learned</h3>
+          <ul class="explain-list">
+            <li><code>try / catch / finally</code></li>
+            <li><code>-ErrorAction Stop</code></li>
+            <li><code>-like</code> wildcard operator</li>
+            <li><code>-and</code>, <code>-ne</code></li>
+            <li>Format-string field width/alignment (<code>{0,-16}</code>)</li>
+          </ul>
+        </div>
+        <div>
+          <h3>Concepts Learned</h3>
+          <ul class="explain-list">
+            <li>Checking a deliberate, named list instead of "everything"</li>
+            <li>Terminating vs non-terminating errors</li>
+            <li>The "Automatic but Stopped" health signal</li>
+            <li>Why every checked item should produce a result row, even on failure</li>
+          </ul>
+        </div>
+      </div>
+      <h3>Common Mistakes to Avoid</h3>
+      <ul class="explain-list">
+        <li>Forgetting <code>-ErrorAction Stop</code>, so <code>catch</code> never actually triggers.</li>
+        <li>Treating every stopped service as a problem, ignoring StartType.</li>
+        <li>Letting a missing/typo'd service silently vanish from the report instead of showing NOT FOUND.</li>
+      </ul>
+    </section>
+
+    <section id="interview">
+      <h2>Interview Preparation</h2>
+      <details><summary>Q1. What's the difference between a terminating and a non-terminating error in PowerShell?</summary>
+        <p><b>Answer:</b> A non-terminating error is reported but the cmdlet keeps going and the script continues; a
+        terminating error stops execution of that statement immediately and can be caught with try/catch. Many
+        cmdlets default to non-terminating errors, which is why <code>-ErrorAction Stop</code> is often needed to
+        make try/catch actually work.</p>
+        <p><b>Follow-up:</b> "What's $ErrorActionPreference and how does it relate?" — Answer: it's a script/session-wide
+        default for how cmdlets handle errors when no explicit <code>-ErrorAction</code> is given; setting it to
+        <code>Stop</code> affects every cmdlet in scope rather than one call at a time.</p>
+      </details>
+      <details><summary>Q2. Why check StartType alongside Status instead of just Status?</summary>
+        <p><b>Answer:</b> Status alone can't distinguish an intentionally-disabled service from a critical one that
+        crashed — combining both tells us whether "stopped" is expected or a real problem.</p>
+        <p><b>Follow-up:</b> "What about a service set to Manual that should actually be running by policy?" —
+        Answer: that's a configuration-drift case; a more advanced version of this script could compare StartType
+        against an expected baseline value per service, not just check whether it's Automatic.</p>
+      </details>
+      <details><summary>Q3. Why does the catch block still add a row to $Results instead of just skipping the service?</summary>
+        <p><b>Answer:</b> The report needs to show everything that was supposed to be checked, including checks that
+        failed — otherwise a missing/misconfigured entry silently disappears and looks like full coverage when it
+        isn't.</p>
+        <p><b>Follow-up:</b> "How would you alert specifically on NOT FOUND separately from STOPPED?" — Answer:
+        filter <code>$Results</code> with <code>Where-Object { $_.Status -eq "NOT FOUND" }</code> and route those to
+        a different notification, since they usually mean a config problem, not a service outage.</p>
+      </details>
+    </section>
+
+    <section id="challenges">
+      <h2>Coding Challenges</h2>
+      <details><summary>Challenge 1: Find all services whose StartupType is Automatic but Status is Stopped, across ALL services (not just our critical list)</summary>
+        <details><summary>Show answer</summary>
+        <pre><code>Get-Service | Where-Object { $_.StartType -eq "Automatic" -and $_.Status -ne "Running" }</code></pre>
+        </details>
+      </details>
+      <details><summary>Challenge 2: Use -in to check if a running service's name is in a "known safe to ignore" list</summary>
+        <details><summary>Show answer</summary>
+        <pre><code>$IgnoreList = @("FakeServiceXYZ", "SomeLegacyService")
+if ($ServiceName -in $IgnoreList) {
+    continue   # Skips the rest of this loop iteration and moves to the next service
+}</code></pre>
+        </details>
+      </details>
+      <details><summary>Challenge 3: Add a "CheckedAt" timestamp property to every result row</summary>
+        <details><summary>Show answer</summary>
+        <pre><code>CheckedAt = Get-Date -Format "yyyy-MM-dd HH:mm:ss"   # Add this line inside both PSCustomObject blocks</code></pre>
+        </details>
+      </details>
+    </section>
+
+    <section id="resume">
+      <h2>Resume Points</h2>
+      <ul class="explain-list">
+        <li>Built a PowerShell service-monitoring script for critical Windows services with error-resilient handling for missing or misconfigured entries.</li>
+        <li>Implemented try/catch error handling to distinguish stopped, missing, and healthy service states.</li>
+        <li>Designed status classification logic combining service StartType and Status to detect real operational risk.</li>
+      </ul>
+    </section>
+
+    <section id="assignment">
+      <h2>Practice Assignment</h2>
+      <div class="callout note">
+        Add two more real service names from your machine to <code>$CriticalServices</code>, then temporarily stop
+        one of them (as Administrator: <code>Stop-Service -Name "ServiceName"</code>), re-run the script, and confirm
+        it correctly reports the problem — then start it back up.
+      </div>
+    </section>
+
+    <section id="next">
+      <h2>Next Project Prerequisites</h2>
+      <p>Project 05 (Process Monitoring) will apply the same "check a named/threshold-based list" pattern to running
+      processes — including detecting runaway processes by CPU or memory usage. Be comfortable with try/catch and
+      foreach over arrays before moving on. When ready, say <b>"Next Project."</b></p>
+    </section>
+
+    <footer>
+      PowerShell Masterclass — ABC Bank Automation Track · Project 04 of 40 · Generated for offline, self-contained use.
+    </footer>
+  </main>
+</div>
+
+<script>
+function copyCode(btn){
+  const code = btn.parentElement.querySelector('pre').innerText;
+  navigator.clipboard.writeText(code).then(()=>{
+    const old = btn.innerText; btn.innerText = "Copied!";
+    setTimeout(()=>btn.innerText = old, 1200);
+  });
+}
+window.addEventListener('scroll', ()=>{
+  const h = document.documentElement;
+  const pct = (h.scrollTop) / (h.scrollHeight - h.clientHeight) * 100;
+  document.getElementById('progressFill').style.width = pct + '%';
+  document.getElementById('progressLabel').innerText = 'Reading progress: ' + Math.round(pct) + '%';
+});
+</script>
+</body>
+</html>

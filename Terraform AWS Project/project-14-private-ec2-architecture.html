@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Project 14 — Private EC2 Architecture | ABC Bank Terraform Mastery</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/10.9.0/mermaid.min.js"></script>
+<style>
+  :root{
+    --bg:#ffffff; --surface:#f7f5fc; --surface-2:#efeaf9; --border:#e3ddf4;
+    --primary:#6d28d9; --primary-dark:#4c1d95; --primary-light:#8b5cf6;
+    --accent-soft:#ede9fe; --text:#211b32; --muted:#6b6480;
+    --code-bg:#2b2140; --code-text:#e9e3fb;
+    --good:#0f7b52; --warn:#a8630a; --danger:#b3261e;
+    --radius:14px; --shadow:0 4px 20px rgba(109,40,217,0.08);
+  }
+  *{box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;font-size:16px;line-height:1.65;}
+  h1,h2,h3,h4{font-family:'Space Grotesk',sans-serif;color:var(--primary-dark);letter-spacing:-0.01em;}
+  a{color:var(--primary);}
+  .layout{display:flex;min-height:100vh;}
+  #sidebar{width:290px;flex-shrink:0;background:linear-gradient(180deg,var(--primary-dark),var(--primary));color:#f2edff;position:sticky;top:0;height:100vh;overflow-y:auto;padding:22px 18px 40px;}
+  #sidebar .brand{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:1.05rem;color:#fff;margin-bottom:4px;}
+  #sidebar .brand-sub{font-size:0.78rem;color:#d9cbff;margin-bottom:22px;display:block;}
+  #sidebar .progress-pill{display:inline-block;background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.25);border-radius:999px;padding:4px 12px;font-size:0.72rem;margin-bottom:20px;color:#fff;}
+  #sidebar nav a{display:block;color:#e6dcff;text-decoration:none;font-size:0.85rem;padding:7px 10px;border-radius:8px;margin-bottom:2px;transition:background .15s ease, color .15s ease;}
+  #sidebar nav a:hover{background:rgba(255,255,255,0.14);color:#fff;}
+  #sidebar nav a.active{background:#fff;color:var(--primary-dark);font-weight:600;}
+  #sidebar .nav-group-label{text-transform:uppercase;font-size:0.68rem;letter-spacing:0.08em;color:#c8b6f7;margin:18px 0 6px 10px;}
+  #content{flex:1;min-width:0;padding:44px 56px 120px;max-width:980px;}
+  .kicker{display:inline-block;background:var(--accent-soft);color:var(--primary-dark);font-size:0.75rem;font-weight:600;padding:5px 12px;border-radius:999px;margin-bottom:14px;letter-spacing:0.03em;}
+  header.hero{padding-bottom:28px;border-bottom:1px solid var(--border);margin-bottom:34px;}
+  header.hero h1{font-size:2.1rem;margin:0 0 10px;}
+  header.hero p.lead{font-size:1.05rem;color:var(--muted);max-width:70ch;}
+  section{margin-bottom:52px;scroll-margin-top:20px;}
+  section h2{font-size:1.4rem;display:flex;align-items:center;gap:10px;border-bottom:2px solid var(--surface-2);padding-bottom:10px;margin-bottom:18px;}
+  section h2 .num{background:var(--primary);color:#fff;font-size:0.75rem;font-family:'JetBrains Mono',monospace;padding:3px 8px;border-radius:6px;}
+  section h3{font-size:1.08rem;margin-top:26px;color:var(--primary);}
+  .story-box{background:var(--surface);border-left:4px solid var(--primary);border-radius:10px;padding:20px 22px;font-size:0.98rem;}
+  .story-box em{color:var(--muted);}
+  .card-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:18px 0;}
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px;}
+  .card h4{margin:0 0 8px;font-size:0.92rem;color:var(--primary-dark);}
+  .card p, .card ul{margin:0;font-size:0.9rem;color:var(--text);}
+  .card ul{padding-left:18px;}
+  .note, .warn, .best{border-radius:10px;padding:14px 16px;margin:16px 0;font-size:0.92rem;border:1px solid transparent;}
+  .note{background:#eef2ff;border-color:#c7d2fe;}
+  .note::before{content:"📝 Note";display:block;font-weight:700;margin-bottom:4px;color:#3730a3;}
+  .warn{background:#fff7ed;border-color:#fed7aa;}
+  .warn::before{content:"⚠️ Watch out";display:block;font-weight:700;margin-bottom:4px;color:var(--warn);}
+  .best{background:#ecfdf5;border-color:#a7f3d0;}
+  .best::before{content:"✅ Best Practice";display:block;font-weight:700;margin-bottom:4px;color:var(--good);}
+  details.collapse{border:1px solid var(--border);border-radius:var(--radius);margin:14px 0;background:#fff;box-shadow:var(--shadow);overflow:hidden;}
+  details.collapse summary{cursor:pointer;padding:14px 18px;font-weight:600;font-family:'Space Grotesk',sans-serif;color:var(--primary-dark);background:var(--surface);list-style:none;}
+  details.collapse summary::-webkit-details-marker{display:none;}
+  details.collapse summary::before{content:"▸ ";color:var(--primary);}
+  details.collapse[open] summary::before{content:"▾ ";}
+  details.collapse .inner{padding:16px 20px;}
+  table{width:100%;border-collapse:collapse;margin:14px 0;font-size:0.9rem;}
+  th,td{border:1px solid var(--border);padding:8px 10px;text-align:left;}
+  th{background:var(--surface-2);color:var(--primary-dark);}
+  .code-block{position:relative;margin:14px 0;border-radius:12px;overflow:hidden;border:1px solid #3b2c5e;}
+  .code-block .code-head{background:#231a38;color:#cbb8f5;font-family:'JetBrains Mono',monospace;font-size:0.78rem;padding:8px 14px;display:flex;justify-content:space-between;align-items:center;}
+  .code-block pre{margin:0;background:var(--code-bg);color:var(--code-text);padding:16px;overflow-x:auto;font-family:'JetBrains Mono',monospace;font-size:0.83rem;line-height:1.55;}
+  .code-block .copy-btn{background:var(--primary);color:#fff;border:none;border-radius:6px;font-size:0.72rem;padding:4px 10px;cursor:pointer;font-family:'Inter',sans-serif;}
+  .code-block .copy-btn:hover{background:var(--primary-light);}
+  .cmt{color:#8ee6a3;}
+  .mermaid-wrap{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:18px;margin:16px 0;overflow-x:auto;}
+  .tree{font-family:'JetBrains Mono',monospace;font-size:0.83rem;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px;white-space:pre;overflow-x:auto;}
+  .qa{border-top:1px solid var(--border);padding:12px 0;}
+  .qa .q{font-weight:600;color:var(--primary-dark);margin-bottom:4px;}
+  .nextbar{background:linear-gradient(135deg,var(--primary),var(--primary-dark));color:#fff;border-radius:16px;padding:26px 30px;margin-top:40px;}
+  .nextbar h3{color:#fff;margin-top:0;}
+  .nextbar p{color:#e6dcff;margin-bottom:0;}
+  @media (max-width:900px){.layout{flex-direction:column;}#sidebar{position:relative;width:100%;height:auto;}#content{padding:30px 20px 80px;}.card-grid{grid-template-columns:1fr;}}
+</style>
+</head>
+<body>
+<div class="layout">
+
+  <aside id="sidebar">
+    <span class="brand">🏦 ABC Bank — DevOps Mastery</span>
+    <span class="brand-sub">Intermediate → Advanced Terraform Track</span>
+    <span class="progress-pill">Project 14 / 40</span>
+    <nav id="navlinks">
+      <div class="nav-group-label">Orientation</div>
+      <a href="#story">The Banking Story</a>
+      <a href="#requirements">Business &amp; Risk</a>
+      <a href="#why-iac">Why a Hardened Baseline</a>
+      <div class="nav-group-label">Concepts</div>
+      <a href="#tf-concepts">Terraform Concepts</a>
+      <a href="#aws-concepts">AWS Concepts (IMDSv2, EBS Encryption)</a>
+      <div class="nav-group-label">Design</div>
+      <a href="#architecture">Architecture Diagrams</a>
+      <a href="#solution-design">Solution Design</a>
+      <div class="nav-group-label">Build</div>
+      <a href="#folder-structure">Folder &amp; Repo Structure</a>
+      <a href="#implementation">Implementation (Full Code)</a>
+      <a href="#code-explained">Line-by-Line Explanation</a>
+      <div class="nav-group-label">Operate</div>
+      <a href="#execution-flow">Execution Flow</a>
+      <a href="#cicd">CI/CD Integration</a>
+      <a href="#local-lab">Local Lab &amp; Assignments</a>
+      <a href="#interview">Interview Preparation</a>
+      <a href="#next">What's Next</a>
+    </nav>
+  </aside>
+
+  <main id="content">
+    <header class="hero">
+      <span class="kicker">PROJECT 14 OF 40 · ADVANCED</span>
+      <h1>Private EC2 Architecture — a Hardened Baseline for Every Fleet</h1>
+      <p class="lead">Session Manager retired the bastion in Project 07 — but that only removed one open port. Today we go further: no public IP anywhere, ever; the instance metadata service hardened against the exact request-smuggling technique behind several real-world cloud breaches; and encryption at rest enforced at the account level, not left to individual engineers to remember.</p>
+    </header>
+
+    <section id="story">
+      <h2><span class="num">01</span> The Banking Story</h2>
+      <div class="story-box">
+        A routine security review of a competitor bank's public breach report landed on the team's desk this week — the root cause was a server-side request forgery (SSRF) vulnerability in a web application that let an attacker query the EC2 Instance Metadata Service (IMDS) and steal the instance's IAM role credentials directly, entirely bypassing the application's own authentication. ABC Bank's instances are still running IMDSv1, the older protocol that vulnerability specifically exploits.<br><br>
+        Separately, an audit of the account found three EC2 instances — created early in the program, before Project 02's VPC framework existed — still have public IP addresses assigned, a leftover from before the team standardized on private subnets. And EBS volume encryption has been "on by default" only because every engineer has remembered to tick the box; nothing structurally prevents someone from launching an unencrypted volume by mistake.<br><br>
+        Our manager's brief: <em>"Force IMDSv2 everywhere — no instance should ever be able to fall back to v1. Make encryption at rest the account-wide default, not a per-instance choice. And build the standard hardened instance module every future compute project in this series will use, so this is solved once, not 40 times."</em>
+      </div>
+    </section>
+
+    <section id="requirements">
+      <h2><span class="num">02</span> Business Requirement, Risk &amp; Impact</h2>
+      <div class="card-grid">
+        <div class="card"><h4>Business Requirement</h4><p>Every EC2 instance in every account must enforce IMDSv2, have encrypted EBS volumes by default, and have no public IP address, without depending on individual engineer discipline.</p></div>
+        <div class="card"><h4>Customer Requirement</h4><p>The Security team wants one reusable, hardened instance module that every application team builds on — not 40 separately hardened (or not) instance configurations across the platform.</p></div>
+        <div class="card"><h4>Current Infrastructure</h4><p>Instances launched with IMDSv1 still permitted, EBS encryption dependent on per-resource configuration, and three legacy instances with public IPs from before Project 02.</p></div>
+        <div class="card"><h4>Existing Manual Process</h4><p>None formalized — hardening settings are whatever each engineer happened to configure (or not) on their own launch template or instance resource.</p></div>
+        <div class="card"><h4>Problems With Current Process</h4><ul><li>IMDSv1 remains reachable, leaving an SSRF-to-credential-theft path open exactly like the breach report reviewed this week</li><li>EBS encryption isn't structurally guaranteed — a forgotten setting means unencrypted data at rest</li><li>Three legacy public-IP instances are a known, unaddressed exception to the private-only architecture the rest of this series has built</li></ul></div>
+        <div class="card"><h4>Business Challenges</h4><p>PCI-DSS and general banking security standards both require encryption of stored cardholder-adjacent data and hardened access controls to compute infrastructure — both gaps here are direct compliance exposure, not just best-practice nice-to-haves.</p></div>
+        <div class="card"><h4>Risk Analysis</h4><p><strong>High:</strong> the IMDSv1 exposure is not theoretical — it is the exact, named root cause of a real, publicly documented breach at another financial institution, making this a credible, not hypothetical, threat.</p></div>
+        <div class="card"><h4>Business Impact</h4><p>An SSRF-to-IAM-credential-theft path in Production could expose the very AWS resources (databases, secrets) the rest of this 40-project series has worked to protect.</p></div>
+      </div>
+    </section>
+
+    <section id="why-iac">
+      <h2><span class="num">03</span> Why a Structural, Account-Wide Baseline</h2>
+      <h3>Why enforce this structurally, not just by convention</h3>
+      <p>A written standard ("always use IMDSv2") depends on every engineer remembering and correctly applying it, every time — exactly the kind of gap Project 05's permission boundaries were built to close for IAM. The same principle applies here: settings that can be structurally enforced (account-wide EBS encryption default, a shared hardened module) should be, rather than left to individual configuration discipline.</p>
+      <h3>Alternatives considered, and why they were rejected</h3>
+      <table>
+        <tr><th>Alternative</th><th>Why considered</th><th>Why rejected for ABC Bank</th></tr>
+        <tr><td>AWS Config rules that flag non-compliant instances after the fact</td><td>Good detective control, catches drift over time</td><td>Detective only — it tells you about a problem after an instance already launched insecurely; we want this prevented at creation, with Config as a complementary later addition, not the primary control</td></tr>
+        <tr><td>Written security standard + code review checklist</td><td>No new infrastructure needed</td><td>Exactly the discipline-dependent approach that let the current gaps (IMDSv1, public IPs) accumulate unnoticed in the first place</td></tr>
+        <tr><td>SCP denying IMDSv1 API calls entirely</td><td>Structural, org-wide enforcement like Project 05's guardrails</td><td>A good complementary hardening step for a LATER project — today's module-level enforcement is the more immediate, direct fix; we'll layer the SCP on top once this baseline exists</td></tr>
+      </table>
+    </section>
+
+    <section id="tf-concepts">
+      <h2><span class="num">04</span> Terraform Concepts You Must Understand Before We Build</h2>
+
+      <details class="collapse" open>
+        <summary>Reinforcing Data Sources — Filtered AMI Lookup with Owners</summary>
+        <div class="inner">
+          <p><strong>What it is:</strong> beyond Project 07's simple SSM parameter AMI lookup, <code>data "aws_ami"</code> with explicit <code>owners</code> and <code>filter</code> blocks lets us pin to a specific, security-team-approved custom hardened AMI (not just "whatever Amazon Linux published most recently") — critical when the AMI itself has pre-baked hardening beyond what user-data alone can configure.</p>
+          <p><strong>Why the <code>owners</code> argument matters:</strong> without restricting to a specific, known account ID (ABC Bank's own AMI-building account, or Amazon's), a search by name alone could theoretically match an AMI published by an untrusted third party with a similar name — a real, documented AMI-spoofing risk.</p>
+        </div>
+      </details>
+
+      <details class="collapse">
+        <summary>Reinforcing Complex Variables — Security Group Rule Chaining via <code>for_each</code></summary>
+        <div class="inner">
+          <p><strong>What it is:</strong> rather than hardcoding CIDR blocks in every security group rule, this module's ingress rules reference OTHER security group IDs by ID (e.g. "allow from the ALB's security group specifically") — built with <code>for_each</code> over a map of allowed source security groups, so adding a new permitted caller is a one-line variable change.</p>
+          <p><strong>Why it's more secure than CIDR-based rules:</strong> a security-group-referenced rule automatically stays correct even if the source's IP address changes — CIDR-based rules require manual updates and are far easier to accidentally over-scope.</p>
+        </div>
+      </details>
+
+      <details class="collapse">
+        <summary>Reinforcing Module Design — One Hardened Module for Every Future Fleet</summary>
+        <div class="inner">
+          <p><strong>What it is:</strong> this project's entire deliverable is a single <code>hardened-instance</code> module encapsulating every setting from this page — IMDSv2, encryption, no public IP — so every later project in this series that needs compute simply calls this module instead of re-declaring an <code>aws_instance</code> resource with these settings copy-pasted in each time.</p>
+        </div>
+      </details>
+    </section>
+
+    <section id="aws-concepts">
+      <h2><span class="num">05</span> AWS Concepts: IMDSv2, EBS Encryption &amp; No-Public-IP</h2>
+      <div class="card-grid">
+        <div class="card"><h4>What is IMDSv1 vs. IMDSv2</h4><p>IMDSv1 answers metadata requests with a simple unauthenticated GET request — trivially exploitable via SSRF. IMDSv2 requires a session token obtained via a PUT request first, a request method most SSRF vulnerabilities (which typically only control the URL of a GET) cannot forge.</p></div>
+        <div class="card"><h4>Why <code>http_tokens = "required"</code> matters</h4><p>Setting this on the instance (or launch template) makes IMDSv2 mandatory — IMDSv1 requests are rejected outright, closing the exact exploit path from the breach report the team reviewed.</p></div>
+        <div class="card"><h4>Account-Wide EBS Encryption Default</h4><p><code>aws_ebs_encryption_by_default</code> is a single, account-level (or per-region) setting that makes every newly created EBS volume encrypted automatically, with no per-resource argument required — structurally closing the "forgot to tick the box" gap.</p></div>
+        <div class="card"><h4>Why No Public IP, Beyond "Defense in Depth"</h4><p>Even with Session Manager (Project 07) removing the need for direct SSH, a public IP still exposes whatever else might be listening on the instance to the entire internet — removing it entirely, not just closing specific ports, is a meaningfully stronger posture.</p></div>
+        <div class="card"><h4>Security Group Chaining</h4><p>Referencing a source security group ID instead of a CIDR block means the rule automatically stays correct as the referenced resource's underlying instances change — a structural improvement over IP-based rules that also happens to be easier to audit at a glance.</p></div>
+        <div class="card"><h4>Limitations</h4><p>IMDSv2 enforcement can break older application code or third-party agents that hardcode IMDSv1-style unauthenticated requests — test thoroughly before enforcing account-wide, and budget time to update any non-compliant tooling first.</p></div>
+      </div>
+    </section>
+
+    <section id="architecture">
+      <h2><span class="num">06</span> Architecture Diagrams</h2>
+      <h3>SSRF Attack Path — Before vs After</h3>
+      <div class="mermaid-wrap"><div class="mermaid">
+flowchart TB
+  subgraph Before[Before — IMDSv1 permitted]
+    App1[Vulnerable App] -->|simple GET, no token needed| IMDS1[Instance Metadata Service]
+    IMDS1 --> Creds1[IAM Role Credentials Exposed]
+  end
+  subgraph After[After — IMDSv2 required]
+    App2[Vulnerable App] -->|GET only, no token| IMDS2[Instance Metadata Service]
+    IMDS2 -->|Rejected: token required| Blocked[Request Denied]
+  end
+      </div></div>
+
+      <h3>Hardened Instance Module Composition</h3>
+      <div class="mermaid-wrap"><div class="mermaid">
+flowchart LR
+  Module[hardened-instance module] --> AMI[data.aws_ami — owners + filters]
+  Module --> MetaOpt[metadata_options<br/>http_tokens = required]
+  Module --> NoPublicIP[associate_public_ip_address = false]
+  Module --> EBS[root_block_device<br/>encrypted = true]
+  Module --> SGChain[Security group referencing<br/>source SG IDs, not CIDRs]
+      </div></div>
+
+      <h3>Account-Wide Encryption Default</h3>
+      <div class="mermaid-wrap"><div class="mermaid">
+flowchart TB
+  Setting[aws_ebs_encryption_by_default<br/>enabled = true] --> AnyVolume[ANY new EBS volume in this account/region]
+  AnyVolume --> Encrypted[Automatically encrypted<br/>even with no per-resource setting]
+      </div></div>
+    </section>
+
+    <section id="solution-design">
+      <h2><span class="num">07</span> Complete Solution Design</h2>
+      <p>An account-level <code>aws_ebs_encryption_by_default</code> resource is applied once per account/region, making encryption the structural default rather than a per-instance choice. A new <code>modules/hardened-instance</code> module wraps <code>aws_instance</code> with <code>metadata_options { http_tokens = "required", http_endpoint = "enabled" }</code>, <code>associate_public_ip_address = false</code> hardcoded (not even exposed as a variable — deliberately impossible to override), and an encrypted root block device.</p>
+      <p>The module's security group is built with <code>for_each</code> over a map of allowed source security group IDs, so every consumer declares exactly which other security groups may reach it, by reference — never by CIDR. The three legacy public-IP instances are migrated onto this module as a first, concrete adoption.</p>
+    </section>
+
+    <section id="folder-structure">
+      <h2><span class="num">08</span> Folder Structure &amp; Repo Layout</h2>
+      <div class="tree">terraform-abc-bank/
+├── environments/
+│   └── prod/
+│       └── ebs-encryption-default.tf   # Account-wide setting, applied once
+└── modules/
+    └── hardened-instance/
+        ├── variables.tf
+        ├── main.tf
+        ├── security-group.tf
+        └── outputs.tf</div>
+    </section>
+
+    <section id="implementation">
+      <h2><span class="num">09</span> Implementation — Full Production Code</h2>
+
+      <h3>environments/prod/ebs-encryption-default.tf</h3>
+      <div class="code-block">
+        <div class="code-head"><span>environments/prod/ebs-encryption-default.tf</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre><code>resource "aws_ebs_encryption_by_default" "account" {                  <span class="cmt"># Account/region-level setting — applies to EVERY future EBS volume automatically</span>
+  enabled = true
+}
+
+resource "aws_ebs_default_kms_key" "account" {                          <span class="cmt"># Pairs with the setting above — controls WHICH key encrypts by default</span>
+  key_arn = var.ebs_default_kms_key_arn                                  <span class="cmt"># A dedicated key, separate from the logging (Project 04) and secrets (Project 06) keys</span>
+}</code></pre>
+      </div>
+
+      <h3>modules/hardened-instance/variables.tf</h3>
+      <div class="code-block">
+        <div class="code-head"><span>modules/hardened-instance/variables.tf</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre><code>variable "name" {
+  type = string
+}
+
+variable "vpc_id" {
+  type = string
+}
+
+variable "subnet_id" {
+  type = string
+}
+
+variable "instance_type" {
+  type    = string
+  default = "t3.large"
+}
+
+variable "allowed_source_security_groups" {                             <span class="cmt"># Complex variable — maps a friendly name to a source security group ID allowed to reach this instance</span>
+  type        = map(object({
+    security_group_id = string
+    port               = number
+  }))
+  default     = {}
+  description = "Named map of security groups (and the port) allowed to reach this instance — NEVER raw CIDRs"
+}
+
+<span class="cmt"># NOTE: deliberately NO variable for public IP assignment or IMDSv1 fallback —
+# these are hardcoded in main.tf, not exposed as overridable inputs, by design.</span></code></pre>
+      </div>
+
+      <h3>modules/hardened-instance/main.tf</h3>
+      <div class="code-block">
+        <div class="code-head"><span>modules/hardened-instance/main.tf</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre><code>data "aws_ami" "hardened_base" {
+  owners      = [var.trusted_ami_account_id]                            <span class="cmt"># Restricts to ABC Bank's OWN AMI-building account — never search across all of AWS unscoped</span>
+  most_recent = true
+
+  filter {
+    name   = "name"
+    values = ["abc-bank-hardened-al2023-*"]                              <span class="cmt"># Matches the bank's own pre-hardened, security-team-approved AMI naming convention</span>
+  }
+  filter {
+    name   = "state"
+    values = ["available"]                                                <span class="cmt"># Excludes any AMI still mid-build or deregistered</span>
+  }
+}
+
+resource "aws_instance" "this" {
+  ami                          = data.aws_ami.hardened_base.id
+  instance_type                = var.instance_type
+  subnet_id                    = var.subnet_id
+  associate_public_ip_address  = false                                   <span class="cmt"># HARDCODED false — not a variable, so no consumer of this module can ever accidentally opt into a public IP</span>
+  vpc_security_group_ids       = [aws_security_group.this.id]
+
+  metadata_options {
+    http_endpoint               = "enabled"
+    http_tokens                  = "required"                             <span class="cmt"># Enforces IMDSv2 — IMDSv1 requests are rejected outright, closing the SSRF path from our story</span>
+    http_put_response_hop_limit  = 1                                        <span class="cmt"># Limits metadata responses to one network hop — prevents forwarding metadata requests through a proxy on the instance itself</span>
+  }
+
+  root_block_device {
+    encrypted   = true                                                    <span class="cmt"># Explicit here too, belt-and-braces alongside the account-wide default from ebs-encryption-default.tf</span
+    volume_size = 30
+  }
+
+  tags = { Name = var.name }
+}</code></pre>
+      </div>
+
+      <h3>modules/hardened-instance/security-group.tf</h3>
+      <div class="code-block">
+        <div class="code-head"><span>modules/hardened-instance/security-group.tf</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre><code>resource "aws_security_group" "this" {
+  name   = "${var.name}-sg"
+  vpc_id = var.vpc_id
+
+  egress {
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]                                          <span class="cmt"># Outbound HTTPS only — for SSM Agent, package updates, etc. (Project 07/08 patterns)</span>
+  }
+}
+
+resource "aws_security_group_rule" "allowed_sources" {
+  for_each = var.allowed_source_security_groups                          <span class="cmt"># One ingress rule PER named allowed source — keyed by name, not index, safe to add/remove individually</span>
+
+  type                     = "ingress"
+  security_group_id        = aws_security_group.this.id
+  from_port                = each.value.port
+  to_port                  = each.value.port
+  protocol                 = "tcp"
+  source_security_group_id = each.value.security_group_id                <span class="cmt"># References ANOTHER security group by ID — never a raw CIDR block</span>
+}</code></pre>
+      </div>
+
+      <h3>modules/hardened-instance/outputs.tf</h3>
+      <div class="code-block">
+        <div class="code-head"><span>modules/hardened-instance/outputs.tf</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre><code>output "instance_id" {
+  value = aws_instance.this.id
+}
+
+output "security_group_id" {
+  value = aws_security_group.this.id                                     <span class="cmt"># Exposed so OTHER instances can reference THIS one as an allowed source — chaining continues outward</span>
+}</code></pre>
+      </div>
+
+      <h3>Example: migrating a legacy public-IP instance onto the module</h3>
+      <div class="code-block">
+        <div class="code-head"><span>environments/prod/legacy-migration.tf</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre><code>module "reporting_service" {                                            <span class="cmt"># One of the three legacy public-IP instances from the audit, now rebuilt on the hardened module</span>
+  source        = "../../modules/hardened-instance"
+  name          = "reporting-service"
+  vpc_id        = module.vpc.vpc_id
+  subnet_id     = module.vpc.subnet_ids_by_tier["private"][0]            <span class="cmt"># Moved from a PUBLIC subnet to a PRIVATE one as part of this migration</span>
+
+  allowed_source_security_groups = {
+    alb = {
+      security_group_id = aws_security_group.internal_alb.id
+      port               = 8080
+    }
+  }
+}</code></pre>
+      </div>
+    </section>
+
+    <section id="code-explained">
+      <h2><span class="num">10</span> Code Explanation Summary</h2>
+      <table>
+        <tr><th>Block / Argument</th><th>What it does</th><th>Common mistake to avoid</th></tr>
+        <tr><td><code>http_tokens = "required"</code></td><td>Mandates IMDSv2's session-token flow, rejecting the older, SSRF-vulnerable IMDSv1 requests entirely</td><td>Leaving this as <code>"optional"</code> (the historical default) — that permits BOTH versions, leaving the exact vulnerability path open even though IMDSv2 is technically available</td></tr>
+        <tr><td><code>http_put_response_hop_limit = 1</code></td><td>Limits how many network hops a metadata response can traverse</td><td>Leaving this higher than necessary — a higher hop limit can allow metadata requests to be relayed through containers or proxies running on the instance, widening the SSRF blast radius even under IMDSv2</td></tr>
+        <tr><td>No variable exposed for <code>associate_public_ip_address</code></td><td>A deliberate module design choice — the setting is hardcoded, not parameterized</td><td>The opposite mistake: exposing every possible setting as a variable "for flexibility" — some settings (like this one) should be structurally fixed specifically to prevent misuse, not left configurable</td></tr>
+        <tr><td><code>source_security_group_id</code> instead of <code>cidr_blocks</code></td><td>Scopes an ingress rule to instances behind a specific security group, regardless of their changing IP addresses</td><td>Falling back to a CIDR block "just to get it working quickly" — reintroduces exactly the IP-based fragility and over-broad access this pattern is designed to avoid</td></tr>
+      </table>
+    </section>
+
+    <section id="execution-flow">
+      <h2><span class="num">11</span> Execution Flow, Explained Internally</h2>
+      <div class="card-grid">
+        <div class="card"><h4>terraform apply — account-wide encryption default</h4><p>Applies once per account/region; it has no effect on EBS volumes that already exist — only volumes created AFTER this setting is enabled are automatically encrypted, which is why the module's own <code>root_block_device { encrypted = true }</code> remains valuable as an explicit, resource-level guarantee too.</p></div>
+        <div class="card"><h4>terraform apply — hardened-instance module</h4><p>The <code>data "aws_ami"</code> lookup resolves first, then the instance and its security group are created, then each <code>for_each</code>-driven ingress rule is added — all inferred automatically from the resource reference graph.</p></div>
+        <div class="card"><h4>Migrating a legacy instance</h4><p>Moving from a public to a private subnet, with a completely different resource shape (module call vs. bare resource), is a destroy-and-recreate from Terraform's perspective — plan this migration during an approved maintenance window, not as a routine apply.</td></tr>
+        </div>
+      </div>
+      <div class="warn">Enforcing IMDSv2 account-wide can break agents or scripts still using IMDSv1-style requests — audit and test every instance's running software against IMDSv2 before rolling this out broadly, especially for any legacy or third-party tooling.</div>
+    </section>
+
+    <section id="cicd">
+      <h2><span class="num">12</span> CI/CD Integration</h2>
+      <div class="code-block">
+        <div class="code-head"><span>.github/workflows/terraform-hardened-instance-check.yml</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre><code>name: hardened-instance-guardrail
+on:
+  pull_request:
+    paths: ["**/*.tf"]
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+      - run: terraform init
+      - run: terraform plan -out=tfplan
+      - name: Fail if any new instance skips the hardened module or allows public IPs
+        run: |                                                          <span class="cmt"># Structural guardrail — same spirit as Project 07's SSH-ingress check</span>
+          terraform show -json tfplan | jq -e '
+            [.resource_changes[] | select(.type=="aws_instance") |
+             select(.change.after.associate_public_ip_address == true)] | length == 0
+          '</code></pre>
+      </div>
+      <div class="best">A pipeline-level check that fails the build on any new <code>aws_instance</code> with a public IP catches both mistakes AND any future attempt to bypass the hardened module by writing a bare <code>aws_instance</code> resource directly.</div>
+    </section>
+
+    <section id="local-lab">
+      <h2><span class="num">13</span> Local Lab — Practice This Yourself</h2>
+      <h3>Prerequisites</h3>
+      <ul>
+        <li>A custom AMI (or substitute the SSM parameter lookup from Project 07 for practice, if a hardened custom AMI isn't yet available)</li>
+      </ul>
+      <h3>Commands</h3>
+      <div class="code-block">
+        <div class="code-head"><span>terminal</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre><code>cd environments/prod
+terraform init
+terraform apply
+
+<span class="cmt"># From inside the instance (via Session Manager), confirm IMDSv1 is actually rejected:</span>
+curl -s http://169.254.169.254/latest/meta-data/  <span class="cmt"># Should FAIL without a token</span>
+TOKEN=$(curl -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 21600")
+curl -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/  <span class="cmt"># Should SUCCEED</span></code></pre>
+      </div>
+      <h3>Expected output</h3>
+      <p>The unauthenticated request fails; the token-based request succeeds — direct, hands-on confirmation that IMDSv2 is genuinely enforced, not just configured.</p>
+      <h3>Troubleshooting</h3>
+      <table>
+        <tr><th>Symptom</th><th>Likely cause</th></tr>
+        <tr><td>An application or agent stops working after enforcing IMDSv2</td><td>That software still makes unauthenticated IMDSv1-style requests — check for outdated SDK versions or legacy agents needing an update</td></tr>
+        <tr><td><code>data.aws_ami</code> returns no results</td><td>The <code>owners</code> account ID or the name filter pattern doesn't match any AMI actually available — verify both against the AMI's real owner account and name in the console</td></tr>
+      </table>
+      <h3>Assignments</h3>
+      <ol>
+        <li>Add an SCP (extending Project 05's pattern) that denies launching any EC2 instance with <code>http_tokens</code> not set to <code>required</code>, enforcing this org-wide rather than only at the module level.</li>
+        <li>Migrate the remaining two legacy public-IP instances from the audit onto the hardened module.</li>
+      </ol>
+      <h3>Challenge Task</h3>
+      <p>Extend the <code>hardened-instance</code> module to also enforce EBS volumes are NOT publicly shareable snapshots by default, and add a check to the CI/CD guardrail pipeline that fails the build on any snapshot resource with public permissions.</p>
+    </section>
+
+    <section id="interview">
+      <h2><span class="num">14</span> Interview Preparation</h2>
+      <div class="qa"><div class="q">Q: How does IMDSv2 specifically defend against SSRF-based credential theft?</div><div>IMDSv2 requires a PUT request to obtain a session token before any metadata can be read — most SSRF vulnerabilities only let an attacker control the URL of a GET request, not craft an arbitrary PUT, so the token requirement blocks the typical exploitation path even when the SSRF flaw itself still exists.</div></div>
+      <div class="qa"><div class="q">Q: Why set http_put_response_hop_limit to 1?</div><div>It prevents the metadata response from being relayed through additional network hops such as a container or proxy running on the instance — without this limit, certain SSRF variants could still reach the metadata service indirectly even with IMDSv2 enforced.</div></div>
+      <div class="qa"><div class="q">Q: Why deliberately not expose associate_public_ip_address as a module variable?</div><div>Some settings are safer as structurally fixed rather than configurable — exposing this as an override would let any consumer of the module accidentally (or deliberately) reintroduce a public IP, defeating the module's core purpose.</div></div>
+      <div class="qa"><div class="q">Q: What's the advantage of security-group-referenced ingress rules over CIDR-based rules?</div><div>A security-group reference automatically stays accurate as the referenced resource's underlying IPs change over time, and is easier to audit at a glance ("what security group can reach this") than a list of IP ranges whose origin may not be obvious months later.</div></div>
+      <div class="qa"><div class="q">Manager round: How would you safely roll out IMDSv2 enforcement across an existing fleet without breaking anything?</div><div>Audit running software for IMDSv1 dependency first (via VPC Flow Logs or agent version inventories), fix or upgrade anything non-compliant, roll out enforcement to a low-risk environment first, then expand — the same staged rollout discipline used for the SCPs in Project 05.</div></div>
+    </section>
+
+    <div class="nextbar" id="next">
+      <h3>What's next</h3>
+      <p>Project 15 builds an <strong>ALB + NLB Enterprise Design</strong> — layering both an Application Load Balancer and a Network Load Balancer in front of the hardened instance fleets from today, for services needing static IPs, extreme throughput, or non-HTTP protocols that an ALB alone can't handle. Tell me when you're ready for Project 15.</p>
+    </div>
+
+  </main>
+</div>
+
+<script>
+  mermaid.initialize({ startOnLoad: true, theme: 'base', themeVariables: {
+    primaryColor: '#ede9fe', primaryTextColor: '#4c1d95', primaryBorderColor: '#8b5cf6',
+    lineColor: '#8b5cf6', secondaryColor: '#f7f5fc', tertiaryColor: '#ffffff', fontFamily: 'Inter, sans-serif'
+  }});
+  function copyCode(btn){
+    const pre = btn.closest('.code-block').querySelector('pre');
+    const text = pre.innerText;
+    navigator.clipboard.writeText(text).then(()=>{
+      const original = btn.textContent;
+      btn.textContent = 'Copied!';
+      setTimeout(()=>{ btn.textContent = original; }, 1500);
+    });
+  }
+  const sections = document.querySelectorAll('section, .nextbar');
+  const links = document.querySelectorAll('#navlinks a');
+  const observer = new IntersectionObserver((entries)=>{
+    entries.forEach(entry=>{
+      if(entry.isIntersecting){
+        links.forEach(l=>l.classList.remove('active'));
+        const id = entry.target.getAttribute('id');
+        const match = document.querySelector(`#navlinks a[href="#${id}"]`);
+        if(match) match.classList.add('active');
+      }
+    });
+  }, { rootMargin: '-20% 0px -70% 0px' });
+  sections.forEach(s=>observer.observe(s));
+</script>
+</body>
+</html>
