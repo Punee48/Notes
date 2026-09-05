@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Project 13 — ResourceQuotas & LimitRanges | Enterprise Ansible Masterclass</title>
+<style>
+  :root {
+    --bg:#0B1120;--bg2:#111827;--card:#1E293B;--border:#2D3E55;
+    --accent:#F59E0B;--accent2:#FBBF24;--accent3:#FCD34D;
+    --text:#F8FAFC;--muted:#94A3B8;--success:#22C55E;--warning:#F59E0B;--error:#EF4444;
+    --code-bg:#020617;--code-border:#451A03;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,sans-serif;font-size:15px;line-height:1.7;}
+  .layout{display:flex;min-height:100vh;}
+  .sidebar{width:260px;flex-shrink:0;background:var(--bg2);border-right:1px solid var(--border);position:sticky;top:0;height:100vh;overflow-y:auto;padding:24px 0;}
+  .sidebar-logo{padding:0 20px 20px;border-bottom:1px solid var(--border);margin-bottom:16px;}
+  .sidebar-logo .series{font-size:10px;text-transform:uppercase;letter-spacing:2px;color:var(--muted);margin-bottom:4px;}
+  .sidebar-logo .title{font-size:13px;font-weight:700;color:var(--accent);line-height:1.3;}
+  .toc-section{padding:8px 20px 4px;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);font-weight:600;margin-top:8px;}
+  .toc-item{display:block;padding:6px 20px;font-size:12.5px;color:var(--muted);text-decoration:none;border-left:2px solid transparent;transition:all .2s;}
+  .toc-item:hover,.toc-item.active{color:var(--accent);border-left-color:var(--accent);background:rgba(245,158,11,.08);}
+  .main{flex:1;max-width:960px;padding:48px 56px;overflow-x:hidden;}
+  .cover{background:linear-gradient(135deg,#451A03 0%,#78350F 50%,#0B1120 100%);border:1px solid var(--border);border-radius:16px;padding:48px;margin-bottom:48px;position:relative;overflow:hidden;}
+  .cover::before{content:'';position:absolute;top:-60px;right:-60px;width:300px;height:300px;background:radial-gradient(circle,rgba(245,158,11,.15) 0%,transparent 70%);pointer-events:none;}
+  .cover-badge{display:inline-flex;align-items:center;gap:8px;background:rgba(245,158,11,.15);border:1px solid rgba(245,158,11,.3);border-radius:99px;padding:4px 14px;font-size:11px;font-weight:600;color:var(--accent);text-transform:uppercase;letter-spacing:1px;margin-bottom:20px;}
+  .cover-badge .dot{width:6px;height:6px;border-radius:50%;background:var(--accent);animation:pulse 2s infinite;}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+  .cover h1{font-size:32px;font-weight:800;line-height:1.2;margin-bottom:12px;}
+  .cover h1 span{background:linear-gradient(90deg,var(--accent2),var(--accent3));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+  .cover-sub{font-size:16px;color:var(--muted);margin-bottom:32px;max-width:620px;}
+  .cover-meta{display:flex;flex-wrap:wrap;gap:24px;}
+  .meta-item{display:flex;flex-direction:column;gap:2px;}
+  .meta-label{font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);}
+  .meta-value{font-size:14px;font-weight:600;color:var(--text);}
+  .meta-value.amber{color:var(--accent);}
+  h2.section-title{font-size:22px;font-weight:700;margin:48px 0 20px;padding-bottom:12px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;}
+  h2.section-title .num{width:32px;height:32px;background:linear-gradient(135deg,var(--accent),var(--accent2));border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;color:#fff;flex-shrink:0;}
+  h3.sub-title{font-size:17px;font-weight:700;margin:28px 0 12px;color:var(--accent2);}
+  h4.mini-title{font-size:14px;font-weight:700;margin:20px 0 8px;color:var(--accent3);text-transform:uppercase;letter-spacing:.5px;}
+  p{margin-bottom:14px;}
+  strong{color:var(--text);font-weight:700;}
+  .callout{border-radius:10px;padding:16px 20px;margin:20px 0;border-left:4px solid;display:flex;gap:12px;}
+  .callout-icon{font-size:18px;flex-shrink:0;margin-top:1px;}
+  .callout-body{flex:1;}
+  .callout-title{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;}
+  .callout p{margin-bottom:0;font-size:14px;}
+  .callout.info{background:rgba(245,158,11,.07);border-color:var(--accent);}
+  .callout.info .callout-title{color:var(--accent);}
+  .callout.warn{background:rgba(245,158,11,.07);border-color:var(--warning);}
+  .callout.warn .callout-title{color:var(--warning);}
+  .callout.tip{background:rgba(34,197,94,.07);border-color:var(--success);}
+  .callout.tip .callout-title{color:var(--success);}
+  .callout.danger{background:rgba(239,68,68,.07);border-color:var(--error);}
+  .callout.danger .callout-title{color:var(--error);}
+  .story-box{background:linear-gradient(135deg,#451A03 0%,#0B1120 100%);border:1px solid rgba(245,158,11,.3);border-radius:12px;padding:24px 28px;margin:24px 0;position:relative;}
+  .story-box::before{content:'"';position:absolute;top:-10px;left:20px;font-size:60px;color:rgba(245,158,11,.3);font-family:Georgia,serif;line-height:1;}
+  .story-box p{color:#CBD5E1;font-size:14.5px;line-height:1.8;margin-bottom:8px;}
+  .story-box .story-tag{font-size:10px;text-transform:uppercase;letter-spacing:2px;color:var(--accent);font-weight:700;margin-bottom:12px;}
+  .code-wrapper{margin:20px 0;border-radius:10px;overflow:hidden;border:1px solid var(--code-border);}
+  .code-header{display:flex;justify-content:space-between;align-items:center;background:#0D1117;padding:10px 16px;border-bottom:1px solid var(--code-border);}
+  .code-lang{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--accent);}
+  .code-filename{font-size:11px;color:var(--muted);font-family:'Courier New',monospace;}
+  .copy-btn{background:rgba(245,158,11,.15);border:1px solid rgba(245,158,11,.3);color:var(--accent);border-radius:5px;padding:3px 10px;font-size:11px;cursor:pointer;}
+  .copy-btn:hover{background:rgba(245,158,11,.3);}
+  pre{background:var(--code-bg);padding:20px;overflow-x:auto;font-family:'Courier New',Consolas,monospace;font-size:13px;line-height:1.65;margin:0;}
+  .sy-comment{color:#4A5568;font-style:italic;} .sy-key{color:#FCD34D;} .sy-string{color:#86EFAC;}
+  .sy-var{color:#FBBF24;} .sy-module{color:#67E8F9;} .sy-bool{color:#C084FC;}
+  .sy-num{color:#FBBF24;} .sy-keyword{color:#FBBF24;font-weight:bold;}
+  .tag{display:inline-block;border-radius:4px;padding:2px 8px;font-size:11px;font-weight:600;margin:2px;}
+  .tag.amber{background:#451A03;color:#FCD34D;} .tag.orange{background:#7C2D12;color:#FDBA74;}
+  .tag.green{background:#14532D;color:#4ADE80;} .tag.blue{background:#1E3A8A;color:#93C5FD;}
+  .card-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:16px;margin:20px 0;}
+  .card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:20px;transition:border-color .2s;}
+  .card:hover{border-color:var(--accent);}
+  .card-icon{font-size:24px;margin-bottom:10px;} .card-title{font-size:13px;font-weight:700;margin-bottom:6px;}
+  .card-desc{font-size:12px;color:var(--muted);line-height:1.6;}
+  .table-wrap{overflow-x:auto;margin:20px 0;border-radius:10px;border:1px solid var(--border);}
+  table{width:100%;border-collapse:collapse;}
+  th{background:var(--card);padding:12px 16px;text-align:left;font-size:12px;font-weight:700;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--border);}
+  td{padding:12px 16px;font-size:13px;border-bottom:1px solid rgba(45,62,85,.5);vertical-align:top;}
+  tr:last-child td{border-bottom:none;}
+  .step-list{list-style:none;margin:16px 0;}
+  .step-list li{display:flex;gap:16px;margin-bottom:16px;align-items:flex-start;}
+  .step-num{width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent2));display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:#fff;flex-shrink:0;}
+  .step-content strong{display:block;font-size:14px;margin-bottom:4px;}
+  .step-content span{font-size:13px;color:var(--muted);}
+  .explain-block{background:#1C0A00;border:1px solid var(--code-border);border-radius:10px;padding:20px 24px;margin:16px 0;}
+  .explain-title{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--accent);margin-bottom:12px;}
+  .explain-row{display:flex;gap:16px;padding:8px 0;border-bottom:1px solid rgba(45,62,85,.4);font-size:13px;}
+  .explain-row:last-child{border-bottom:none;}
+  .explain-term{color:var(--accent2);font-family:monospace;min-width:220px;flex-shrink:0;}
+  .explain-def{color:#CBD5E1;}
+  .qa-block{background:var(--card);border:1px solid var(--border);border-radius:10px;margin:16px 0;overflow:hidden;}
+  .qa-q{padding:14px 18px;background:#1C0A00;font-size:13.5px;font-weight:600;color:var(--accent);border-bottom:1px solid var(--border);}
+  .qa-q::before{content:'Q: ';}
+  .qa-a{padding:14px 18px;font-size:13px;color:#CBD5E1;line-height:1.7;}
+  .qa-a::before{content:'A: ';color:var(--success);font-weight:700;}
+  .challenge{background:linear-gradient(135deg,#451A03 0%,#0B1120 100%);border:1px solid rgba(245,158,11,.3);border-radius:10px;padding:20px 24px;margin:16px 0;}
+  .challenge-num{font-size:10px;text-transform:uppercase;letter-spacing:2px;color:var(--accent);font-weight:700;margin-bottom:8px;}
+  .challenge p{font-size:13.5px;margin-bottom:10px;}
+  details{margin-top:10px;} summary{cursor:pointer;color:var(--accent);font-size:12px;font-weight:600;padding:6px 0;user-select:none;}
+  summary:hover{color:var(--text);} .answer{margin-top:10px;}
+  .resume-box{background:var(--card);border:1px solid var(--border);border-left:4px solid var(--success);border-radius:10px;padding:20px 24px;margin:16px 0;}
+  .resume-box h4{font-size:12px;text-transform:uppercase;letter-spacing:1px;color:var(--success);margin-bottom:12px;}
+  .resume-box ul{list-style:none;}
+  .resume-box li{font-size:13px;color:#CBD5E1;padding:6px 0;border-bottom:1px solid rgba(45,62,85,.3);padding-left:16px;position:relative;line-height:1.6;}
+  .resume-box li::before{content:'▸';position:absolute;left:0;color:var(--success);}
+  .resume-box li:last-child{border-bottom:none;}
+  .progress-wrap{margin:24px 0;}
+  .progress-label{font-size:11px;color:var(--muted);margin-bottom:6px;display:flex;justify-content:space-between;}
+  .progress-bar{height:6px;background:var(--card);border-radius:99px;overflow:hidden;}
+  .progress-fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));border-radius:99px;}
+  .footer{margin-top:64px;padding-top:24px;border-top:1px solid var(--border);font-size:12px;color:var(--muted);text-align:center;}
+  code.inline{background:#0D1117;border:1px solid var(--code-border);border-radius:4px;padding:1px 7px;font-family:'Courier New',monospace;font-size:12.5px;color:#FBBF24;}
+  .concepts{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0;}
+  @media(max-width:900px){.sidebar{display:none;}.main{padding:24px 20px;}.cover{padding:28px 24px;}.cover h1{font-size:24px;}}
+  .quota-compare{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin:20px 0;}
+  .quota-box{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:20px;}
+  .quota-box h4{color:var(--accent2);margin-bottom:12px;font-size:14px;}
+  .quota-box ul{list-style:none;}
+  .quota-box li{font-size:13px;color:var(--muted);padding:5px 0;border-bottom:1px solid rgba(255,255,255,.05);padding-left:16px;position:relative;}
+  .quota-box li::before{content:'▪';position:absolute;left:0;color:var(--accent);}
+  .quota-box li:last-child{border-bottom:none;}
+</style>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar">
+  <div class="sidebar-logo">
+    <div class="series">Enterprise Ansible Masterclass</div>
+    <div class="title">OpenShift Automation with RHAAP</div>
+  </div>
+  <div class="toc-section">Project Navigation</div>
+  <a href="#cover"        class="toc-item active">Project Overview</a>
+  <a href="#story"        class="toc-item">Enterprise Scenario</a>
+  <a href="#why-quotas"   class="toc-item">Why Quotas & Limits</a>
+  <a href="#resourcequota"class="toc-item">ResourceQuota Deep Dive</a>
+  <a href="#limitrange"   class="toc-item">LimitRange Deep Dive</a>
+  <a href="#quota-vs-limit"class="toc-item">Quota vs LimitRange</a>
+  <a href="#env-profiles" class="toc-item">Environment Profiles</a>
+  <a href="#role-impl"    class="toc-item">Role Implementation</a>
+  <a href="#quota-report" class="toc-item">Quota Usage Report</a>
+  <a href="#enforcement"  class="toc-item">Enforcement & Alerting</a>
+  <a href="#trouble"      class="toc-item">Troubleshooting</a>
+  <a href="#interview"    class="toc-item">Interview Questions</a>
+  <a href="#challenges"   class="toc-item">Coding Challenges</a>
+  <a href="#resume"       class="toc-item">Resume Points</a>
+  <a href="#assignment"   class="toc-item">Practice Assignment</a>
+  <div class="toc-section">Course Progress</div>
+  <div style="padding:0 20px">
+    <div class="progress-wrap">
+      <div class="progress-label"><span>Project 13 of 35</span><span>37%</span></div>
+      <div class="progress-bar"><div class="progress-fill" style="width:37%"></div></div>
+    </div>
+  </div>
+</nav>
+<main class="main">
+
+  <div class="cover" id="cover">
+    <div class="cover-badge"><span class="dot"></span>Project 13 of 35 — Intermediate Stage</div>
+    <h1>ResourceQuotas & <span>LimitRanges</span></h1>
+    <p class="cover-sub">Govern the cluster. Master ResourceQuota for namespace-level resource caps and LimitRange for per-container defaults and maximums. Build environment-specific quota profiles (DEV/QA/PROD), automate quota enforcement, generate usage reports, and implement alerting when namespaces approach their limits — the foundation of multi-tenant OpenShift governance.</p>
+    <div class="cover-meta">
+      <div class="meta-item"><span class="meta-label">Difficulty</span><span class="meta-value amber">Intermediate</span></div>
+      <div class="meta-item"><span class="meta-label">Estimated Time</span><span class="meta-value">7–9 Hours</span></div>
+      <div class="meta-item"><span class="meta-label">Ticket</span><span class="meta-value">INFRA-2006</span></div>
+      <div class="meta-item"><span class="meta-label">Domain</span><span class="meta-label">Quotas · LimitRanges · Governance · Multi-Tenancy</span></div>
+    </div>
+  </div>
+
+  <h4 class="mini-title">Concepts Introduced</h4>
+  <div class="concepts">
+    <span class="tag amber">ResourceQuota object</span>
+    <span class="tag amber">CPU/memory namespace caps</span>
+    <span class="tag amber">Object count quotas</span>
+    <span class="tag amber">PVC/storage quotas</span>
+    <span class="tag orange">LimitRange object</span>
+    <span class="tag orange">Default requests/limits</span>
+    <span class="tag orange">Max/min per container</span>
+    <span class="tag orange">Max/min per PVC</span>
+    <span class="tag green">Environment quota profiles</span>
+    <span class="tag green">Quota usage monitoring</span>
+    <span class="tag blue">Quota exceeded alerting</span>
+    <span class="tag blue">Multi-namespace quota report</span>
+  </div>
+
+  <!-- STORY -->
+  <h2 class="section-title" id="story"><span class="num">01</span> The Manager's Thirteenth Ticket — INFRA-2006</h2>
+  <div class="story-box">
+    <div class="story-tag">🏢 ABC Bank OpenShift Platform Team — Intermediate Week 6</div>
+    <p>The cluster is growing. 5 teams, 12 namespaces, no guardrails. Rajesh calls with an urgent governance problem:</p>
+    <p><em>"The fraud detection team accidentally deployed a batch job that requested 64 CPUs. It starved the payment API of resources for 20 minutes. Also, a new developer created a pod with no resource requests — the scheduler put it anywhere and it impacted the entire node. I need: (1) namespace-level caps — DEV teams can't use more than 4 CPUs total, PROD gets 16. (2) Force every container to have requests and limits — no pod without them. (3) Alert us before any namespace hits 80% of its quota so we can act before an incident."</em></p>
+    <p>This is cluster governance: ResourceQuota protects the cluster from namespace-level overconsumption; LimitRange protects individual pods from misconfiguration.</p>
+  </div>
+
+  <h4 class="mini-title">Acceptance Criteria</h4>
+  <ul class="step-list">
+    <li><span class="step-num">1</span><div class="step-content"><strong>ResourceQuota per namespace</strong><span>Cap: CPU requests, CPU limits, memory requests, memory limits, pod count, PVC count, storage. Per environment profile.</span></div></li>
+    <li><span class="step-num">2</span><div class="step-content"><strong>LimitRange per namespace</strong><span>Default requests/limits injected into containers with none set. Max per container enforced. Min per container enforced.</span></div></li>
+    <li><span class="step-num">3</span><div class="step-content"><strong>Environment-specific quota profiles</strong><span>DEV: 4 CPU / 8Gi / 10 pods. QA: 8 CPU / 16Gi / 20 pods. PROD: 32 CPU / 64Gi / 100 pods.</span></div></li>
+    <li><span class="step-num">4</span><div class="step-content"><strong>Quota usage report</strong><span>Query all namespaces. Show used vs hard limits. Calculate percentage. HTML report with per-namespace table.</span></div></li>
+    <li><span class="step-num">5</span><div class="step-content"><strong>Near-limit alerting</strong><span>If any namespace > 80% of any quota, Slack alert. If > 95%, critical alert + email.</span></div></li>
+    <li><span class="step-num">6</span><div class="step-content"><strong>Idempotent apply</strong><span>Running playbook twice: same result. Update quotas if values change. No duplicate objects.</span></div></li>
+  </ul>
+
+  <!-- WHY QUOTAS -->
+  <h2 class="section-title" id="why-quotas"><span class="num">02</span> Why Quotas and Limits — The Multi-Tenant Problem</h2>
+  <div class="card-grid">
+    <div class="card"><div class="card-icon">🏢</div><div class="card-title">Noisy Neighbour</div><div class="card-desc">Without quotas, one namespace can consume all cluster CPU. Other namespaces starve. Pods get evicted. Incident.</div></div>
+    <div class="card"><div class="card-icon">💸</div><div class="card-title">Cost Control</div><div class="card-desc">Each namespace maps to a team's budget. Quota = budget enforcement. DEV team can't accidentally spin up expensive resources.</div></div>
+    <div class="card"><div class="card-icon">⚡</div><div class="card-title">Scheduler Sanity</div><div class="card-desc">Without requests, scheduler can't make intelligent placement. LimitRange forces requests → better scheduling decisions.</div></div>
+    <div class="card"><div class="card-icon">🔒</div><div class="card-title">Security Posture</div><div class="card-desc">Object count quotas prevent resource exhaustion attacks. Prevent: 10,000 empty pods, 1,000 Secrets, overloading etcd.</div></div>
+  </div>
+
+  <!-- RESOURCEQUOTA -->
+  <h2 class="section-title" id="resourcequota"><span class="num">03</span> ResourceQuota — Namespace-Level Caps</h2>
+  <div class="code-wrapper">
+    <div class="code-header"><span class="code-lang">yaml</span><span class="code-filename">Complete ResourceQuota Manifest</span><button class="copy-btn" onclick="navigator.clipboard.writeText(this.closest('.code-wrapper').querySelector('pre').innerText)">Copy</button></div>
+    <pre><code><span class="sy-comment">---
+# ResourceQuota: namespace-level resource ceiling
+# Scoped to a single namespace
+</span>
+<span class="sy-key">apiVersion:</span> <span class="sy-string">v1</span>
+<span class="sy-key">kind:</span> <span class="sy-string">ResourceQuota</span>
+<span class="sy-key">metadata:</span>
+  <span class="sy-key">name:</span>      <span class="sy-string">production-quota</span>
+  <span class="sy-key">namespace:</span> <span class="sy-string">payment-prod</span>
+<span class="sy-key">spec:</span>
+  <span class="sy-key">hard:</span>
+    <span class="sy-comment"># ── Compute resources ──────────────────────────────────────</span>
+    <span class="sy-key">requests.cpu:</span>    <span class="sy-string">"16"</span>       <span class="sy-comment"># Max total CPU requests in namespace</span>
+    <span class="sy-key">requests.memory:</span> <span class="sy-string">32Gi</span>      <span class="sy-comment"># Max total memory requests</span>
+    <span class="sy-key">limits.cpu:</span>      <span class="sy-string">"32"</span>       <span class="sy-comment"># Max total CPU limits</span>
+    <span class="sy-key">limits.memory:</span>   <span class="sy-string">64Gi</span>
+
+    <span class="sy-comment"># ── Object counts ─────────────────────────────────────────</span>
+    <span class="sy-key">pods:</span>                   <span class="sy-string">"100"</span>  <span class="sy-comment"># Max total pods</span>
+    <span class="sy-key">services:</span>               <span class="sy-string">"20"</span>
+    <span class="sy-key">secrets:</span>                <span class="sy-string">"50"</span>
+    <span class="sy-key">configmaps:</span>             <span class="sy-string">"50"</span>
+    <span class="sy-key">persistentvolumeclaims:</span> <span class="sy-string">"10"</span>
+    <span class="sy-key">services.loadbalancers:</span> <span class="sy-string">"2"</span>   <span class="sy-comment"># Cap expensive LBs</span>
+    <span class="sy-key">services.nodeports:</span>     <span class="sy-string">"0"</span>   <span class="sy-comment"># Prohibit NodePorts in prod</span>
+
+    <span class="sy-comment"># ── Storage ────────────────────────────────────────────────</span>
+    <span class="sy-key">requests.storage:</span>       <span class="sy-string">500Gi</span> <span class="sy-comment"># Total PVC storage requests</span>
+    <span class="sy-key">gp3-ssd.storageclass.storage.k8s.io/requests.storage:</span> <span class="sy-string">200Gi</span>
+    <span class="sy-comment"># ↑ Per-StorageClass quota</span></code></pre>
+  </div>
+
+  <!-- LIMITRANGE -->
+  <h2 class="section-title" id="limitrange"><span class="num">04</span> LimitRange — Per-Container Defaults and Enforcement</h2>
+  <div class="code-wrapper">
+    <div class="code-header"><span class="code-lang">yaml</span><span class="code-filename">Complete LimitRange Manifest</span><button class="copy-btn" onclick="navigator.clipboard.writeText(this.closest('.code-wrapper').querySelector('pre').innerText)">Copy</button></div>
+    <pre><code><span class="sy-comment">---
+# LimitRange: per-container/pod/PVC defaults and constraints
+# Injected automatically into Pods at admission time
+</span>
+<span class="sy-key">apiVersion:</span> <span class="sy-string">v1</span>
+<span class="sy-key">kind:</span> <span class="sy-string">LimitRange</span>
+<span class="sy-key">metadata:</span>
+  <span class="sy-key">name:</span>      <span class="sy-string">production-limits</span>
+  <span class="sy-key">namespace:</span> <span class="sy-string">payment-prod</span>
+<span class="sy-key">spec:</span>
+  <span class="sy-key">limits:</span>
+
+    <span class="sy-comment"># ── Container limits ────────────────────────────────────────</span>
+    - <span class="sy-key">type:</span> <span class="sy-string">Container</span>
+      <span class="sy-key">default:</span>                   <span class="sy-comment"># Applied if container has no limits</span>
+        <span class="sy-key">cpu:</span>    <span class="sy-string">"500m"</span>
+        <span class="sy-key">memory:</span> <span class="sy-string">"512Mi"</span>
+      <span class="sy-key">defaultRequest:</span>            <span class="sy-comment"># Applied if container has no requests</span>
+        <span class="sy-key">cpu:</span>    <span class="sy-string">"100m"</span>
+        <span class="sy-key">memory:</span> <span class="sy-string">"128Mi"</span>
+      <span class="sy-key">max:</span>                        <span class="sy-comment"># Hard ceiling per container</span>
+        <span class="sy-key">cpu:</span>    <span class="sy-string">"4"</span>
+        <span class="sy-key">memory:</span> <span class="sy-string">"8Gi"</span>
+      <span class="sy-key">min:</span>                        <span class="sy-comment"># Hard floor per container</span>
+        <span class="sy-key">cpu:</span>    <span class="sy-string">"50m"</span>
+        <span class="sy-key">memory:</span> <span class="sy-string">"64Mi"</span>
+      <span class="sy-key">maxLimitRequestRatio:</span>       <span class="sy-comment"># Limit cannot exceed request × ratio</span>
+        <span class="sy-key">cpu:</span>    <span class="sy-num">4</span>              <span class="sy-comment"># limit ≤ 4 × request</span>
+        <span class="sy-key">memory:</span> <span class="sy-num">2</span>              <span class="sy-comment"># limit ≤ 2 × request</span>
+
+    <span class="sy-comment"># ── PVC storage limits ──────────────────────────────────────</span>
+    - <span class="sy-key">type:</span> <span class="sy-string">PersistentVolumeClaim</span>
+      <span class="sy-key">max:</span>
+        <span class="sy-key">storage:</span> <span class="sy-string">100Gi</span>            <span class="sy-comment"># No single PVC can exceed 100Gi</span>
+      <span class="sy-key">min:</span>
+        <span class="sy-key">storage:</span> <span class="sy-string">1Gi</span>              <span class="sy-comment"># No PVC smaller than 1Gi</span>
+
+    <span class="sy-comment"># ── Pod-level limits ────────────────────────────────────────</span>
+    - <span class="sy-key">type:</span> <span class="sy-string">Pod</span>
+      <span class="sy-key">max:</span>
+        <span class="sy-key">cpu:</span>    <span class="sy-string">"8"</span>              <span class="sy-comment"># Pod (all containers) max 8 CPUs</span>
+        <span class="sy-key">memory:</span> <span class="sy-string">"16Gi"</span></code></pre>
+  </div>
+
+  <!-- QUOTA VS LIMITRANGE -->
+  <h2 class="section-title" id="quota-vs-limit"><span class="num">05</span> ResourceQuota vs LimitRange — The Critical Distinction</h2>
+  <div class="quota-compare">
+    <div class="quota-box">
+      <h4>ResourceQuota</h4>
+      <ul>
+        <li>Namespace-level aggregate cap</li>
+        <li>"Total CPU across all pods ≤ 16"</li>
+        <li>Checked at pod ADMISSION — pod rejected if quota exceeded</li>
+        <li>Requires pods to HAVE requests/limits set</li>
+        <li>Reports used vs hard in <code class="inline">oc describe quota</code></li>
+        <li>Object count quotas (pods, services, secrets)</li>
+      </ul>
+    </div>
+    <div class="quota-box">
+      <h4>LimitRange</h4>
+      <ul>
+        <li>Per-container/pod/PVC constraint</li>
+        <li>"Each container must use 50m–4 CPUs"</li>
+        <li>Injected at pod CREATION — defaults added automatically</li>
+        <li>Solves the "no requests set" problem automatically</li>
+        <li>No usage tracking — just admission control</li>
+        <li>Ratio enforcement: limit ≤ N × request</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="callout info">
+    <div class="callout-icon">💡</div>
+    <div class="callout-body">
+      <div class="callout-title">Critical Interaction: Quota + LimitRange Together</div>
+      <p>ResourceQuota with compute resource limits REQUIRES every pod to have requests/limits set — otherwise the pod is rejected. LimitRange solves this by auto-injecting defaults. <strong>Always deploy both together.</strong> Order matters: apply LimitRange first, then ResourceQuota. A namespace with ResourceQuota but no LimitRange means developers get confusing "quota exceeded" errors when they forget to set requests.</p>
+    </div>
+  </div>
+
+  <!-- ENV PROFILES -->
+  <h2 class="section-title" id="env-profiles"><span class="num">06</span> Environment Quota Profiles — group_vars</h2>
+  <div class="code-wrapper">
+    <div class="code-header"><span class="code-lang">yaml</span><span class="code-filename">inventories/dev/group_vars/all.yml — DEV Quota Profile</span><button class="copy-btn" onclick="navigator.clipboard.writeText(this.closest('.code-wrapper').querySelector('pre').innerText)">Copy</button></div>
+    <pre><code><span class="sy-comment">---
+# DEV quota profile — small, permissive
+</span>
+<span class="sy-key">quota_requests_cpu:</span>    <span class="sy-string">"4"</span>
+<span class="sy-key">quota_requests_memory:</span> <span class="sy-string">8Gi</span>
+<span class="sy-key">quota_limits_cpu:</span>      <span class="sy-string">"8"</span>
+<span class="sy-key">quota_limits_memory:</span>   <span class="sy-string">16Gi</span>
+<span class="sy-key">quota_pods:</span>            <span class="sy-string">"10"</span>
+<span class="sy-key">quota_pvcs:</span>            <span class="sy-string">"5"</span>
+<span class="sy-key">quota_storage:</span>         <span class="sy-string">50Gi</span>
+<span class="sy-key">quota_secrets:</span>         <span class="sy-string">"20"</span>
+
+<span class="sy-key">limit_default_cpu:</span>     <span class="sy-string">"200m"</span>
+<span class="sy-key">limit_default_memory:</span>  <span class="sy-string">"256Mi"</span>
+<span class="sy-key">limit_default_req_cpu:</span>   <span class="sy-string">"50m"</span>
+<span class="sy-key">limit_default_req_memory:</span> <span class="sy-string">"64Mi"</span>
+<span class="sy-key">limit_max_cpu:</span>         <span class="sy-string">"2"</span>
+<span class="sy-key">limit_max_memory:</span>      <span class="sy-string">"4Gi"</span>
+<span class="sy-key">limit_min_cpu:</span>         <span class="sy-string">"10m"</span>
+<span class="sy-key">limit_min_memory:</span>      <span class="sy-string">"32Mi"</span></code></pre>
+  </div>
+
+  <!-- ROLE IMPLEMENTATION -->
+  <h2 class="section-title" id="role-impl"><span class="num">07</span> Role Implementation</h2>
+  <div class="code-wrapper">
+    <div class="code-header"><span class="code-lang">yaml</span><span class="code-filename">roles/openshift_quota/tasks/main.yml</span><button class="copy-btn" onclick="navigator.clipboard.writeText(this.closest('.code-wrapper').querySelector('pre').innerText)">Copy</button></div>
+    <pre><code><span class="sy-comment">---
+# Apply LimitRange first, then ResourceQuota
+</span>
+- <span class="sy-key">name:</span> <span class="sy-string">"[QUOTA] Apply LimitRange (must precede ResourceQuota)"</span>
+  <span class="sy-module">kubernetes.core.k8s:</span>
+    <span class="sy-key">state:</span> <span class="sy-string">present</span>
+    <span class="sy-key">definition:</span> <span class="sy-string">"{{ lookup('template', 'limitrange.yml.j2') }}"</span>
+    <span class="sy-key">host:</span> <span class="sy-string">"{{ ocp_api_url }}"</span>
+    <span class="sy-key">api_key:</span> <span class="sy-string">"{{ ocp_token }}"</span>
+  <span class="sy-key">tags:</span> [<span class="sy-string">limits</span>]
+
+- <span class="sy-key">name:</span> <span class="sy-string">"[QUOTA] Apply ResourceQuota"</span>
+  <span class="sy-module">kubernetes.core.k8s:</span>
+    <span class="sy-key">state:</span> <span class="sy-string">present</span>
+    <span class="sy-key">definition:</span> <span class="sy-string">"{{ lookup('template', 'resourcequota.yml.j2') }}"</span>
+    <span class="sy-key">host:</span> <span class="sy-string">"{{ ocp_api_url }}"</span>
+    <span class="sy-key">api_key:</span> <span class="sy-string">"{{ ocp_token }}"</span>
+  <span class="sy-key">tags:</span> [<span class="sy-string">quota</span>]
+
+- <span class="sy-key">name:</span> <span class="sy-string">"[QUOTA] Verify ResourceQuota applied"</span>
+  <span class="sy-module">kubernetes.core.k8s_info:</span>
+    <span class="sy-key">kind:</span> <span class="sy-string">ResourceQuota</span>
+    <span class="sy-key">name:</span> <span class="sy-string">"{{ environment_name }}-quota"</span>
+    <span class="sy-key">namespace:</span> <span class="sy-string">"{{ app_namespace }}"</span>
+    <span class="sy-key">host:</span> <span class="sy-string">"{{ ocp_api_url }}"</span>
+    <span class="sy-key">api_key:</span> <span class="sy-string">"{{ ocp_token }}"</span>
+  <span class="sy-key">register:</span> <span class="sy-string">quota_verify</span>
+
+- <span class="sy-key">name:</span> <span class="sy-string">"[QUOTA] Assert quota created"</span>
+  <span class="sy-key">ansible.builtin.assert:</span>
+    <span class="sy-key">that:</span>
+      - <span class="sy-string">quota_verify.resources | length == 1</span>
+      - <span class="sy-string">quota_verify.resources[0].spec.hard['requests.cpu'] is defined</span>
+    <span class="sy-key">fail_msg:</span> <span class="sy-string">"ResourceQuota not applied correctly"</span></code></pre>
+  </div>
+
+  <!-- QUOTA REPORT -->
+  <h2 class="section-title" id="quota-report"><span class="num">08</span> Quota Usage Report — Monitor Consumption</h2>
+  <div class="code-wrapper">
+    <div class="code-header"><span class="code-lang">yaml</span><span class="code-filename">tasks/quota_usage_report.yml</span><button class="copy-btn" onclick="navigator.clipboard.writeText(this.closest('.code-wrapper').querySelector('pre').innerText)">Copy</button></div>
+    <pre><code><span class="sy-comment">---
+# Query quota usage across all namespaces
+</span>
+- <span class="sy-key">name:</span> <span class="sy-string">"[REPORT] Get all ResourceQuotas"</span>
+  <span class="sy-module">kubernetes.core.k8s_info:</span>
+    <span class="sy-key">kind:</span> <span class="sy-string">ResourceQuota</span>
+    <span class="sy-key">host:</span> <span class="sy-string">"{{ ocp_api_url }}"</span>
+    <span class="sy-key">api_key:</span> <span class="sy-string">"{{ ocp_token }}"</span>
+  <span class="sy-key">register:</span> <span class="sy-string">all_quotas</span>
+
+- <span class="sy-key">name:</span> <span class="sy-string">"[REPORT] Build quota usage summary per namespace"</span>
+  <span class="sy-key">ansible.builtin.set_fact:</span>
+    <span class="sy-key">quota_summary:</span> <span class="sy-string">"{{ quota_summary | default([]) + [entry] }}"</span>
+  <span class="sy-key">vars:</span>
+    <span class="sy-key">hard_cpu:</span>    <span class="sy-string">"{{ item.spec.hard['requests.cpu'] | default('0') }}"</span>
+    <span class="sy-key">used_cpu:</span>    <span class="sy-string">"{{ item.status.used['requests.cpu'] | default('0') }}"</span>
+    <span class="sy-key">hard_mem:</span>    <span class="sy-string">"{{ item.spec.hard['requests.memory'] | default('0') }}"</span>
+    <span class="sy-key">used_mem:</span>    <span class="sy-string">"{{ item.status.used['requests.memory'] | default('0') }}"</span>
+    <span class="sy-key">hard_pods:</span>   <span class="sy-string">"{{ item.spec.hard['pods'] | default('0') }}"</span>
+    <span class="sy-key">used_pods:</span>   <span class="sy-string">"{{ item.status.used['pods'] | default('0') }}"</span>
+    <span class="sy-key">entry:</span>
+      <span class="sy-key">namespace:</span>   <span class="sy-string">"{{ item.metadata.namespace }}"</span>
+      <span class="sy-key">hard_cpu:</span>    <span class="sy-string">"{{ hard_cpu }}"</span>
+      <span class="sy-key">used_cpu:</span>    <span class="sy-string">"{{ used_cpu }}"</span>
+      <span class="sy-key">hard_memory:</span> <span class="sy-string">"{{ hard_mem }}"</span>
+      <span class="sy-key">used_memory:</span> <span class="sy-string">"{{ used_mem }}"</span>
+      <span class="sy-key">hard_pods:</span>   <span class="sy-string">"{{ hard_pods }}"</span>
+      <span class="sy-key">used_pods:</span>   <span class="sy-string">"{{ used_pods }}"</span>
+  <span class="sy-key">loop:</span> <span class="sy-string">"{{ all_quotas.resources }}"</span>
+  <span class="sy-key">loop_control:</span>
+    <span class="sy-key">label:</span> <span class="sy-string">"{{ item.metadata.namespace }}"</span>
+
+- <span class="sy-key">name:</span> <span class="sy-string">"[REPORT] Identify near-limit namespaces (>80%)"</span>
+  <span class="sy-key">ansible.builtin.set_fact:</span>
+    <span class="sy-key">near_limit_ns:</span> <span class="sy-string">"{{ quota_summary | selectattr('used_pods','defined')
+      | list }}"</span>
+    <span class="sy-comment"># In production: parse CPU/memory values, compute percentage</span>
+
+- <span class="sy-key">name:</span> <span class="sy-string">"[REPORT] Generate HTML quota dashboard"</span>
+  <span class="sy-module">ansible.builtin.template:</span>
+    <span class="sy-key">src:</span>  <span class="sy-string">templates/quota_report.html.j2</span>
+    <span class="sy-key">dest:</span> <span class="sy-string">"{{ report_output_dir | default('/tmp') }}/quota-report-{{ ansible_date_time.date }}.html"</span></code></pre>
+  </div>
+
+  <!-- ENFORCEMENT -->
+  <h2 class="section-title" id="enforcement"><span class="num">09</span> Enforcement and Alerting</h2>
+  <div class="code-wrapper">
+    <div class="code-header"><span class="code-lang">yaml</span><span class="code-filename">tasks/quota_alert.yml</span><button class="copy-btn" onclick="navigator.clipboard.writeText(this.closest('.code-wrapper').querySelector('pre').innerText)">Copy</button></div>
+    <pre><code><span class="sy-comment">---
+# Alert when namespace quota exceeds 80% threshold
+</span>
+- <span class="sy-key">name:</span> <span class="sy-string">"[ALERT] Check pod quota usage per namespace"</span>
+  <span class="sy-key">ansible.builtin.set_fact:</span>
+    <span class="sy-key">pod_usage_pct:</span> <span class="sy-string">"{{ ((item.used_pods | int) / (item.hard_pods | int) * 100) | int }}"</span>
+  <span class="sy-key">loop:</span> <span class="sy-string">"{{ quota_summary }}"</span>
+  <span class="sy-key">loop_control:</span>
+    <span class="sy-key">label:</span> <span class="sy-string">"{{ item.namespace }}"</span>
+  <span class="sy-key">register:</span> <span class="sy-string">usage_calcs</span>
+
+- <span class="sy-key">name:</span> <span class="sy-string">"[ALERT] Send warning for >80% usage"</span>
+  <span class="sy-module">community.general.slack:</span>
+    <span class="sy-key">token:</span>   <span class="sy-string">"{{ vault_slack_token }}"</span>
+    <span class="sy-key">channel:</span> <span class="sy-string">"#platform-alerts"</span>
+    <span class="sy-key">color:</span>   <span class="sy-string">warning</span>
+    <span class="sy-key">msg:</span>     <span class="sy-string">"⚠️ Quota Warning: namespace *{{ item.item.namespace }}* is at {{ item.ansible_facts.pod_usage_pct }}% pod quota ({{ item.item.used_pods }}/{{ item.item.hard_pods }} pods)"</span>
+  <span class="sy-key">loop:</span> <span class="sy-string">"{{ usage_calcs.results }}"</span>
+  <span class="sy-key">loop_control:</span>
+    <span class="sy-key">label:</span> <span class="sy-string">"{{ item.item.namespace }}"</span>
+  <span class="sy-key">when:</span>
+    - <span class="sy-string">item.ansible_facts.pod_usage_pct | int > 80</span>
+    - <span class="sy-string">item.ansible_facts.pod_usage_pct | int <= 95</span>
+
+- <span class="sy-key">name:</span> <span class="sy-string">"[ALERT] Send critical alert for >95% usage"</span>
+  <span class="sy-module">community.general.slack:</span>
+    <span class="sy-key">token:</span>   <span class="sy-string">"{{ vault_slack_token }}"</span>
+    <span class="sy-key">channel:</span> <span class="sy-string">"#platform-critical"</span>
+    <span class="sy-key">color:</span>   <span class="sy-string">danger</span>
+    <span class="sy-key">msg:</span>     <span class="sy-string">"🔴 CRITICAL: namespace *{{ item.item.namespace }}* is at {{ item.ansible_facts.pod_usage_pct }}% pod quota — pods will be REJECTED if quota exceeded!"</span>
+  <span class="sy-key">loop:</span> <span class="sy-string">"{{ usage_calcs.results }}"</span>
+  <span class="sy-key">loop_control:</span>
+    <span class="sy-key">label:</span> <span class="sy-string">"{{ item.item.namespace }}"</span>
+  <span class="sy-key">when:</span> <span class="sy-string">item.ansible_facts.pod_usage_pct | int > 95</span></code></pre>
+  </div>
+
+  <!-- TROUBLE -->
+  <h2 class="section-title" id="trouble"><span class="num">10</span> Troubleshooting</h2>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Symptom</th><th>Root Cause</th><th>Fix</th></tr></thead>
+      <tbody>
+        <tr><td>Pod rejected: "exceeded quota"</td><td>Namespace ResourceQuota is full</td><td><code class="inline">oc describe quota -n namespace</code>. Delete unused pods or request quota increase.</td></tr>
+        <tr><td>Pod rejected: "must specify limits"</td><td>ResourceQuota exists but no LimitRange to inject defaults</td><td>Apply LimitRange with defaultRequest/default. Pods without requests will then get defaults auto-injected.</td></tr>
+        <tr><td>Pod rejected: "exceeds max limit"</td><td>Container requests more than LimitRange max</td><td>Check LimitRange max. Reduce container resource request/limit. Or increase LimitRange max (requires admin).</td></tr>
+        <tr><td>Quota shows used=0 but pods exist</td><td>Pods were created before ResourceQuota was applied — not counted retroactively</td><td>Quota tracks new admissions. Existing pods are grandfathered. Quota counts will update as pods restart.</td></tr>
+        <tr><td>LimitRange not injecting defaults</td><td>Container already has explicit requests/limits — LimitRange only injects when none set</td><td>LimitRange defaults only apply when no value is specified. If container has limits, they're used as-is (must still be within min/max).</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- INTERVIEW -->
+  <h2 class="section-title" id="interview"><span class="num">11</span> Interview Questions</h2>
+  <div class="qa-block"><div class="qa-q">What is the difference between ResourceQuota and LimitRange?</div><div class="qa-a">ResourceQuota: namespace-level aggregate ceiling. "This namespace can use no more than 16 CPUs total across all pods." Checked at admission — pod is rejected if adding it would exceed the quota. LimitRange: per-container/pod/PVC constraints. "Each container must use between 50m and 4 CPUs." Also auto-injects defaults when container has no requests/limits set. They solve different problems: Quota = multi-tenant isolation, LimitRange = per-pod safety. Both are needed together — Quota requires requests to be set, LimitRange ensures they always are.</div></div>
+  <div class="qa-block"><div class="qa-q">A developer says their pod is rejected with "exceeded quota" but oc top shows plenty of free CPU. Why?</div><div class="qa-a">ResourceQuota tracks requests, not actual usage. If the namespace quota is requests.cpu: 4, and existing pods collectively request 3.8 CPU, there's only 0.2 CPU of quota left — even if actual usage is much lower. The scheduler reserves request capacity. The developer needs to either: reduce their pod's CPU request, delete other pods, or request a quota increase. oc top shows actual utilisation; oc describe quota shows requested vs quota limit.</div></div>
+  <div class="qa-block"><div class="qa-q">Why must you deploy LimitRange before ResourceQuota?</div><div class="qa-a">If ResourceQuota exists with compute limits and a developer creates a pod without resource requests, the admission controller rejects it immediately: "must specify limits when ResourceQuota is present." LimitRange's job is to auto-inject default requests/limits so developers don't have to set them manually. If LimitRange doesn't exist, every pod needs explicit requests/limits or it gets rejected. Deploying LimitRange first ensures the safety net is in place before the quota enforcement kicks in.</div></div>
+  <div class="qa-block"><div class="qa-q">How would you monitor namespace quota usage and alert before it's exceeded?</div><div class="qa-a">Query ResourceQuota objects with k8s_info — they contain both spec.hard (limits) and status.used (current usage). Calculate percentage: (used / hard) × 100. If >80%: Slack warning. If >95%: Slack critical + email. Schedule as daily RHAAP Job Template. Generate HTML report with per-namespace table showing all resource dimensions. This gives teams time to clean up or request quota increases before hitting the hard limit and blocking deployments.</div></div>
+
+  <!-- CHALLENGES -->
+  <h2 class="section-title" id="challenges"><span class="num">12</span> Coding Challenges</h2>
+  <div class="challenge">
+    <div class="challenge-num">Challenge 1 of 3</div>
+    <p>Write a Jinja2 template for a ResourceQuota that includes per-StorageClass storage quotas in addition to compute quotas. The StorageClass names should come from a variable list.</p>
+    <details><summary>▶ Show Answer</summary><div class="answer">
+      <div class="code-wrapper"><div class="code-header"><span class="code-lang">jinja2</span><span class="code-filename">resourcequota.yml.j2 with storage class quotas</span></div>
+      <pre><code>---
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: {{ environment_name }}-quota
+  namespace: {{ app_namespace }}
+spec:
+  hard:
+    requests.cpu:    "{{ quota_requests_cpu }}"
+    requests.memory: "{{ quota_requests_memory }}"
+    limits.cpu:      "{{ quota_limits_cpu }}"
+    limits.memory:   "{{ quota_limits_memory }}"
+    pods:            "{{ quota_pods }}"
+    persistentvolumeclaims: "{{ quota_pvcs }}"
+    requests.storage: "{{ quota_storage }}"
+    {% for sc in storage_class_quotas | default([]) %}
+    {{ sc.name }}.storageclass.storage.k8s.io/requests.storage: "{{ sc.size }}"
+    {{ sc.name }}.storageclass.storage.k8s.io/persistentvolumeclaims: "{{ sc.pvcs | default('10') }}"
+    {% endfor %}</code></pre></div>
+    </div></details>
+  </div>
+  <div class="challenge">
+    <div class="challenge-num">Challenge 2 of 3</div>
+    <p>Write a task that compares the current ResourceQuota spec against your desired values from group_vars. If they differ, update and log the change. If identical, skip with a message.</p>
+    <details><summary>▶ Show Answer</summary><div class="answer">
+      <div class="code-wrapper"><div class="code-header"><span class="code-lang">yaml</span><span class="code-filename">Idempotent quota update</span></div>
+      <pre><code">- name: "Get current ResourceQuota"
+  kubernetes.core.k8s_info:
+    kind: ResourceQuota
+    name: "{{ environment_name }}-quota"
+    namespace: "{{ app_namespace }}"
+    host: "{{ ocp_api_url }}"
+    api_key: "{{ ocp_token }}"
+  register: current_quota
+
+- name: "Check if quota update needed"
+  ansible.builtin.set_fact:
+    quota_needs_update: >-
+      {{ current_quota.resources | length == 0
+         or current_quota.resources[0].spec.hard['requests.cpu'] != quota_requests_cpu
+         or current_quota.resources[0].spec.hard['requests.memory'] != quota_requests_memory
+         or current_quota.resources[0].spec.hard['pods'] != quota_pods }}
+
+- name: "Apply ResourceQuota (only if changed)"
+  kubernetes.core.k8s:
+    state: present
+    definition: "{{ lookup('template', 'resourcequota.yml.j2') }}"
+    host: "{{ ocp_api_url }}"
+    api_key: "{{ ocp_token }}"
+  when: quota_needs_update | bool
+  register: quota_update_result
+
+- name: "Log outcome"
+  ansible.builtin.debug:
+    msg: "{{ 'Quota updated' if quota_needs_update else 'Quota unchanged — skipping' }}"</code></pre></div>
+    </div></details>
+  </div>
+  <div class="challenge">
+    <div class="challenge-num">Challenge 3 of 3</div>
+    <p>Generate a CSV report of quota usage across all namespaces: namespace, resource, hard limit, used, percentage. Write it to a file. Use Jinja2 template.</p>
+    <details><summary>▶ Show Answer</summary><div class="answer">
+      <div class="code-wrapper"><div class="code-header"><span class="code-lang">jinja2</span><span class="code-filename">quota_report.csv.j2</span></div>
+      <pre><code">namespace,resource,hard,used,percentage
+{% for quota in all_quotas.resources %}
+{% set ns = quota.metadata.namespace %}
+{% for resource, hard_val in quota.spec.hard.items() %}
+{% set used_val = quota.status.used[resource] | default('0') %}
+{{ ns }},{{ resource }},{{ hard_val }},{{ used_val }},N/A
+{% endfor %}
+{% endfor %}</code></pre></div>
+    </div></details>
+  </div>
+
+  <h2 class="section-title" id="resume"><span class="num">13</span> Resume Points</h2>
+  <div class="resume-box">
+    <h4>Project 13 — Resume Bullets</h4>
+    <ul>
+      <li>Designed multi-tenant cluster governance framework implementing environment-specific ResourceQuota profiles (DEV/QA/PROD), preventing namespace resource overconsumption and enabling cost attribution.</li>
+      <li>Deployed LimitRange objects establishing per-container defaults, enforcing request/limit ratios, and auto-injecting resource constraints — eliminating "unset requests" as a source of scheduling issues.</li>
+      <li>Built quota usage monitoring pipeline querying ResourceQuota status across all namespaces, calculating consumption percentages, and generating HTML dashboards with per-resource trend data.</li>
+      <li>Implemented tiered Slack alerting (warning at 80%, critical at 95%) enabling proactive quota management before deployment rejections impact development teams.</li>
+      <li>Enforced LimitRange-before-ResourceQuota deployment ordering ensuring developers receive auto-injected defaults rather than confusing admission rejection errors.</li>
+    </ul>
+  </div>
+
+  <h2 class="section-title" id="assignment"><span class="num">14</span> Practice Assignment — INFRA-2006-EXT</h2>
+  <ol style="margin-left:20px;line-height:2.2;color:var(--muted)">
+    <li><strong style="color:var(--text)">Quota Increase Workflow</strong> — Build a self-service RHAAP Job Template with Survey: namespace, resource type, requested increase. Job validates request, applies quota increase if within policy, notifies approver via email if above threshold.</li>
+    <li><strong style="color:var(--text)">Quota Drift Detection</strong> — Scheduled daily playbook that compares applied quotas against desired state in group_vars. Alert if any quota differs (someone changed it manually). Optionally auto-correct drift.</li>
+    <li><strong style="color:var(--text)">Namespace Chargeback Report</strong> — Generate monthly CSV: namespace, team owner, average CPU/memory usage vs quota, cost estimate ($/CPU-hour). Email to finance team.</li>
+    <li><strong style="color:var(--text)">Scope-Specific Quotas</strong> — Apply different quotas for BestEffort, Burstable, and Guaranteed QoS pods using scopeSelector in ResourceQuota. Limit BestEffort pods to 5 per namespace.</li>
+    <li><strong style="color:var(--text)">LimitRange Audit</strong> — Scan all namespaces. Flag any namespace with ResourceQuota but no LimitRange (dangerous configuration). Generate report. Auto-apply default LimitRange to flagged namespaces.</li>
+  </ol>
+
+  <div class="footer">
+    <p>Enterprise Ansible Masterclass — OpenShift Automation with RHAAP</p>
+    <p style="margin-top:8px">Project 13 of 35 · Intermediate Stage · INFRA-2006</p>
+    <p style="margin-top:8px;color:var(--success)">Say <strong>"Next Project"</strong> to continue to <strong>Project 14: RBAC & ServiceAccounts</strong></p>
+  </div>
+</main>
+</div>
+<script>
+const sections=document.querySelectorAll('[id]');const tocItems=document.querySelectorAll('.toc-item');
+const observer=new IntersectionObserver((entries)=>{entries.forEach(entry=>{if(entry.isIntersecting){tocItems.forEach(i=>i.classList.remove('active'));const a=document.querySelector(`.toc-item[href="#${entry.target.id}"]`);if(a)a.classList.add('active');}});},{threshold:0.3});
+sections.forEach(s=>observer.observe(s));
+</script>
+</body>
+</html>

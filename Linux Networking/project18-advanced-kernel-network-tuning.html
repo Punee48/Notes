@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Project 18 — Advanced Kernel Network Tuning</title>
+<style>
+:root{
+  --blue:#60A5FA; --blue-bg:#132238;
+  --purple:#C4B5FD; --purple-bg:#241B3D;
+  --teal:#5EEAD4; --teal-bg:#0F2C2A;
+  --green:#86EFAC; --green-bg:#132B1C;
+  --orange:#FDBA74; --orange-bg:#3A230F;
+  --red:#FCA5A5; --red-bg:#331515;
+  --bg:#0B1120; --panel:#111827; --text:#E5E7EB; --muted:#9CA3AF;
+  --border:#1F2937; --sidebar-w:280px;
+}
+*{box-sizing:border-box;}
+body{margin:0;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--text);line-height:1.65;}
+a{color:var(--blue);text-decoration:none;}
+a:hover{text-decoration:underline;}
+code{font-family:"SFMono-Regular",Consolas,"Liberation Mono",Menlo,monospace;}
+
+.cover{padding:60px 24px 40px;background:linear-gradient(135deg,#101B33,#1E1533);border-bottom:1px solid var(--border);}
+.cover-inner{max-width:900px;margin:0 auto;}
+.badge-row{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:18px;}
+.badge{font-size:12.5px;font-weight:600;padding:5px 12px;border-radius:20px;letter-spacing:.02em;}
+.badge.blue{background:#1D4ED8;color:#fff;}
+.badge.purple{background:#6D28D9;color:#fff;}
+.badge.teal{background:#0F766E;color:#fff;}
+.badge.orange{background:#C2410C;color:#fff;}
+.cover h1{font-size:2.1rem;margin:0 0 8px;color:#F9FAFB;}
+.cover .subtitle{font-size:1.05rem;color:var(--muted);margin-bottom:26px;}
+.cover-meta{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;}
+.meta-card{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:12px 14px;}
+.meta-card .label{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:700;}
+.meta-card .value{font-size:14.5px;font-weight:600;margin-top:2px;color:#F3F4F6;}
+
+.layout{display:flex;max-width:1400px;margin:0 auto;}
+.sidebar{width:var(--sidebar-w);flex-shrink:0;position:sticky;top:0;align-self:flex-start;height:100vh;overflow-y:auto;border-right:1px solid var(--border);padding:22px 14px;background:var(--bg);}
+.sidebar h4{font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin:18px 0 6px 10px;}
+.sidebar h4:first-child{margin-top:0;}
+.sidebar a{display:block;padding:7px 10px;border-radius:8px;font-size:13.5px;color:#CBD5E1;margin-bottom:1px;}
+.sidebar a:hover{background:var(--blue-bg);text-decoration:none;color:var(--blue);}
+.progress-wrap{margin:10px 10px 4px;}
+.progress-bar{height:6px;background:var(--border);border-radius:4px;overflow:hidden;}
+.progress-fill{height:100%;width:0%;background:linear-gradient(90deg,var(--blue),var(--purple));transition:width .2s;}
+.progress-label{font-size:11px;color:var(--muted);margin-top:4px;}
+
+.content{flex:1;min-width:0;padding:34px 40px 100px;}
+section{margin-bottom:48px;scroll-margin-top:20px;}
+h2.sec-title{font-size:1.5rem;border-bottom:2px solid var(--border);padding-bottom:10px;margin-bottom:18px;display:flex;align-items:center;gap:10px;color:#F9FAFB;}
+h2.sec-title .num{background:#1D4ED8;color:#fff;width:30px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;}
+h3{font-size:1.15rem;margin-top:28px;color:#F3F4F6;}
+
+.box{border-radius:10px;padding:16px 18px;margin:16px 0;border:1px solid transparent;}
+.box .box-title{font-weight:700;font-size:13px;text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px;display:flex;align-items:center;gap:6px;}
+.box.concept{background:var(--blue-bg);border-color:#1E3A5F;}
+.box.concept .box-title{color:var(--blue);}
+.box.architecture{background:var(--purple-bg);border-color:#3B2E63;}
+.box.architecture .box-title{color:var(--purple);}
+.box.success{background:var(--green-bg);border-color:#1E4B2E;}
+.box.success .box-title{color:var(--green);}
+.box.warning{background:var(--orange-bg);border-color:#5A3618;}
+.box.warning .box-title{color:var(--orange);}
+.box.failure{background:var(--red-bg);border-color:#5C2323;}
+.box.failure .box-title{color:var(--red);}
+.box.bestpractice{background:var(--teal-bg);border-color:#134E4A;}
+.box.bestpractice .box-title{color:var(--teal);}
+.box.story{background:#141B2E;border-color:var(--border);border-left:4px solid var(--purple);}
+
+.story p{margin:0 0 10px;color:#D1D5DB;}
+.story .quote{font-style:italic;color:#CBD5E1;border-left:3px solid var(--purple);padding-left:12px;margin:10px 0;}
+
+.term{background:#050810;color:#E2E8F0;border-radius:10px;margin:14px 0;overflow:hidden;border:1px solid #1E293B;}
+.term-header{display:flex;justify-content:space-between;align-items:center;background:#141B2E;padding:8px 14px;font-size:12px;color:#94A3B8;}
+.copy-btn{background:#243049;color:#E2E8F0;border:none;border-radius:6px;padding:4px 10px;font-size:11.5px;cursor:pointer;}
+.copy-btn:hover{background:#334155;}
+.term pre{margin:0;padding:14px 16px;overflow-x:auto;font-size:13.5px;line-height:1.7;}
+.term .cmdno{color:#64748B;margin-right:8px;}
+.term .cmd{color:#93C5FD;}
+.term .out{color:#CBD5E1;}
+.term .out-err{color:#FCA5A5;}
+.term .out-ok{color:#86EFAC;}
+.term .comment{color:#64748B;}
+
+table.breakdown{width:100%;border-collapse:collapse;margin:12px 0 20px;font-size:14px;}
+table.breakdown th{background:#141B2E;text-align:left;padding:8px 10px;font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);}
+table.breakdown td{padding:9px 10px;border-top:1px solid var(--border);vertical-align:top;color:#D1D5DB;}
+table.breakdown td.token{font-family:monospace;color:var(--blue);font-weight:700;white-space:nowrap;}
+
+details.collapse{border:1px solid var(--border);border-radius:10px;margin:14px 0;overflow:hidden;}
+details.collapse summary{cursor:pointer;padding:12px 16px;font-weight:600;background:#141B2E;list-style:none;display:flex;align-items:center;gap:8px;color:#E5E7EB;}
+details.collapse summary::-webkit-details-marker{display:none;}
+details.collapse summary:before{content:"▶";font-size:11px;color:var(--muted);transition:transform .15s;}
+details.collapse[open] summary:before{transform:rotate(90deg);}
+details.collapse .collapse-body{padding:4px 16px 16px;}
+
+.diagram-frame{background:#0D1420;border:1px solid var(--border);border-radius:12px;padding:18px;margin:16px 0;overflow-x:auto;}
+.diagram-caption{font-size:12.5px;color:var(--muted);text-align:center;margin-top:8px;}
+
+table.ref{width:100%;border-collapse:collapse;font-size:14px;margin:14px 0;}
+table.ref th{background:#141B2E;padding:8px 10px;text-align:left;font-size:12.5px;color:#E5E7EB;}
+table.ref td{padding:8px 10px;border-top:1px solid var(--border);color:#D1D5DB;}
+
+.dtree{list-style:none;padding-left:0;font-size:14px;}
+.dtree li{padding:8px 12px;margin-bottom:6px;border-radius:8px;border:1px solid var(--border);position:relative;color:#D1D5DB;}
+.dtree li.q{background:var(--blue-bg);}
+.dtree li.ok{background:var(--green-bg);}
+.dtree li.bad{background:var(--red-bg);}
+.dtree .arrow{text-align:center;color:var(--muted);font-size:12px;margin:2px 0;}
+
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin:16px 0;}
+.card{border:1px solid var(--border);border-radius:10px;padding:14px 16px;background:#0F1626;}
+.card h4{margin:0 0 6px;font-size:14.5px;color:#F3F4F6;}
+.card p{margin:0;font-size:13.5px;color:var(--muted);}
+
+.qa{border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin:12px 0;background:#0F1626;}
+.qa .q{font-weight:700;color:#F3F4F6;margin-bottom:6px;}
+.qa .q .qtag{background:#6D28D9;color:#fff;font-size:10.5px;padding:2px 8px;border-radius:10px;margin-right:8px;text-transform:uppercase;}
+.qa .followup{margin-top:8px;padding-top:8px;border-top:1px dashed var(--border);font-size:13.5px;color:var(--muted);}
+.qa p{color:#D1D5DB;}
+
+.top-link{position:fixed;bottom:22px;right:22px;background:#1D4ED8;color:#fff;width:42px;height:42px;border-radius:50%;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(0,0,0,.4);font-size:18px;}
+.top-link:hover{text-decoration:none;background:#2563EB;}
+
+p{color:#D1D5DB;}
+
+@media (max-width:900px){
+  .sidebar{display:none;}
+  .content{padding:22px 18px 80px;}
+}
+</style>
+</head>
+<body>
+
+<div class="cover">
+  <div class="cover-inner">
+    <div class="badge-row">
+      <span class="badge blue">Project 18 of ~38</span>
+      <span class="badge purple">Linux Networking Masterclass</span>
+      <span class="badge teal">Domain: Banking / Real-Time Settlement</span>
+      <span class="badge orange">Difficulty: Advanced</span>
+    </div>
+    <h1>Advanced Kernel Network Tuning</h1>
+    <div class="subtitle">CPU is fine. Network is "fine" according to every dashboard. But the settlement system still can't hit expected throughput to the disaster-recovery site, and connection bursts during market open are being dropped before they even reach the application. Time to go past the basics from Project 12 and tune the kernel directly.</div>
+    <div class="cover-meta">
+      <div class="meta-card"><div class="label">Estimated Lab Time</div><div class="value">3.5 hours</div></div>
+      <div class="meta-card"><div class="label">Prerequisites</div><div class="value">Project 12 completed</div></div>
+      <div class="meta-card"><div class="label">Lab Environment</div><div class="value">2 namespaces, tc netem (latency), /proc/net counters</div></div>
+      <div class="meta-card"><div class="label">Concepts Learned</div><div class="value">Bandwidth-delay product, socket buffer tuning, somaxconn/SYN backlog, congestion control selection</div></div>
+    </div>
+  </div>
+</div>
+
+<div class="layout">
+  <nav class="sidebar" id="sidebar">
+    <div class="progress-wrap">
+      <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+      <div class="progress-label" id="progressLabel">0% through Project 18</div>
+    </div>
+    <h4>Orientation</h4>
+    <a href="#story">1. The Incident</a>
+    <a href="#foundation">2. Kernel Tuning Foundation</a>
+    <a href="#architecture">3. Where Each Tunable Sits</a>
+    <a href="#methodology">4. Troubleshooting Method</a>
+    <h4>Hands-On Lab</h4>
+    <a href="#labsetup">5. Lab Setup (Simulated Long-Distance Link)</a>
+    <a href="#verify">6. Verify Baseline</a>
+    <h4>Break / Fix (3 Incidents)</h4>
+    <a href="#break1">7. Throughput Capped by Small Socket Buffers (BDP)</a>
+    <a href="#break2">8. Connection Bursts Dropped by somaxconn</a>
+    <a href="#break3">9. Congestion Control Algorithm Mismatch</a>
+    <h4>Wrap-Up</h4>
+    <a href="#bestpractices">10. Best Practices</a>
+    <a href="#cheatsheet">11. Cheat Sheet</a>
+    <a href="#interview">12. Interview Prep</a>
+    <a href="#practice">13. Practice Tasks</a>
+    <a href="#resume">14. Resume Points</a>
+    <a href="#next">15. Next Project</a>
+  </nav>
+
+  <main class="content">
+
+  <section id="story">
+    <h2 class="sec-title"><span class="num">1</span>The Incident</h2>
+    <div class="box story">
+      <p>We're back with the bank's real-time settlement platform. Two separate performance complaints landed on the same day. First: replication to the disaster-recovery site, which sits on a deliberately high-latency dedicated link, is nowhere near the bandwidth the network team insists is available. Second: during market-open, when thousands of connections arrive in a very short burst, some client connections are failing before the application ever logs anything about them at all.</p>
+      <p class="quote">"CPU is fine, memory is fine, the network team says the link has plenty of headroom, and the app team says their code hasn't changed. But we're not getting anywhere near the throughput we should on the DR link, and market-open connection bursts are dropping silently — no application log entry, nothing."</p>
+      <p>Both of these symptoms point past the layers we've tuned so far, into the kernel's own network stack tunables — socket buffer sizes, connection backlog limits, and congestion control behavior. These are settings most engineers never touch, which is exactly why understanding them is such high-leverage knowledge.</p>
+    </div>
+    <div class="box concept">
+      <div class="box-title">🔵 Why this project matters</div>
+      <p>Default kernel network tunables are chosen to work reasonably for a wide range of use cases — they are NOT tuned for high-bandwidth, high-latency links, or for absorbing large sudden connection bursts. Financial systems, replication links, and high-traffic-event workloads are exactly the scenarios where these defaults become the bottleneck, and "nothing shows up in application logs" is the signature that tells you to look at the kernel layer, not the app.</p>
+    </div>
+  </section>
+
+  <section id="foundation">
+    <h2 class="sec-title"><span class="num">2</span>Kernel Tuning Foundation</h2>
+
+    <h3>2.1 Bandwidth-Delay Product — why long-distance links need bigger buffers</h3>
+    <div class="box concept">
+      <div class="box-title">🔵 Concept</div>
+      <p>TCP can only have a limited amount of unacknowledged data "in flight" at once — bounded by its socket buffer / window size. The theoretical maximum throughput of a connection is roughly <b>bandwidth × round-trip-time</b> — this is the Bandwidth-Delay Product (BDP). On a low-latency local link, even small buffers are plenty. On a high-latency link (like our bank's DR site, or any long-distance/satellite/cross-region link), the same bandwidth needs a MUCH bigger buffer to keep the pipe full — otherwise the sender runs out of "allowed in-flight data" and sits idle waiting for ACKs, capping throughput far below the link's real capacity, even with zero packet loss.</p>
+    </div>
+
+    <h3>2.2 Socket buffer tunables — system caps vs auto-tuned per-connection values</h3>
+    <div class="box concept">
+      <div class="box-title">🔵 Concept</div>
+      <p><code>net.core.rmem_max</code> / <code>net.core.wmem_max</code> set the absolute system-wide ceiling any single socket's receive/send buffer can ever grow to. <code>net.ipv4.tcp_rmem</code> / <code>net.ipv4.tcp_wmem</code> are each a triplet — minimum, default, and maximum — that the kernel uses to AUTOMATICALLY size each individual TCP connection's buffer within those bounds, growing it as needed up to the maximum. If either the core max or the tcp max is too small, no amount of auto-tuning can grow a connection's buffer past that ceiling, even on a link that would benefit from a much larger one.</p>
+    </div>
+
+    <h3>2.3 somaxconn and the SYN backlog — kernel-level connection queue limits</h3>
+    <div class="box concept">
+      <div class="box-title">🔵 Concept</div>
+      <p>Project 12 covered an application's OWN <code>listen()</code> backlog. But there's a kernel-level ceiling ABOVE that: <code>net.core.somaxconn</code> caps the maximum backlog size the kernel will allow ANY application to request, no matter what value the app asks for — an application requesting a backlog of 1024 while somaxconn is 128 will silently be capped at 128. Separately, <code>net.ipv4.tcp_max_syn_backlog</code> governs how many half-open (SYN received, handshake not yet complete) connections the kernel will track at once — a burst of new connection attempts can overflow this queue before the application even gets a chance to accept() anything.</p>
+    </div>
+
+    <h3>2.4 Congestion control algorithm — not all workloads want the same behavior</h3>
+    <div class="box concept">
+      <div class="box-title">🔵 Concept</div>
+      <p>Project 13 covered how TCP's congestion window collapses and slowly recovers after loss — that specific behavior comes from the active congestion control algorithm, and Linux supports multiple, selectable via <code>net.ipv4.tcp_congestion_control</code>. The traditional default, <code>cubic</code>, is loss-based — it treats any packet loss as a congestion signal and backs off hard. Newer algorithms like <code>bbr</code> model the actual available bandwidth and round-trip time directly, and tend to perform noticeably better on links with some background loss that ISN'T actually caused by congestion (common on long-distance and wireless-adjacent links) — exactly the kind of link our DR site connection might be.</p>
+    </div>
+  </section>
+
+  <section id="architecture">
+    <h2 class="sec-title"><span class="num">3</span>Where Each Tunable Sits</h2>
+    <div class="diagram-frame">
+<svg viewBox="0 0 900 260" xmlns="http://www.w3.org/2000/svg" width="100%">
+<style>.lbl{font:600 12px sans-serif;fill:#F3F4F6;} .sub{font:10.5px sans-serif;fill:#9CA3AF;} .box{fill:#132238;stroke:#60A5FA;stroke-width:1.5;rx:8;} .box2{fill:#241B3D;stroke:#C4B5FD;stroke-width:1.5;rx:8;} .box3{fill:#0F2C2A;stroke:#5EEAD4;stroke-width:1.5;rx:8;}</style>
+<rect x="10" y="30" width="210" height="70" class="box"/><text x="115" y="55" text-anchor="middle" class="lbl">Application listen()</text><text x="115" y="73" text-anchor="middle" class="sub">app-level backlog (Project 12)</text>
+<rect x="240" y="30" width="210" height="70" class="box2"/><text x="345" y="55" text-anchor="middle" class="lbl">Kernel connection queues</text><text x="345" y="73" text-anchor="middle" class="sub">somaxconn, tcp_max_syn_backlog</text>
+<rect x="470" y="30" width="210" height="70" class="box3"/><text x="575" y="55" text-anchor="middle" class="lbl">Per-socket buffers</text><text x="575" y="73" text-anchor="middle" class="sub">tcp_rmem/wmem, core rmem/wmem_max</text>
+<rect x="700" y="30" width="190" height="70" class="box"/><text x="795" y="55" text-anchor="middle" class="lbl">Congestion control</text><text x="795" y="73" text-anchor="middle" class="sub">tcp_congestion_control</text>
+</svg>
+    </div>
+    <div class="diagram-caption">Figure 1 — Four completely different, independently tunable layers, from "can the app even accept this connection" to "how much data can be in flight" to "how does the algorithm react to loss."</div>
+  </section>
+
+  <section id="methodology">
+    <h2 class="sec-title"><span class="num">4</span>Troubleshooting Method</h2>
+    <ul class="dtree">
+      <li class="q">1. Measure actual throughput and compare against theoretical BDP for the link's bandwidth and RTT</li>
+      <div class="arrow">↓</div>
+      <li class="q">2. Check current socket buffer tunables: sysctl net.core.rmem_max, net.ipv4.tcp_rmem, etc.</li>
+      <div class="arrow">↓</div>
+      <li class="q">3. Check for kernel-level connection drops: nstat -az, specifically ListenOverflows and ListenDrops</li>
+      <div class="arrow">↓</div>
+      <li class="q">4. Check the current congestion control algorithm and whether it matches the link's characteristics</li>
+      <div class="arrow">↓</div>
+      <li class="ok">Change tunables deliberately, one at a time, and re-measure — never tune blind, always confirm with a real before/after number</li>
+    </ul>
+    <div class="box warning"><div class="box-title">🟠 Warning</div><p>Application logs will show NOTHING for kernel-level connection drops (somaxconn/SYN backlog overflow) — the connection never reaches the application at all. Only <code>nstat</code> / <code>/proc/net/netstat</code> counters reveal this class of failure.</p></div>
+  </section>
+
+  <section id="labsetup">
+    <h2 class="sec-title"><span class="num">5</span>Lab Setup — Simulated Long-Distance Link</h2>
+    <div class="term">
+      <div class="term-header"><span>bash — run as root/sudo</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button></div>
+      <pre><span class="cmdno">1</span><span class="cmd">sudo ip netns add ns-primary        </span><span class="comment"># the primary settlement system</span>
+<span class="cmdno">2</span><span class="cmd">sudo ip netns add ns-dr             </span><span class="comment"># the disaster-recovery site, on the "far" end of a high-latency link</span>
+<span class="cmdno">3</span><span class="cmd">sudo ip link add veth-primary type veth peer name veth-dr</span>
+<span class="cmdno">4</span><span class="cmd">sudo ip link set veth-primary netns ns-primary</span>
+<span class="cmdno">5</span><span class="cmd">sudo ip link set veth-dr netns ns-dr</span>
+<span class="cmdno">6</span><span class="cmd">sudo ip netns exec ns-primary ip addr add 10.120.1.10/24 dev veth-primary</span>
+<span class="cmdno">7</span><span class="cmd">sudo ip netns exec ns-dr ip addr add 10.120.1.20/24 dev veth-dr</span>
+<span class="cmdno">8</span><span class="cmd">sudo ip netns exec ns-primary ip link set veth-primary up</span>
+<span class="cmdno">9</span><span class="cmd">sudo ip netns exec ns-dr ip link set veth-dr up</span>
+<span class="cmdno">10</span><span class="cmd">for ns in ns-primary ns-dr; do sudo ip netns exec $ns ip link set lo up; done</span>
+<span class="cmdno">11</span><span class="cmd">sudo ip netns exec ns-primary tc qdisc add dev veth-primary root netem delay 40ms   </span><span class="comment"># simulate a realistic cross-region RTT of about 80ms round trip</span>
+<span class="cmdno">12</span><span class="cmd">sudo ip netns exec ns-dr iperf3 -s -B 10.120.1.20 &amp;   </span><span class="comment"># iperf3 server on the DR side, for throughput testing</span></pre>
+    </div>
+  </section>
+
+  <section id="verify">
+    <h2 class="sec-title"><span class="num">6</span>Verify Baseline</h2>
+    <div class="term">
+      <div class="term-header"><span>bash — confirm the simulated latency, then test throughput with default kernel settings</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button></div>
+      <pre><span class="cmdno">1</span><span class="cmd">sudo ip netns exec ns-primary ping -c 3 10.120.1.20   </span><span class="comment"># confirm our simulated ~80ms round-trip latency</span>
+<span class="out-ok">    rtt min/avg/max = 80.1/80.3/80.5 ms</span>
+<span class="cmdno">2</span><span class="cmd">sudo ip netns exec ns-primary iperf3 -c 10.120.1.20 -t 5   </span><span class="comment"># measure achievable throughput over this high-latency link, current kernel defaults</span>
+<span class="out-err">    Bitrate: well below the link's real available bandwidth, even though there's zero packet loss</span></pre>
+    </div>
+    <div class="box success"><div class="box-title">🟢 Baseline noted</div><p>This IS the incident, reproduced — high latency alone, with default buffer sizes, already caps throughput. Let's confirm the mechanism and then fix it properly.</p></div>
+  </section>
+
+  <!-- BREAK 1 -->
+  <section id="break1">
+    <h2 class="sec-title"><span class="num">7</span>Break-Fix #1 — Throughput Capped by Small Socket Buffers (BDP)</h2>
+    <div class="box failure"><div class="box-title">🔴 Diagnose It</div><p>Check the current buffer tunables to see what's actually constraining us.</p></div>
+    <div class="term">
+      <div class="term-header"><span>bash — on ns-primary, inspect the current kernel buffer settings</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button></div>
+      <pre><span class="cmdno">1</span><span class="cmd">sudo ip netns exec ns-primary sysctl net.ipv4.tcp_rmem   </span><span class="comment"># shows the min/default/max triplet the kernel auto-tunes receive buffers within</span>
+<span class="out">    net.ipv4.tcp_rmem = 4096  131072  6291456   (max is only ~6MB — may not be enough for this link)</span>
+<span class="cmdno">2</span><span class="cmd">sudo ip netns exec ns-primary sysctl net.core.rmem_max   </span><span class="comment"># the absolute system-wide ceiling, above the tcp_rmem max</span>
+<span class="out">    net.core.rmem_max = 212992</span></pre>
+    </div>
+    <h3>Calculate what we actually need</h3>
+    <div class="box concept"><div class="box-title">🔵 Doing the BDP math</div><p>If the link's real available bandwidth is, say, 1 Gbit/s (125 MB/s) and our round-trip time is 80ms (0.08s), the bandwidth-delay product is roughly 125 MB/s × 0.08s ≈ 10 MB. To keep this pipe full, we need socket buffers that can hold at least that much unacknowledged data in flight — well above the ~6MB max we saw configured, and far above the tiny 212KB core.rmem_max ceiling.</p></div>
+    <div class="term">
+      <div class="term-header"><span>bash — on both ns-primary and ns-dr, raise the buffer ceilings to match the BDP</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button></div>
+      <pre><span class="cmdno">1</span><span class="cmd">sudo ip netns exec ns-primary sysctl -w net.core.rmem_max=16777216   </span><span class="comment"># raise the system-wide receive buffer ceiling to 16MB</span>
+<span class="cmdno">2</span><span class="cmd">sudo ip netns exec ns-primary sysctl -w net.core.wmem_max=16777216   </span><span class="comment"># same for the send-side ceiling</span>
+<span class="cmdno">3</span><span class="cmd">sudo ip netns exec ns-primary sysctl -w net.ipv4.tcp_rmem="4096 131072 16777216"   </span><span class="comment"># raise the auto-tuning max for receive buffers to match</span>
+<span class="cmdno">4</span><span class="cmd">sudo ip netns exec ns-primary sysctl -w net.ipv4.tcp_wmem="4096 131072 16777216"   </span><span class="comment"># same for send buffers</span>
+<span class="cmdno">5</span><span class="cmd">sudo ip netns exec ns-dr sysctl -w net.core.rmem_max=16777216   </span><span class="comment"># the receiving side needs matching headroom too — both ends matter</span>
+<span class="cmdno">6</span><span class="cmd">sudo ip netns exec ns-dr sysctl -w net.ipv4.tcp_rmem="4096 131072 16777216"</span></pre>
+    </div>
+    <h3>Re-test</h3>
+    <div class="term">
+      <div class="term-header"><span>bash — on ns-primary</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button></div>
+      <pre><span class="cmdno">1</span><span class="cmd">sudo ip netns exec ns-primary iperf3 -c 10.120.1.20 -t 5</span>
+<span class="out-ok">    Bitrate: substantially higher than before — the same physical link, same latency, same zero packet loss</span></pre>
+    </div>
+    <div class="box concept"><div class="box-title">🔵 Reading the fix</div><p>Nothing about the network path changed at all — same latency, same bandwidth, same loss rate. The ONLY thing that changed was how much unacknowledged data the kernel was willing to let a single connection have in flight at once. This is precisely why "network team says the link has plenty of headroom" and "we're not getting anywhere near that throughput" can both be true simultaneously — the link isn't the bottleneck, the buffer ceiling is.</p></div>
+    <div class="box bestpractice"><div class="box-title">🟦 Production Best Practice</div><p>Any high-bandwidth, high-latency link (DR replication, cross-region traffic, satellite links) needs its BDP calculated explicitly, and socket buffer maximums sized to match — on both ends of the connection, not just one.</p></div>
+  </section>
+
+  <!-- BREAK 2 -->
+  <section id="break2">
+    <h2 class="sec-title"><span class="num">8</span>Break-Fix #2 — Connection Bursts Dropped by somaxconn</h2>
+    <div class="box failure"><div class="box-title">🔴 Break It</div><p>Set somaxconn artificially low, then simulate a market-open-style burst of near-simultaneous connection attempts.</p></div>
+    <div class="term">
+      <div class="term-header"><span>bash — on ns-dr, simulate a too-small kernel-level backlog ceiling</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button></div>
+      <pre><span class="cmdno">1</span><span class="cmd">sudo ip netns exec ns-dr sysctl -w net.core.somaxconn=8   </span><span class="comment"># artificially small — real production default is usually much higher (often 4096+)</span>
+<span class="cmdno">2</span><span class="cmd">sudo ip netns exec ns-dr bash -c "cat > /tmp/burst_server.py" &lt;&lt;'EOF'
+import socket, time
+s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+s.bind(('10.120.1.20', 9600))
+s.listen(1024)     # the APPLICATION asks for a large backlog...
+print("listening, requested backlog 1024")
+time.sleep(30)     # ...but doesn't accept() anything for 30 seconds, simulating a slow-starting app under load
+EOF</span>
+<span class="cmdno">3</span><span class="cmd">sudo ip netns exec ns-dr python3 /tmp/burst_server.py &amp;</span></pre>
+    </div>
+    <table class="breakdown">
+      <tr><th>Token</th><th>Meaning</th></tr>
+      <tr><td class="token">s.listen(1024)</td><td>The application explicitly asks the kernel for a backlog of 1024 — but as covered in Section 2.3, the kernel will silently cap this at whatever net.core.somaxconn allows, here just 8.</td></tr>
+    </table>
+    <h3>Observe</h3>
+    <div class="term">
+      <div class="term-header"><span>bash — on ns-primary, fire a burst of connections quickly</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button></div>
+      <pre><span class="cmdno">1</span><span class="cmd">for i in $(seq 1 30); do sudo ip netns exec ns-primary bash -c "timeout 1 bash -c 'exec 3&lt;&gt;/dev/tcp/10.120.1.20/9600' &amp;" ; done; wait   </span><span class="comment"># 30 near-simultaneous connection attempts, well above our tiny backlog of 8</span>
+<span class="cmdno">2</span><span class="cmd">sudo ip netns exec ns-dr nstat -az | grep -i listen   </span><span class="comment"># the key diagnostic — kernel-level counters for backlog overflow events</span>
+<span class="out-err">    TcpExtListenOverflows    22    0.0   (22 connection attempts were dropped at the kernel level, before the app ever saw them)
+    TcpExtListenDrops        22    0.0</span></pre>
+    </div>
+    <div class="box concept"><div class="box-title">🔵 Reading the symptom</div><p>Notice there is NOTHING about this in the application's own logs — from the application's point of view, these 22 connections simply never happened, because they never made it far enough to reach accept(). The only place this failure is visible at all is in the kernel's own counters. This is exactly the "connections dropping silently, no application log entry" pattern from the incident report, and <code>nstat</code>'s ListenOverflows/ListenDrops counters are the single most direct way to prove it's happening.</p></div>
+    <div class="box failure"><div class="box-title">🔴 Root Cause</div><p>net.core.somaxconn was capping the effective connection backlog far below what the application requested and far below what the burst of incoming connections needed, causing the kernel to silently drop excess connection attempts before the application layer was ever involved.</p></div>
+    <div class="term">
+      <div class="term-header"><span>bash — fix</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button></div>
+      <pre><span class="cmdno">1</span><span class="cmd">sudo ip netns exec ns-dr sysctl -w net.core.somaxconn=4096   </span><span class="comment"># raise the kernel-level ceiling to comfortably exceed expected burst sizes</span>
+<span class="cmdno">2</span><span class="cmd">sudo ip netns exec ns-dr sysctl -w net.ipv4.tcp_max_syn_backlog=4096   </span><span class="comment"># raise the half-open connection queue limit to match</span></pre>
+    </div>
+    <div class="box bestpractice"><div class="box-title">🟦 Production Best Practice</div><p>Size somaxconn (and tcp_max_syn_backlog) for your worst-case burst, not your average load, and always check nstat's Listen* counters as a standard part of investigating any "connections silently fail during traffic spikes" ticket — application logs will never show this class of failure.</p></div>
+  </section>
+
+  <!-- BREAK 3 -->
+  <section id="break3">
+    <h2 class="sec-title"><span class="num">9</span>Break-Fix #3 — Congestion Control Algorithm Mismatch</h2>
+    <div class="box warning"><div class="box-title">🟠 Scenario</div><p>Combine our high-latency DR link with a small amount of background packet loss (common on long-distance links, not necessarily a sign of congestion) and compare cubic against bbr, if your kernel has bbr available.</p></div>
+    <div class="term">
+      <div class="term-header"><span>bash — check what's available and what's currently active</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button></div>
+      <pre><span class="cmdno">1</span><span class="cmd">sysctl net.ipv4.tcp_available_congestion_control   </span><span class="comment"># lists which algorithms this kernel supports</span>
+<span class="cmdno">2</span><span class="cmd">sysctl net.ipv4.tcp_congestion_control   </span><span class="comment"># shows which one is currently active</span></pre>
+    </div>
+    <div class="box concept"><div class="box-title">🔵 Note on this section</div><p>bbr requires the kernel module to be loaded and available, which depends on your specific environment and may not be possible in every lab/sandbox setting. If it's unavailable, the commands below will show an error naming the missing algorithm — that's expected, and the concept still applies even if you can't run this specific comparison right now.</p></div>
+    <div class="term">
+      <div class="term-header"><span>bash — on ns-primary, add light background loss alongside our existing latency</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button></div>
+      <pre><span class="cmdno">1</span><span class="cmd">sudo ip netns exec ns-primary tc qdisc change dev veth-primary root netem delay 40ms loss 1%   </span><span class="comment"># keep the 40ms delay, add a small 1% loss rate — realistic for a long-haul link</span>
+<span class="cmdno">2</span><span class="cmd">sudo ip netns exec ns-primary sysctl -w net.ipv4.tcp_congestion_control=cubic   </span><span class="comment"># explicitly select cubic, the traditional loss-based default</span>
+<span class="cmdno">3</span><span class="cmd">sudo ip netns exec ns-primary iperf3 -c 10.120.1.20 -t 5   </span><span class="comment"># measure throughput under cubic with latency + light loss</span>
+<span class="out-err">    Bitrate: noticeably reduced — cubic interprets the 1% loss as a strong congestion signal and backs off aggressively</span>
+<span class="cmdno">4</span><span class="cmd">sudo ip netns exec ns-primary sysctl -w net.ipv4.tcp_congestion_control=bbr   </span><span class="comment"># switch to bbr, if available on this kernel</span>
+<span class="cmdno">5</span><span class="cmd">sudo ip netns exec ns-primary iperf3 -c 10.120.1.20 -t 5   </span><span class="comment"># measure throughput again, same link conditions, only the algorithm changed</span>
+<span class="out-ok">    Bitrate: noticeably higher — bbr doesn't treat this level of non-congestive loss as a strong signal to back off</span></pre>
+    </div>
+    <div class="box concept"><div class="box-title">🔵 Reading the difference</div><p>Nothing about the physical link changed between the two tests — same latency, same loss rate. cubic's loss-based design assumes almost all loss means congestion and reacts by shrinking its congestion window hard, exactly like we saw in Project 13. On links where some baseline loss is just a normal characteristic of long-distance transmission rather than actual congestion, that assumption costs real throughput. bbr's model-based approach is far less reactive to this kind of loss, which is precisely why it's a common recommendation for exactly this kind of link.</p></div>
+    <div class="box bestpractice"><div class="box-title">🟦 Production Best Practice</div><p>Congestion control algorithm choice is a real, measurable performance lever for high-latency links with any non-congestive loss — but always validate with real before/after measurements on your actual link, since the "best" algorithm genuinely depends on the specific path's characteristics, not a universal rule.</p></div>
+  </section>
+
+  <section id="bestpractices">
+    <h2 class="sec-title"><span class="num">10</span>Production Best Practices</h2>
+    <div class="cards">
+      <div class="card"><h4>🟦 Calculate BDP before tuning buffers blindly</h4><p>bandwidth × RTT tells you the real minimum buffer size needed to fill a given link.</p></div>
+      <div class="card"><h4>🟦 somaxconn caps the app's own request silently</h4><p>An application asking for a large backlog can still be capped hard by a small kernel-level ceiling.</p></div>
+      <div class="card"><h4>🟦 Application logs won't show kernel-level connection drops</h4><p>nstat's ListenOverflows/ListenDrops counters are the only place this failure is visible.</p></div>
+      <div class="card"><h4>🟦 Congestion control choice matters most on lossy, high-latency links</h4><p>Always measure before/after — it's not a universal "always switch to bbr" rule.</p></div>
+    </div>
+  </section>
+
+  <section id="cheatsheet">
+    <h2 class="sec-title"><span class="num">11</span>Troubleshooting Cheat Sheet</h2>
+    <table class="ref">
+      <tr><th>Symptom</th><th>Likely Cause</th><th>Command to Confirm</th></tr>
+      <tr><td>Throughput far below available bandwidth on a high-latency link, no loss</td><td>Socket buffer max too small for the link's BDP</td><td><code>sysctl net.ipv4.tcp_rmem net.core.rmem_max</code>; calculate bandwidth × RTT</td></tr>
+      <tr><td>Connections silently fail during bursts, nothing in app logs</td><td>somaxconn / tcp_max_syn_backlog too small</td><td><code>nstat -az \| grep -i listen</code></td></tr>
+      <tr><td>Throughput underperforms on a link with some background loss</td><td>Congestion control algorithm too loss-averse for the link</td><td>Compare <code>cubic</code> vs <code>bbr</code> with real before/after measurements</td></tr>
+    </table>
+  </section>
+
+  <section id="interview">
+    <h2 class="sec-title"><span class="num">12</span>Interview Preparation</h2>
+
+    <div class="qa"><div class="q"><span class="qtag">Scenario</span>A high-bandwidth, high-latency replication link isn't hitting expected throughput, even though there's no packet loss. What would you check?</div>
+    <p>I'd calculate the bandwidth-delay product for the link — bandwidth times round-trip time — which tells me the minimum socket buffer size needed to keep the connection's pipe full. Then I'd check the actual configured socket buffer tunables, net.core.rmem_max/wmem_max and net.ipv4.tcp_rmem/tcp_wmem, on both ends of the connection. If the configured maximum is smaller than the calculated BDP, that's the bottleneck — the link has the bandwidth, but the kernel isn't allowing enough data in flight to use it.</p>
+    <div class="followup">Interviewer follow-up: "Why does it matter on both ends?" — Answer: the sender's send buffer and the receiver's receive buffer both need to accommodate the BDP — undersizing either end caps the achievable throughput regardless of the other end's configuration.</div>
+    </div>
+
+    <div class="qa"><div class="q"><span class="qtag">Concept</span>What's the difference between an application's listen() backlog and net.core.somaxconn?</div>
+    <p>The application requests a backlog size in its own listen() call, but that request is silently capped by net.core.somaxconn, a system-wide kernel ceiling the application has no control over. An application can ask for a backlog of 1024 and still effectively get far less if somaxconn is configured lower — and this cap applies system-wide, to every listening socket on the host.</p>
+    </div>
+
+    <div class="qa"><div class="q"><span class="qtag">Troubleshooting</span>Connections are failing during a traffic burst, but there's nothing in the application's logs about it. What would you check?</div>
+    <p>Kernel-level connection queue drops — I'd run nstat and look specifically at ListenOverflows and ListenDrops counters. A connection that never makes it past the kernel's backlog queue never reaches the application's accept() call, so it's completely invisible to application-level logging; the kernel's own counters are the only place this shows up.</p>
+    </div>
+  </section>
+
+  <section id="practice">
+    <h2 class="sec-title"><span class="num">13</span>Practice Tasks &amp; Break-Fix Challenge</h2>
+    <div class="box warning">
+      <div class="box-title">🟠 Practice Tasks</div>
+      <ol>
+        <li>Rebuild the lab from memory, including the simulated high-latency link.</li>
+        <li>Calculate the BDP for a hypothetical 500 Mbit/s link with 150ms RTT, and determine what tcp_rmem/wmem max value would be needed to fill it.</li>
+        <li>Reproduce all 3 break-fix scenarios, and for each, identify which specific sysctl or nstat counter you'd check first before looking at this file's answer.</li>
+      </ol>
+    </div>
+    <div class="box failure">
+      <div class="box-title">🔴 Break-Fix Challenge</div>
+      <p>Have someone else apply exactly one of the three breaks without telling you which. Diagnose it cold using <code>sysctl</code>, <code>nstat -az</code>, and before/after <code>iperf3</code> measurements — state your root cause before undoing the break.</p>
+    </div>
+  </section>
+
+  <section id="resume">
+    <h2 class="sec-title"><span class="num">14</span>Resume Points &amp; How to Explain This Project</h2>
+    <div class="box bestpractice">
+      <div class="box-title">🟦 Realistic resume bullet points</div>
+      <ul>
+        <li>Diagnosed and resolved a throughput bottleneck on a high-latency replication link by calculating the bandwidth-delay product and tuning socket buffer sizes (tcp_rmem/wmem, core rmem/wmem_max) to match.</li>
+        <li>Identified silent, kernel-level connection drops during traffic bursts using nstat's ListenOverflows/ListenDrops counters, invisible to application-level logging, and resolved them by correctly sizing net.core.somaxconn and tcp_max_syn_backlog.</li>
+        <li>Evaluated TCP congestion control algorithm selection (cubic vs bbr) for a high-latency link with non-congestive background loss, validating the improvement with real before/after throughput measurements.</li>
+      </ul>
+    </div>
+    <div class="box concept">
+      <div class="box-title">🔵 Natural spoken interview answer</div>
+      <p>"I worked through a scenario simulating a bank's high-latency disaster-recovery link and a burst of connections during peak load, and practiced diagnosing performance problems below the layers I'd normally check first. For the throughput issue, I calculated the bandwidth-delay product for the link and found the kernel's socket buffer maximums were far too small to keep the connection's pipe full, even with zero packet loss — raising tcp_rmem, tcp_wmem, and the core buffer ceilings fixed it directly. For the connection-burst issue, I found that kernel-level connection drops from a too-small somaxconn value are completely invisible in application logs, and only show up in nstat's ListenOverflows and ListenDrops counters. I also compared congestion control algorithms on a lossy, high-latency link and saw a real, measurable throughput difference between cubic and bbr, which reinforced that these kernel-level tunables are genuine, high-leverage levers for exactly the kind of workload a real-time settlement system runs on."</p>
+    </div>
+  </section>
+
+  <section id="next">
+    <h2 class="sec-title"><span class="num">15</span>Next Project Prerequisites</h2>
+    <div class="box architecture">
+      <div class="box-title">🟣 Coming up in Project 19 — Bonding and NIC Teaming</div>
+      <p>We'll cover combining multiple physical/virtual NICs into a single logical interface for redundancy and throughput — active-backup vs LACP modes, and how to troubleshoot a bonded interface that isn't behaving as expected.</p>
+      <p>Say <b>"Next Project"</b> when you're ready to continue.</p>
+    </div>
+  </section>
+
+  </main>
+</div>
+
+<a href="#" class="top-link" title="Back to top">↑</a>
+
+<script>
+function copyBlock(btn){
+  const pre = btn.closest('.term').querySelector('pre');
+  const text = pre.innerText;
+  navigator.clipboard.writeText(text).then(()=>{
+    const old = btn.textContent;
+    btn.textContent = "Copied!";
+    setTimeout(()=>btn.textContent = old, 1400);
+  });
+}
+window.addEventListener('scroll', function(){
+  const sections = document.querySelectorAll('section');
+  const total = document.body.scrollHeight - window.innerHeight;
+  const pct = Math.min(100, Math.round((window.scrollY/total)*100));
+  document.getElementById('progressFill').style.width = pct + '%';
+  document.getElementById('progressLabel').textContent = pct + '% through Project 18';
+
+  let current = '';
+  sections.forEach(sec=>{
+    const rect = sec.getBoundingClientRect();
+    if(rect.top <= 120) current = sec.id;
+  });
+  document.querySelectorAll('.sidebar a').forEach(a=>{
+    a.style.background = '';
+    a.style.color = '';
+    a.style.fontWeight = '';
+    if(a.getAttribute('href') === '#'+current){
+      a.style.background = 'var(--blue-bg)';
+      a.style.color = 'var(--blue)';
+      a.style.fontWeight = '700';
+    }
+  });
+});
+</script>
+</body>
+</html>

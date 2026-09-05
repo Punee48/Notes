@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Project 25 — IIS Configuration Backup and Restore | PowerShell Masterclass</title>
+<style>
+  :root{
+    --primary:#A78BFA; --secondary:#C4B5FD; --surface:#1A1530; --surface2:#221B3D;
+    --bg:#0F0B1E; --text:#EDE9FE; --muted:#9CA3AF; --border:#332B57;
+    --success:#4ADE80; --warn:#FBBF24; --danger:#F87171;
+    --code-bg:#0A0716; --code-text:#E9E4FF;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0; font-family:"Segoe UI",Calibri,Roboto,Arial,sans-serif; background:var(--bg); color:var(--text); line-height:1.65;}
+  a{color:var(--secondary);}
+  .layout{display:flex; max-width:1400px; margin:0 auto;}
+  nav.sidebar{width:270px; flex-shrink:0; position:sticky; top:0; height:100vh; overflow-y:auto; background:var(--surface); border-right:1px solid var(--border); padding:22px 16px;}
+  nav.sidebar h3{color:var(--secondary); font-size:13px; text-transform:uppercase; letter-spacing:.06em; margin:18px 0 8px;}
+  nav.sidebar a{display:block; padding:7px 10px; border-radius:8px; color:var(--text); text-decoration:none; font-size:14px; margin-bottom:2px;}
+  nav.sidebar a:hover{background:var(--surface2); color:var(--secondary);}
+  #progressWrap{background:var(--surface2); border-radius:10px; padding:10px; margin-bottom:8px;}
+  #progressBar{height:8px; background:var(--border); border-radius:6px; overflow:hidden;}
+  #progressFill{height:100%; width:0%; background:linear-gradient(90deg,var(--primary),var(--secondary)); transition:width .2s;}
+  #progressLabel{font-size:12px; color:var(--muted); margin-top:6px;}
+  main{flex:1; min-width:0; padding:0;}
+  .cover{background:linear-gradient(135deg,#3B2A6B,#5B3FA0); color:#fff; padding:60px 48px; position:relative; overflow:hidden; border-bottom:1px solid var(--border);}
+  .cover::after{content:"";position:absolute;right:-80px;top:-80px;width:300px;height:300px;border-radius:50%;background:rgba(255,255,255,.06);}
+  .badge{display:inline-block; background:rgba(255,255,255,.14); padding:5px 14px; border-radius:20px; font-size:12px; letter-spacing:.05em; margin-right:8px; margin-bottom:14px;}
+  .cover h1{font-size:34px; margin:6px 0 10px; max-width:760px;}
+  .cover p.sub{font-size:16px; opacity:.92; max-width:640px;}
+  .cover-meta{display:flex; gap:28px; margin-top:26px; flex-wrap:wrap;}
+  .cover-meta div{background:rgba(255,255,255,.10); padding:12px 18px; border-radius:10px; min-width:140px;}
+  .cover-meta span{display:block; font-size:12px; opacity:.85;}
+  .cover-meta strong{font-size:16px;}
+  section{padding:34px 48px; border-bottom:1px solid var(--border);}
+  section h2{color:var(--secondary); font-size:24px; border-left:5px solid var(--primary); padding-left:14px; margin-top:0;}
+  section h3{color:var(--primary); font-size:18px; margin-top:26px;}
+  .story{background:var(--surface); border-left:5px solid var(--primary); padding:20px 24px; border-radius:0 10px 10px 0; font-size:15px;}
+  .story b{color:var(--secondary);}
+  .callout{border-radius:10px; padding:16px 18px; margin:16px 0; font-size:14.5px; border:1px solid var(--border);}
+  .callout.tip{background:#132A1E; border-left:5px solid var(--success);}
+  .callout.note{background:var(--surface); border-left:5px solid var(--secondary);}
+  .callout.warn{background:#2E2410; border-left:5px solid var(--warn);}
+  .callout.security{background:#2E1616; border-left:5px solid var(--danger);}
+  .callout .lbl{font-weight:700; display:block; margin-bottom:4px;}
+  table{width:100%; border-collapse:collapse; margin:16px 0; font-size:14px;}
+  th,td{border:1px solid var(--border); padding:9px 12px; text-align:left; vertical-align:top;}
+  th{background:var(--surface2); color:var(--secondary);}
+  tr:nth-child(even){background:var(--surface);}
+  .codewrap{position:relative; margin:16px 0;}
+  pre{background:var(--code-bg); color:var(--code-text); padding:18px 16px; border-radius:10px; overflow-x:auto; font-family:Consolas,"Cascadia Code",Menlo,monospace; font-size:13.5px; line-height:1.7; border:1px solid var(--border);}
+  pre code{white-space:pre;}
+  .copybtn{position:absolute; top:10px; right:10px; background:var(--primary); color:#1A1530; border:none; padding:6px 12px; border-radius:6px; font-size:12px; cursor:pointer; font-weight:600;}
+  .copybtn:hover{background:var(--secondary);}
+  .explain-list{list-style:none; padding:0; margin:14px 0;}
+  .explain-list li{background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:10px 14px; margin-bottom:6px; font-size:14.5px;}
+  .explain-list code{background:var(--surface2); padding:2px 6px; border-radius:5px; color:var(--secondary); font-weight:600;}
+  details{background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:12px 16px; margin:10px 0;}
+  details summary{cursor:pointer; font-weight:600; color:var(--secondary);}
+  .diagram{background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:20px; margin:16px 0; overflow-x:auto;}
+  .flow{display:flex; flex-wrap:wrap; align-items:center; gap:10px; font-size:13.5px;}
+  .flow .box{background:var(--surface2); border:2px solid var(--secondary); border-radius:8px; padding:8px 14px; font-weight:600; color:var(--secondary);}
+  .flow .arrow{color:var(--primary); font-size:18px;}
+  .steps{counter-reset:step;}
+  .steps .step{position:relative; padding-left:44px; margin-bottom:18px;}
+  .steps .step::before{counter-increment:step; content:counter(step); position:absolute; left:0; top:0; background:var(--primary); color:#1A1530; width:30px; height:30px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:700;}
+  .grid2{display:grid; grid-template-columns:1fr 1fr; gap:16px;}
+  .milestone{background:linear-gradient(135deg,var(--surface2),var(--surface)); border:2px dashed var(--secondary); border-radius:12px; padding:22px 24px; margin:18px 0;}
+  @media(max-width:900px){.grid2{grid-template-columns:1fr;} nav.sidebar{display:none;} section{padding:26px 20px;} .cover{padding:36px 22px;}}
+  footer{padding:30px 48px; background:var(--surface); color:var(--muted); font-size:13px;}
+  code{color:var(--secondary);}
+</style>
+</head>
+<body>
+
+<div class="layout">
+  <nav class="sidebar">
+    <div id="progressWrap">
+      <div id="progressLabel">Reading progress</div>
+      <div id="progressBar"><div id="progressFill"></div></div>
+    </div>
+    <h3>Project 25</h3>
+    <a href="#cover">Cover</a>
+    <a href="#milestone">Certificate/IIS Track Complete</a>
+    <a href="#recap1">Recap: Projects 1–24</a>
+    <a href="#story">The Story</a>
+    <a href="#concepts">Concepts First</a>
+    <a href="#lab">Hands-On Lab</a>
+    <a href="#script">Full Script</a>
+    <a href="#linebyline">Line-by-Line</a>
+    <a href="#architecture">Architecture</a>
+    <a href="#incident">Production Incident</a>
+    <a href="#troubleshoot">Troubleshooting</a>
+    <a href="#security">Security Notes</a>
+    <a href="#recap">Key Learnings</a>
+    <a href="#interview">Interview Prep</a>
+    <a href="#challenges">Coding Challenges</a>
+    <a href="#resume">Resume Points</a>
+    <a href="#assignment">Practice Assignment</a>
+    <a href="#next">Next Project</a>
+  </nav>
+
+  <main id="top">
+    <div class="cover" id="cover">
+      <span class="badge">PROJECT 25</span><span class="badge">INTERMEDIATE</span><span class="badge">BFSI TRACK</span>
+      <h1>IIS Configuration Backup and Restore</h1>
+      <p class="sub">Back up the entire IIS configuration before risky changes, with retention cleanup and a carefully guarded restore path — closing out the Certificate/IIS track.</p>
+      <div class="cover-meta">
+        <div><span>Difficulty</span><strong>Intermediate</strong></div>
+        <div><span>Estimated Lab Time</span><strong>75–90 min</strong></div>
+        <div><span>Concepts</span><strong>8 core concepts</strong></div>
+        <div><span>Track</span><strong>25 of 40 — Certificate/IIS Track Complete</strong></div>
+      </div>
+    </div>
+
+    <section id="milestone">
+      <h2>🏁 Certificate/IIS Mini-Track Complete</h2>
+      <div class="milestone">
+        <p>Projects 19-25 took you from discovering certificates through monitoring, safe removal, IIS binding,
+        application pool recovery, full site deployment, and now backup/restore. Together, these seven projects form
+        a complete, realistic certificate and web-server lifecycle — discovery, monitoring, remediation, deployment,
+        and disaster recovery — the same shape you'll see repeated for other subsystems (like Active Directory,
+        starting next) throughout the rest of the course.</p>
+      </div>
+    </section>
+
+    <section id="recap1">
+      <h2>Quick Recap of Projects 1–24</h2>
+      <p>Project 24 gave us a repeatable way to deploy new sites. This project protects against the risk that
+      comes with any configuration change — <b>what if something goes wrong?</b> We'll build a backup step (reusing
+      Project 12's retention-cleanup pattern) and a carefully guarded restore, treating restore with the same
+      seriousness as the destructive operations in Projects 15 and 21.</p>
+    </section>
+
+    <section id="story">
+      <h2>The Story — Why We're Building This</h2>
+      <div class="story">
+        Before every IIS change — a new site deployment, a certificate rebind, an app pool setting tweak — our
+        manager wants an automatic configuration backup taken first, just in case. And when something does go wrong,
+        Operations needs a fast, reliable way to restore the last known-good configuration rather than manually
+        reconstructing settings from memory. <i>"I want backups to just happen automatically before we touch
+        anything risky, and I want restore to be safe enough that I'm not more worried about the restore itself
+        breaking something."</i>
+      </div>
+    </section>
+
+    <section id="concepts">
+      <h2>Concepts First — Before We Touch Code</h2>
+
+      <h3>1. Backup-WebConfiguration and Restore-WebConfiguration</h3>
+      <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code>Backup-WebConfiguration -Name "PrePatch_20260817_143000"
+Restore-WebConfiguration -Name "PrePatch_20260817_143000"</code></pre></div>
+      <ul class="explain-list">
+        <li><code>Backup-WebConfiguration</code> — creates a complete, named snapshot of IIS's entire configuration
+        (all sites, app pools, and settings), stored by Windows itself under
+        <code>%windir%\System32\inetsrv\backup</code>.</li>
+        <li><code>Restore-WebConfiguration</code> — replaces the <i>entire current IIS configuration</i> with a
+        named backup — a big, all-or-nothing operation, not a selective undo of just one recent change.</li>
+      </ul>
+      <div class="callout warn"><span class="lbl">Restore is total, not selective</span>Restoring a backup replaces
+      <i>all</i> current IIS configuration with the backup's state — any sites or changes made after that backup was
+      taken are gone, not just the one thing that went wrong. This is a meaningfully different (and more
+      consequential) kind of operation than most of the targeted, single-resource changes earlier in this course.</div>
+
+      <h3>2. Listing Available Backups</h3>
+      <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code>Get-WebConfigurationBackup</code></pre></div>
+      <p>Returns every named backup currently stored, with its creation time — the natural first step before any
+      restore, since you need to know exactly what's available and when it was taken.</p>
+
+      <h3>3. Naming Backups Meaningfully</h3>
+      <p>A timestamped, purpose-labeled name (like <code>PreDeployment_20260817_143000</code>) is far more useful
+      during an actual incident than a generic name — the same "descriptive over convenient" principle behind good
+      logging since Project 10.</p>
+
+      <h3>4. Retention Cleanup — Reusing Project 6/12's Pattern</h3>
+      <p>Backups accumulate over time just like the log files (Project 6) and HTML reports (Project 12) did before
+      them — the same age-based cleanup pattern applies, just targeting <code>Get-WebConfigurationBackup</code>
+      results instead of files on disk directly.</p>
+
+      <h3>5. Why Restore Needs Extra Caution Beyond Just ShouldProcess</h3>
+      <div class="callout security"><span class="lbl">The most consequential action in this entire mini-track</span>
+      Given restore replaces the <i>entire</i> configuration, this script requires an explicit backup name to be
+      passed — it will never guess, default to "the most recent," or restore automatically as part of any other
+      workflow. A human must deliberately specify exactly which backup to restore, every single time.</div>
+    </section>
+
+    <section id="lab">
+      <h2>Hands-On Lab — Build It Yourself</h2>
+      <div class="steps">
+        <div class="step"><b>Create the project folder:</b>
+          <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code>New-Item -ItemType Directory -Path "C:\PS-Masterclass\Project25\logs" -Force
+Set-Location "C:\PS-Masterclass\Project25"</code></pre></div>
+        </div>
+        <div class="step"><b>Create <code>Manage-IisConfigBackup.ps1</code></b> (as Administrator) and paste the
+        full script below.</div>
+        <div class="step"><b>Take a backup:</b>
+          <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code>.\Manage-IisConfigBackup.ps1 -Action Backup -Label "LabTest"</code></pre></div>
+        </div>
+        <div class="step"><b>List backups:</b>
+          <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code>.\Manage-IisConfigBackup.ps1 -Action List</code></pre></div>
+        </div>
+        <div class="step"><b>Practice a restore preview</b> (does not actually restore, since -WhatIf defaults on):
+          <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code>.\Manage-IisConfigBackup.ps1 -Action Restore -BackupName "<the exact name from List>"</code></pre></div>
+        </div>
+        <div class="step"><b>Validate:</b> confirm List shows your backup with a timestamp, and the restore preview
+        clearly explains what restoring would replace, without actually performing it.</div>
+      </div>
+    </section>
+
+    <section id="script">
+      <h2>Full Script — Manage-IisConfigBackup.ps1</h2>
+      <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code># =====================================================================
+# Manage-IisConfigBackup.ps1
+# ABC Bank - Windows Infrastructure Automation Team
+# Purpose: Backup, list, and (carefully) restore IIS configuration
+# =====================================================================
+
+[CmdletBinding(SupportsShouldProcess)]
+param(
+    [switch]$WhatIf = $true,
+    [ValidateSet("Backup", "List", "Restore")]                    # Restricts input to exactly these three values
+    [string]$Action,
+    [string]$Label,                                                  # Used for Backup
+    [string]$BackupName,                                             # Used for Restore - REQUIRED, never guessed
+    [int]$RetentionDays = 30
+)
+
+Import-Module WebAdministration -ErrorAction Stop
+$LogPath = ".\logs\ConfigBackup.log"
+function Write-Log {
+    param([string]$Message, [string]$Status = "INFO")
+    $Line = "{0} | {1} | {2}" -f (Get-Date -Format "yyyy-MM-dd HH:mm:ss"), $Status, $Message
+    Add-Content -Path $LogPath -Value $Line
+}
+
+switch ($Action) {
+
+    "Backup" {
+        $Timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
+        $BackupLabel = if ($Label) { "$Label`_$Timestamp" } else { "Backup_$Timestamp" }   # Meaningful, timestamped name
+
+        Write-Host "`n=== IIS CONFIG BACKUP: $BackupLabel ===" -ForegroundColor Magenta
+
+        if ($PSCmdlet.ShouldProcess($BackupLabel, "Create IIS Configuration Backup")) {
+            Backup-WebConfiguration -Name $BackupLabel
+            Write-Log -Status "SUCCESS" -Message "Created backup: $BackupLabel"
+            Write-Host "Backup created: $BackupLabel" -ForegroundColor Green
+        }
+        else {
+            Write-Host "PREVIEW: Would create backup named $BackupLabel" -ForegroundColor Yellow
+        }
+
+        # --- Retention cleanup (Project 6/12's pattern, reused) ---
+        $CutoffDate = (Get-Date).AddDays(-$RetentionDays)
+        $OldBackups = Get-WebConfigurationBackup | Where-Object { $_.CreationDate -lt $CutoffDate }
+
+        if ($OldBackups.Count -gt 0) {
+            Write-Host "`nRemoving $($OldBackups.Count) backup(s) older than $RetentionDays days..." -ForegroundColor Yellow
+            foreach ($Old in $OldBackups) {
+                if ($PSCmdlet.ShouldProcess($Old.Name, "Remove Old Backup")) {
+                    Remove-WebConfigurationBackup -Name $Old.Name
+                    Write-Log -Status "INFO" -Message "Removed old backup: $($Old.Name)"
+                }
+            }
+        }
+    }
+
+    "List" {
+        Write-Host "`n=== AVAILABLE IIS CONFIG BACKUPS ===" -ForegroundColor Magenta
+        Get-WebConfigurationBackup | Sort-Object CreationDate -Descending |
+            Format-Table Name, CreationDate -AutoSize
+    }
+
+    "Restore" {
+        if (-not $BackupName) {                                       # Restore NEVER proceeds without an explicit name
+            Write-Host "ERROR: -BackupName is required for Restore. This script will never guess or default." -ForegroundColor Red
+            Write-Log -Status "ERROR" -Message "Restore attempted without -BackupName - refused"
+            return                                                       # Exits the script entirely - no restore path without this
+        }
+
+        $TargetBackup = Get-WebConfigurationBackup | Where-Object { $_.Name -eq $BackupName }
+        if (-not $TargetBackup) {
+            Write-Host "ERROR: Backup '$BackupName' not found. Run -Action List to see available backups." -ForegroundColor Red
+            Write-Log -Status "ERROR" -Message "Restore attempted for non-existent backup: $BackupName"
+            return
+        }
+
+        Write-Host "`n=== RESTORE WARNING ===" -ForegroundColor Red
+        Write-Host "Restoring '$BackupName' (created $($TargetBackup.CreationDate)) will REPLACE the ENTIRE current" -ForegroundColor Yellow
+        Write-Host "IIS configuration, including any sites or changes made after that backup was taken.`n" -ForegroundColor Yellow
+
+        if ($PSCmdlet.ShouldProcess($BackupName, "RESTORE IIS Configuration (replaces ALL current config)")) {
+            Write-Log -Status "WARNING" -Message "RESTORING configuration from backup: $BackupName - replaces entire current config"
+            Restore-WebConfiguration -Name $BackupName
+            Write-Log -Status "SUCCESS" -Message "Restore completed from backup: $BackupName"
+            Write-Host "Restore completed." -ForegroundColor Green
+        }
+        else {
+            Write-Host "PREVIEW: Would restore from '$BackupName', replacing all current IIS configuration." -ForegroundColor Yellow
+        }
+    }
+}
+</code></pre></div>
+      </div>
+    </section>
+
+    <section id="linebyline">
+      <h2>Line-by-Line Explanation</h2>
+
+      <h3><code>[ValidateSet("Backup", "List", "Restore")] [string]$Action</code></h3>
+      <ul class="explain-list">
+        <li><code>[ValidateSet(...)]</code> — a parameter validation attribute restricting the allowed values to
+        exactly this list; passing anything else causes PowerShell itself to reject the call with a clear error,
+        before any of the script's own logic even runs — a cleaner alternative to manually checking
+        <code>if ($Action -notin @(...))</code> partway through the script.</li>
+      </ul>
+
+      <h3><code>if (-not $BackupName) { ... return }</code> inside the Restore case</h3>
+      <ul class="explain-list">
+        <li>This is the single most important safety line in the whole script: there is no default, no "most
+        recent" fallback, no way to trigger a restore without explicitly typing the exact backup name. The
+        <code>return</code> here exits the entire script immediately, guaranteeing no restore logic below it can
+        possibly run without this condition being satisfied first.</li>
+      </ul>
+
+      <h3><code>switch ($Action) { "Backup" { ... } "List" { ... } "Restore" { ... } }</code></h3>
+      <ul class="explain-list">
+        <li>A traditional value-matching <code>switch</code> (the second form from Project 3), here used to route
+        the script into one of three completely different workflows based on a single parameter — a clean way to
+        build a multi-purpose script without three separate files.</li>
+      </ul>
+
+      <h3><code>Get-WebConfigurationBackup | Where-Object { $_.CreationDate -lt $CutoffDate }</code></h3>
+      <ul class="explain-list">
+        <li>Structurally identical to Project 6's file-age filtering and Project 12's report-retention logic — just
+        pointed at <code>Get-WebConfigurationBackup</code>'s results instead of <code>Get-ChildItem</code>'s,
+        another example of one well-understood pattern transferring directly to a new data source.</li>
+      </ul>
+    </section>
+
+    <section id="architecture">
+      <h2>Architecture &amp; Restore Safety Flow</h2>
+      <div class="diagram">
+        <div class="flow">
+          <div class="box">-Action Restore</div><div class="arrow">→</div>
+          <div class="box">BackupName provided?</div><div class="arrow">→</div>
+          <div class="box">No → REFUSE, exit script</div>
+        </div>
+        <div class="flow" style="margin-top:12px;">
+          <div class="box">Name provided</div><div class="arrow">→</div>
+          <div class="box">Backup actually exists?</div><div class="arrow">→</div>
+          <div class="box">No → REFUSE, exit script</div>
+        </div>
+        <div class="flow" style="margin-top:12px;">
+          <div class="box">Backup confirmed</div><div class="arrow">→</div>
+          <div class="box">Explicit Warning Shown</div><div class="arrow">→</div>
+          <div class="box">ShouldProcess</div><div class="arrow">→</div>
+          <div class="box">Restore-WebConfiguration</div>
+        </div>
+      </div>
+      <p>Notice how many independent gates stand between "someone runs this script with -Action Restore" and an
+      actual restore happening: a required parameter with no default, an existence check against real available
+      backups, an explicit on-screen warning describing the consequences, and finally the standard ShouldProcess
+      preview/confirm mechanism. For an action this consequential, that's a deliberate, appropriate amount of
+      friction — restore should never feel like something that could happen by accident.</p>
+    </section>
+
+    <section id="incident">
+      <h2>Production Incident Walkthrough</h2>
+      <div class="story">
+        A junior engineer, following an incident runbook under pressure, runs this script with
+        <code>-Action Restore</code> but forgets to specify <code>-BackupName</code>. Instead of guessing, defaulting
+        to "most recent," or silently doing nothing, the script immediately and clearly refuses, explaining exactly
+        what's missing and pointing to <code>-Action List</code> to find the right name — turning a potential
+        "restored the wrong backup during a stressful incident" mistake into a simple, immediately obvious, and
+        easily corrected error message.
+      </div>
+      <ul class="explain-list">
+        <li><b>Why is refusing loudly better than silently picking a sensible-seeming default here?</b> During an
+        actual incident, someone under pressure benefits far more from an immediate, clear "you're missing required
+        information" than from the script guessing what they probably meant — a wrong guess executed confidently is
+        much more dangerous than an obvious refusal that prompts the person to slow down and specify exactly what
+        they intend.</li>
+      </ul>
+    </section>
+
+    <section id="troubleshoot">
+      <h2>Troubleshooting Cheat Sheet</h2>
+      <table>
+        <tr><th>Symptom</th><th>Likely Root Cause</th><th>Fix</th></tr>
+        <tr><td>"The term 'Backup-WebConfiguration' is not recognized"</td><td>WebAdministration module not imported, or IIS management tools not installed</td><td>Confirm Import-Module WebAdministration succeeds standalone first</td></tr>
+        <tr><td>Backup succeeds but doesn't show up in -Action List</td><td>Very unlikely, but worth confirming Backup-WebConfiguration didn't silently fail</td><td>Check the audit log for a SUCCESS entry matching the expected backup name</td></tr>
+        <tr><td>Restore refuses even with a BackupName provided</td><td>The name doesn't exactly match an existing backup (case-sensitive, exact match required)</td><td>Copy the exact name from -Action List output rather than retyping it</td></tr>
+        <tr><td>"Access is denied" on Backup-WebConfiguration</td><td>Terminal not running as Administrator</td><td>Re-open as Administrator</td></tr>
+      </table>
+    </section>
+
+    <section id="security">
+      <h2>Security &amp; Best Practices</h2>
+      <div class="callout security"><span class="lbl">The core lesson of this project</span>Not every safety
+      mechanism needs to be exotic — sometimes the most effective protection is simply refusing to proceed without
+      an explicit, unambiguous, required input, with no convenient default that could be triggered accidentally.
+      This is a pattern worth carrying forward to any script capable of a similarly consequential, broad-impact
+      action.</div>
+      <div class="callout tip"><span class="lbl">Best practice reinforced here</span>Descriptive, timestamped backup
+      names aren't just nice-to-have — during an actual incident, being able to immediately tell backups apart by
+      name (rather than needing to cross-reference creation dates manually) meaningfully speeds up recovery.</div>
+    </section>
+
+    <section id="recap">
+      <h2>Key Learnings &amp; Recap</h2>
+      <div class="grid2">
+        <div>
+          <h3>Commands/Syntax Learned</h3>
+          <ul class="explain-list">
+            <li><code>Backup-WebConfiguration</code> / <code>Restore-WebConfiguration</code></li>
+            <li><code>Get-WebConfigurationBackup</code> / <code>Remove-WebConfigurationBackup</code></li>
+            <li><code>[ValidateSet(...)]</code> parameter validation</li>
+          </ul>
+        </div>
+        <div>
+          <h3>Concepts Learned</h3>
+          <ul class="explain-list">
+            <li>Restore as a total, not selective, replacement of configuration</li>
+            <li>Requiring explicit input for consequential actions, with zero convenient defaults</li>
+            <li>Refusing loudly and clearly rather than guessing under ambiguous conditions</li>
+            <li>Reusing the retention-cleanup pattern against a third different data source</li>
+          </ul>
+        </div>
+      </div>
+      <h3>Common Mistakes to Avoid</h3>
+      <ul class="explain-list">
+        <li>Assuming Restore only undoes the most recent change, rather than replacing everything.</li>
+        <li>Defaulting a restore target to "most recent" instead of requiring explicit specification.</li>
+        <li>Skipping backup retention cleanup and letting the backup store grow indefinitely.</li>
+      </ul>
+    </section>
+
+    <section id="interview">
+      <h2>Interview Preparation</h2>
+      <details><summary>Q1. Why does this script refuse to run a restore without an explicit -BackupName, rather than defaulting to the most recent backup?</summary>
+        <p><b>Answer:</b> Restoring is a total replacement of IIS configuration — defaulting to "most recent" could
+        restore the wrong point in time if someone forgot the parameter during a stressful incident, silently
+        undoing more recent legitimate changes. Requiring explicit specification forces a deliberate decision every
+        time, which is appropriate given how consequential the action is.</p>
+        <p><b>Follow-up:</b> "Isn't requiring an explicit parameter every time less convenient?" — Answer: yes,
+        deliberately so — the added friction is the point; for an action this broad and irreversible, a small amount
+        of required deliberateness is a reasonable tradeoff against the risk of an accidental or mistaken restore.</p>
+      </details>
+      <details><summary>Q2. What's the key difference between this project's "restore" and, say, Project 21's certificate removal, in terms of blast radius?</summary>
+        <p><b>Answer:</b> Project 21's removal was scoped to one specific, independently-reverified certificate.
+        This project's restore replaces the entire IIS configuration at once — every site, pool, and setting — making
+        its potential blast radius far larger and its consequences much harder to reason about in advance, which is
+        why it warrants even more caution than a single-resource operation.</p>
+        <p><b>Follow-up:</b> "How might you reduce that blast radius if partial/selective restore were a real requirement?"
+        — Answer: <code>Restore-WebConfiguration</code> doesn't support partial restores natively, so achieving that
+        would likely mean manually comparing the backup's exported config against current config and selectively
+        reapplying only specific settings — a much more involved, custom process than the built-in cmdlet provides.</p>
+      </details>
+      <details><summary>Q3. Why use [ValidateSet] for the -Action parameter instead of checking valid values manually inside the script?</summary>
+        <p><b>Answer:</b> <code>[ValidateSet]</code> rejects an invalid value immediately, before any of the
+        script's logic runs at all, and PowerShell itself generates a clear, standard error message — this is more
+        reliable and less code than manually checking <code>if ($Action -notin @(...))</code> somewhere in the body,
+        where it's possible to accidentally place the check after code that shouldn't run for an invalid value.</p>
+        <p><b>Follow-up:</b> "What other parameter validation attributes might be useful elsewhere in this course's scripts?"
+        — Answer: <code>[ValidateRange]</code> for numeric bounds (like a retry count or day threshold),
+        <code>[ValidateNotNullOrEmpty]</code> for required strings, and <code>[ValidateScript]</code> for fully
+        custom validation logic — all enforce correctness before a script's real logic runs, rather than after.</p>
+      </details>
+    </section>
+
+    <section id="challenges">
+      <h2>Coding Challenges</h2>
+      <details><summary>Challenge 1: Add a confirmation prompt requiring the user to type the backup name again before restoring (extra manual confirmation beyond ShouldProcess)</summary>
+        <details><summary>Show answer</summary>
+        <pre><code>$Confirmation = Read-Host "Type the backup name again to confirm restore: '$BackupName'"
+if ($Confirmation -ne $BackupName) {
+    Write-Host "Confirmation did not match - restore cancelled." -ForegroundColor Red
+    return
+}</code></pre>
+        </details>
+      </details>
+      <details><summary>Challenge 2: Automatically create a backup labeled "PreRestore" immediately before any restore, as a safety net</summary>
+        <details><summary>Show answer</summary>
+        <pre><code># Add this right before the Restore-WebConfiguration call:
+$PreRestoreLabel = "PreRestore_$(Get-Date -Format 'yyyyMMdd_HHmmss')"
+Backup-WebConfiguration -Name $PreRestoreLabel
+Write-Log -Status "INFO" -Message "Created safety backup before restore: $PreRestoreLabel"</code></pre>
+        </details>
+      </details>
+      <details><summary>Challenge 3: Show a diff-style summary of site names in the backup vs currently configured, before restoring</summary>
+        <details><summary>Show answer</summary>
+        <pre><code># Conceptual: this requires inspecting the backup's stored applicationHost.config,
+# which is more advanced XML parsing - a good preview of concepts from later CSV/JSON/XML projects.
+Write-Host "(Full diff comparison is an advanced extension - not covered by built-in cmdlets directly)"</code></pre>
+        </details>
+      </details>
+    </section>
+
+    <section id="resume">
+      <h2>Resume Points</h2>
+      <ul class="explain-list">
+        <li>Built a PowerShell IIS configuration backup and restore tool with mandatory-parameter safety gates preventing accidental full-configuration restores.</li>
+        <li>Implemented automated backup retention cleanup, reusing a proven age-based pattern across a third distinct data source.</li>
+        <li>Applied ValidateSet parameter validation and multi-path script routing to build one cohesive backup/list/restore tool.</li>
+      </ul>
+    </section>
+
+    <section id="assignment">
+      <h2>Practice Assignment</h2>
+      <div class="callout note">
+        Run <code>-Action Restore</code> with no <code>-BackupName</code> at all, and separately with a made-up name
+        that doesn't exist, and confirm both cases refuse clearly with a helpful message rather than erroring
+        confusingly or doing something unexpected.
+      </div>
+    </section>
+
+    <section id="next">
+      <h2>Next Project Prerequisites</h2>
+      <p>Project 26 (AD User Provisioning) begins a new mini-track on Active Directory — a domain environment is
+      needed for hands-on practice here, so the lab will clearly separate local-practice-possible concepts from
+      what genuinely requires a lab domain controller. When ready, say <b>"Next Project."</b></p>
+    </section>
+
+    <footer>
+      PowerShell Masterclass — ABC Bank Automation Track · Project 25 of 40 · Generated for offline, self-contained use.
+    </footer>
+  </main>
+</div>
+
+<script>
+function copyCode(btn){
+  const code = btn.parentElement.querySelector('pre').innerText;
+  navigator.clipboard.writeText(code).then(()=>{
+    const old = btn.innerText; btn.innerText = "Copied!";
+    setTimeout(()=>btn.innerText = old, 1200);
+  });
+}
+window.addEventListener('scroll', ()=>{
+  const h = document.documentElement;
+  const pct = (h.scrollTop) / (h.scrollHeight - h.clientHeight) * 100;
+  document.getElementById('progressFill').style.width = pct + '%';
+  document.getElementById('progressLabel').innerText = 'Reading progress: ' + Math.round(pct) + '%';
+});
+</script>
+</body>
+</html>

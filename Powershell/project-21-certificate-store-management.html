@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Project 21 — Windows Certificate Store Management | PowerShell Masterclass</title>
+<style>
+  :root{
+    --primary:#A78BFA; --secondary:#C4B5FD; --surface:#1A1530; --surface2:#221B3D;
+    --bg:#0F0B1E; --text:#EDE9FE; --muted:#9CA3AF; --border:#332B57;
+    --success:#4ADE80; --warn:#FBBF24; --danger:#F87171;
+    --code-bg:#0A0716; --code-text:#E9E4FF;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0; font-family:"Segoe UI",Calibri,Roboto,Arial,sans-serif; background:var(--bg); color:var(--text); line-height:1.65;}
+  a{color:var(--secondary);}
+  .layout{display:flex; max-width:1400px; margin:0 auto;}
+  nav.sidebar{width:270px; flex-shrink:0; position:sticky; top:0; height:100vh; overflow-y:auto; background:var(--surface); border-right:1px solid var(--border); padding:22px 16px;}
+  nav.sidebar h3{color:var(--secondary); font-size:13px; text-transform:uppercase; letter-spacing:.06em; margin:18px 0 8px;}
+  nav.sidebar a{display:block; padding:7px 10px; border-radius:8px; color:var(--text); text-decoration:none; font-size:14px; margin-bottom:2px;}
+  nav.sidebar a:hover{background:var(--surface2); color:var(--secondary);}
+  #progressWrap{background:var(--surface2); border-radius:10px; padding:10px; margin-bottom:8px;}
+  #progressBar{height:8px; background:var(--border); border-radius:6px; overflow:hidden;}
+  #progressFill{height:100%; width:0%; background:linear-gradient(90deg,var(--primary),var(--secondary)); transition:width .2s;}
+  #progressLabel{font-size:12px; color:var(--muted); margin-top:6px;}
+  main{flex:1; min-width:0; padding:0;}
+  .cover{background:linear-gradient(135deg,#3B2A6B,#5B3FA0); color:#fff; padding:60px 48px; position:relative; overflow:hidden; border-bottom:1px solid var(--border);}
+  .cover::after{content:"";position:absolute;right:-80px;top:-80px;width:300px;height:300px;border-radius:50%;background:rgba(255,255,255,.06);}
+  .badge{display:inline-block; background:rgba(255,255,255,.14); padding:5px 14px; border-radius:20px; font-size:12px; letter-spacing:.05em; margin-right:8px; margin-bottom:14px;}
+  .cover h1{font-size:34px; margin:6px 0 10px; max-width:760px;}
+  .cover p.sub{font-size:16px; opacity:.92; max-width:640px;}
+  .cover-meta{display:flex; gap:28px; margin-top:26px; flex-wrap:wrap;}
+  .cover-meta div{background:rgba(255,255,255,.10); padding:12px 18px; border-radius:10px; min-width:140px;}
+  .cover-meta span{display:block; font-size:12px; opacity:.85;}
+  .cover-meta strong{font-size:16px;}
+  section{padding:34px 48px; border-bottom:1px solid var(--border);}
+  section h2{color:var(--secondary); font-size:24px; border-left:5px solid var(--primary); padding-left:14px; margin-top:0;}
+  section h3{color:var(--primary); font-size:18px; margin-top:26px;}
+  .story{background:var(--surface); border-left:5px solid var(--primary); padding:20px 24px; border-radius:0 10px 10px 0; font-size:15px;}
+  .story b{color:var(--secondary);}
+  .callout{border-radius:10px; padding:16px 18px; margin:16px 0; font-size:14.5px; border:1px solid var(--border);}
+  .callout.tip{background:#132A1E; border-left:5px solid var(--success);}
+  .callout.note{background:var(--surface); border-left:5px solid var(--secondary);}
+  .callout.warn{background:#2E2410; border-left:5px solid var(--warn);}
+  .callout.security{background:#2E1616; border-left:5px solid var(--danger);}
+  .callout .lbl{font-weight:700; display:block; margin-bottom:4px;}
+  table{width:100%; border-collapse:collapse; margin:16px 0; font-size:14px;}
+  th,td{border:1px solid var(--border); padding:9px 12px; text-align:left; vertical-align:top;}
+  th{background:var(--surface2); color:var(--secondary);}
+  tr:nth-child(even){background:var(--surface);}
+  .codewrap{position:relative; margin:16px 0;}
+  pre{background:var(--code-bg); color:var(--code-text); padding:18px 16px; border-radius:10px; overflow-x:auto; font-family:Consolas,"Cascadia Code",Menlo,monospace; font-size:13.5px; line-height:1.7; border:1px solid var(--border);}
+  pre code{white-space:pre;}
+  .copybtn{position:absolute; top:10px; right:10px; background:var(--primary); color:#1A1530; border:none; padding:6px 12px; border-radius:6px; font-size:12px; cursor:pointer; font-weight:600;}
+  .copybtn:hover{background:var(--secondary);}
+  .explain-list{list-style:none; padding:0; margin:14px 0;}
+  .explain-list li{background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:10px 14px; margin-bottom:6px; font-size:14.5px;}
+  .explain-list code{background:var(--surface2); padding:2px 6px; border-radius:5px; color:var(--secondary); font-weight:600;}
+  details{background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:12px 16px; margin:10px 0;}
+  details summary{cursor:pointer; font-weight:600; color:var(--secondary);}
+  .diagram{background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:20px; margin:16px 0; overflow-x:auto;}
+  .flow{display:flex; flex-wrap:wrap; align-items:center; gap:10px; font-size:13.5px;}
+  .flow .box{background:var(--surface2); border:2px solid var(--secondary); border-radius:8px; padding:8px 14px; font-weight:600; color:var(--secondary);}
+  .flow .arrow{color:var(--primary); font-size:18px;}
+  .steps{counter-reset:step;}
+  .steps .step{position:relative; padding-left:44px; margin-bottom:18px;}
+  .steps .step::before{counter-increment:step; content:counter(step); position:absolute; left:0; top:0; background:var(--primary); color:#1A1530; width:30px; height:30px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:700;}
+  .grid2{display:grid; grid-template-columns:1fr 1fr; gap:16px;}
+  @media(max-width:900px){.grid2{grid-template-columns:1fr;} nav.sidebar{display:none;} section{padding:26px 20px;} .cover{padding:36px 22px;}}
+  footer{padding:30px 48px; background:var(--surface); color:var(--muted); font-size:13px;}
+  code{color:var(--secondary);}
+</style>
+</head>
+<body>
+
+<div class="layout">
+  <nav class="sidebar">
+    <div id="progressWrap">
+      <div id="progressLabel">Reading progress</div>
+      <div id="progressBar"><div id="progressFill"></div></div>
+    </div>
+    <h3>Project 21</h3>
+    <a href="#cover">Cover</a>
+    <a href="#recap1">Recap: Projects 1–20</a>
+    <a href="#story">The Story</a>
+    <a href="#concepts">Concepts First</a>
+    <a href="#lab">Hands-On Lab</a>
+    <a href="#script">Full Script</a>
+    <a href="#linebyline">Line-by-Line</a>
+    <a href="#architecture">Architecture</a>
+    <a href="#incident">Production Incident</a>
+    <a href="#troubleshoot">Troubleshooting</a>
+    <a href="#security">Security Notes</a>
+    <a href="#recap">Key Learnings</a>
+    <a href="#interview">Interview Prep</a>
+    <a href="#challenges">Coding Challenges</a>
+    <a href="#resume">Resume Points</a>
+    <a href="#assignment">Practice Assignment</a>
+    <a href="#next">Next Project</a>
+  </nav>
+
+  <main id="top">
+    <div class="cover" id="cover">
+      <span class="badge">PROJECT 21</span><span class="badge">INTERMEDIATE</span><span class="badge">BFSI TRACK</span>
+      <h1>Windows Certificate Store Management</h1>
+      <p class="sub">Safely import new certificates and remove expired ones — idempotent by thumbprint, ShouldProcess-protected, and narrowly scoped to only ever remove what's genuinely expired.</p>
+      <div class="cover-meta">
+        <div><span>Difficulty</span><strong>Intermediate</strong></div>
+        <div><span>Estimated Lab Time</span><strong>80–95 min</strong></div>
+        <div><span>Concepts</span><strong>9 core concepts</strong></div>
+        <div><span>Track</span><strong>21 of 40</strong></div>
+      </div>
+    </div>
+
+    <section id="recap1">
+      <h2>Quick Recap of Projects 1–20</h2>
+      <p>Projects 19-20 gave us discovery and monitoring. This project is where we finally <i>act</i> — importing a
+      renewed certificate and cleaning up expired ones — using every safety pattern built up since Project 10:
+      <code>SupportsShouldProcess</code>, idempotency, structured logging, and (like Project 15's NTFS lesson) a
+      deliberately narrow, conservative scope for anything destructive.</p>
+    </section>
+
+    <section id="story">
+      <h2>The Story — Why We're Building This</h2>
+      <div class="story">
+        The certificate flagged as CRITICAL by Project 20's monitor has now been renewed by the certificate
+        authority — we have a new <code>.pfx</code> file ready to import. At the same time, three genuinely expired
+        certificates have been sitting in the store for months, cluttering every future inventory report. Our
+        manager wants one script that can safely <b>import</b> the new certificate (without duplicating it if
+        already present) and safely <b>remove</b> — but only ever <i>already-expired</i> certificates, never
+        anything still valid, no matter what.
+      </div>
+    </section>
+
+    <section id="concepts">
+      <h2>Concepts First — Before We Touch Code</h2>
+
+      <h3>1. Import-PfxCertificate — Bringing In a New Certificate</h3>
+      <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code>$SecurePassword = Read-Host -Prompt "Enter PFX password" -AsSecureString   # Never plaintext (Project 4's security note, applied)
+Import-PfxCertificate -FilePath ".\NewCert.pfx" -CertStoreLocation "Cert:\LocalMachine\My" -Password $SecurePassword</code></pre></div>
+      <ul class="explain-list">
+        <li><code>-AsSecureString</code> — masks the password as it's typed and stores it as a
+        <code>SecureString</code> in memory rather than plain text, the exact concept the original course spec
+        insisted on since the very beginning: never hardcode or display credentials in plain text.</li>
+        <li><code>Import-PfxCertificate</code> — imports a certificate <i>and</i> its private key from a
+        <code>.pfx</code> file, unlike a plain <code>.cer</code> import which wouldn't include the key.</li>
+      </ul>
+
+      <h3>2. Idempotency by Thumbprint — Not by Subject Name</h3>
+      <div class="callout warn"><span class="lbl">Why thumbprint, not Subject</span>Multiple certificates can share
+      the exact same Subject name (an old one and its renewal, for instance) — the <code>Thumbprint</code> is the
+      one property guaranteed unique to a specific certificate. Checking "is this exact certificate already
+      installed" must use the thumbprint, or an idempotency check based on Subject could wrongly treat a genuinely
+      new, renewed certificate as a duplicate.</li>
+      <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code>$AlreadyPresent = Get-ChildItem "Cert:\LocalMachine\My" | Where-Object { $_.Thumbprint -eq $NewCertThumbprint }</code></pre></div>
+
+      <h3>3. Removing a Certificate — Remove-Item on the Cert: Drive</h3>
+      <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code>Remove-Item -Path "Cert:\LocalMachine\My\$Thumbprint"</code></pre></div>
+      <p>Same <code>Remove-Item</code> cmdlet from Project 6's file cleanup, here targeting a certificate path
+      instead — another example of PowerShell's provider model letting one cmdlet work consistently across very
+      different kinds of data.</p>
+
+      <h3>4. The Critical Safety Rule for This Project</h3>
+      <div class="callout security"><span class="lbl">Never remove anything that isn't ALREADY expired</span>This
+      script's removal logic checks <code>NotAfter</code> against right now, in code, immediately before deleting —
+      it does not trust a list of "certificates to remove" supplied from anywhere else without re-verifying that
+      condition itself. A script that blindly deletes whatever it's told to, without independently confirming the
+      safety condition, is one bad input away from removing something still in active use.</div>
+
+      <h3>5. ShouldProcess for Both Import and Removal — Reused from Projects 10, 13, 14</h3>
+      <p>Both actions get their own <code>ShouldProcess</code> check, so either can be previewed independently
+      before anything actually happens — by now a completely familiar pattern.</p>
+    </section>
+
+    <section id="lab">
+      <h2>Hands-On Lab — Build It Yourself</h2>
+      <div class="steps">
+        <div class="step"><b>Create the project folder and a self-signed test certificate</b> to safely practice on
+        (never practice destructive certificate operations against anything real):
+          <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code>New-Item -ItemType Directory -Path "C:\PS-Masterclass\Project21\logs" -Force
+Set-Location "C:\PS-Masterclass\Project21"
+
+# Creates a throwaway self-signed cert that's already expired, safe to practice removal on
+$TestCert = New-SelfSignedCertificate -Subject "CN=ABCBank-Test-Expired" -CertStoreLocation "Cert:\LocalMachine\My" -NotAfter (Get-Date).AddDays(-5)
+Write-Host "Test certificate thumbprint: $($TestCert.Thumbprint)"</code></pre></div>
+        </div>
+        <div class="step"><b>Create <code>Manage-CertificateStore.ps1</code></b> (as Administrator) and paste the
+        full script below.</div>
+        <div class="step"><b>Run it in preview mode first:</b>
+          <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code>.\Manage-CertificateStore.ps1</code></pre></div>
+        </div>
+        <div class="step"><b>Apply for real</b> and confirm the test certificate (and only that one, since it's the
+        only genuinely expired one) gets removed:
+          <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code>.\Manage-CertificateStore.ps1 -WhatIf:$false</code></pre></div>
+        </div>
+        <div class="step"><b>Validate:</b> confirm <code>logs\CertStoreChanges.log</code> shows the removal with a
+        timestamp, and re-run the script to confirm it no longer finds that certificate (idempotency verified).</div>
+      </div>
+    </section>
+
+    <section id="script">
+      <h2>Full Script — Manage-CertificateStore.ps1</h2>
+      <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code># =====================================================================
+# Manage-CertificateStore.ps1
+# ABC Bank - Windows Infrastructure Automation Team
+# Purpose: Safely remove ALREADY-EXPIRED certificates only. Never touches valid ones.
+# =====================================================================
+
+[CmdletBinding(SupportsShouldProcess)]      # Same pattern from Projects 10, 13, 14
+param(
+    [switch]$WhatIf = $true
+)
+
+$StorePath = "Cert:\LocalMachine\My"
+$LogPath   = ".\logs\CertStoreChanges.log"
+
+function Write-Log {
+    param([string]$Message, [string]$Status = "INFO")
+    $Line = "{0} | {1} | {2}" -f (Get-Date -Format "yyyy-MM-dd HH:mm:ss"), $Status, $Message
+    Add-Content -Path $LogPath -Value $Line
+}
+
+Write-Host "`n=== CERTIFICATE STORE CLEANUP ===" -ForegroundColor Magenta
+Write-Host "This script ONLY removes certificates that are ALREADY EXPIRED.`n" -ForegroundColor Yellow
+
+# ---------------------------------------------------------------
+# STEP 1: Find candidates - re-verify expiry independently, right here, right now
+# ---------------------------------------------------------------
+$AllCerts = Get-ChildItem -Path $StorePath -ErrorAction SilentlyContinue
+
+$ExpiredCerts = $AllCerts | Where-Object {
+    $_.NotAfter -lt (Get-Date)                                     # THE safety condition - checked directly, not trusted from elsewhere
+}
+
+Write-Host "Found $($ExpiredCerts.Count) already-expired certificate(s) out of $($AllCerts.Count) total.`n" -ForegroundColor Cyan
+
+$Results = @()
+
+foreach ($Cert in $ExpiredCerts) {                                  # Only ever loops over certificates we just independently confirmed are expired
+
+    $DaysExpired = ((Get-Date) - $Cert.NotAfter).Days
+
+    Write-Host "Expired: $($Cert.Subject) (expired $DaysExpired day(s) ago, thumbprint $($Cert.Thumbprint))" -ForegroundColor Yellow
+
+    if ($PSCmdlet.ShouldProcess($Cert.Thumbprint, "Remove Expired Certificate ($($Cert.Subject))")) {
+
+        # Re-verify ONE MORE TIME, immediately before deleting - defense in depth against any logic error above
+        if ($Cert.NotAfter -lt (Get-Date)) {
+
+            Write-Log -Status "INFO" -Message "Removing expired cert: Subject='$($Cert.Subject)' Thumbprint=$($Cert.Thumbprint) ExpiredOn=$($Cert.NotAfter)"
+
+            Remove-Item -Path "$StorePath\$($Cert.Thumbprint)" -Force -ErrorAction Stop
+
+            Write-Log -Status "SUCCESS" -Message "Removed thumbprint $($Cert.Thumbprint)"
+            $Results += [PSCustomObject]@{ Thumbprint = $Cert.Thumbprint; Subject = $Cert.Subject; Action = "REMOVED" }
+            Write-Host "  Removed." -ForegroundColor Green
+        }
+        else {
+            # This branch should be unreachable given the filter above - logged loudly if it's ever somehow hit
+            Write-Log -Status "ERROR" -Message "SAFETY CHECK FAILED - skipped removal of $($Cert.Thumbprint), NotAfter no longer in the past"
+            Write-Host "  SAFETY CHECK FAILED - skipped." -ForegroundColor Red
+        }
+    }
+    else {
+        $Results += [PSCustomObject]@{ Thumbprint = $Cert.Thumbprint; Subject = $Cert.Subject; Action = "PREVIEWED (WhatIf)" }
+        Write-Host "  PREVIEW: Would remove this expired certificate." -ForegroundColor Yellow
+    }
+}
+
+# ---------------------------------------------------------------
+# STEP 2: Export and summarize
+# ---------------------------------------------------------------
+if (-not (Test-Path ".\reports")) { New-Item -ItemType Directory -Path ".\reports" | Out-Null }
+$Timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
+$Results | Export-Csv -Path ".\reports\CertCleanup_$Timestamp.csv" -NoTypeInformation
+
+Write-Host "`nAudit log: $LogPath" -ForegroundColor Cyan
+Write-Host "REMINDER: Only already-expired certificates were ever considered for removal." -ForegroundColor Yellow
+</code></pre></div>
+      </div>
+    </section>
+
+    <section id="linebyline">
+      <h2>Line-by-Line Explanation</h2>
+
+      <h3><code>$ExpiredCerts = $AllCerts | Where-Object { $_.NotAfter -lt (Get-Date) }</code></h3>
+      <ul class="explain-list">
+        <li>This is the single line responsible for scope safety in the entire script — every certificate that ever
+        reaches the removal logic below has already passed through this exact filter, independently, right here.</li>
+      </ul>
+
+      <h3><code>if ($Cert.NotAfter -lt (Get-Date)) { ... } else { # unreachable, logged loudly }</code></h3>
+      <ul class="explain-list">
+        <li>This second check re-verifies the <i>exact same condition</i> immediately before the actual
+        <code>Remove-Item</code> call — technically redundant given the filter above already guarantees it, but
+        deliberately included as defense in depth: if a future edit ever changed how <code>$ExpiredCerts</code> gets
+        built and accidentally weakened that filter, this second check would still catch the mistake and refuse to
+        delete, rather than silently trusting the earlier logic.</li>
+      </ul>
+
+      <h3><code>Remove-Item -Path "$StorePath\$($Cert.Thumbprint)" -Force -ErrorAction Stop</code></h3>
+      <ul class="explain-list">
+        <li>The path is built by combining the store location with the specific certificate's thumbprint — this
+        targets exactly one certificate, not a wildcard or a broader match, minimizing any chance of accidentally
+        removing something else.</li>
+        <li><code>-ErrorAction Stop</code> here means if removal somehow fails, the script surfaces that clearly
+        rather than silently continuing as if it succeeded.</li>
+      </ul>
+
+      <h3><code>Write-Log -Status "ERROR" -Message "SAFETY CHECK FAILED..."</code></h3>
+      <ul class="explain-list">
+        <li>Logging this specific, should-be-impossible scenario loudly (rather than just quietly skipping) means
+        if it were ever somehow triggered, it would be immediately visible in the audit log as something requiring
+        investigation — silent failures in safety logic are far more dangerous than loud ones.</li>
+      </ul>
+    </section>
+
+    <section id="architecture">
+      <h2>Architecture &amp; Defense-in-Depth Flow</h2>
+      <div class="diagram">
+        <div class="flow">
+          <div class="box">Get-ChildItem (all certs)</div><div class="arrow">→</div>
+          <div class="box">Filter: NotAfter &lt; Now</div><div class="arrow">→</div>
+          <div class="box">$ExpiredCerts (only)</div>
+        </div>
+        <div class="flow" style="margin-top:12px;">
+          <div class="box">foreach Expired Cert</div><div class="arrow">→</div>
+          <div class="box">ShouldProcess</div><div class="arrow">→</div>
+          <div class="box">RE-CHECK NotAfter &lt; Now</div><div class="arrow">→</div>
+          <div class="box">Remove-Item</div>
+        </div>
+      </div>
+      <p>Notice the expiry condition is checked <b>twice</b> — once to build the candidate list, once again
+      immediately before deletion. This double-check is a direct, code-level expression of Project 15's "some
+      changes deserve more caution than others" lesson: even with a narrow, well-reasoned scope, redundant safety
+      checks around irreversible actions cost almost nothing and catch real mistakes.</p>
+    </section>
+
+    <section id="incident">
+      <h2>Production Incident Walkthrough</h2>
+      <div class="story">
+        A year from now, someone modifies this script to also accept a list of thumbprints from an external file,
+        intending to make it more flexible. Because the "re-check NotAfter immediately before removal" logic was
+        left in place, a mistake in that new file-reading code — accidentally including a still-valid certificate's
+        thumbprint — gets caught and logged as a SAFETY CHECK FAILED entry instead of silently deleting a certificate
+        still in active use.
+      </div>
+      <ul class="explain-list">
+        <li><b>Why does this defense-in-depth pattern matter more here than in most other projects?</b> Certificate
+        removal is immediately destructive and can cause an outage the instant it happens (unlike, say, a
+        misconfigured monitoring threshold, which just produces a wrong report) — the cost of a redundant check is
+        near zero, while the cost of skipping it, if the primary logic is ever weakened by a future change, could be
+        significant.</li>
+      </ul>
+    </section>
+
+    <section id="troubleshoot">
+      <h2>Troubleshooting Cheat Sheet</h2>
+      <table>
+        <tr><th>Symptom</th><th>Likely Root Cause</th><th>Fix</th></tr>
+        <tr><td>"Access is denied" on Remove-Item against the cert store</td><td>Terminal not running as Administrator</td><td>Re-open as Administrator</td></tr>
+        <tr><td>No expired certificates found even after creating the test cert</td><td>The -NotAfter date in New-SelfSignedCertificate wasn't actually in the past</td><td>Confirm the lab command used (Get-Date).AddDays(-5), a negative number</td></tr>
+        <tr><td>Script reports SAFETY CHECK FAILED unexpectedly</td><td>A genuine timing edge case, or the certificate's expiry is extremely close to "now"</td><td>This is the safety mechanism working correctly - investigate why, don't bypass it</td></tr>
+        <tr><td>Import-PfxCertificate prompts oddly or fails silently</td><td>Incorrect PFX password, or the file path is wrong</td><td>Confirm the .pfx file path and password separately before troubleshooting the script</td></tr>
+      </table>
+    </section>
+
+    <section id="security">
+      <h2>Security &amp; Best Practices</h2>
+      <div class="callout security"><span class="lbl">The core lesson of this project</span>When an action is
+      irreversible and potentially high-impact, checking the safety condition once is often not enough — checking it
+      again, immediately before the point of no return, costs almost nothing and provides real protection against
+      future changes weakening the earlier logic.</div>
+      <div class="callout tip"><span class="lbl">Best practice reinforced here</span>Identifying certificates by
+      Thumbprint rather than Subject for both idempotency and removal avoids an entire class of mistakes where two
+      different certificates happen to share a name — always prefer the most specific, guaranteed-unique identifier
+      available.</div>
+    </section>
+
+    <section id="recap">
+      <h2>Key Learnings &amp; Recap</h2>
+      <div class="grid2">
+        <div>
+          <h3>Commands/Syntax Learned</h3>
+          <ul class="explain-list">
+            <li><code>Import-PfxCertificate</code> / <code>Read-Host -AsSecureString</code></li>
+            <li><code>Remove-Item</code> on a <code>Cert:</code> path</li>
+            <li><code>New-SelfSignedCertificate</code> (for safe local testing)</li>
+          </ul>
+        </div>
+        <div>
+          <h3>Concepts Learned</h3>
+          <ul class="explain-list">
+            <li>Idempotency by Thumbprint, not Subject</li>
+            <li>Defense in depth: re-checking a safety condition immediately before an irreversible action</li>
+            <li>Never trusting a "to-do list" for a destructive action without independently re-verifying it</li>
+            <li>Logging a should-be-impossible failure loudly rather than silently skipping it</li>
+          </ul>
+        </div>
+      </div>
+      <h3>Common Mistakes to Avoid</h3>
+      <ul class="explain-list">
+        <li>Checking idempotency by Subject name instead of the unique Thumbprint.</li>
+        <li>Trusting an externally-supplied list of things to delete without re-verifying the safety condition yourself.</li>
+        <li>Only checking a destructive condition once, with no redundancy before the point of no return.</li>
+        <li>Hardcoding or displaying a PFX password in plain text instead of using SecureString.</li>
+      </ul>
+    </section>
+
+    <section id="interview">
+      <h2>Interview Preparation</h2>
+      <details><summary>Q1. Why does this script check certificate expiry twice — once to build the list, once again right before deletion?</summary>
+        <p><b>Answer:</b> The second check is defense in depth: it's technically redundant given the first filter,
+        but protects against a future code change accidentally weakening or bypassing that first filter. For an
+        irreversible action like certificate removal, that redundancy is cheap insurance against a class of mistakes
+        that would otherwise be hard to catch in review.</p>
+        <p><b>Follow-up:</b> "Doesn't this violate the DRY (Don't Repeat Yourself) coding principle?" — Answer: DRY
+        is a good general default, but safety-critical checks around irreversible actions are a reasonable exception —
+        the small duplication cost is worth the protection it provides, similar to how safety-critical systems in
+        other engineering disciplines often use redundant, independent checks deliberately.</p>
+      </details>
+      <details><summary>Q2. Why use Thumbprint instead of Subject to identify a specific certificate for removal or idempotency checks?</summary>
+        <p><b>Answer:</b> Subject names aren't guaranteed unique — a renewed certificate typically has the same
+        Subject as the one it replaces. Thumbprint is a cryptographic fingerprint unique to that exact certificate,
+        making it the only reliable way to say "this specific certificate, and not any other one that happens to
+        share a name."</p>
+        <p><b>Follow-up:</b> "Are there any downsides to relying on Thumbprint?" — Answer: a thumbprint changes if a
+        certificate is ever re-issued or re-signed, even with identical other details, so scripts that reference a
+        specific thumbprint need updating whenever a certificate is renewed — usually acceptable given the safety
+        benefit, but worth knowing.</p>
+      </details>
+      <details><summary>Q3. Why does the script log a SAFETY CHECK FAILED case that "should be unreachable" instead of just leaving that code path out?</summary>
+        <p><b>Answer:</b> Code that's logically unreachable today can become reachable after a future change nobody
+        fully traces through — explicitly handling and loudly logging that case means if it ever does happen, it's
+        immediately visible and investigable, rather than either crashing unhelpfully or silently doing nothing.</p>
+        <p><b>Follow-up:</b> "How would you alert someone in real time if this ERROR log entry ever appeared?" —
+        Answer: this is exactly the kind of condition worth wiring into the REST API/ServiceNow integration projects
+        later in the course, where a log entry could automatically open a ticket or send a notification rather than
+        only being visible if someone manually reviews the log file.</p>
+      </details>
+    </section>
+
+    <section id="challenges">
+      <h2>Coding Challenges</h2>
+      <details><summary>Challenge 1: Add a -GracePeriodDays parameter so certificates are only removed if expired for at least N days (not immediately upon expiry)</summary>
+        <details><summary>Show answer</summary>
+        <pre><code>param([switch]$WhatIf = $true, [int]$GracePeriodDays = 7)
+$ExpiredCerts = $AllCerts | Where-Object { $_.NotAfter -lt (Get-Date).AddDays(-$GracePeriodDays) }</code></pre>
+        </details>
+      </details>
+      <details><summary>Challenge 2: Before removing, export each expired certificate's public portion as a backup (Export-Certificate)</summary>
+        <details><summary>Show answer</summary>
+        <pre><code>Export-Certificate -Cert $Cert -FilePath ".\logs\backup_$($Cert.Thumbprint).cer" | Out-Null
+# Then proceed with the existing Remove-Item logic</code></pre>
+        </details>
+      </details>
+      <details><summary>Challenge 3: Add the import half of the workflow - importing a new PFX only if its thumbprint isn't already present</summary>
+        <details><summary>Show answer</summary>
+        <pre><code>$NewCert = Get-PfxCertificate -FilePath ".\NewCert.pfx"   # Reads the cert's info without importing yet, to check its thumbprint first
+$AlreadyPresent = Get-ChildItem $StorePath | Where-Object { $_.Thumbprint -eq $NewCert.Thumbprint }
+if (-not $AlreadyPresent -and $PSCmdlet.ShouldProcess($NewCert.Thumbprint, "Import Certificate")) {
+    Import-PfxCertificate -FilePath ".\NewCert.pfx" -CertStoreLocation $StorePath -Password $SecurePassword
+}</code></pre>
+        </details>
+      </details>
+    </section>
+
+    <section id="resume">
+      <h2>Resume Points</h2>
+      <ul class="explain-list">
+        <li>Built a safe, ShouldProcess-protected PowerShell certificate store management script with defense-in-depth expiry verification before any removal.</li>
+        <li>Implemented thumbprint-based idempotency to reliably distinguish and manage individual certificates, including renewals sharing the same subject.</li>
+        <li>Applied structured audit logging including explicit handling of should-be-unreachable safety-check failures.</li>
+      </ul>
+    </section>
+
+    <section id="assignment">
+      <h2>Practice Assignment</h2>
+      <div class="callout note">
+        Create a second self-signed test certificate that is <b>not</b> expired (a normal, future <code>-NotAfter</code>
+        date), run the script for real, and confirm it correctly leaves that certificate completely untouched while
+        still removing the expired one — direct proof the scoping logic works as intended.
+      </div>
+    </section>
+
+    <section id="next">
+      <h2>Next Project Prerequisites</h2>
+      <p>Project 22 (IIS Certificate Deployment) connects this certificate management work directly to IIS —
+      binding a certificate to a website, the actual deployment step that makes a renewed certificate take effect
+      for real traffic. Be comfortable with Thumbprint-based identification and the defense-in-depth removal pattern
+      before moving on. When ready, say <b>"Next Project."</b></p>
+    </section>
+
+    <footer>
+      PowerShell Masterclass — ABC Bank Automation Track · Project 21 of 40 · Generated for offline, self-contained use.
+    </footer>
+  </main>
+</div>
+
+<script>
+function copyCode(btn){
+  const code = btn.parentElement.querySelector('pre').innerText;
+  navigator.clipboard.writeText(code).then(()=>{
+    const old = btn.innerText; btn.innerText = "Copied!";
+    setTimeout(()=>btn.innerText = old, 1200);
+  });
+}
+window.addEventListener('scroll', ()=>{
+  const h = document.documentElement;
+  const pct = (h.scrollTop) / (h.scrollHeight - h.clientHeight) * 100;
+  document.getElementById('progressFill').style.width = pct + '%';
+  document.getElementById('progressLabel').innerText = 'Reading progress: ' + Math.round(pct) + '%';
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Project 5 — OpenShift Deployments, Rollouts &amp; Rollback Automation</title>
+<style>
+:root{
+  --blue:#5b9dff; --blue-bg:#132038;
+  --purple:#b58aff; --purple-bg:#221a3a;
+  --green:#3ed67f; --green-bg:#11301f;
+  --orange:#ffb15c; --orange-bg:#3a2712;
+  --red:#ff6b6b; --red-bg:#3a1616;
+  --teal:#4fd8e0; --teal-bg:#0f2f31;
+  --ink:#e7ecf5; --sub:#9aa7bd; --line:#2a3345; --bg:#0d1117; --card:#141b26;
+  --code-bg:#0a0e14; --code-ink:#dfe7f5;
+}
+*{box-sizing:border-box;}
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--ink);line-height:1.65;}
+a{color:var(--blue);}
+.progress{position:fixed;top:0;left:0;height:4px;background:linear-gradient(90deg,var(--blue),var(--teal));z-index:999;width:0%;transition:width .1s;}
+header.cover{background:linear-gradient(135deg,#101a30 0%,#241a3d 100%);color:#fff;padding:56px 24px 40px;text-align:center;border-bottom:1px solid var(--line);}
+header.cover .badge{display:inline-block;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);padding:6px 14px;border-radius:20px;font-size:13px;letter-spacing:.5px;margin-bottom:14px;}
+header.cover h1{margin:8px auto;max-width:900px;font-size:32px;}
+header.cover p.sub{max-width:750px;margin:10px auto 0;opacity:.85;font-size:16px;}
+.meta-grid{display:flex;flex-wrap:wrap;gap:12px;justify-content:center;margin-top:26px;}
+.meta-chip{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.18);padding:8px 16px;border-radius:8px;font-size:13px;}
+nav.toc{position:sticky;top:0;background:#0f151f;border-bottom:1px solid var(--line);z-index:100;padding:10px 16px;overflow-x:auto;white-space:nowrap;}
+nav.toc a{color:var(--sub);text-decoration:none;font-size:13px;margin-right:18px;padding:6px 10px;border-radius:6px;}
+nav.toc a:hover{background:var(--blue-bg);color:var(--blue);}
+main{max-width:980px;margin:0 auto;padding:30px 20px 80px;}
+section{margin-bottom:46px;}
+h2{font-size:24px;border-left:5px solid var(--blue);padding-left:12px;margin-top:10px;color:#fff;}
+h3{font-size:19px;color:var(--purple);margin-top:28px;}
+h4{font-size:16px;color:#fff;margin-top:20px;}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:20px 22px;margin:16px 0;}
+.box{border-radius:10px;padding:16px 18px;margin:14px 0;border-left:5px solid;}
+.box.concept{background:var(--blue-bg);border-color:var(--blue);}
+.box.arch{background:var(--purple-bg);border-color:var(--purple);}
+.box.success{background:var(--green-bg);border-color:var(--green);}
+.box.warning{background:var(--orange-bg);border-color:var(--orange);}
+.box.fail{background:var(--red-bg);border-color:var(--red);}
+.box.best{background:var(--teal-bg);border-color:var(--teal);}
+.box strong.tag{display:block;font-size:12px;text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px;opacity:.85;}
+details{background:var(--card);border:1px solid var(--line);border-radius:10px;margin:12px 0;padding:4px 16px;}
+details summary{cursor:pointer;font-weight:600;padding:12px 0;color:var(--blue);}
+table{width:100%;border-collapse:collapse;margin:14px 0;font-size:14px;}
+th,td{border:1px solid var(--line);padding:9px 12px;text-align:left;vertical-align:top;}
+th{background:var(--blue-bg);color:var(--blue);}
+tr:nth-child(even){background:#101623;}
+.codewrap{position:relative;margin:14px 0;}
+pre{background:var(--code-bg);color:var(--code-ink);padding:18px;border-radius:10px;overflow-x:auto;font-size:13px;line-height:1.6;font-family:"SF Mono",Menlo,Consolas,monospace;border:1px solid var(--line);}
+pre .c{color:#6fd18a;}
+.copy-btn{position:absolute;top:10px;right:10px;background:#22304a;color:#fff;border:1px solid var(--line);padding:6px 12px;border-radius:6px;font-size:12px;cursor:pointer;}
+.copy-btn:hover{background:#2c3d5e;}
+.cmd-label{font-size:12px;color:var(--sub);text-transform:uppercase;letter-spacing:.5px;margin:14px 0 4px;}
+.flow{background:var(--purple-bg);border:1px dashed var(--purple);border-radius:10px;padding:16px;font-family:monospace;white-space:pre;font-size:13px;overflow-x:auto;color:var(--ink);}
+.qa{margin:14px 0;padding:14px 16px;background:var(--card);border:1px solid var(--line);border-radius:8px;}
+.qa .q{font-weight:600;color:var(--purple);}
+.badge-diff{display:inline-block;padding:3px 10px;border-radius:12px;font-size:12px;font-weight:600;}
+.badge-diff.mid{background:var(--orange-bg);color:var(--orange);}
+.steps{counter-reset:step;}
+.step{position:relative;padding:14px 16px 14px 52px;margin:10px 0;background:var(--card);border:1px solid var(--line);border-radius:10px;}
+.step::before{counter-increment:step;content:counter(step);position:absolute;left:14px;top:14px;width:26px;height:26px;background:var(--blue);color:#0d1117;font-weight:700;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;}
+footer{text-align:center;padding:30px;color:var(--sub);font-size:13px;}
+</style>
+</head>
+<body>
+<div class="progress" id="progressBar"></div>
+
+<header class="cover">
+  <div class="badge">OPENSHIFT + ANSIBLE MASTERCLASS · PROJECT 5 OF ~28</div>
+  <h1>OpenShift Deployments, Rollouts &amp; Rollback Automation</h1>
+  <p class="sub">Automating safe rolling deployments for payment-api, and mastering detect → identify → inspect → root-cause → rollback → validate → RCA when a production rollout goes bad.</p>
+  <div class="meta-grid">
+    <div class="meta-chip">Difficulty: <span class="badge-diff mid">Intermediate-Advanced</span></div>
+    <div class="meta-chip">Domain: Telecom / Application Platform</div>
+    <div class="meta-chip">OpenShift: 4.14+</div>
+    <div class="meta-chip">Ansible Core: 2.16 · kubernetes.core 3.x</div>
+    <div class="meta-chip">Lab Time: ~3 hrs</div>
+    <div class="meta-chip">Infra Cost: $0 (CRC / existing cluster)</div>
+  </div>
+</header>
+
+<nav class="toc">
+  <a href="#story">Story</a>
+  <a href="#device">Run On Your Device</a>
+  <a href="#architecture">Architecture</a>
+  <a href="#playbooks">Playbooks</a>
+  <a href="#run">Execution</a>
+  <a href="#incident">Incident</a>
+  <a href="#breakfix">Break-Fix</a>
+  <a href="#security">Security</a>
+  <a href="#interview">Interview</a>
+  <a href="#resume">Resume</a>
+  <a href="#cheatsheet">Cheat Sheet</a>
+  <a href="#summary">Key Learnings</a>
+</nav>
+
+<main>
+
+<section id="story">
+<h2>1. The Production Story</h2>
+<div class="box concept">
+<strong class="tag">Scenario</strong>
+The payment-api stack (Projects 1-4) is live. The application team now ships multiple releases a week. Today at 2:00 PM, they push version <code>v2.4.0</code> of the backend to PRODUCTION during business hours. Fifteen minutes later, customers start reporting failed payments.
+</div>
+<div class="box warning">
+<strong class="tag">Business Problem</strong>
+There is no standardized, automated way to deploy a new image version, watch the rollout, and — critically — roll back fast if something goes wrong. Right now someone would have to remember the right <code>oc rollout</code> commands under pressure.
+</div>
+<div class="box best">
+<strong class="tag">Our Mandate</strong>
+Build an Ansible-driven deployment playbook that updates the image version safely, waits for rollout success, and gives us a scripted rollback path — then use it live to fix today's incident.
+</div>
+</section>
+
+<section id="device">
+<h2>2. Run This On Your Device</h2>
+<div class="steps">
+<div class="step"><strong>Confirm cluster access and the existing payment-api-dev stack from Project 3.</strong>
+<div class="codewrap"><pre>oc get deployment payment-api-backend -n payment-api-dev</pre></div>
+</div>
+<div class="step"><strong>Add the deploy role files from Section 4 below to your existing repo.</strong>
+<div class="codewrap"><pre>mkdir -p payment-stack/roles/app_release/tasks</pre></div>
+</div>
+<div class="step"><strong>Deploy a new version.</strong>
+<div class="codewrap"><pre>ansible-playbook playbooks/release.yml \
+  -e app_name=payment-api -e environment=dev \
+  -e backend_image="quay.io/yourorg/payment-backend:v2.4.0"</pre></div>
+</div>
+<div class="step"><strong>Watch the rollout live in a second terminal.</strong>
+<div class="codewrap"><pre>oc rollout status deployment/payment-api-backend -n payment-api-dev</pre></div>
+</div>
+<div class="step"><strong>Practice a rollback.</strong>
+<div class="codewrap"><pre>ansible-playbook playbooks/rollback.yml \
+  -e app_name=payment-api -e environment=dev</pre></div>
+</div>
+</div>
+</section>
+
+<section id="architecture">
+<h2>3. Architecture</h2>
+<div class="box arch"><strong class="tag">Concept</strong>An OpenShift Deployment doesn't replace pods directly — it creates a new ReplicaSet per revision and shifts traffic from the old ReplicaSet to the new one according to the rolling update strategy. The revision history lets you roll back to any prior ReplicaSet by re-activating it.</div>
+<div class="flow">Deployment (desired state: image v2.4.0)
+   │
+   ├── ReplicaSet rev N   (v2.4.0) ← scaling UP
+   └── ReplicaSet rev N-1 (v2.3.1) ← scaling DOWN
+             │
+             ▼
+   Rollback = re-point Deployment at rev N-1's spec
+             │
+             ▼
+   New ReplicaSet rev N+1 created MATCHING rev N-1's spec
+   (rollback is itself a new revision, not a time-machine)</div>
+<table>
+<tr><th>Concept</th><th>What it means</th></tr>
+<tr><td>Revision history</td><td>Each spec change to a Deployment creates a new ReplicaSet; kept up to <code>revisionHistoryLimit</code></td></tr>
+<tr><td>maxUnavailable</td><td>How many pods can be down during a rollout (0 = zero-downtime)</td></tr>
+<tr><td>maxSurge</td><td>How many extra pods can exist temporarily above desired replica count</td></tr>
+<tr><td>Rollback</td><td>Creates a NEW revision whose spec matches an old one — never literally "goes back in time"</td></tr>
+</table>
+</section>
+
+<section id="playbooks">
+<h2>4. The Playbooks — Fully Commented</h2>
+
+<h3>4.1 roles/app_release/tasks/main.yml</h3>
+<div class="cmd-label">roles/app_release/tasks/main.yml</div>
+<div class="codewrap"><pre><span class="c">---
+# Updates the backend Deployment's image and WAITS for the rollout
+# to actually finish successfully before the play is considered done.</span>
+
+- name: Record current image before changing it                     <span class="c"># capture 'last known good' for potential rollback</span>
+  kubernetes.core.k8s_info:                                          <span class="c"># read-only lookup, never mutates state</span>
+    kind: Deployment                                                  <span class="c"># object type to query</span>
+    api_version: apps/v1                                              <span class="c"># apps API group</span>
+    name: "{{ app_name }}-backend"                                     <span class="c"># target Deployment name</span>
+    namespace: "{{ app_name }}-{{ environment }}"                       <span class="c"># target namespace</span>
+  register: current_deploy                                             <span class="c"># stores full object for later reference</span>
+
+- name: Save previous image to a fact                                  <span class="c"># used only for the human-readable summary at the end</span>
+  ansible.builtin.set_fact:
+    previous_image: "{{ current_deploy.resources[0].spec.template.spec.containers[0].image }}"  <span class="c"># dig into the nested JSON path</span>
+
+- name: Apply new backend image                                        <span class="c"># the actual deployment update</span>
+  kubernetes.core.k8s:
+    state: present                                                     <span class="c"># create-or-update -- update here since it already exists</span>
+    definition:
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: "{{ app_name }}-backend"
+        namespace: "{{ app_name }}-{{ environment }}"
+      spec:
+        replicas: "{{ backend_replicas | default(3) }}"                  <span class="c"># keep replica count explicit and stable across releases</span>
+        strategy:
+          type: RollingUpdate                                             <span class="c"># zero-downtime style rollout, not Recreate</span>
+          rollingUpdate:
+            maxUnavailable: 0                                              <span class="c"># never drop below full capacity (fixes Project 4's incident)</span>
+            maxSurge: 1                                                    <span class="c"># one extra pod allowed temporarily during the swap</span>
+        selector:
+          matchLabels: {app: "{{ app_name }}-backend"}                     <span class="c"># must stay identical across revisions or the update is rejected</span>
+        template:
+          metadata:
+            labels: {app: "{{ app_name }}-backend"}
+          spec:
+            containers:
+              - name: backend
+                image: "{{ backend_image }}"                                <span class="c"># the ONLY field that actually changes on a normal release</span>
+                ports: [{containerPort: 8080}]
+                readinessProbe:                                             <span class="c"># rollout won't proceed to next pod until this passes</span>
+                  httpGet: {path: /healthz, port: 8080}
+                  initialDelaySeconds: 5
+  register: apply_result                                                    <span class="c"># capture for the assert below</span>
+
+- name: Assert the apply itself succeeded                                   <span class="c"># catches API-level failures immediately</span>
+  ansible.builtin.assert:
+    that: [apply_result is succeeded]
+    fail_msg: "Failed to apply new image for {{ app_name }}-backend"
+
+- name: Wait for rollout to actually complete                               <span class="c"># THIS is what makes the play trustworthy -- 'applied' != 'healthy'</span>
+  kubernetes.core.k8s_info:
+    kind: Deployment
+    api_version: apps/v1
+    name: "{{ app_name }}-backend"
+    namespace: "{{ app_name }}-{{ environment }}"
+  register: rollout_check                                                     <span class="c"># re-query the Deployment's live status</span>
+  until: >                                                                     <span class="c"># retry condition: all replicas updated AND available</span>
+    rollout_check.resources[0].status.updatedReplicas | default(0) ==
+    rollout_check.resources[0].spec.replicas and
+    rollout_check.resources[0].status.availableReplicas | default(0) ==
+    rollout_check.resources[0].spec.replicas
+  retries: 30                                                                  <span class="c"># check up to 30 times</span>
+  delay: 10                                                                    <span class="c"># 10 seconds between checks -- 5 minute max wait</span>
+
+- name: Report release summary                                                 <span class="c"># human-readable confirmation, not a cluster change</span>
+  ansible.builtin.debug:
+    msg: "Released {{ app_name }}-backend: {{ previous_image }} -> {{ backend_image }}"</pre></div>
+
+<h3>4.2 playbooks/rollback.yml</h3>
+<div class="cmd-label">playbooks/rollback.yml</div>
+<div class="codewrap"><pre><span class="c">---
+# Scripted rollback -- re-runs app_release with the LAST KNOWN GOOD
+# image instead of guessing at oc rollout undo timing under pressure.</span>
+- name: Roll back backend to previous known-good image
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  tasks:
+    - name: Look up the previous ReplicaSet's image                          <span class="c"># find what was running before the current bad revision</span>
+      kubernetes.core.k8s_info:
+        kind: ReplicaSet                                                      <span class="c"># ReplicaSets hold the actual revision history</span>
+        api_version: apps/v1
+        namespace: "{{ app_name }}-{{ environment }}"
+        label_selectors:
+          - "app={{ app_name }}-backend"                                       <span class="c"># all ReplicaSets belonging to this Deployment</span>
+      register: replicasets                                                    <span class="c"># list of all matching ReplicaSets, old and new</span>
+
+    - name: Sort and pick the second-most-recent ReplicaSet's image             <span class="c"># index 1 = previous revision, 0 = current</span>
+      ansible.builtin.set_fact:
+        rollback_image: >-
+          {{ (replicasets.resources | sort(attribute='metadata.creationTimestamp', reverse=true))
+             [1].spec.template.spec.containers[0].image }}                       <span class="c"># pulls the image string from that ReplicaSet's pod template</span>
+
+    - name: Re-apply the release role with the rollback image                  <span class="c"># REUSES the same tested apply+wait logic, no duplicated code</span>
+      ansible.builtin.include_role:
+        name: app_release                                                       <span class="c"># the exact same role from Section 4.1</span>
+      vars:
+        backend_image: "{{ rollback_image }}"                                    <span class="c"># overrides the var the role expects, pointing at the OLD image</span></pre></div>
+</section>
+
+<section id="run">
+<h2>5. Execution &amp; Idempotency</h2>
+<div class="codewrap"><pre>ansible-playbook playbooks/release.yml -e app_name=payment-api -e environment=dev \
+  -e backend_image="quay.io/yourorg/payment-backend:v2.4.0"</pre></div>
+<div class="box success"><strong class="tag">First run (new image)</strong><pre style="background:#0f2b1c;border-color:#1a4a2c;">PLAY RECAP *** ok=5 changed=2 failed=0</pre></div>
+<div class="box success"><strong class="tag">Second run (same image, idempotency proof)</strong><pre style="background:#0f2b1c;border-color:#1a4a2c;">PLAY RECAP *** ok=5 changed=0 failed=0</pre></div>
+<div class="box concept"><strong class="tag">Note on "changed"</strong>The <code>until</code> loop task itself always reports <code>ok</code>, not <code>changed</code> — it's a read-only poll. Only the <code>k8s</code> apply task reports <code>changed</code>, and only when the image actually differs from what's already deployed.</div>
+</section>
+
+<section id="incident">
+<h2>6. Live Incident — Bad Release at 2:00 PM</h2>
+<div class="box fail"><strong class="tag">2:15 PM — Report</strong>Customers report failed payments since roughly 2:05 PM, right after the v2.4.0 deploy.</div>
+
+<div class="cmd-label">Step 1 — confirm the rollout and check recent events</div>
+<div class="codewrap"><pre>oc rollout status deployment/payment-api-backend -n payment-api-prod
+Waiting for deployment "payment-api-backend" rollout to finish: 1 old replicas are pending termination...
+
+oc get pods -n payment-api-prod
+NAME                          READY   STATUS    RESTARTS
+payment-api-backend-9c-a1     1/1     Running   0
+payment-api-backend-9c-b2     1/1     Running   0
+payment-api-backend-7f-old    1/1     Running   0   <span class="c"># old revision still up -- rollout stuck, not failed outright</span></pre></div>
+
+<div class="cmd-label">Step 2 — check logs on the new revision's pods</div>
+<div class="codewrap"><pre>oc logs payment-api-backend-9c-a1 -n payment-api-prod
+ERROR: payment gateway SDK version mismatch -- expects config key
+  PAYMENT_GATEWAY_TIMEOUT_MS, found none. Falling back to 0ms -- all
+  requests time out immediately.</pre></div>
+<div class="box fail"><strong class="tag">Root cause</strong>v2.4.0 introduced a new required config value (<code>PAYMENT_GATEWAY_TIMEOUT_MS</code>) that was never added to the ConfigMap. Every payment request times out instantly. This is an application-config gap, not an infrastructure bug — but the fastest mitigation is rollback, then fix config properly before re-attempting.</div>
+
+<div class="cmd-label">Step 3 — mitigate immediately with the rollback playbook</div>
+<div class="codewrap"><pre>ansible-playbook playbooks/rollback.yml -e app_name=payment-api -e environment=prod</pre></div>
+<div class="codewrap"><pre>TASK [Report release summary] ***
+ok: [localhost] =&gt; {"msg": "Released payment-api-backend: v2.4.0 -> v2.3.1"}</pre></div>
+
+<div class="cmd-label">Step 4 — validate</div>
+<div class="codewrap"><pre>oc rollout status deployment/payment-api-backend -n payment-api-prod
+deployment "payment-api-backend" successfully rolled out
+
+curl -X POST https://payment-api-prod.apps.../health-check-payment
+{"status":"ok"}</pre></div>
+<div class="box success"><strong class="tag">2:29 PM — Mitigated</strong>Payments succeeding again on v2.3.1. Root cause (missing config key) tracked as a follow-up before v2.4.0 is re-attempted.</div>
+
+<h3>RCA Summary</h3>
+<table>
+<tr><th>Field</th><th>Detail</th></tr>
+<tr><td>Impact</td><td>~24 minutes of failed payment processing in PROD</td></tr>
+<tr><td>Root cause</td><td>New release required a ConfigMap key that was never added before deploy</td></tr>
+<tr><td>Mitigation</td><td>Scripted Ansible rollback to last known-good image (v2.3.1)</td></tr>
+<tr><td>Preventive action</td><td>Add a pre-deploy Ansible check asserting all config keys the new image requires exist in the ConfigMap before the image is swapped</td></tr>
+</table>
+</section>
+
+<section id="breakfix">
+<h2>7. Additional Break-Fix Labs</h2>
+<details><summary>Break-Fix — rollout stuck, ImagePullBackOff</summary>
+<div class="codewrap"><pre>oc get pods -n payment-api-dev
+payment-api-backend-9c-x1   0/1   ImagePullBackOff
+
+oc describe pod payment-api-backend-9c-x1 -n payment-api-dev
+Failed to pull image "...:v2.4.0": manifest unknown</pre></div>
+<p><strong>Root cause:</strong> the tag doesn't exist in the registry — typo or the image was never actually pushed. <strong>Fix:</strong> the <code>until</code> loop in Section 4.1 will time out after 5 minutes and fail the play instead of hanging forever — confirm the correct tag, re-run.</p>
+</details>
+<details><summary>Break-Fix — maxUnavailable misconfigured causes downtime anyway</summary>
+<div class="box fail"><strong class="tag">Break</strong>Set <code>maxUnavailable: 1</code> with only 1 replica.</div>
+<p><strong>Root cause:</strong> with a single replica, any nonzero <code>maxUnavailable</code> means that one pod IS the entire service — a rollout briefly takes it fully offline. <strong>Fix:</strong> either run at least 2 replicas or accept a brief gap for single-replica dev environments; never do this in PROD.</p>
+</details>
+</section>
+
+<section id="security">
+<h2>8. Security Review</h2>
+<table>
+<tr><th>Control</th><th>Detail</th></tr>
+<tr><td>Zero-downtime by default</td><td><code>maxUnavailable: 0</code> prevents user-facing gaps during normal releases</td></tr>
+<tr><td>Fail-safe wait logic</td><td><code>until</code>/<code>retries</code> prevents declaring success on a rollout that never actually finished</td></tr>
+<tr><td>Reversible releases</td><td>Rollback reuses the same tested apply path — no ad hoc manual commands under pressure</td></tr>
+</table>
+</section>
+
+<section id="interview">
+<h2>9. Interview Preparation</h2>
+<div class="qa"><div class="q">Interviewer: "A deployment is failing in production and traffic is affected — walk me through it."</div>
+<p><strong>Answer:</strong> First <code>oc rollout status</code> to see if it's stuck or actively failing, then <code>oc get pods</code> to see the mix of old/new revisions, then logs on the new pods specifically — that's usually where the real signal is. In this incident, the new image needed a config key that didn't exist, so logs showed the exact failure immediately. I mitigated with a scripted rollback rather than trying to hot-patch the new version under pressure, then tracked the real fix as a follow-up.</p></div>
+<div class="qa"><div class="q">Interviewer: "How does an OpenShift rollback actually work under the hood?"</div>
+<p><strong>Answer:</strong> It's not reverting history — it creates a new revision whose pod template matches an older ReplicaSet's spec, then does a normal rolling update to that spec. That's why my rollback playbook reuses the exact same apply-and-wait logic as a forward release; a rollback is just a release with an older image.</p></div>
+</section>
+
+<section id="resume">
+<h2>10. Resume Points</h2>
+<div class="box best"><ul>
+<li>Built Ansible-driven release and rollback automation for OpenShift Deployments, including wait-for-rollout-completion logic to prevent declaring false success.</li>
+<li>Mitigated a production incident by scripting rollback-to-last-known-good, reducing recovery time versus manual command execution under pressure.</li>
+</ul></div>
+</section>
+
+<section id="cheatsheet">
+<h2>11. Troubleshooting Cheat Sheet</h2>
+<table>
+<tr><th>Symptom</th><th>Check</th></tr>
+<tr><td>Rollout stuck</td><td><code>oc rollout status</code>, then <code>oc get pods</code> for old-vs-new mix</td></tr>
+<tr><td>New pods unhealthy</td><td><code>oc logs</code> on new-revision pods specifically</td></tr>
+<tr><td>ImagePullBackOff</td><td><code>oc describe pod</code> — verify tag exists in registry</td></tr>
+<tr><td>Need to revert fast</td><td>Scripted rollback playbook, not manual <code>oc rollout undo</code> guesswork</td></tr>
+</table>
+</section>
+
+<section id="summary">
+<h2>12. Key Learnings</h2>
+<div class="card">
+<h4>OpenShift concepts</h4><p>Deployment revisions/ReplicaSets, rolling update strategy fields, rollback as a forward operation, rollout status semantics.</p>
+<h4>Ansible concepts</h4><p><code>until</code>/<code>retries</code>/<code>delay</code> polling pattern, <code>include_role</code> with variable overrides for code reuse, digging into nested JSON with Jinja indexing.</p>
+<h4>Commands learned</h4><p><code>oc rollout status</code>, reading ReplicaSet history, <code>oc logs</code> on specific revision pods.</p>
+<h4>Next project prerequisites</h4><p>Keep this repo — Project 6 covers OpenShift Storage in depth: StorageClasses, dynamic provisioning, and volume troubleshooting for the PostgreSQL tier from Project 3.</p>
+</div>
+</section>
+
+</main>
+<footer>OpenShift + Ansible Masterclass — Project 5 of ~28.</footer>
+<script>
+window.addEventListener('scroll', function(){
+  var h = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+  var p = h ? (window.scrollY / h) * 100 : 0;
+  document.getElementById('progressBar').style.width = p + '%';
+});
+document.querySelectorAll('pre').forEach(function(pre){
+  if(pre.parentElement.classList.contains('codewrap')){
+    var btn = document.createElement('button');
+    btn.className = 'copy-btn'; btn.textContent = 'Copy';
+    btn.onclick = function(){
+      navigator.clipboard.writeText(pre.innerText);
+      btn.textContent = 'Copied!';
+      setTimeout(function(){ btn.textContent = 'Copy'; }, 1500);
+    };
+    pre.parentElement.appendChild(btn);
+  }
+});
+</script>
+</body>
+</html>

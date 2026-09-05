@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Project 4 — OpenShift Routes, TLS Termination &amp; Traffic Troubleshooting Automation</title>
+<style>
+:root{
+  --blue:#5b9dff; --blue-bg:#132038;
+  --purple:#b58aff; --purple-bg:#221a3a;
+  --green:#3ed67f; --green-bg:#11301f;
+  --orange:#ffb15c; --orange-bg:#3a2712;
+  --red:#ff6b6b; --red-bg:#3a1616;
+  --teal:#4fd8e0; --teal-bg:#0f2f31;
+  --ink:#e7ecf5; --sub:#9aa7bd; --line:#2a3345; --bg:#0d1117; --card:#141b26;
+  --code-bg:#0a0e14; --code-ink:#dfe7f5;
+}
+*{box-sizing:border-box;}
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--ink);line-height:1.65;}
+a{color:var(--blue);}
+.progress{position:fixed;top:0;left:0;height:4px;background:linear-gradient(90deg,var(--blue),var(--teal));z-index:999;width:0%;transition:width .1s;}
+header.cover{background:linear-gradient(135deg,#101a30 0%,#241a3d 100%);color:#fff;padding:56px 24px 40px;text-align:center;border-bottom:1px solid var(--line);}
+header.cover .badge{display:inline-block;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);padding:6px 14px;border-radius:20px;font-size:13px;letter-spacing:.5px;margin-bottom:14px;}
+header.cover h1{margin:8px auto;max-width:900px;font-size:32px;}
+header.cover p.sub{max-width:750px;margin:10px auto 0;opacity:.85;font-size:16px;}
+.meta-grid{display:flex;flex-wrap:wrap;gap:12px;justify-content:center;margin-top:26px;}
+.meta-chip{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.18);padding:8px 16px;border-radius:8px;font-size:13px;}
+nav.toc{position:sticky;top:0;background:#0f151f;border-bottom:1px solid var(--line);z-index:100;padding:10px 16px;overflow-x:auto;white-space:nowrap;}
+nav.toc a{color:var(--sub);text-decoration:none;font-size:13px;margin-right:18px;padding:6px 10px;border-radius:6px;}
+nav.toc a:hover{background:var(--blue-bg);color:var(--blue);}
+main{max-width:980px;margin:0 auto;padding:30px 20px 80px;}
+section{margin-bottom:46px;}
+h2{font-size:24px;border-left:5px solid var(--blue);padding-left:12px;margin-top:10px;color:#fff;}
+h3{font-size:19px;color:var(--purple);margin-top:28px;}
+h4{font-size:16px;color:#fff;margin-top:20px;}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:20px 22px;margin:16px 0;}
+.box{border-radius:10px;padding:16px 18px;margin:14px 0;border-left:5px solid;}
+.box.concept{background:var(--blue-bg);border-color:var(--blue);}
+.box.arch{background:var(--purple-bg);border-color:var(--purple);}
+.box.success{background:var(--green-bg);border-color:var(--green);}
+.box.warning{background:var(--orange-bg);border-color:var(--orange);}
+.box.fail{background:var(--red-bg);border-color:var(--red);}
+.box.best{background:var(--teal-bg);border-color:var(--teal);}
+.box strong.tag{display:block;font-size:12px;text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px;opacity:.85;}
+details{background:var(--card);border:1px solid var(--line);border-radius:10px;margin:12px 0;padding:4px 16px;}
+details summary{cursor:pointer;font-weight:600;padding:12px 0;color:var(--blue);}
+table{width:100%;border-collapse:collapse;margin:14px 0;font-size:14px;}
+th,td{border:1px solid var(--line);padding:9px 12px;text-align:left;vertical-align:top;}
+th{background:var(--blue-bg);color:var(--blue);}
+tr:nth-child(even){background:#101623;}
+.codewrap{position:relative;margin:14px 0;}
+pre{background:var(--code-bg);color:var(--code-ink);padding:18px;border-radius:10px;overflow-x:auto;font-size:13px;line-height:1.6;font-family:"SF Mono",Menlo,Consolas,monospace;border:1px solid var(--line);}
+pre .c{color:#6fd18a;}
+.copy-btn{position:absolute;top:10px;right:10px;background:#22304a;color:#fff;border:1px solid var(--line);padding:6px 12px;border-radius:6px;font-size:12px;cursor:pointer;}
+.copy-btn:hover{background:#2c3d5e;}
+.cmd-label{font-size:12px;color:var(--sub);text-transform:uppercase;letter-spacing:.5px;margin:14px 0 4px;}
+.flow{background:var(--purple-bg);border:1px dashed var(--purple);border-radius:10px;padding:16px;font-family:monospace;white-space:pre;font-size:13px;overflow-x:auto;color:var(--ink);}
+.qa{margin:14px 0;padding:14px 16px;background:var(--card);border:1px solid var(--line);border-radius:8px;}
+.qa .q{font-weight:600;color:var(--purple);}
+.badge-diff{display:inline-block;padding:3px 10px;border-radius:12px;font-size:12px;font-weight:600;}
+.badge-diff.mid{background:var(--orange-bg);color:var(--orange);}
+.steps{counter-reset:step;}
+.step{position:relative;padding:14px 16px 14px 52px;margin:10px 0;background:var(--card);border:1px solid var(--line);border-radius:10px;}
+.step::before{counter-increment:step;content:counter(step);position:absolute;left:14px;top:14px;width:26px;height:26px;background:var(--blue);color:#0d1117;font-weight:700;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;}
+footer{text-align:center;padding:30px;color:var(--sub);font-size:13px;}
+</style>
+</head>
+<body>
+<div class="progress" id="progressBar"></div>
+
+<header class="cover">
+  <div class="badge">OPENSHIFT + ANSIBLE MASTERCLASS · PROJECT 4 OF ~28</div>
+  <h1>OpenShift Routes, TLS Termination &amp; Traffic Troubleshooting Automation</h1>
+  <p class="sub">Automating Route/TLS configuration for the payment-api stack, and mastering the layer-by-layer traffic path (DNS → Route → Router → Service → Pod) to resolve 503s, 404s, and certificate failures fast.</p>
+  <div class="meta-grid">
+    <div class="meta-chip">Difficulty: <span class="badge-diff mid">Intermediate</span></div>
+    <div class="meta-chip">Domain: Telecom / Application Platform</div>
+    <div class="meta-chip">OpenShift: 4.14+</div>
+    <div class="meta-chip">Ansible Core: 2.16 · kubernetes.core 3.x</div>
+    <div class="meta-chip">Lab Time: ~3 hrs</div>
+    <div class="meta-chip">Infra Cost: $0 (CRC / existing cluster)</div>
+  </div>
+</header>
+
+<nav class="toc">
+  <a href="#story">Story</a>
+  <a href="#device">Run On Your Device</a>
+  <a href="#architecture">Traffic Flow</a>
+  <a href="#playbooks">Playbooks</a>
+  <a href="#run">Execution</a>
+  <a href="#incident">Incident</a>
+  <a href="#breakfix">Break-Fix</a>
+  <a href="#security">Security</a>
+  <a href="#interview">Interview</a>
+  <a href="#resume">Resume</a>
+  <a href="#cheatsheet">Cheat Sheet</a>
+  <a href="#summary">Key Learnings</a>
+</nav>
+
+<main>
+
+<section id="story">
+<h2>1. The Production Story</h2>
+<div class="box concept">
+<strong class="tag">Scenario</strong>
+The <code>payment-api</code> stack from Project 3 is running. Now the security team requires all customer-facing Routes to use re-encrypt TLS (not just edge) so traffic is encrypted all the way to the pod, and a customer just reported the app "sometimes shows a 503 error." We need to both automate the Route/TLS upgrade and build the muscle memory to debug traffic issues under pressure.
+</div>
+<div class="box warning">
+<strong class="tag">Business Problem</strong>
+Routes were being hand-created with inconsistent TLS modes — some edge, some passthrough, one with no redirect policy at all, meaning users could load the payment page over plain HTTP.
+</div>
+<div class="box best">
+<strong class="tag">Our Mandate</strong>
+Standardize Route creation via Ansible with re-encrypt TLS and enforced HTTPS redirect, and build a repeatable troubleshooting method for Route-layer incidents.
+</div>
+</section>
+
+<section id="device">
+<h2>2. Run This On Your Device</h2>
+<div class="steps">
+<div class="step"><strong>Reuse your cluster login and Ansible setup from Projects 2–3.</strong>
+<div class="codewrap"><pre>oc whoami
+oc project payment-api-dev</pre></div>
+</div>
+<div class="step"><strong>Generate a self-signed destination CA cert for re-encrypt testing (lab only — use a real CA in production).</strong>
+<div class="codewrap"><pre>openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+  -keyout dest-ca.key -out dest-ca.crt \
+  -subj "/CN=payment-api-backend.svc"</pre></div>
+</div>
+<div class="step"><strong>Create the role folder and files from Section 4 below.</strong>
+<div class="codewrap"><pre>mkdir -p payment-stack/roles/route_tls/tasks
+cd payment-stack</pre></div>
+</div>
+<div class="step"><strong>Run the Route/TLS playbook.</strong>
+<div class="codewrap"><pre>ansible-playbook playbooks/site.yml \
+  -e app_name=payment-api -e environment=dev \
+  -e dest_ca_cert="$(cat dest-ca.crt)"</pre></div>
+</div>
+<div class="step"><strong>Test the live Route.</strong>
+<div class="codewrap"><pre>curl -v https://$(oc get route payment-api-frontend -n payment-api-dev -o jsonpath='{.spec.host}')</pre></div>
+</div>
+</div>
+</section>
+
+<section id="architecture">
+<h2>3. Traffic Flow — The Path Every Request Takes</h2>
+<div class="flow">User Browser
+   │  DNS resolves *.apps.cluster.example.com
+   ▼
+OpenShift Router (HAProxy) — reads the Route's host + TLS config
+   │  terminates/re-encrypts TLS per Route spec
+   ▼
+Service (ClusterIP) — payment-api-frontend
+   │  selects pods by label, load-balances across endpoints
+   ▼
+Pod — matched by Service selector, must be Ready
+   │
+   ▼
+Container — actually serves the HTTP response</div>
+<div class="box arch"><strong class="tag">Why this order matters for troubleshooting</strong>Work top-down: DNS resolves? Route exists and admitted? Router has it configured? Service has endpoints? Pod is Ready? Each layer's failure produces a different symptom, so identifying which layer is broken narrows the investigation immediately.</div>
+
+<h3>3.1 TLS Termination Modes</h3>
+<table>
+<tr><th>Mode</th><th>Where TLS ends</th><th>Use case</th></tr>
+<tr><td>Edge</td><td>At the Router</td><td>Simple HTTPS sites; backend traffic is plain HTTP internally</td></tr>
+<tr><td>Passthrough</td><td>At the Pod</td><td>App terminates its own TLS; Router only forwards encrypted bytes</td></tr>
+<tr><td>Re-encrypt</td><td>Router decrypts, then re-encrypts to the Pod with a separate cert</td><td>Compliance requirement for end-to-end encryption (our case here)</td></tr>
+</table>
+</section>
+
+<section id="playbooks">
+<h2>4. The Playbooks — Fully Commented</h2>
+<h3>4.1 roles/route_tls/tasks/main.yml</h3>
+<div class="cmd-label">roles/route_tls/tasks/main.yml</div>
+<div class="codewrap"><pre><span class="c">---
+# Upgrades the frontend Route from edge to re-encrypt TLS, per the
+# security team's new requirement for end-to-end encryption.</span>
+
+- name: Store destination CA cert as a ConfigMap                    <span class="c"># Router needs this to trust the backend pod's cert</span>
+  kubernetes.core.k8s:                                               <span class="c"># declarative apply module</span>
+    state: present                                                   <span class="c"># create-or-update</span>
+    definition:
+      apiVersion: v1                                                  <span class="c"># core API group</span>
+      kind: ConfigMap                                                 <span class="c"># plain data object -- CA cert is public, not secret</span>
+      metadata:
+        name: "{{ app_name }}-dest-ca"
+        namespace: "{{ app_name }}-{{ environment }}"
+      data:
+        ca.crt: "{{ dest_ca_cert }}"                                    <span class="c"># PEM-encoded CA cert passed in as a variable</span>
+
+- name: Configure Route with re-encrypt TLS termination                <span class="c"># the main object being changed</span>
+  kubernetes.core.k8s:
+    state: present                                                     <span class="c"># idempotent update if the Route already exists</span>
+    definition:
+      apiVersion: route.openshift.io/v1                                 <span class="c"># OpenShift-specific Route API</span>
+      kind: Route
+      metadata:
+        name: "{{ app_name }}-frontend"                                  <span class="c"># must match the existing Route name from Project 3</span>
+        namespace: "{{ app_name }}-{{ environment }}"
+      spec:
+        to:
+          kind: Service                                                  <span class="c"># backing object type</span>
+          name: "{{ app_name }}-frontend"                                 <span class="c"># unchanged from Project 3</span>
+        tls:
+          termination: reencrypt                                          <span class="c"># CHANGED from 'edge' -- Router decrypts, re-encrypts to pod</span>
+          insecureEdgeTerminationPolicy: Redirect                          <span class="c"># still force HTTP -&gt; HTTPS for any plain requests</span>
+          destinationCACertificate: "{{ dest_ca_cert }}"                    <span class="c"># tells the Router which CA to trust for the backend leg</span>
+  register: route_result                                                  <span class="c"># capture for the assert below</span>
+
+- name: Assert Route update succeeded                                     <span class="c"># fail the play instead of silently leaving old TLS mode</span>
+  ansible.builtin.assert:
+    that:
+      - route_result is succeeded
+    fail_msg: "Failed to update TLS termination for {{ app_name }}-frontend"
+
+- name: Read back the Route to confirm admitted status                    <span class="c"># READ-ONLY check -- confirms the Router actually accepted it</span>
+  kubernetes.core.k8s_info:                                                <span class="c"># info module never mutates state</span>
+    kind: Route
+    api_version: route.openshift.io/v1
+    name: "{{ app_name }}-frontend"
+    namespace: "{{ app_name }}-{{ environment }}"
+  register: route_status                                                   <span class="c"># holds .status.ingress[].conditions</span>
+
+- name: Fail if the Route was not admitted by the Router                   <span class="c"># catches DNS/host conflicts that 'present' alone won't surface</span>
+  ansible.builtin.assert:
+    that:
+      - route_status.resources[0].status.ingress[0].conditions[0].status == "True"  <span class="c"># Admitted condition must be True</span>
+    fail_msg: "Route exists but was NOT admitted -- check for a host conflict"</pre></div>
+</section>
+
+<section id="run">
+<h2>5. Execution &amp; Idempotency</h2>
+<div class="codewrap"><pre>ansible-playbook playbooks/site.yml -e app_name=payment-api -e environment=dev \
+  -e dest_ca_cert="$(cat dest-ca.crt)"</pre></div>
+<div class="box success"><strong class="tag">First run</strong><pre style="background:#0f2b1c;border-color:#1a4a2c;">PLAY RECAP *** ok=4 changed=2 failed=0</pre></div>
+<div class="box success"><strong class="tag">Second run</strong><pre style="background:#0f2b1c;border-color:#1a4a2c;">PLAY RECAP *** ok=4 changed=0 failed=0</pre></div>
+</section>
+
+<section id="incident">
+<h2>6. Live Incident — Intermittent 503s</h2>
+<div class="box fail"><strong class="tag">Report</strong>Customers occasionally see "503 Service Unavailable" when loading the payment page. It's not constant — refreshing sometimes works.</div>
+
+<div class="cmd-label">Step 1 — is the Route admitted?</div>
+<div class="codewrap"><pre>oc get route payment-api-frontend -n payment-api-dev
+NAME                    HOST/PORT                     ADMITTED
+payment-api-frontend    payment-api-dev.apps...       True</pre></div>
+<p>Route is fine. Move down a layer.</p>
+
+<div class="cmd-label">Step 2 — check Service endpoints</div>
+<div class="codewrap"><pre>oc get endpoints payment-api-frontend -n payment-api-dev
+NAME                    ENDPOINTS
+payment-api-frontend    10.128.2.14:8080</pre></div>
+<p>Only <strong>one</strong> endpoint listed, but the Deployment specifies 3 replicas.</p>
+
+<div class="cmd-label">Step 3 — check pod status</div>
+<div class="codewrap"><pre>oc get pods -n payment-api-dev -l app=payment-api-frontend
+NAME                          READY   STATUS    RESTARTS
+payment-api-frontend-7f-a1    1/1     Running   0
+payment-api-frontend-7f-b2    0/1     Running   0
+payment-api-frontend-7f-c3    0/1     Running   0</pre></div>
+<p>Two of three pods are Running but not Ready — the "intermittent" symptom is the Router load-balancing across a mix of ready and not-ready pods, and OpenShift only routes to Ready ones — except a brief window right after a rolling update where the Router's view lags slightly.</p>
+
+<div class="cmd-label">Step 4 — why aren't they Ready?</div>
+<div class="codewrap"><pre>oc describe pod payment-api-frontend-7f-b2 -n payment-api-dev
+Warning  Unhealthy  Readiness probe failed: HTTP probe failed with statuscode: 500</pre></div>
+<div class="codewrap"><pre>oc logs payment-api-frontend-7f-b2 -n payment-api-dev
+Error: cannot reach backend service payment-api-backend:8080 -- connection refused</pre></div>
+<div class="box fail"><strong class="tag">Root cause</strong>The frontend's readiness probe depends on reaching the backend, and 2 of 3 backend pods were mid-rollout (from an unrelated backend deploy happening at the same time) and briefly unreachable, cascading into frontend readiness failures.</div>
+<p><strong>Fix:</strong> not a Route/TLS problem at all — the fix is adding a <code>maxUnavailable: 0</code> rolling update strategy on the backend Deployment so old pods aren't removed until new ones are Ready, preventing this cascade during future rollouts.</p>
+<div class="codewrap"><pre><span class="c"># Add to backend Deployment spec.strategy in Project 3's role:</span>
+strategy:
+  type: RollingUpdate
+  rollingUpdate:
+    maxUnavailable: 0        <span class="c"># never drop below full capacity during a rollout</span>
+    maxSurge: 1               <span class="c"># allow one extra pod temporarily while updating</span></pre></div>
+</section>
+
+<section id="breakfix">
+<h2>7. Additional Break-Fix Labs</h2>
+<details><summary>Break-Fix — wrong TLS termination causes browser cert error</summary>
+<div class="box fail"><strong class="tag">Break</strong>Set <code>termination: passthrough</code> but the pod is only listening on plain HTTP, not HTTPS.</div>
+<div class="codewrap"><pre>curl -v https://payment-api-dev.apps.cluster.example.com
+curl: (35) OpenSSL SSL_connect: Connection reset by peer</pre></div>
+<p><strong>Root cause:</strong> passthrough mode requires the pod itself to terminate TLS; ours only speaks HTTP. <strong>Fix:</strong> either switch back to edge/reencrypt (Router or app doesn't need its own TLS), or make the app actually serve HTTPS if passthrough is a hard requirement.</p>
+</details>
+<details><summary>Break-Fix — 404 from Route, correct host, wrong Service name</summary>
+<div class="codewrap"><pre>oc get route payment-api-frontend -o yaml -n payment-api-dev
+spec:
+  to:
+    name: payment-frontend    <span class="c"># typo -- actual Service is payment-api-frontend</span></pre></div>
+<p><strong>Root cause:</strong> Route's <code>spec.to.name</code> doesn't match any real Service, so the Router returns 503/404 depending on version. <strong>Fix:</strong> correct the <code>to.name</code> via the Ansible variable, re-run, re-test.</p>
+</details>
+</section>
+
+<section id="security">
+<h2>8. Security Review</h2>
+<table>
+<tr><th>Control</th><th>Detail</th></tr>
+<tr><td>End-to-end encryption</td><td>Re-encrypt TLS ensures traffic is never plaintext, even inside the cluster network</td></tr>
+<tr><td>No plaintext fallback</td><td><code>insecureEdgeTerminationPolicy: Redirect</code> forces HTTPS on every request</td></tr>
+<tr><td>Trust boundary explicit</td><td>Destination CA cert is explicitly configured, not "trust anything"</td></tr>
+</table>
+</section>
+
+<section id="interview">
+<h2>9. Interview Preparation</h2>
+<div class="qa"><div class="q">Interviewer: "A user reports intermittent 503s on a Route. How do you troubleshoot?"</div>
+<p><strong>Answer:</strong> I go top-down through the traffic path: confirm the Route is Admitted, check the Service's endpoints list for how many pods are actually backing it, then check pod Ready status and readiness probe events. In one real case, the 503s were intermittent because only some pods were Ready during a rollout — the actual root cause was a Deployment rollout strategy without <code>maxUnavailable: 0</code>, not the Route itself.</p></div>
+<div class="qa"><div class="q">Interviewer: "Explain edge vs passthrough vs re-encrypt Route TLS."</div>
+<p><strong>Answer:</strong> Edge terminates TLS at the Router and talks plain HTTP to the pod — simplest, but internal traffic is unencrypted. Passthrough forwards encrypted bytes straight to the pod, which must terminate TLS itself. Re-encrypt terminates at the Router like edge, but then opens a new TLS connection to the pod using a destination CA cert, giving end-to-end encryption while still letting the Router inspect/route based on the request.</p></div>
+</section>
+
+<section id="resume">
+<h2>10. Resume Points</h2>
+<div class="box best"><ul>
+<li>Automated OpenShift Route and TLS configuration with Ansible, migrating customer-facing traffic to re-encrypt termination for end-to-end encryption compliance.</li>
+<li>Diagnosed an intermittent 503 incident by tracing the Route → Service → Pod traffic path, identifying a rollout strategy gap as the true root cause.</li>
+</ul></div>
+</section>
+
+<section id="cheatsheet">
+<h2>11. Troubleshooting Cheat Sheet</h2>
+<table>
+<tr><th>Symptom</th><th>Check</th></tr>
+<tr><td>503 from Route</td><td>Route Admitted? → Service endpoints? → Pod Ready?</td></tr>
+<tr><td>404 from Route</td><td>Route's <code>spec.to.name</code> matches a real Service exactly?</td></tr>
+<tr><td>Browser TLS/cert error</td><td>Termination mode matches what the pod actually serves</td></tr>
+<tr><td>Intermittent failures during deploys</td><td>Deployment rolling update strategy — <code>maxUnavailable</code></td></tr>
+</table>
+</section>
+
+<section id="summary">
+<h2>12. Key Learnings</h2>
+<div class="card">
+<h4>OpenShift concepts</h4><p>Edge/passthrough/re-encrypt TLS, Route admission status, endpoints vs Service vs pod readiness, rolling update strategy fields.</p>
+<h4>Ansible concepts</h4><p><code>k8s_info</code> for post-apply verification, asserting on nested JSON status fields, passing certs as variables.</p>
+<h4>Commands learned</h4><p><code>oc get route</code>, <code>oc get endpoints</code>, <code>curl -v</code> against HTTPS Routes, <code>oc describe pod</code> for probe events.</p>
+<h4>Next project prerequisites</h4><p>Keep this repo — Project 5 covers Deployments and rollouts/rollbacks in depth, building directly on the rolling-update fix from this incident.</p>
+</div>
+</section>
+
+</main>
+<footer>OpenShift + Ansible Masterclass — Project 4 of ~28.</footer>
+<script>
+window.addEventListener('scroll', function(){
+  var h = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+  var p = h ? (window.scrollY / h) * 100 : 0;
+  document.getElementById('progressBar').style.width = p + '%';
+});
+document.querySelectorAll('pre').forEach(function(pre){
+  if(pre.parentElement.classList.contains('codewrap')){
+    var btn = document.createElement('button');
+    btn.className = 'copy-btn'; btn.textContent = 'Copy';
+    btn.onclick = function(){
+      navigator.clipboard.writeText(pre.innerText);
+      btn.textContent = 'Copied!';
+      setTimeout(function(){ btn.textContent = 'Copy'; }, 1500);
+    };
+    pre.parentElement.appendChild(btn);
+  }
+});
+</script>
+</body>
+</html>

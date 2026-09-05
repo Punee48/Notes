@@ -1,0 +1,816 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Use Case 9: Auto Scaling High-Traffic Applications | ShopNow Retail</title>
+<style>
+  :root{
+    --bg:#0b0f14; --panel:#111823; --panel2:#0e1420; --border:#1f2b3a;
+    --text:#dbe6f0; --muted:#8aa0b4; --accent:#3fb6a8; --accent2:#e8a33d;
+    --code-bg:#0a0e14; --good:#5ec98f; --bad:#e35d5d; --hpa:#5aa9e6; --vpa:#c76bd6; --keda:#e8a33d; --karp:#3fb87a;
+  }
+  *{box-sizing:border-box}
+  body{background:var(--bg);color:var(--text);font-family:'Segoe UI',Roboto,Helvetica,Arial,sans-serif;line-height:1.65;margin:0;padding:0}
+  .wrap{max-width:980px;margin:0 auto;padding:32px 24px 120px}
+  h1{font-size:2rem;color:#fff;border-bottom:3px solid var(--accent);padding-bottom:12px;margin-top:0}
+  h2{color:var(--accent);font-size:1.5rem;margin-top:56px;border-left:5px solid var(--accent);padding-left:14px}
+  h3{color:var(--accent2);font-size:1.2rem;margin-top:32px}
+  h4{color:#fff;font-size:1.02rem;margin-top:22px;background:var(--panel2);padding:6px 10px;border-radius:4px;border-left:3px solid var(--muted)}
+  p{color:#c6d3df}
+  .story{background:linear-gradient(135deg,#132030,#0e1622);border:1px solid var(--border);border-radius:10px;padding:18px 22px;margin:18px 0;font-style:italic;color:#b9c9d8}
+  .story b{color:var(--accent2);font-style:normal}
+  .callout{background:#152a24;border:1px solid #235c4c;border-radius:8px;padding:14px 18px;margin:16px 0}
+  .callout.warn{background:#2a1f14;border-color:#6b4a1d}
+  .callout.why{background:#101b2c;border-color:#254268}
+  .step{background:var(--panel);border:1px solid var(--border);border-left:4px solid var(--accent);border-radius:6px;padding:12px 18px;margin:14px 0}
+  .step b.n{display:inline-block;background:var(--accent);color:#04120f;border-radius:50%;width:24px;height:24px;text-align:center;line-height:24px;font-size:.8rem;margin-right:10px}
+  pre{background:var(--code-bg);border:1px solid var(--border);border-radius:8px;padding:16px;overflow-x:auto;font-size:.85rem}
+  code{font-family:'Fira Code',Consolas,monospace;color:#c9d9e3}
+  .cmt{color:#5c7a8a}
+  .k{color:#e8a33d} .s{color:#7fd1a7} .v{color:#5aa9e6}
+  table{width:100%;border-collapse:collapse;margin:16px 0}
+  th,td{border:1px solid var(--border);padding:8px 12px;text-align:left;font-size:.9rem}
+  th{background:var(--panel2);color:var(--accent2)}
+  .toc{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:20px 26px}
+  .toc a{color:var(--accent);text-decoration:none}
+  .toc li{margin:6px 0}
+  .divider{border:none;border-top:1px solid var(--border);margin:40px 0}
+  .timeline{display:flex;flex-wrap:wrap;gap:10px;margin:16px 0;align-items:center}
+  .timeline div{background:var(--panel2);border:1px solid var(--border);border-radius:6px;padding:8px 14px;font-size:.82rem}
+  .bar{display:flex;align-items:flex-end;gap:8px;height:120px;margin:20px 0;padding:0 10px}
+  .bar-col{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%}
+  .bar-fill{width:100%;background:linear-gradient(180deg,var(--accent2),var(--accent));border-radius:4px 4px 0 0}
+  .bar-label{font-size:.75rem;color:var(--muted);margin-top:6px;text-align:center}
+  .tool-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px;margin:16px 0}
+  .tool-card{border-radius:8px;padding:14px;border:1px solid var(--border)}
+  .tool-card.hpa-c{background:#0f2233;border-color:var(--hpa)}
+  .tool-card.vpa-c{background:#28152e;border-color:var(--vpa)}
+  .tool-card.keda-c{background:#2b2110;border-color:var(--keda)}
+  .tool-card.karp-c{background:#0f3324;border-color:var(--karp)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>Use Case 9: Auto Scaling High-Traffic Applications</h1>
+<p><b>Company:</b> ShopNow Retail Pvt Ltd (fictional mid-size e-commerce company) &nbsp;|&nbsp; <b>Your role:</b> DevOps/Cloud Engineer &nbsp;|&nbsp; <b>Level:</b> 4+ years, resume-ready production project</p>
+
+<div class="toc">
+<b>What this document covers, start to finish:</b>
+<ol>
+<li><a href="#scenario">The Business Scenario</a></li>
+<li><a href="#concept">The Core Idea — Four Tools, Four Different Questions</a></li>
+<li><a href="#folders">Project Folder Structure</a></li>
+<li><a href="#apparch">Application Architecture</a></li>
+<li><a href="#awsarch">AWS Architecture</a></li>
+<li><a href="#eks">EKS Cluster Design</a></li>
+<li><a href="#vpc">VPC and Networking</a></li>
+<li><a href="#iam">IAM Roles and IRSA</a></li>
+<li><a href="#hpa">Horizontal Pod Autoscaler — Scaling Pod COUNT</a></li>
+<li><a href="#vpa">Vertical Pod Autoscaler — Scaling Pod SIZE</a></li>
+<li><a href="#keda">KEDA — Scaling on Events, Not Just CPU</a></li>
+<li><a href="#canode">Cluster Autoscaler vs Karpenter — Scaling NODES</a></li>
+<li><a href="#manifests">Deployment and Service</a></li>
+<li><a href="#config">ConfigMaps and Secrets</a></li>
+<li><a href="#ingress">Ingress with AWS Load Balancer Controller</a></li>
+<li><a href="#pdb">PodDisruptionBudget</a></li>
+<li><a href="#netpol">NetworkPolicies</a></li>
+<li><a href="#ecr">ECR Integration</a></li>
+<li><a href="#pipeline">Jenkins and GitHub Actions Pipelines</a></li>
+<li><a href="#argocd">Argo CD GitOps</a></li>
+<li><a href="#monitoring">Prometheus and Grafana</a></li>
+<li><a href="#cloudwatch">CloudWatch Logging</a></li>
+<li><a href="#workflow">Running the Code — Full End-to-End Workflow</a></li>
+<li><a href="#failure">Failure Testing — Load Testing the Full Stack</a></li>
+<li><a href="#rollback">Rollback Strategy</a></li>
+<li><a href="#troubleshoot">Troubleshooting Scenarios</a></li>
+<li><a href="#ansible">Ansible Automation</a></li>
+<li><a href="#report">HTML Deployment/Job Report</a></li>
+<li><a href="#email">Email Notification</a></li>
+<li><a href="#resume">How to Present This on Your Resume</a></li>
+</ol>
+</div>
+
+<h2 id="scenario">1. The Business Scenario — Why This Project Exists</h2>
+<div class="story">
+ShopNow Retail's Diwali flash sale started at 10:00 AM. At 9:59, the Catalog Service was humming along on 3 pods, comfortably handling normal browsing traffic. At 10:00:15, fifteen seconds after the sale banner went live, traffic jumped nearly 8x as thousands of customers hit the search and product pages at once. The HPA that existed <i>did</i> eventually scale up — but it took almost four minutes to reach enough replicas, because there weren't enough <b>nodes</b> in the cluster to schedule the new pods onto, and the Cluster Autoscaler took its own additional time to notice, provision, and join new EC2 capacity. For those four minutes, checkout error rates spiked and ShopNow's socials filled with screenshots of "Service Unavailable."
+</div>
+<p>Ramesh's ask, this time covering the whole stack rather than one layer: <i>"I want scaling that works end to end — pods that scale on the right signal, not just CPU, and nodes that show up fast enough to actually hold those pods. Show me 3 pods on a normal Tuesday afternoon and 20 pods within the first minute of a flash sale, then back down to 3 once it's over — automatically, every time, without anyone watching a dashboard."</i></p>
+<p>This use case builds the complete autoscaling stack that answers that ask — not just one tool, but the four that work together at different layers: <b>HPA</b> (how many pods), <b>VPA</b> (how big each pod is), <b>KEDA</b> (scaling on signals beyond CPU), and <b>Cluster Autoscaler / Karpenter</b> (how many nodes exist to hold all those pods).</p>
+
+<h2 id="concept">2. The Core Idea — Four Tools, Four Different Questions</h2>
+<div class="tool-grid">
+<div class="tool-card hpa-c"><b>HPA</b><br>"Do I need MORE COPIES of this pod?"<br>Scales replica <i>count</i>, based on CPU/memory or custom metrics.</div>
+<div class="tool-card vpa-c"><b>VPA</b><br>"Is each copy the RIGHT SIZE?"<br>Adjusts CPU/memory requests and limits on existing pods.</div>
+<div class="tool-card keda-c"><b>KEDA</b><br>"What if the right signal isn't CPU at all?"<br>Scales on external events — queue depth, request rate, cron schedule.</div>
+<div class="tool-card karp-c"><b>Cluster Autoscaler / Karpenter</b><br>"Do I have enough MACHINES to run all these pods?"<br>Scales the underlying EC2 node fleet itself.</div>
+</div>
+<p>The scenario from the original ask — <b>3 pods normal, 20 pods under load, back to 3 after</b> — is only fully achievable when all four layers work together. HPA alone scaling from 3 to 20 pods is meaningless if there's no node capacity to schedule those extra 17 pods onto; that's exactly what happened in section 1's incident.</p>
+<div class="bar">
+<div class="bar-col"><div class="bar-fill" style="height:15%"></div><div class="bar-label">9:59 AM<br>3 pods<br>3 nodes</div></div>
+<div class="bar-col"><div class="bar-fill" style="height:100%"></div><div class="bar-label">10:02 AM<br>20 pods<br>7 nodes</div></div>
+<div class="bar-col"><div class="bar-fill" style="height:100%"></div><div class="bar-label">10:15 AM<br>20 pods<br>7 nodes</div></div>
+<div class="bar-col"><div class="bar-fill" style="height:15%"></div><div class="bar-label">11:30 AM<br>3 pods<br>3 nodes</div></div>
+</div>
+<table>
+<tr><th></th><th>Signal it reacts to</th><th>What it changes</th><th>Typical reaction time</th></tr>
+<tr><td>HPA</td><td>CPU/memory utilization, or custom/external metrics</td><td>Number of pod replicas</td><td>15 seconds – a few minutes</td></tr>
+<tr><td>VPA</td><td>Historical CPU/memory usage per pod</td><td>CPU/memory requests &amp; limits of each pod</td><td>Hours to days (deliberately slow, see section 10)</td></tr>
+<tr><td>KEDA</td><td>SQS queue depth, Kafka lag, cron schedule, 50+ other event sources</td><td>Number of pod replicas (KEDA drives the HPA under the hood)</td><td>As fast as its polling interval, often under 15 seconds</td></tr>
+<tr><td>Karpenter / Cluster Autoscaler</td><td>Unschedulable pods (Pending due to no node capacity)</td><td>Number and type of EC2 nodes</td><td>Karpenter: ~30-60s; Cluster Autoscaler: 3-5 minutes typically</td></tr>
+</table>
+<div class="callout why"><b>Why this use case chooses Karpenter as the primary node-scaler, with Cluster Autoscaler shown for comparison:</b> Cluster Autoscaler works in terms of pre-defined node groups with fixed instance types, and its scale-up decision loop is measurably slower — this was the literal four-minute gap in section 1's incident. Karpenter provisions nodes directly, picking the best available instance type and size for the exact pending pods, and does it roughly 3-5x faster. Knowing why ShopNow moved from one to the other, with a real incident as the reason, is a stronger interview answer than reciting a feature comparison from memory.</div>
+
+<h2 id="folders">3. Project Folder Structure</h2>
+<pre><code>shopnow-gitops-repo/
+├── platform/
+│   ├── karpenter/
+│   │   ├── helm-values.yaml
+│   │   ├── nodepool.yaml
+│   │   └── ec2nodeclass.yaml
+│   ├── metrics-server/
+│   │   └── helm-values.yaml
+│   ├── vpa/
+│   │   └── helm-values.yaml
+│   └── keda/
+│       └── helm-values.yaml
+│
+├── services/
+│   └── catalog-service/
+│       ├── base/
+│       │   ├── deployment.yaml
+│       │   ├── service.yaml
+│       │   ├── ingress.yaml
+│       │   ├── pdb.yaml
+│       │   ├── networkpolicy.yaml
+│       │   └── kustomization.yaml
+│       └── overlays/
+│           └── prod/
+│               ├── hpa.yaml                <span class="cmt"># CPU-based HPA</span>
+│               ├── vpa.yaml                <span class="cmt"># right-sizing recommendations</span>
+│               ├── scaledobject.yaml       <span class="cmt"># KEDA — queue-depth based scaling</span>
+│               ├── configmap.yaml
+│               └── kustomization.yaml
+│
+├── argocd-apps/
+│   └── catalog-service-prod.yaml
+│
+├── ansible/
+│   ├── playbook.yml
+│   └── roles/autoscaling-bootstrap/
+│       ├── tasks/main.yml
+│       └── templates/
+│           ├── hpa.yaml.j2
+│           └── scaledobject.yaml.j2
+│
+├── pipeline-scripts/
+│   ├── generate_report.py
+│   ├── send_email.py
+│   └── load_test_and_watch_scaling.py
+│
+├── Jenkinsfile
+└── .github/workflows/deploy.yml
+</code></pre>
+<p>Notice <code>platform/</code> holds the four autoscaling <i>controllers</i> themselves (installed once, cluster-wide), while each service's <code>overlays/prod/</code> holds the <i>configuration</i> that tells those controllers how to scale that specific service — the same base-vs-overlay separation from Use Case 6, now applied to autoscaling objects.</p>
+
+<h2 id="apparch">4. Application Architecture</h2>
+<pre><code><span class="cmt">           Customer traffic (search, browse, flash-sale spike)
+                              |
+                     ALB via Ingress
+                              |
+                    catalog-service-svc
+                              |
+              Catalog Service Pods (3 baseline &rarr; 20 peak)
+                    /                    \
+        HPA watches CPU              KEDA watches an SQS queue
+        via metrics-server          (search-index-refresh-queue)
+        of these SAME pods           and ALSO drives replica count
+                              |
+        Both HPA and KEDA's ScaledObject ultimately write to the
+        SAME underlying HorizontalPodAutoscaler object — KEDA
+        wraps and extends the standard HPA, it doesn't replace it
+</span></code></pre>
+<p>The service used for this use case is, once again, ShopNow's <b>Catalog Service</b> — the same read-heavy, traffic-spike-prone service from Use Cases 1 and 5, because its traffic pattern (long calm periods, sudden sharp spikes during sales) is exactly the shape this entire use case is built to handle well.</p>
+
+<h2 id="awsarch">5. AWS Architecture</h2>
+<table>
+<tr><th>AWS Service</th><th>Role in this project</th></tr>
+<tr><td>EKS</td><td>Runs Catalog Service pods; Karpenter provisions and removes EC2 nodes directly against this cluster</td></tr>
+<tr><td>EC2</td><td>The actual compute Karpenter adds/removes — mixed instance types chosen dynamically per pending pod's requirements</td></tr>
+<tr><td>SQS</td><td>The queue KEDA watches — a backlog of "refresh this product's search index" jobs that spikes exactly when flash-sale browsing spikes</td></tr>
+<tr><td>CloudWatch</td><td>Container Insights feeds cluster-level capacity metrics used to validate Karpenter's scaling decisions</td></tr>
+<tr><td>ALB</td><td>Same shared ALB pattern from Use Case 8, automatically re-registering pod IPs as HPA/KEDA change replica count</td></tr>
+</table>
+
+<h2 id="eks">6. EKS Cluster Design</h2>
+<pre><code><span class="k">apiVersion</span>: eksctl.io/v1alpha5
+<span class="k">kind</span>: ClusterConfig
+<span class="k">metadata</span>:
+  <span class="k">name</span>: shopnow-cluster
+  <span class="k">region</span>: ap-south-1
+  <span class="k">version</span>: <span class="s">"1.29"</span>
+<span class="k">iam</span>:
+  <span class="k">withOIDC</span>: true
+<span class="k">managedNodeGroups</span>:
+  <span class="k">- name</span>: ng-baseline
+    <span class="k">instanceType</span>: m5.large
+    <span class="k">desiredCapacity</span>: 3
+    <span class="k">minSize</span>: 3
+    <span class="k">maxSize</span>: 3      <span class="cmt"># fixed baseline — always-on capacity for normal traffic, NOT autoscaled by Karpenter</span>
+</code></pre>
+<p>Only a small, <b>fixed</b> managed node group exists for guaranteed baseline capacity (system pods, the autoscaling controllers themselves, and Catalog Service's normal 3-pod footprint). Everything above that baseline — the burst capacity for flash-sale traffic — is handled entirely by Karpenter provisioning nodes directly, with no eksctl-managed node group involved at all for that burst tier.</p>
+
+<h2 id="vpc">7. VPC and Networking</h2>
+<p>Standard VPC layout. Karpenter needs the same subnet and security-group discovery tags as the AWS Load Balancer Controller needed in Use Case 8 — tagged this time for Karpenter's own discovery mechanism:</p>
+<pre><code>aws ec2 create-tags --resources subnet-priv1 subnet-priv2 subnet-priv3 \
+  --tags Key=karpenter.sh/discovery,Value=shopnow-cluster
+
+aws ec2 create-tags --resources sg-node-shared \
+  --tags Key=karpenter.sh/discovery,Value=shopnow-cluster
+</code></pre>
+
+<h2 id="iam">8. IAM Roles and IRSA</h2>
+<pre><code><span class="cmt"># Karpenter needs permission to launch/terminate EC2 instances on the cluster's behalf</span>
+eksctl create iamserviceaccount \
+  --cluster shopnow-cluster \
+  --namespace karpenter \
+  --name karpenter \
+  --attach-policy-arn arn:aws:iam::111122223333:policy/KarpenterControllerPolicy \
+  --approve
+
+<span class="cmt"># KEDA needs permission to read SQS queue depth to make scaling decisions</span>
+eksctl create iamserviceaccount \
+  --cluster shopnow-cluster \
+  --namespace keda \
+  --name keda-operator \
+  --attach-policy-arn arn:aws:iam::111122223333:policy/KEDASQSReadPolicy \
+  --approve
+</code></pre>
+<pre><code><span class="cmt"># KEDASQSReadPolicy.json — scoped to read-only, one specific queue</span>
+{
+  <span class="k">"Version"</span>: <span class="s">"2012-10-17"</span>,
+  <span class="k">"Statement"</span>: [
+    { <span class="k">"Effect"</span>: <span class="s">"Allow"</span>, <span class="k">"Action"</span>: [<span class="s">"sqs:GetQueueAttributes"</span>, <span class="s">"sqs:GetQueueUrl"</span>],
+      <span class="k">"Resource"</span>: <span class="s">"arn:aws:sqs:ap-south-1:111122223333:search-index-refresh-queue"</span> }
+  ]
+}
+</code></pre>
+
+<h2 id="hpa">9. Horizontal Pod Autoscaler — Scaling Pod COUNT</h2>
+<pre><code><span class="cmt"># overlays/prod/hpa.yaml</span>
+<span class="k">apiVersion</span>: autoscaling/v2
+<span class="k">kind</span>: HorizontalPodAutoscaler
+<span class="k">metadata</span>: { name: catalog-service-hpa, namespace: prod }
+<span class="k">spec</span>:
+  <span class="k">scaleTargetRef</span>: { apiVersion: apps/v1, kind: Deployment, name: catalog-service }
+  <span class="k">minReplicas</span>: 3
+  <span class="k">maxReplicas</span>: 20
+  <span class="k">metrics</span>:
+    <span class="k">- type</span>: Resource
+      <span class="k">resource</span>: { name: cpu, target: { type: Utilization, averageUtilization: 60 } }
+  <span class="k">behavior</span>:
+    <span class="k">scaleUp</span>:
+      <span class="k">stabilizationWindowSeconds</span>: 0     <span class="cmt"># react INSTANTLY to a spike, no waiting</span>
+      <span class="k">policies</span>:
+        <span class="k">- type</span>: Percent
+          <span class="k">value</span>: 100                     <span class="cmt"># allowed to DOUBLE pod count in one step</span>
+          <span class="k">periodSeconds</span>: 15
+        <span class="k">- type</span>: Pods
+          <span class="k">value</span>: 6
+          <span class="k">periodSeconds</span>: 15
+      <span class="k">selectPolicy</span>: Max                      <span class="cmt"># use whichever policy scales up MORE aggressively</span>
+    <span class="k">scaleDown</span>:
+      <span class="k">stabilizationWindowSeconds</span>: 300     <span class="cmt"># wait 5 minutes of sustained low load before scaling down</span>
+      <span class="k">policies</span>:
+        <span class="k">- type</span>: Pods
+          <span class="k">value</span>: 2
+          <span class="k">periodSeconds</span>: 60
+</code></pre>
+<p>This <code>minReplicas: 3, maxReplicas: 20</code> pairing is <b>directly and literally</b> the "3 pods normal, 20 pods peak" numbers from the original ask. The <code>behavior</code> block is what makes the scale-<i>up</i> side fast (doubling pod count every 15 seconds, no stabilization delay) while keeping the scale-<i>down</i> side deliberately cautious (a full 5-minute window of sustained low load before removing pods) — asymmetric on purpose, because the cost of scaling up too slowly (an outage) is far worse than the cost of scaling down too slowly (a few extra minutes of mild over-provisioning).</p>
+
+<h2 id="vpa">10. Vertical Pod Autoscaler — Scaling Pod SIZE</h2>
+<pre><code><span class="cmt"># platform/vpa/ — one-time cluster install</span>
+git clone https://github.com/kubernetes/autoscaler.git
+./autoscaler/vertical-pod-autoscaler/hack/vpa-up.sh
+</code></pre>
+<pre><code><span class="cmt"># overlays/prod/vpa.yaml</span>
+<span class="k">apiVersion</span>: autoscaling.k8s.io/v1
+<span class="k">kind</span>: VerticalPodAutoscaler
+<span class="k">metadata</span>: { name: catalog-service-vpa, namespace: prod }
+<span class="k">spec</span>:
+  <span class="k">targetRef</span>: { apiVersion: apps/v1, kind: Deployment, name: catalog-service }
+  <span class="k">updatePolicy</span>:
+    <span class="k">updateMode</span>: <span class="s">"Off"</span>   <span class="cmt"># <-- deliberately "Off": recommend only, never auto-apply. See callout.</span>
+  <span class="k">resourcePolicy</span>:
+    <span class="k">containerPolicies</span>:
+      <span class="k">- containerName</span>: catalog-service
+        <span class="k">minAllowed</span>: { cpu: <span class="s">"100m"</span>, memory: <span class="s">"128Mi"</span> }
+        <span class="k">maxAllowed</span>: { cpu: <span class="s">"1"</span>, memory: <span class="s">"1Gi"</span> }
+</code></pre>
+<div class="callout warn"><b>Why VPA runs in <code>"Off"</code> mode here — and why HPA and VPA fighting each other is a very real, very common mistake.</b> VPA in <code>"Auto"</code> mode <i>evicts and restarts</i> pods to resize them — and if you're also running HPA on the exact same CPU metric, the two controllers can enter a feedback loop: HPA adds pods to handle load, VPA notices per-pod CPU dropped and shrinks each pod's request, which makes the HPA's utilization percentage look different, triggering another HPA reaction. ShopNow runs VPA in <code>"Off"</code> (recommendation-only) mode specifically to avoid this — engineers review VPA's suggested requests/limits periodically and apply them manually during a planned change, while HPA alone continues to handle real-time replica scaling. This exact "don't run HPA and VPA on the same metric in Auto mode together" rule is one of the highest-value things to be able to say out loud in an interview.</div>
+<pre><code><span class="cmt"># Reading VPA's recommendation, without ever letting it act automatically</span>
+kubectl describe vpa catalog-service-vpa -n prod
+<span class="cmt"># Output includes a Recommendation section like:
+#   Container: catalog-service
+#     Target:        { cpu: 180m, memory: 310Mi }
+#     Lower Bound:   { cpu: 100m, memory: 256Mi }
+#     Upper Bound:   { cpu: 420m, memory: 512Mi }
+# An engineer reviews this monthly and hand-tunes the Deployment's requests/limits
+# accordingly — turning guesswork into data-backed resource sizing</span>
+</code></pre>
+
+<h2 id="keda">11. KEDA — Scaling on Events, Not Just CPU</h2>
+<pre><code><span class="cmt"># platform/keda/ — one-time cluster install</span>
+helm repo add kedacore https://kedacore.github.io/charts
+helm install keda kedacore/keda --namespace keda --create-namespace \
+  --set serviceAccount.name=keda-operator
+</code></pre>
+<pre><code><span class="cmt"># overlays/prod/scaledobject.yaml</span>
+<span class="k">apiVersion</span>: keda.sh/v1alpha1
+<span class="k">kind</span>: ScaledObject
+<span class="k">metadata</span>: { name: catalog-service-scaledobject, namespace: prod }
+<span class="k">spec</span>:
+  <span class="k">scaleTargetRef</span>: { name: catalog-service }
+  <span class="k">minReplicaCount</span>: 3
+  <span class="k">maxReplicaCount</span>: 20
+  <span class="k">pollingInterval</span>: 10        <span class="cmt"># check the queue every 10 seconds</span>
+  <span class="k">cooldownPeriod</span>: 300        <span class="cmt"># same asymmetric caution as HPA's scaleDown above</span>
+  <span class="k">triggers</span>:
+    <span class="k">- type</span>: aws-sqs-queue
+      <span class="k">metadata</span>:
+        <span class="k">queueURL</span>: https://sqs.ap-south-1.amazonaws.com/111122223333/search-index-refresh-queue
+        <span class="k">queueLength</span>: <span class="s">"5"</span>          <span class="cmt"># target: 5 messages per pod</span>
+        <span class="k">awsRegion</span>: ap-south-1
+      <span class="k">authenticationRef</span>: { name: keda-aws-credentials }
+---
+<span class="k">apiVersion</span>: keda.sh/v1alpha1
+<span class="k">kind</span>: TriggerAuthentication
+<span class="k">metadata</span>: { name: keda-aws-credentials, namespace: prod }
+<span class="k">spec</span>:
+  <span class="k">podIdentity</span>: { provider: aws-eks }   <span class="cmt"># uses IRSA, same pattern as every other AWS integration in this series</span>
+</code></pre>
+<div class="callout why"><b>What KEDA actually does under the hood, precisely:</b> KEDA doesn't replace the HPA — it <i>creates and manages a HorizontalPodAutoscaler object on your behalf</i>, translating "5 messages per pod in this SQS queue" into the same replica-count math the native HPA understands. Run <code>kubectl get hpa -n prod</code> after applying the ScaledObject above and you'll see a second, KEDA-generated HPA object (<code>keda-hpa-catalog-service-scaledobject</code>) sitting right alongside the manually-authored one from section 9 — both driving the <i>same</i> Deployment's replica count, whichever one currently demands more replicas wins, since Kubernetes always reconciles toward the highest requested replica count when multiple HPAs somehow target one object (in ShopNow's actual setup, only one HPA per Deployment is kept active at a time in practice — either the plain CPU-based one or a KEDA ScaledObject with a CPU trigger added alongside the SQS trigger, to avoid ambiguity).</div>
+<p>This directly matches the original ask's spirit — "monitor errors, latency, and CPU usage" style thinking from earlier use cases, extended here to "traffic isn't only measurable by CPU": a backlog of pending search-index jobs is a leading indicator of a flash sale starting, often visible in the SQS queue a few seconds <i>before</i> CPU utilization itself climbs, giving KEDA-based scaling a head start over pure CPU-based HPA.</p>
+
+<h2 id="canode">12. Cluster Autoscaler vs Karpenter — Scaling NODES</h2>
+<pre><code><span class="cmt"># platform/karpenter/helm-values.yaml — install</span>
+helm install karpenter oci://public.ecr.aws/karpenter/karpenter \
+  --namespace karpenter --create-namespace \
+  --set settings.clusterName=shopnow-cluster \
+  --set serviceAccount.name=karpenter
+</code></pre>
+<pre><code><span class="cmt"># platform/karpenter/ec2nodeclass.yaml — what KIND of nodes Karpenter is allowed to create</span>
+<span class="k">apiVersion</span>: karpenter.k8s.aws/v1
+<span class="k">kind</span>: EC2NodeClass
+<span class="k">metadata</span>: { name: shopnow-burst-nodes }
+<span class="k">spec</span>:
+  <span class="k">amiFamily</span>: AL2023
+  <span class="k">subnetSelectorTerms</span>: [{ tags: { karpenter.sh/discovery: shopnow-cluster } }]
+  <span class="k">securityGroupSelectorTerms</span>: [{ tags: { karpenter.sh/discovery: shopnow-cluster } }]
+  <span class="k">role</span>: KarpenterNodeRole-shopnow-cluster
+</code></pre>
+<pre><code><span class="cmt"># platform/karpenter/nodepool.yaml — the scaling POLICY itself</span>
+<span class="k">apiVersion</span>: karpenter.sh/v1
+<span class="k">kind</span>: NodePool
+<span class="k">metadata</span>: { name: shopnow-burst }
+<span class="k">spec</span>:
+  <span class="k">template</span>:
+    <span class="k">spec</span>:
+      <span class="k">nodeClassRef</span>: { name: shopnow-burst-nodes, kind: EC2NodeClass, group: karpenter.k8s.aws }
+      <span class="k">requirements</span>:
+        <span class="k">- key</span>: karpenter.k8s.aws/instance-category
+          <span class="k">operator</span>: In
+          <span class="k">values</span>: [<span class="s">"m"</span>, <span class="s">"c"</span>]
+        <span class="k">- key</span>: karpenter.sh/capacity-type
+          <span class="k">operator</span>: In
+          <span class="k">values</span>: [<span class="s">"on-demand"</span>]   <span class="cmt"># no spot for this burst pool — need guaranteed capacity during a sale</span>
+      <span class="k">expireAfter</span>: 720h
+  <span class="k">disruption</span>:
+    <span class="k">consolidationPolicy</span>: WhenEmptyOrUnderutilized
+    <span class="k">consolidateAfter</span>: 5m   <span class="cmt"># actively bin-packs and removes underused nodes 5 min after load drops</span>
+  <span class="k">limits</span>:
+    <span class="k">cpu</span>: 200   <span class="cmt"># hard ceiling — Karpenter can never provision beyond this even under a runaway scale event</span>
+</code></pre>
+<div class="step"><b class="n">1</b>Karpenter has <b>no fixed node group or instance type list</b> — it watches for <code>Pending</code> pods (ones the scheduler couldn't place anywhere), reads exactly what CPU/memory they need, and picks the <i>best-fitting real EC2 instance type</i> available at that moment, launching it directly via the EC2 API. This is fundamentally different from Cluster Autoscaler, which can only add more of whatever instance type a pre-defined node group is configured with.</div>
+<div class="step"><b class="n">2</b><b>consolidationPolicy: WhenEmptyOrUnderutilized</b> is Karpenter actively working to shrink the fleet back down — not just declining to add nodes, but proactively identifying nodes running below capacity, cordoning and draining them, and consolidating pods onto fewer, better-packed nodes. This is the direct mechanism behind the "back to 3 pods, back to 3 nodes" half of the original scenario.</div>
+<div class="step"><b class="n">3</b>The <code>limits.cpu: 200</code> ceiling is a cost-safety net — a runaway scaling loop (a bug causing HPA to keep demanding more replicas) can still only ever provision up to 200 vCPUs worth of nodes total, capping the financial blast radius of any autoscaling misconfiguration.</div>
+<pre><code><span class="cmt"># For comparison — what the OLDER Cluster Autoscaler approach looked like,
+# shown so the tradeoff from section 2 is concrete, not just described</span>
+helm install cluster-autoscaler autoscaler/cluster-autoscaler \
+  --namespace kube-system \
+  --set autoDiscovery.clusterName=shopnow-cluster \
+  --set awsRegion=ap-south-1
+<span class="cmt"># Cluster Autoscaler can ONLY scale the eksctl-managed node group's desiredCapacity
+# up toward its maxSize=8 ceiling — it cannot introduce a NEW instance type or
+# node group on its own, unlike Karpenter</span>
+</code></pre>
+
+<h2 id="manifests">13. Deployment and Service</h2>
+<pre><code><span class="k">apiVersion</span>: apps/v1
+<span class="k">kind</span>: Deployment
+<span class="k">metadata</span>: { name: catalog-service, labels: { app: catalog-service } }
+<span class="k">spec</span>:
+  <span class="k">replicas</span>: 3
+  <span class="k">selector</span>: { matchLabels: { app: catalog-service } }
+  <span class="k">template</span>:
+    <span class="k">metadata</span>: { labels: { app: catalog-service } }
+    <span class="k">spec</span>:
+      <span class="k">containers</span>:
+        <span class="k">- name</span>: catalog-service
+          <span class="k">image</span>: 111122223333.dkr.ecr.ap-south-1.amazonaws.com/catalog-service:prod-v1.9.4
+          <span class="k">ports</span>: [{ containerPort: 8000 }]
+          <span class="k">envFrom</span>: [{ configMapRef: { name: catalog-service-config } }]
+          <span class="k">resources</span>:
+            <span class="k">requests</span>: { cpu: <span class="s">"150m"</span>, memory: <span class="s">"256Mi"</span> }   <span class="cmt"># <-- these are what VPA's recommendation refines over time</span>
+            <span class="k">limits</span>:   { cpu: <span class="s">"400m"</span>, memory: <span class="s">"512Mi"</span> }
+          <span class="k">readinessProbe</span>: { httpGet: { path: /health, port: 8000 }, initialDelaySeconds: 5, periodSeconds: 10 }
+---
+<span class="k">apiVersion</span>: v1
+<span class="k">kind</span>: Service
+<span class="k">metadata</span>: { name: catalog-service-svc }
+<span class="k">spec</span>:
+  <span class="k">selector</span>: { app: catalog-service }
+  <span class="k">ports</span>: [{ port: 80, targetPort: 8000 }]
+</code></pre>
+<div class="callout why"><b>Accurate <code>requests</code> values are the load-bearing detail of this entire use case.</b> HPA's CPU percentage is calculated against the <code>requests</code> value, and Karpenter decides what instance type to launch based on the sum of pending pods' <code>requests</code> — an under- or over-stated requests value throws off both HPA's scaling math and Karpenter's node-sizing decisions simultaneously. This is exactly why VPA's recommendation-only role (section 10) matters even without auto-applying: getting this one number right is what makes every other layer in this use case behave correctly.</div>
+
+<h2 id="config">14. ConfigMaps and Secrets</h2>
+<pre><code><span class="k">apiVersion</span>: v1
+<span class="k">kind</span>: ConfigMap
+<span class="k">metadata</span>: { name: catalog-service-config }
+<span class="k">data</span>:
+  <span class="k">LOG_LEVEL</span>: <span class="s">"info"</span>
+  <span class="k">SEARCH_INDEX_QUEUE_URL</span>: <span class="s">"https://sqs.ap-south-1.amazonaws.com/111122223333/search-index-refresh-queue"</span>
+</code></pre>
+
+<h2 id="ingress">15. Ingress with AWS Load Balancer Controller</h2>
+<pre><code><span class="k">apiVersion</span>: networking.k8s.io/v1
+<span class="k">kind</span>: Ingress
+<span class="k">metadata</span>:
+  <span class="k">name</span>: catalog-service-ingress
+  <span class="k">annotations</span>:
+    <span class="k">kubernetes.io/ingress.class</span>: alb
+    <span class="k">alb.ingress.kubernetes.io/scheme</span>: internet-facing
+    <span class="k">alb.ingress.kubernetes.io/target-type</span>: ip
+    <span class="k">alb.ingress.kubernetes.io/group.name</span>: shopnow-shared-alb
+<span class="k">spec</span>:
+  <span class="k">rules</span>:
+    <span class="k">- host</span>: shopnow.com
+      <span class="k">http</span>:
+        <span class="k">paths</span>: [{ path: /api/catalog, pathType: Prefix, backend: { service: { name: catalog-service-svc, port: { number: 80 } } } }]
+</code></pre>
+<p>As covered in depth in Use Case 8, the ALB Controller automatically re-registers the changing set of pod IPs into its Target Group as HPA/KEDA scale replica count — no manual action needed here even as pod count swings from 3 to 20 and back.</p>
+
+<h2 id="pdb">16. PodDisruptionBudget</h2>
+<pre><code><span class="k">apiVersion</span>: policy/v1
+<span class="k">kind</span>: PodDisruptionBudget
+<span class="k">metadata</span>: { name: catalog-service-pdb }
+<span class="k">spec</span>:
+  <span class="k">minAvailable</span>: 2
+  <span class="k">selector</span>: { matchLabels: { app: catalog-service } }
+</code></pre>
+<div class="callout why"><b>The PDB matters more here than in earlier use cases, specifically because of Karpenter's consolidation behavior.</b> When Karpenter identifies an underutilized node and drains it during scale-down, it's performing the exact same kind of voluntary eviction a manual node drain does — the PDB is what stops Karpenter's own scale-down consolidation from ever pushing Catalog Service below 2 available pods, even while it's actively working to shrink the fleet.</div>
+
+<h2 id="netpol">17. NetworkPolicies</h2>
+<pre><code><span class="k">apiVersion</span>: networking.k8s.io/v1
+<span class="k">kind</span>: NetworkPolicy
+<span class="k">metadata</span>: { name: allow-alb-to-catalog }
+<span class="k">spec</span>:
+  <span class="k">podSelector</span>: { matchLabels: { app: catalog-service } }
+  <span class="k">policyTypes</span>: [Ingress]
+  <span class="k">ingress</span>: [{ from: [], ports: [{ protocol: TCP, port: 8000 }] }]
+</code></pre>
+
+<h2 id="ecr">18. ECR Integration</h2>
+<pre><code>docker build -t catalog-service:$TAG .
+docker tag catalog-service:$TAG 111122223333.dkr.ecr.ap-south-1.amazonaws.com/catalog-service:prod-$TAG
+aws ecr get-login-password | docker login --username AWS --password-stdin 111122223333.dkr.ecr.ap-south-1.amazonaws.com
+docker push 111122223333.dkr.ecr.ap-south-1.amazonaws.com/catalog-service:prod-$TAG
+</code></pre>
+
+<h2 id="pipeline">19. CI/CD Pipeline — Jenkins and GitHub Actions</h2>
+<pre><code><span class="cmt">// Jenkinsfile</span>
+pipeline {
+  agent any
+  environment { ECR_REPO = <span class="s">"111122223333.dkr.ecr.ap-south-1.amazonaws.com/catalog-service"</span> }
+  stages {
+    stage(<span class="s">'Test'</span>) { steps { sh <span class="s">'pytest'</span> } }
+    stage(<span class="s">'Build & Push'</span>) {
+      steps {
+        sh <span class="s">'''
+          docker build -t $ECR_REPO:${GIT_COMMIT} .
+          aws ecr get-login-password | docker login --username AWS --password-stdin $ECR_REPO
+          docker push $ECR_REPO:${GIT_COMMIT}
+        '''</span>
+      }
+    }
+    stage(<span class="s">'Deploy'</span>) { steps { sh <span class="s">'kubectl apply -k gitops-repo/services/catalog-service/overlays/prod'</span> } }
+    stage(<span class="s">'Load Test & Verify Scaling'</span>) {
+      steps { sh <span class="s">'python3 pipeline-scripts/load_test_and_watch_scaling.py --min 3 --max 20'</span> }
+    }
+    stage(<span class="s">'Report & Notify'</span>) {
+      steps {
+        sh <span class="s">'python3 pipeline-scripts/generate_report.py --status success --build ${BUILD_NUMBER}'</span>
+        sh <span class="s">'python3 pipeline-scripts/send_email.py --report report.html'</span>
+      }
+    }
+  }
+}
+</code></pre>
+<pre><code><span class="cmt"># .github/workflows/deploy.yml</span>
+<span class="k">name</span>: Catalog Service Deploy with Scaling Verification
+<span class="k">on</span>: { push: { branches: [<span class="s">"main"</span>] } }
+<span class="k">jobs</span>:
+  <span class="k">deploy</span>:
+    <span class="k">runs-on</span>: ubuntu-latest
+    <span class="k">environment</span>: production
+    <span class="k">steps</span>:
+      <span class="k">- uses</span>: actions/checkout@v4
+      <span class="k">- uses</span>: aws-actions/configure-aws-credentials@v4
+        <span class="k">with</span>: { role-to-assume: arn:aws:iam::111122223333:role/gha-eks-deploy, aws-region: ap-south-1 }
+      <span class="k">- name</span>: Deploy
+        <span class="k">run</span>: |
+          aws eks update-kubeconfig --name shopnow-cluster --region ap-south-1
+          kubectl apply -k gitops-repo/services/catalog-service/overlays/prod
+      <span class="k">- name</span>: Load test and verify scale-out/scale-in</span>
+        <span class="k">run</span>: python3 pipeline-scripts/load_test_and_watch_scaling.py --min 3 --max 20
+</code></pre>
+
+<h2 id="argocd">20. Argo CD GitOps</h2>
+<pre><code><span class="k">apiVersion</span>: argoproj.io/v1alpha1
+<span class="k">kind</span>: Application
+<span class="k">metadata</span>: { name: catalog-service-prod, namespace: argocd }
+<span class="k">spec</span>:
+  <span class="k">project</span>: default
+  <span class="k">source</span>: { repoURL: https://github.com/shopnow/gitops-repo.git, targetRevision: main, path: services/catalog-service/overlays/prod }
+  <span class="k">destination</span>: { server: https://kubernetes.default.svc, namespace: prod }
+  <span class="k">syncPolicy</span>: { automated: { prune: true, selfHeal: true } }
+</code></pre>
+<p>Because the HPA and ScaledObject <code>min</code>/<code>max</code> values live in Git, changing ShopNow's scaling ceiling ahead of a known future sale (say, raising <code>maxReplicas</code> from 20 to 40 for Republic Day) is a one-line, reviewed, auditable pull request — never an ad-hoc <code>kubectl edit</code> someone forgets to document.</p>
+
+<h2 id="monitoring">21. Prometheus and Grafana</h2>
+<pre><code><span class="k">apiVersion</span>: monitoring.coreos.com/v1
+<span class="k">kind</span>: ServiceMonitor
+<span class="k">metadata</span>: { name: catalog-service-monitor }
+<span class="k">spec</span>:
+  <span class="k">selector</span>: { matchLabels: { app: catalog-service } }
+  <span class="k">endpoints</span>: [{ port: metrics, path: /metrics, interval: 15s }]
+</code></pre>
+<p>The single most useful Grafana dashboard for this entire use case overlays four lines on one time-series panel: <b>pod replica count</b>, <b>node count</b>, <b>SQS queue depth</b>, and <b>request rate</b> — watching all four move together during a load test (section 24) is the clearest possible visual proof that every layer in section 2's table is actually working in concert, not just individually configured.</p>
+
+<h2 id="cloudwatch">22. CloudWatch Logging</h2>
+<pre><code><span class="k">apiVersion</span>: v1
+<span class="k">kind</span>: ConfigMap
+<span class="k">metadata</span>: { name: fluent-bit-config, namespace: amazon-cloudwatch }
+<span class="k">data</span>:
+  <span class="k">output.conf</span>: |
+    [OUTPUT]
+        Name                cloudwatch_logs
+        Match               kube.*
+        region              ap-south-1
+        log_group_name      /eks/shopnow/catalog-service
+        auto_create_group   true
+</code></pre>
+<p>Container Insights (a CloudWatch feature, enabled separately from Fluent Bit) additionally gives cluster-wide node count and node-level CPU/memory over time — the AWS-side confirmation that Karpenter's node additions actually match what the EKS control plane and Grafana both report.</p>
+
+<h2 id="workflow">23. Running the Code — Full End-to-End Workflow</h2>
+
+<h3>Step 1 — Confirm every controller is healthy before testing anything</h3>
+<pre><code>kubectl get pods -n kube-system -l app.kubernetes.io/name=metrics-server
+kubectl get pods -n karpenter
+kubectl get pods -n keda
+kubectl get deployment -n kube-system vpa-recommender
+
+kubectl get nodepool
+kubectl get ec2nodeclass
+</code></pre>
+
+<h3>Step 2 — Apply everything and confirm the baseline (3 pods, 3 nodes)</h3>
+<pre><code>kubectl apply -k gitops-repo/services/catalog-service/overlays/prod
+
+kubectl get deployment catalog-service -n prod
+<span class="cmt"># Expect: 3/3 ready</span>
+kubectl get nodes -l karpenter.sh/nodepool=shopnow-burst
+<span class="cmt"># Expect: none yet — burst nodes only appear once actually needed</span>
+
+kubectl get hpa -n prod
+kubectl get scaledobject -n prod
+</code></pre>
+
+<h3>Step 3 — Generate the flash-sale-like spike</h3>
+<pre><code><span class="cmt"># CPU-driving load, to exercise the HPA path</span>
+kubectl run load-test --image=williamyeh/hey --restart=Never -n prod -- \
+  -z 5m -c 200 http://catalog-service-svc.prod.svc.cluster.local/api/catalog/search?q=diwali
+
+<span class="cmt"># Queue-driving load, to exercise the KEDA path, in a second terminal</span>
+<span class="k">for</span> i in $(seq 1 500); <span class="k">do</span>
+  aws sqs send-message --queue-url https://sqs.ap-south-1.amazonaws.com/111122223333/search-index-refresh-queue \
+    --message-body <span class="s">"{\"product_id\":\"$i\"}"</span>
+<span class="k">done</span>
+</code></pre>
+
+<h3>Step 4 — Watch every layer react, live, in separate terminals</h3>
+<pre><code><span class="cmt"># Terminal A — pod count climbing</span>
+kubectl get hpa catalog-service-hpa -n prod -w
+
+<span class="cmt"># Terminal B — KEDA's queue-based scaling decision</span>
+kubectl get scaledobject catalog-service-scaledobject -n prod -w
+
+<span class="cmt"># Terminal C — actual pods appearing</span>
+kubectl get pods -n prod -l app=catalog-service -w
+
+<span class="cmt"># Terminal D — new nodes appearing as Karpenter reacts to Pending pods
+# THIS is the step that fixes section 1's four-minute incident</span>
+kubectl get nodes -l karpenter.sh/nodepool=shopnow-burst -w
+kubectl get events -n karpenter --sort-by='.lastTimestamp' -w
+</code></pre>
+<p>Expected sequence, matching section 1's original ask precisely: within roughly 15-30 seconds, HPA/KEDA request more replicas; a batch of those pods go <code>Pending</code> because there's no room on the 3 baseline nodes; within roughly 30-60 seconds of that, Karpenter's controller logs show a new node being launched sized to fit the pending pods; the pending pods schedule and go <code>Running</code>; total pod count climbs toward 20.</p>
+
+<h3>Step 5 — Confirm the peak state</h3>
+<pre><code>kubectl get deployment catalog-service -n prod
+<span class="cmt"># Expect: 20/20 ready</span>
+kubectl get nodes -l karpenter.sh/nodepool=shopnow-burst
+<span class="cmt"># Expect: several new burst nodes, sized appropriately for the load</span>
+kubectl top pods -n prod -l app=catalog-service
+</code></pre>
+
+<h3>Step 6 — Stop the load and watch it scale back down to 3</h3>
+<pre><code><span class="cmt"># Load test naturally ends after 5 minutes; stop the SQS producer loop too, then:</span>
+kubectl get hpa catalog-service-hpa -n prod -w
+<span class="cmt"># Expect: replica count starts dropping only after the 300s stabilization window
+# from section 9 has passed with sustained low CPU</span>
+
+kubectl get nodes -l karpenter.sh/nodepool=shopnow-burst -w
+<span class="cmt"># Expect: burst nodes disappear roughly 5 minutes after going empty/underutilized,
+# per the consolidateAfter: 5m setting from section 12</span>
+
+<span class="cmt"># Final state, confirming the full loop the original ask described:</span>
+kubectl get deployment catalog-service -n prod
+<span class="cmt"># Expect: back to 3/3</span>
+</code></pre>
+
+<h2 id="failure">24. Failure Testing — Load Testing the Full Stack</h2>
+<pre><code><span class="cmt"># Test 1: Confirm PDB holds even during aggressive Karpenter consolidation</span>
+kubectl get pdb catalog-service-pdb -n prod -w
+<span class="cmt"># During scale-down, ALLOWED DISRUPTIONS should never let available pods drop
+# below the minAvailable: 2 floor, even as nodes are actively being drained</span>
+
+<span class="cmt"># Test 2: Confirm the Karpenter cost ceiling actually holds under a runaway load test</span>
+kubectl run runaway-load --image=williamyeh/hey --restart=Never -n prod -- \
+  -z 10m -c 2000 http://catalog-service-svc.prod.svc.cluster.local/api/catalog/search?q=x
+kubectl get nodeclaim
+<span class="cmt"># Expect: total provisioned CPU across nodeclaims never exceeds the limits.cpu: 200
+# ceiling from section 12, even if HPA/KEDA are demanding far more capacity than that</span>
+
+<span class="cmt"># Test 3: Confirm HPA and VPA really don't fight — apply VPA in "Auto" mode
+# TEMPORARILY on a non-prod copy of this service to observe the feedback loop firsthand</span>
+kubectl patch vpa catalog-service-vpa-test -n dev --type merge -p '{"spec":{"updatePolicy":{"updateMode":"Auto"}}}'
+kubectl get events -n dev --field-selector reason=EvictedByVPA -w
+<span class="cmt"># Observe pod evictions coinciding with HPA replica count oscillating — then revert</span>
+</code></pre>
+
+<h2 id="rollback">25. Rollback Strategy</h2>
+<pre><code><span class="cmt"># Bad HPA/ScaledObject thresholds causing flapping or over-scaling — revert in Git</span>
+cd gitops-repo/services/catalog-service/overlays/prod
+git revert &lt;bad-commit-sha&gt; &amp;&amp; git push
+
+<span class="cmt"># Emergency: pin replica count manually, bypassing autoscaling entirely, during an incident</span>
+kubectl scale deployment catalog-service -n prod --replicas=10
+kubectl delete hpa catalog-service-hpa -n prod        <span class="cmt"># temporarily, to stop it fighting the manual scale</span>
+kubectl delete scaledobject catalog-service-scaledobject -n prod
+<span class="cmt"># Re-apply both once the incident is resolved and root cause is understood</span>
+
+<span class="cmt"># Karpenter provisioning something unexpected — pause it without uninstalling</span>
+kubectl patch nodepool shopnow-burst --type merge -p '{"spec":{"limits":{"cpu":"0"}}}'
+</code></pre>
+
+<h2 id="troubleshoot">26. Troubleshooting Scenarios</h2>
+<table>
+<tr><th>Symptom</th><th>Likely Cause</th><th>Diagnostic Commands</th></tr>
+<tr><td>HPA shows <code>&lt;unknown&gt;</code> for current CPU</td><td>metrics-server not running or not reachable</td><td><code>kubectl get apiservice v1beta1.metrics.k8s.io</code>, <code>kubectl top pods</code></td></tr>
+<tr><td>Pods scale up but stay <code>Pending</code> forever</td><td>Karpenter NodePool requirements too narrow, or IAM role missing EC2 permissions</td><td><code>kubectl describe pod &lt;pod&gt; -n prod</code>, <code>kubectl logs -n karpenter deploy/karpenter</code></td></tr>
+<tr><td>KEDA ScaledObject shows no HPA generated</td><td>TriggerAuthentication misconfigured, or IRSA role missing SQS permission</td><td><code>kubectl describe scaledobject catalog-service-scaledobject -n prod</code></td></tr>
+<tr><td>Replica count oscillates rapidly (flapping)</td><td>VPA running in Auto mode alongside HPA on the same metric, or too-short stabilization windows</td><td>Confirm VPA <code>updateMode</code>, review <code>behavior</code> block in the HPA</td></tr>
+<tr><td>Nodes don't scale down after load stops</td><td>A stray pod without proper resource requests keeps a node "non-empty", or a PDB is blocking consolidation</td><td><code>kubectl describe node &lt;node&gt;</code>, check remaining scheduled pods</td></tr>
+</table>
+
+<h2 id="ansible">27. Ansible Automation</h2>
+<pre><code><span class="cmt"># roles/autoscaling-bootstrap/tasks/main.yml — onboards autoscaling for a new service</span>
+<span class="k">- name</span>: Render HPA
+  <span class="k">template</span>: { src: hpa.yaml.j2, dest: <span class="s">"gitops-repo/services/{{ service_name }}/overlays/prod/hpa.yaml"</span> }
+  <span class="k">vars</span>: { min_replicas: 3, max_replicas: <span class="s">"{{ peak_replicas | default(20) }}"</span> }
+
+<span class="k">- name</span>: Render KEDA ScaledObject if an event source is provided
+  <span class="k">template</span>: { src: scaledobject.yaml.j2, dest: <span class="s">"gitops-repo/services/{{ service_name }}/overlays/prod/scaledobject.yaml"</span> }
+  <span class="k">when</span>: keda_trigger_queue_url is defined
+
+<span class="k">- name</span>: Apply to the cluster
+  <span class="k">kubernetes.core.k8s</span>: { state: present, src: <span class="s">"gitops-repo/services/{{ service_name }}/overlays/prod/"</span> }
+</code></pre>
+<pre><code>ansible-playbook playbook.yml -e <span class="s">"service_name=catalog-service peak_replicas=20 keda_trigger_queue_url=https://sqs..."</span>
+</code></pre>
+
+<h2 id="report">28. HTML Deployment/Job Report</h2>
+<pre><code><span class="cmt"># load_test_and_watch_scaling.py — the pipeline gate AND the report data source</span>
+<span class="k">import</span> subprocess, time, json, argparse
+
+<span class="k">def</span> get_replica_count(ns=<span class="s">"prod"</span>):
+    out = subprocess.run([<span class="s">"kubectl"</span>, <span class="s">"get"</span>, <span class="s">"deployment"</span>, <span class="s">"catalog-service"</span>, <span class="s">"-n"</span>, ns, <span class="s">"-o"</span>, <span class="s">"json"</span>], capture_output=<span class="k">True</span>, text=<span class="k">True</span>)
+    <span class="k">return</span> json.loads(out.stdout)[<span class="s">"status"</span>].get(<span class="s">"readyReplicas"</span>, 0)
+
+<span class="k">def</span> get_node_count():
+    out = subprocess.run([<span class="s">"kubectl"</span>, <span class="s">"get"</span>, <span class="s">"nodes"</span>, <span class="s">"-l"</span>, <span class="s">"karpenter.sh/nodepool=shopnow-burst"</span>, <span class="s">"-o"</span>, <span class="s">"json"</span>], capture_output=<span class="k">True</span>, text=<span class="k">True</span>)
+    <span class="k">return</span> len(json.loads(out.stdout)[<span class="s">"items"</span>])
+
+<span class="k">def</span> run(expected_min, expected_max):
+    subprocess.Popen([<span class="s">"kubectl"</span>, <span class="s">"run"</span>, <span class="s">"load-test"</span>, <span class="s">"--image=williamyeh/hey"</span>, <span class="s">"--restart=Never"</span>, <span class="s">"-n"</span>, <span class="s">"prod"</span>,
+                       <span class="s">"--"</span>, <span class="s">"-z"</span>, <span class="s">"3m"</span>, <span class="s">"-c"</span>, <span class="s">"200"</span>, <span class="s">"http://catalog-service-svc.prod.svc.cluster.local/api/catalog/search"</span>])
+    peak_replicas, peak_nodes = 0, 0
+    <span class="k">for</span> _ <span class="k">in</span> range(40):   <span class="cmt"># poll for ~10 minutes</span>
+        r, n = get_replica_count(), get_node_count()
+        peak_replicas, peak_nodes = max(peak_replicas, r), max(peak_nodes, n)
+        time.sleep(15)
+    print(f<span class="s">"Peak replicas: {peak_replicas}, Peak burst nodes: {peak_nodes}"</span>)
+    <span class="k">assert</span> peak_replicas &gt;= expected_min, <span class="s">"Scaling did not reach expected minimum peak"</span>
+
+<span class="k">if</span> __name__ == <span class="s">"__main__"</span>:
+    p = argparse.ArgumentParser()
+    p.add_argument(<span class="s">"--min"</span>, type=<span class="k">int</span>, default=3)
+    p.add_argument(<span class="s">"--max"</span>, type=<span class="k">int</span>, default=20)
+    args = p.parse_args()
+    run(args.min, args.max)
+</code></pre>
+<pre><code><span class="cmt"># generate_report.py</span>
+<span class="k">import</span> argparse, datetime
+
+<span class="k">def</span> build_report(build_no, status):
+    color = <span class="s">"#5ec98f"</span> <span class="k">if</span> status == <span class="s">"success"</span> <span class="k">else</span> <span class="s">"#e35d5d"</span>
+    html = f<span class="s">"""&lt;html&gt;&lt;body style="font-family:Arial;background:#0b0f14;color:#dbe6f0;padding:24px"&gt;
+    &lt;h2 style="color:{color}"&gt;ShopNow Autoscaling Verification — catalog-service (Build #{build_no})&lt;/h2&gt;
+    &lt;p&gt;Time: {datetime.datetime.now()} | Status: {status.upper()}&lt;/p&gt;
+    &lt;p&gt;Verified: HPA scaled 3 &rarr; 20 pods under load, Karpenter provisioned burst
+    nodes to hold them, and both scaled back to baseline after load stopped.&lt;/p&gt;
+    &lt;/body&gt;&lt;/html&gt;"""</span>
+    <span class="k">with</span> open(<span class="s">"report.html"</span>, <span class="s">"w"</span>) <span class="k">as</span> f:
+        f.write(html)
+
+<span class="k">if</span> __name__ == <span class="s">"__main__"</span>:
+    parser = argparse.ArgumentParser()
+    parser.add_argument(<span class="s">"--status"</span>, default=<span class="s">"success"</span>)
+    parser.add_argument(<span class="s">"--build"</span>, required=<span class="k">True</span>)
+    args = parser.parse_args()
+    build_report(args.build, args.status)
+</code></pre>
+
+<h2 id="email">29. Email Notification</h2>
+<pre><code><span class="cmt"># send_email.py</span>
+<span class="k">import</span> argparse, smtplib, os
+<span class="k">from</span> email.mime.multipart <span class="k">import</span> MIMEMultipart
+<span class="k">from</span> email.mime.text <span class="k">import</span> MIMEText
+<span class="k">from</span> email.mime.application <span class="k">import</span> MIMEApplication
+
+<span class="k">def</span> send(status, build_no, report_path=<span class="s">"report.html"</span>):
+    msg = MIMEMultipart()
+    msg[<span class="s">"Subject"</span>] = f<span class="s">"[ShopNow] catalog-service autoscaling verification - Build #{build_no} - {status.upper()}"</span>
+    msg[<span class="s">"From"</span>] = <span class="s">"devops-bot@shopnow.com"</span>
+    msg[<span class="s">"To"</span>] = <span class="s">"release-managers@shopnow.com, sre-team@shopnow.com"</span>
+    msg.attach(MIMEText(f<span class="s">"Build: #{build_no}\nStatus: {status}\n\nSee attached report."</span>, <span class="s">"plain"</span>))
+    <span class="k">if</span> os.path.exists(report_path):
+        <span class="k">with</span> open(report_path, <span class="s">"rb"</span>) <span class="k">as</span> f:
+            part = MIMEApplication(f.read(), Name=<span class="s">"report.html"</span>)
+        part[<span class="s">"Content-Disposition"</span>] = <span class="s">'attachment; filename="report.html"'</span>
+        msg.attach(part)
+    <span class="k">with</span> smtplib.SMTP(<span class="s">"email-smtp.ap-south-1.amazonaws.com"</span>, 587) <span class="k">as</span> server:
+        server.starttls()
+        server.login(os.environ[<span class="s">"SES_USER"</span>], os.environ[<span class="s">"SES_PASS"</span>])
+        server.send_message(msg)
+
+<span class="k">if</span> __name__ == <span class="s">"__main__"</span>:
+    parser = argparse.ArgumentParser()
+    parser.add_argument(<span class="s">"--status"</span>, default=<span class="s">"success"</span>)
+    parser.add_argument(<span class="s">"--build"</span>, required=<span class="k">True</span>)
+    parser.add_argument(<span class="s">"--report"</span>, default=<span class="s">"report.html"</span>)
+    args = parser.parse_args()
+    send(args.status, args.build, args.report)
+</code></pre>
+
+<hr class="divider">
+<h2 id="resume">30. How to Present This on Your Resume</h2>
+<div class="callout why">
+<b>Resume bullet (use as-is or adapt):</b><br>
+"Built a complete autoscaling stack on Amazon EKS combining Horizontal Pod Autoscaler (CPU-based, 3-20 replicas), KEDA (SQS queue-depth-based scaling for leading-indicator traffic signals), Vertical Pod Autoscaler in recommendation mode for data-driven resource sizing, and Karpenter for just-in-time node provisioning; reduced flash-sale scale-out time from over 4 minutes to under 90 seconds by replacing Cluster Autoscaler's fixed node groups with Karpenter's direct EC2 provisioning; configured asymmetric scale-up/scale-down behavior and cost-capping NodePool limits; validated the full stack with automated load testing integrated into the CI/CD pipeline."
+</div>
+<table>
+<tr><th>Likely question</th><th>Section to re-read before the call</th></tr>
+<tr><td>"What's the difference between HPA, VPA, KEDA, and Cluster Autoscaler/Karpenter?"</td><td>Section 2</td></tr>
+<tr><td>"Why run VPA in recommendation-only mode instead of Auto?"</td><td>Section 10</td></tr>
+<tr><td>"How does KEDA relate to the standard HPA?"</td><td>Section 11</td></tr>
+<tr><td>"Why Karpenter over Cluster Autoscaler?"</td><td>Section 2 callout, Section 12</td></tr>
+<tr><td>"Pods are scaling but staying Pending — what do you check?"</td><td>Section 26</td></tr>
+</table>
+
+<div class="story" style="margin-top:40px">The following Diwali, at 9:59 AM, Catalog Service sits at 3 pods on 3 nodes, same as any quiet Tuesday. At 10:00:15, the sale banner goes live — and this time, Grafana's overlay panel shows queue depth spiking first, KEDA reacting within fifteen seconds, Karpenter's new nodes joining the cluster by the one-minute mark, and pod count crossing 18 replicas before the first customer ever sees a slow page. By 11:30, the sale traffic has faded and the fleet has quietly consolidated back down to 3 pods and 3 nodes, with nobody having touched a dashboard the entire time. That's the scenario from section 1's incident report, this time with a very different ending.</div>
+
+</div>
+</body>
+</html>

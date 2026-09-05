@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Project 14 — OpenShift Backup &amp; Disaster Recovery Automation</title>
+<style>
+:root{
+  --blue:#5b9dff; --blue-bg:#132038;
+  --purple:#b58aff; --purple-bg:#221a3a;
+  --green:#3ed67f; --green-bg:#11301f;
+  --orange:#ffb15c; --orange-bg:#3a2712;
+  --red:#ff6b6b; --red-bg:#3a1616;
+  --teal:#4fd8e0; --teal-bg:#0f2f31;
+  --ink:#e7ecf5; --sub:#9aa7bd; --line:#2a3345; --bg:#0d1117; --card:#141b26;
+  --code-bg:#0a0e14; --code-ink:#dfe7f5;
+}
+*{box-sizing:border-box;}
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--ink);line-height:1.65;}
+a{color:var(--blue);}
+.progress{position:fixed;top:0;left:0;height:4px;background:linear-gradient(90deg,var(--blue),var(--teal));z-index:999;width:0%;transition:width .1s;}
+header.cover{background:linear-gradient(135deg,#101a30 0%,#241a3d 100%);color:#fff;padding:56px 24px 40px;text-align:center;border-bottom:1px solid var(--line);}
+header.cover .badge{display:inline-block;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);padding:6px 14px;border-radius:20px;font-size:13px;letter-spacing:.5px;margin-bottom:14px;}
+header.cover h1{margin:8px auto;max-width:900px;font-size:32px;}
+header.cover p.sub{max-width:750px;margin:10px auto 0;opacity:.85;font-size:16px;}
+.meta-grid{display:flex;flex-wrap:wrap;gap:12px;justify-content:center;margin-top:26px;}
+.meta-chip{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.18);padding:8px 16px;border-radius:8px;font-size:13px;}
+nav.toc{position:sticky;top:0;background:#0f151f;border-bottom:1px solid var(--line);z-index:100;padding:10px 16px;overflow-x:auto;white-space:nowrap;}
+nav.toc a{color:var(--sub);text-decoration:none;font-size:13px;margin-right:18px;padding:6px 10px;border-radius:6px;}
+nav.toc a:hover{background:var(--blue-bg);color:var(--blue);}
+main{max-width:980px;margin:0 auto;padding:30px 20px 80px;}
+section{margin-bottom:46px;}
+h2{font-size:24px;border-left:5px solid var(--blue);padding-left:12px;margin-top:10px;color:#fff;}
+h3{font-size:19px;color:var(--purple);margin-top:28px;}
+h4{font-size:16px;color:#fff;margin-top:20px;}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:20px 22px;margin:16px 0;}
+.box{border-radius:10px;padding:16px 18px;margin:14px 0;border-left:5px solid;}
+.box.concept{background:var(--blue-bg);border-color:var(--blue);}
+.box.arch{background:var(--purple-bg);border-color:var(--purple);}
+.box.success{background:var(--green-bg);border-color:var(--green);}
+.box.warning{background:var(--orange-bg);border-color:var(--orange);}
+.box.fail{background:var(--red-bg);border-color:var(--red);}
+.box.best{background:var(--teal-bg);border-color:var(--teal);}
+.box strong.tag{display:block;font-size:12px;text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px;opacity:.85;}
+details{background:var(--card);border:1px solid var(--line);border-radius:10px;margin:12px 0;padding:4px 16px;}
+details summary{cursor:pointer;font-weight:600;padding:12px 0;color:var(--blue);}
+table{width:100%;border-collapse:collapse;margin:14px 0;font-size:14px;}
+th,td{border:1px solid var(--line);padding:9px 12px;text-align:left;vertical-align:top;}
+th{background:var(--blue-bg);color:var(--blue);}
+tr:nth-child(even){background:#101623;}
+.codewrap{position:relative;margin:14px 0;}
+pre{background:var(--code-bg);color:var(--code-ink);padding:18px;border-radius:10px;overflow-x:auto;font-size:13px;line-height:1.6;font-family:"SF Mono",Menlo,Consolas,monospace;border:1px solid var(--line);}
+pre .c{color:#6fd18a;}
+.copy-btn{position:absolute;top:10px;right:10px;background:#22304a;color:#fff;border:1px solid var(--line);padding:6px 12px;border-radius:6px;font-size:12px;cursor:pointer;}
+.copy-btn:hover{background:#2c3d5e;}
+.cmd-label{font-size:12px;color:var(--sub);text-transform:uppercase;letter-spacing:.5px;margin:14px 0 4px;}
+.flow{background:var(--purple-bg);border:1px dashed var(--purple);border-radius:10px;padding:16px;font-family:monospace;white-space:pre;font-size:13px;overflow-x:auto;color:var(--ink);}
+.qa{margin:14px 0;padding:14px 16px;background:var(--card);border:1px solid var(--line);border-radius:8px;}
+.qa .q{font-weight:600;color:var(--purple);}
+.badge-diff{display:inline-block;padding:3px 10px;border-radius:12px;font-size:12px;font-weight:600;}
+.badge-diff.mid{background:var(--orange-bg);color:var(--orange);}
+.steps{counter-reset:step;}
+.step{position:relative;padding:14px 16px 14px 52px;margin:10px 0;background:var(--card);border:1px solid var(--line);border-radius:10px;}
+.step::before{counter-increment:step;content:counter(step);position:absolute;left:14px;top:14px;width:26px;height:26px;background:var(--blue);color:#0d1117;font-weight:700;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;}
+footer{text-align:center;padding:30px;color:var(--sub);font-size:13px;}
+</style>
+</head>
+<body>
+<div class="progress" id="progressBar"></div>
+
+<header class="cover">
+  <div class="badge">OPENSHIFT + ANSIBLE MASTERCLASS · PROJECT 14 OF ~28</div>
+  <h1>OpenShift Backup &amp; Disaster Recovery Automation</h1>
+  <p class="sub">Automating etcd backup pre-checks, application-level (database + manifest) backup and restore-testing with Ansible, and running a full DR drill after a simulated namespace-deletion disaster.</p>
+  <div class="meta-grid">
+    <div class="meta-chip">Difficulty: <span class="badge-diff mid">Advanced</span></div>
+    <div class="meta-chip">Domain: Telecom / Platform Engineering</div>
+    <div class="meta-chip">OpenShift: 4.14+</div>
+    <div class="meta-chip">Ansible Core: 2.16 · kubernetes.core 3.x</div>
+    <div class="meta-chip">Lab Time: ~4 hrs</div>
+    <div class="meta-chip">Infra Cost: $0 (CRC / existing cluster; object storage for backups may incur cloud cost in real environments)</div>
+  </div>
+</header>
+
+<nav class="toc">
+  <a href="#story">Story</a>
+  <a href="#device">Run On Your Device</a>
+  <a href="#architecture">Architecture</a>
+  <a href="#playbooks">Playbooks</a>
+  <a href="#run">Execution</a>
+  <a href="#incident">DR Drill</a>
+  <a href="#breakfix">Break-Fix</a>
+  <a href="#security">Security</a>
+  <a href="#interview">Interview</a>
+  <a href="#resume">Resume</a>
+  <a href="#cheatsheet">Cheat Sheet</a>
+  <a href="#summary">Key Learnings</a>
+</nav>
+
+<main>
+
+<section id="story">
+<h2>1. The Production Story</h2>
+<div class="box concept">
+<strong class="tag">Scenario</strong>
+Compliance flags that payment-api has no documented, tested disaster recovery process. There's a vague assumption that "the database has snapshots somewhere," but nobody has ever actually tried to restore from them. The company needs a defined RTO/RPO and proof that recovery actually works.
+</div>
+<div class="box warning">
+<strong class="tag">Business Problem</strong>
+An untested backup is not a backup — it's a hope. We need to know, concretely, how long recovery takes and whether it actually works, before an auditor or a real disaster forces us to find out the hard way.
+</div>
+<div class="box best">
+<strong class="tag">Our Mandate</strong>
+Define RTO/RPO targets, automate application-level backup (CloudNativePG's built-in backup plus a manifest export of every Ansible-managed object), and run a full restore drill against a simulated disaster.
+</div>
+</section>
+
+<section id="device">
+<h2>2. Run This On Your Device</h2>
+<div class="box warning"><strong class="tag">Scope note</strong>etcd backup/restore is a cluster-admin, node-level operation typically run via <code>oc adm</code> scripts provided by Red Hat, not something to reinvent in Ansible — this project automates the pre-check and application-level backup/restore, and treats etcd backup as an operational prerequisite we verify exists.</div>
+<div class="steps">
+<div class="step"><strong>Confirm the CloudNativePG cluster from Project 7 is running.</strong>
+<div class="codewrap"><pre>oc get cluster payment-api-pg -n payment-api-dev</pre></div>
+</div>
+<div class="step"><strong>Add the backup role/playbook files from Section 4 to your repo.</strong>
+<div class="codewrap"><pre>mkdir -p payment-stack/roles/dr_backup/tasks</pre></div>
+</div>
+<div class="step"><strong>Run a backup.</strong>
+<div class="codewrap"><pre>ansible-playbook playbooks/backup.yml -e app_name=payment-api -e environment=dev</pre></div>
+</div>
+<div class="step"><strong>Simulate a disaster in a throwaway DEV namespace only — never in a shared environment.</strong>
+<div class="codewrap"><pre>oc delete namespace payment-api-dev</pre></div>
+</div>
+<div class="step"><strong>Run the restore playbook and time it.</strong>
+<div class="codewrap"><pre>time ansible-playbook playbooks/restore.yml -e app_name=payment-api -e environment=dev</pre></div>
+</div>
+</div>
+</section>
+
+<section id="architecture">
+<h2>3. Architecture</h2>
+<div class="flow">Scheduled Backup Trigger (cron / Automation Controller schedule)
+   │
+   ├── etcd backup (cluster-admin node-level script — verified present, not Ansible-driven)
+   │
+   ├── CloudNativePG scheduled Backup CR → object storage (database data)
+   │
+   └── Ansible manifest export: every Ansible-managed object,
+       serialized to YAML, stored alongside the DB backup
+
+RESTORE PATH (disaster):
+   1. Recreate namespace + baseline (Project 1 playbook)
+   2. Recreate RBAC (Project 2 playbook)
+   3. Restore database from CloudNativePG Backup CR
+   4. Re-apply application manifests (Project 3+ playbooks)
+   5. Validate (Project 13's post-upgrade validation, reused)</div>
+<table>
+<tr><th>Term</th><th>Meaning</th></tr>
+<tr><td>RTO (Recovery Time Objective)</td><td>Maximum acceptable time to restore service after a disaster</td></tr>
+<tr><td>RPO (Recovery Point Objective)</td><td>Maximum acceptable data loss, measured in time since last backup</td></tr>
+<tr><td>Restore test</td><td>Actually performing a restore in a non-production environment to prove the backup is usable</td></tr>
+</table>
+<div class="box arch"><strong class="tag">Our targets for payment-api</strong>RTO: 30 minutes. RPO: 15 minutes (matches the CloudNativePG continuous WAL archiving interval configured below).</div>
+</section>
+
+<section id="playbooks">
+<h2>4. The Playbooks — Fully Commented</h2>
+
+<h3>4.1 roles/dr_backup/tasks/main.yml</h3>
+<div class="cmd-label">roles/dr_backup/tasks/main.yml</div>
+<div class="codewrap"><pre><span class="c">---
+# Triggers a CloudNativePG backup and exports every Ansible-managed
+# manifest for this app/environment as a point-in-time record.</span>
+
+- name: Verify etcd backup is configured as a cluster prerequisite         <span class="c"># read-only check, NOT an attempt to script etcd backup ourselves</span>
+  ansible.builtin.stat:                                                     <span class="c"># checks for a marker file our platform team's separate etcd-backup cronjob writes</span>
+    path: /var/run/etcd-backup-last-success                                  <span class="c"># convention: that job touches this file on each successful run</span>
+  register: etcd_marker                                                       <span class="c"># holds file existence/mtime info</span>
+  delegate_to: localhost                                                       <span class="c"># runs on the Ansible control node, not against the cluster API</span>
+
+- name: Warn if etcd backup hasn't run recently                                <span class="c"># advisory, not a hard failure -- etcd backup is out of this role's scope</span>
+  ansible.builtin.debug:
+    msg: "WARNING: etcd backup marker missing or stale -- confirm the platform-level etcd backup job is healthy"
+  when: not etcd_marker.stat.exists                                             <span class="c"># only warns, doesn't stop the play</span>
+
+- name: Trigger an on-demand CloudNativePG Backup                               <span class="c"># the actual application data backup</span>
+  kubernetes.core.k8s:
+    state: present                                                              <span class="c"># creating a Backup CR triggers the Operator to act</span>
+    definition:
+      apiVersion: postgresql.cnpg.io/v1                                          <span class="c"># same Operator CRD API group as Project 7</span>
+      kind: Backup                                                                <span class="c"># CloudNativePG's on-demand backup CRD</span>
+      metadata:
+        name: "{{ app_name }}-backup-{{ ansible_date_time.epoch }}"                 <span class="c"># unique name per run using the current epoch timestamp</span>
+        namespace: "{{ app_name }}-{{ environment }}"
+      spec:
+        cluster:
+          name: "{{ app_name }}-pg"                                                 <span class="c"># must match the Cluster CR name from Project 7</span>
+  register: backup_result                                                            <span class="c"># capture for the wait below</span>
+
+- name: Assert Backup CR creation succeeded                                           <span class="c"># fail fast on API rejection</span>
+  ansible.builtin.assert:
+    that: [backup_result is succeeded]
+    fail_msg: "Failed to trigger backup for {{ app_name }}-pg"
+
+- name: Wait for the backup to complete                                               <span class="c"># confirms the backup actually finished, not just started</span>
+  kubernetes.core.k8s_info:
+    kind: Backup
+    api_version: postgresql.cnpg.io/v1
+    name: "{{ backup_result.result.metadata.name }}"                                    <span class="c"># the exact backup object we just created</span>
+    namespace: "{{ app_name }}-{{ environment }}"
+  register: backup_status                                                                <span class="c"># holds live .status.phase</span>
+  until: backup_status.resources[0].status.phase | default('') == "completed"             <span class="c"># CloudNativePG's own success phase string</span>
+  retries: 30                                                                              <span class="c"># database backups can take a few minutes for larger datasets</span>
+  delay: 10
+
+- name: Export every Ansible-managed manifest as a point-in-time record                     <span class="c"># covers everything OUTSIDE the database itself</span>
+  ansible.builtin.shell: |                                                                    <span class="c"># shell used here deliberately for oc's native export capability</span>
+    oc get all,configmap,secret,pvc,route,rolebinding,networkpolicy \
+      -n {{ app_name }}-{{ environment }} -o yaml \
+      > backups/{{ app_name }}-{{ environment }}-{{ ansible_date_time.date }}.yaml   <span class="c"># dated filename -- one snapshot per day, kept in Git or object storage</span>
+  args:
+    creates: "backups/{{ app_name }}-{{ environment }}-{{ ansible_date_time.date }}.yaml"  <span class="c"># idempotency for the shell task -- skips if today's export already exists</span>
+  changed_when: true                                                                          <span class="c"># explicit -- shell tasks don't auto-detect changed state</span></pre></div>
+
+<h3>4.2 playbooks/restore.yml</h3>
+<div class="cmd-label">playbooks/restore.yml</div>
+<div class="codewrap"><pre><span class="c">---
+# Full restore drill -- reuses EVERY prior project's playbooks in
+# sequence, then restores the database from the latest Backup CR.</span>
+- name: Disaster recovery restore
+  hosts: localhost
+  connection: local
+  gather_facts: true
+
+  tasks:
+    - name: Rebuild namespace baseline (Project 1)                          <span class="c"># same role, same idempotent apply logic -- nothing DR-specific here</span>
+      ansible.builtin.include_role: {name: openshift_project}
+    - ansible.builtin.include_role: {name: openshift_quota}
+      name: Rebuild quota (Project 1)
+
+    - name: Rebuild RBAC (Project 2)                                        <span class="c"># restores access before anyone needs it post-restore</span>
+      ansible.builtin.include_role: {name: openshift_rbac}
+
+    - name: Rebuild network policy (Project 1)
+      ansible.builtin.include_role: {name: openshift_network}
+
+    - name: Restore PostgreSQL from the latest Backup CR                     <span class="c"># the actual data recovery step</span>
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: postgresql.cnpg.io/v1
+          kind: Cluster                                                        <span class="c"># CloudNativePG restores by creating a NEW Cluster from a backup source</span>
+          metadata:
+            name: "{{ app_name }}-pg"
+            namespace: "{{ app_name }}-{{ environment }}"
+          spec:
+            instances: "{{ pg_instance_count | default(3) }}"
+            bootstrap:
+              recovery:                                                          <span class="c"># recovery bootstrap mode instead of initdb</span>
+                source: "{{ app_name }}-backup-source"                             <span class="c"># references the backup's external cluster definition</span>
+            externalClusters:
+              - name: "{{ app_name }}-backup-source"
+                barmanObjectStore:
+                  destinationPath: "{{ backup_object_storage_path }}"               <span class="c"># where CloudNativePG's backups actually live</span>
+      register: restore_result
+
+    - name: Wait for restored cluster to be healthy                            <span class="c"># same pattern as Project 7's original cluster creation</span>
+      kubernetes.core.k8s_info:
+        kind: Cluster
+        api_version: postgresql.cnpg.io/v1
+        name: "{{ app_name }}-pg"
+        namespace: "{{ app_name }}-{{ environment }}"
+      register: restore_status
+      until: restore_status.resources[0].status.phase | default('') == "Cluster in healthy state"
+      retries: 40
+      delay: 15
+
+    - name: Re-apply application tiers (Projects 3-4)                          <span class="c"># backend, frontend, Route/TLS -- all idempotent, safe to reapply</span>
+      ansible.builtin.include_role: {name: backend}
+    - ansible.builtin.include_role: {name: frontend}
+      name: Re-apply frontend (Project 3-4)
+
+    - name: Run post-upgrade validation as the restore's final proof           <span class="c"># reuses Project 13's playbook -- same bar as any other health confirmation</span>
+      ansible.builtin.import_tasks: post_upgrade_validate_tasks.yml             <span class="c"># extracted shared tasks, same pattern as Project 13</span></pre></div>
+</section>
+
+<section id="run">
+<h2>5. Execution &amp; Idempotency</h2>
+<div class="codewrap"><pre>ansible-playbook playbooks/backup.yml -e app_name=payment-api -e environment=dev</pre></div>
+<div class="box success"><strong class="tag">First run</strong><pre style="background:#0f2b1c;border-color:#1a4a2c;">PLAY RECAP *** ok=6 changed=3 failed=0</pre></div>
+<div class="box concept"><strong class="tag">Note on idempotency here</strong>Backup triggers are intentionally NOT idempotent in the usual sense — running the playbook again should create a NEW backup, not skip because one already exists. The <code>creates:</code> guard on the manifest export is date-scoped specifically so it's idempotent per-day, not per-run.</div>
+</section>
+
+<section id="incident">
+<h2>6. DR Drill — Simulated Namespace Deletion</h2>
+<div class="box fail"><strong class="tag">Drill scenario</strong>To prove the backup is real, we deliberately delete the entire <code>payment-api-dev</code> namespace — database, app, everything — and time a full recovery.</div>
+
+<div class="cmd-label">T+0:00 — disaster</div>
+<div class="codewrap"><pre>oc delete namespace payment-api-dev
+namespace "payment-api-dev" deleted</pre></div>
+
+<div class="cmd-label">T+0:01 — begin restore</div>
+<div class="codewrap"><pre>time ansible-playbook playbooks/restore.yml -e app_name=payment-api -e environment=dev \
+  -e backup_object_storage_path=s3://payment-backups/dev</pre></div>
+
+<div class="cmd-label">T+0:04 — namespace, quota, RBAC, network policy recreated</div>
+<div class="codewrap"><pre>oc get project payment-api-dev
+oc get rolebinding -n payment-api-dev
+<span class="c"># all present -- roles 1, 2 completed in under 4 minutes, as expected (no data involved)</span></pre></div>
+
+<div class="cmd-label">T+0:22 — database restore completes</div>
+<div class="codewrap"><pre>oc get cluster payment-api-pg -n payment-api-dev
+NAME             INSTANCES   READY   STATUS
+payment-api-pg   3           3       Cluster in healthy state</pre></div>
+
+<div class="cmd-label">T+0:27 — application tiers re-applied, validation passes</div>
+<div class="codewrap"><pre>PLAY RECAP *** ok=8 changed=8 failed=0
+<span class="c"># post-upgrade validation tasks (reused from Project 13) all pass</span></pre></div>
+
+<div class="box success"><strong class="tag">Drill result</strong>Full recovery in 27 minutes — inside our 30-minute RTO target. Restored data confirmed current to within 12 minutes of deletion (inside the 15-minute RPO target), verified by comparing the latest transaction timestamp in the restored database against known pre-disaster activity.</div>
+
+<h3>Drill RCA / Findings</h3>
+<table>
+<tr><th>Field</th><th>Detail</th></tr>
+<tr><td>RTO achieved</td><td>27 minutes (target: 30)</td></tr>
+<tr><td>RPO achieved</td><td>~12 minutes of data loss (target: 15)</td></tr>
+<tr><td>Gap found</td><td>Step 3 (database restore) took 18 of the 27 minutes — the single largest component; worth investigating faster restore options if RTO targets tighten later</td></tr>
+<tr><td>Preventive/follow-up action</td><td>Schedule this exact drill quarterly per compliance requirement; document the runbook so any on-call engineer, not just its author, can execute it under pressure</td></tr>
+</table>
+</section>
+
+<section id="breakfix">
+<h2>7. Additional Break-Fix Labs</h2>
+<details><summary>Break-Fix — restore fails, backup object storage path wrong</summary>
+<div class="codewrap"><pre>TASK [Wait for restored cluster to be healthy] ***
+fatal: [localhost]: FAILED! =&gt; {"msg": "Timeout waiting for cluster.status.phase"}
+
+oc describe cluster payment-api-pg -n payment-api-dev
+Message: failed to connect to object store: NoSuchBucket</pre></div>
+<p><strong>Root cause:</strong> the <code>backup_object_storage_path</code> variable pointed at the wrong bucket/environment. <strong>Fix:</strong> store this per-environment in <code>group_vars</code> (same pattern as every other environment-specific value in this series) rather than typing it by hand during a drill.</p>
+</details>
+<details><summary>Break-Fix — manifest export missing a resource type</summary>
+<p><strong>Symptom:</strong> after restore, a custom Secret referenced by the app is missing — it wasn't in the exported manifest list.</p>
+<p><strong>Root cause:</strong> the <code>oc get</code> resource-type list in Section 4.1 didn't include every object kind actually in use. <strong>Fix:</strong> maintain that list deliberately as new object types are introduced (e.g. Project 8's ServiceMonitor/PrometheusRule, Project 9's ClusterLogForwarder) rather than assuming it's complete forever.</p>
+</details>
+</section>
+
+<section id="security">
+<h2>8. Security Review</h2>
+<table>
+<tr><th>Control</th><th>Detail</th></tr>
+<tr><td>Backup encryption</td><td>Object storage backend should have encryption-at-rest enabled (bucket-level policy, outside Ansible's scope but verified as a prerequisite)</td></tr>
+<tr><td>Restore rebuilds RBAC first</td><td>Prevents any window where a restored namespace has no access controls</td></tr>
+<tr><td>Drill isolation</td><td>DR drills run only in a disposable DEV namespace, never against shared/PROD environments</td></tr>
+</table>
+</section>
+
+<section id="interview">
+<h2>9. Interview Preparation</h2>
+<div class="qa"><div class="q">Interviewer: "How do you know your backups actually work?"</div>
+<p><strong>Answer:</strong> By restoring from them, on a schedule, not just taking them. We run a quarterly DR drill that deletes an entire namespace in a disposable environment and times a full recovery using the same Ansible playbooks we'd use in a real disaster — namespace, RBAC, database restore, application tiers, then the same validation suite from our upgrade process. That drill is what actually proves the RTO/RPO numbers, not the backup schedule alone.</p></div>
+<div class="qa"><div class="q">Interviewer: "How did you decide the RTO and RPO targets?"</div>
+<p><strong>Answer:</strong> RPO followed directly from how frequently we could reasonably archive WAL data without adding meaningful overhead — 15 minutes. RTO of 30 minutes was a business conversation, then validated against what our drill actually achieves; we found the database restore step is the largest chunk of that time, which tells us where to focus if the business ever needs a tighter RTO.</p></div>
+</section>
+
+<section id="resume">
+<h2>10. Resume Points</h2>
+<div class="box best"><ul>
+<li>Designed and automated an application-level backup and disaster recovery process for a production OpenShift application, defining and validating RTO/RPO targets through a live restore drill.</li>
+<li>Built an Ansible-driven restore runbook that reconstructs namespace, RBAC, database, and application tiers end-to-end, achieving a 27-minute recovery time against a 30-minute target.</li>
+</ul></div>
+</section>
+
+<section id="cheatsheet">
+<h2>11. Troubleshooting Cheat Sheet</h2>
+<table>
+<tr><th>Symptom</th><th>Check</th></tr>
+<tr><td>Restore stuck waiting on Cluster status</td><td><code>oc describe cluster</code> — usually an object storage connectivity/path issue</td></tr>
+<tr><td>Restored app missing a resource</td><td>Manifest export resource-type list incomplete — update and re-export</td></tr>
+<tr><td>Backup never reaches "completed"</td><td>Check CloudNativePG operator logs and object storage credentials</td></tr>
+</table>
+</section>
+
+<section id="summary">
+<h2>12. Key Learnings</h2>
+<div class="card">
+<h4>OpenShift concepts</h4><p>RTO/RPO definitions in practice, CloudNativePG backup/recovery bootstrap mode, why etcd backup stays a platform-level (not app-level) concern.</p>
+<h4>Ansible concepts</h4><p>Composing a full restore runbook from previously-built roles (maximum reuse across the whole masterclass), date-scoped idempotency via <code>creates:</code>, timing a play with the shell <code>time</code> wrapper for RTO measurement.</p>
+<h4>Commands learned</h4><p><code>oc get all,configmap,secret,... -o yaml</code> for manifest export, reading CloudNativePG Backup/Cluster status phases.</p>
+<h4>Next project prerequisites</h4><p>Keep this repo — Project 15 moves into performance troubleshooting: CPU/memory/I/O bottleneck investigation using the monitoring and logging pipelines built in Projects 8-9.</p>
+</div>
+</section>
+
+</main>
+<footer>OpenShift + Ansible Masterclass — Project 14 of ~28.</footer>
+<script>
+window.addEventListener('scroll', function(){
+  var h = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+  var p = h ? (window.scrollY / h) * 100 : 0;
+  document.getElementById('progressBar').style.width = p + '%';
+});
+document.querySelectorAll('pre').forEach(function(pre){
+  if(pre.parentElement.classList.contains('codewrap')){
+    var btn = document.createElement('button');
+    btn.className = 'copy-btn'; btn.textContent = 'Copy';
+    btn.onclick = function(){
+      navigator.clipboard.writeText(pre.innerText);
+      btn.textContent = 'Copied!';
+      setTimeout(function(){ btn.textContent = 'Copy'; }, 1500);
+    };
+    pre.parentElement.appendChild(btn);
+  }
+});
+</script>
+</body>
+</html>

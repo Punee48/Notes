@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Project 21 — OpenShift Networking Deep Dive: OVN-Kubernetes, Egress &amp; Multi-Tenant NetworkPolicy</title>
+<style>
+:root{
+  --blue:#5b9dff; --blue-bg:#132038;
+  --purple:#b58aff; --purple-bg:#221a3a;
+  --green:#3ed67f; --green-bg:#11301f;
+  --orange:#ffb15c; --orange-bg:#3a2712;
+  --red:#ff6b6b; --red-bg:#3a1616;
+  --teal:#4fd8e0; --teal-bg:#0f2f31;
+  --ink:#e7ecf5; --sub:#9aa7bd; --line:#2a3345; --bg:#0d1117; --card:#141b26;
+  --code-bg:#0a0e14; --code-ink:#dfe7f5;
+}
+*{box-sizing:border-box;}
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--ink);line-height:1.65;}
+a{color:var(--blue);}
+.progress{position:fixed;top:0;left:0;height:4px;background:linear-gradient(90deg,var(--blue),var(--teal));z-index:999;width:0%;transition:width .1s;}
+header.cover{background:linear-gradient(135deg,#101a30 0%,#241a3d 100%);color:#fff;padding:56px 24px 40px;text-align:center;border-bottom:1px solid var(--line);}
+header.cover .badge{display:inline-block;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);padding:6px 14px;border-radius:20px;font-size:13px;letter-spacing:.5px;margin-bottom:14px;}
+header.cover h1{margin:8px auto;max-width:900px;font-size:32px;}
+header.cover p.sub{max-width:750px;margin:10px auto 0;opacity:.85;font-size:16px;}
+.meta-grid{display:flex;flex-wrap:wrap;gap:12px;justify-content:center;margin-top:26px;}
+.meta-chip{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.18);padding:8px 16px;border-radius:8px;font-size:13px;}
+nav.toc{position:sticky;top:0;background:#0f151f;border-bottom:1px solid var(--line);z-index:100;padding:10px 16px;overflow-x:auto;white-space:nowrap;}
+nav.toc a{color:var(--sub);text-decoration:none;font-size:13px;margin-right:18px;padding:6px 10px;border-radius:6px;}
+nav.toc a:hover{background:var(--blue-bg);color:var(--blue);}
+main{max-width:980px;margin:0 auto;padding:30px 20px 80px;}
+section{margin-bottom:46px;}
+h2{font-size:24px;border-left:5px solid var(--blue);padding-left:12px;margin-top:10px;color:#fff;}
+h3{font-size:19px;color:var(--purple);margin-top:28px;}
+h4{font-size:16px;color:#fff;margin-top:20px;}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:20px 22px;margin:16px 0;}
+.box{border-radius:10px;padding:16px 18px;margin:14px 0;border-left:5px solid;}
+.box.concept{background:var(--blue-bg);border-color:var(--blue);}
+.box.arch{background:var(--purple-bg);border-color:var(--purple);}
+.box.success{background:var(--green-bg);border-color:var(--green);}
+.box.warning{background:var(--orange-bg);border-color:var(--orange);}
+.box.fail{background:var(--red-bg);border-color:var(--red);}
+.box.best{background:var(--teal-bg);border-color:var(--teal);}
+.box strong.tag{display:block;font-size:12px;text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px;opacity:.85;}
+details{background:var(--card);border:1px solid var(--line);border-radius:10px;margin:12px 0;padding:4px 16px;}
+details summary{cursor:pointer;font-weight:600;padding:12px 0;color:var(--blue);}
+table{width:100%;border-collapse:collapse;margin:14px 0;font-size:14px;}
+th,td{border:1px solid var(--line);padding:9px 12px;text-align:left;vertical-align:top;}
+th{background:var(--blue-bg);color:var(--blue);}
+tr:nth-child(even){background:#101623;}
+.codewrap{position:relative;margin:14px 0;}
+pre{background:var(--code-bg);color:var(--code-ink);padding:18px;border-radius:10px;overflow-x:auto;font-size:13px;line-height:1.6;font-family:"SF Mono",Menlo,Consolas,monospace;border:1px solid var(--line);}
+pre .c{color:#6fd18a;}
+.copy-btn{position:absolute;top:10px;right:10px;background:#22304a;color:#fff;border:1px solid var(--line);padding:6px 12px;border-radius:6px;font-size:12px;cursor:pointer;}
+.copy-btn:hover{background:#2c3d5e;}
+.cmd-label{font-size:12px;color:var(--sub);text-transform:uppercase;letter-spacing:.5px;margin:14px 0 4px;}
+.flow{background:var(--purple-bg);border:1px dashed var(--purple);border-radius:10px;padding:16px;font-family:monospace;white-space:pre;font-size:13px;overflow-x:auto;color:var(--ink);}
+.qa{margin:14px 0;padding:14px 16px;background:var(--card);border:1px solid var(--line);border-radius:8px;}
+.qa .q{font-weight:600;color:var(--purple);}
+.badge-diff{display:inline-block;padding:3px 10px;border-radius:12px;font-size:12px;font-weight:600;}
+.badge-diff.mid{background:var(--orange-bg);color:var(--orange);}
+.steps{counter-reset:step;}
+.step{position:relative;padding:14px 16px 14px 52px;margin:10px 0;background:var(--card);border:1px solid var(--line);border-radius:10px;}
+.step::before{counter-increment:step;content:counter(step);position:absolute;left:14px;top:14px;width:26px;height:26px;background:var(--blue);color:#0d1117;font-weight:700;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;}
+footer{text-align:center;padding:30px;color:var(--sub);font-size:13px;}
+</style>
+</head>
+<body>
+<div class="progress" id="progressBar"></div>
+
+<header class="cover">
+  <div class="badge">OPENSHIFT + ANSIBLE MASTERCLASS · PROJECT 21 OF ~28</div>
+  <h1>OpenShift Networking Deep Dive: OVN-Kubernetes, Egress &amp; Multi-Tenant NetworkPolicy</h1>
+  <p class="sub">Going beyond Project 1's default-deny baseline into egress firewalls, multi-tenant NetworkPolicy design for the reporting team's cross-namespace database access, and a "works internally but not externally" incident traced through the full OVN packet path.</p>
+  <div class="meta-grid">
+    <div class="meta-chip">Difficulty: <span class="badge-diff mid">Advanced</span></div>
+    <div class="meta-chip">Domain: Telecom / Platform Engineering</div>
+    <div class="meta-chip">OpenShift: 4.14+ (OVN-Kubernetes)</div>
+    <div class="meta-chip">Ansible Core: 2.16 · kubernetes.core 3.x</div>
+    <div class="meta-chip">Lab Time: ~3.5 hrs</div>
+    <div class="meta-chip">Infra Cost: $0 (CRC / existing cluster)</div>
+  </div>
+</header>
+
+<nav class="toc">
+  <a href="#story">Story</a>
+  <a href="#device">Run On Your Device</a>
+  <a href="#architecture">Architecture</a>
+  <a href="#playbooks">Playbooks</a>
+  <a href="#run">Execution</a>
+  <a href="#incident">Incident</a>
+  <a href="#breakfix">Break-Fix</a>
+  <a href="#security">Security</a>
+  <a href="#interview">Interview</a>
+  <a href="#resume">Resume</a>
+  <a href="#cheatsheet">Cheat Sheet</a>
+  <a href="#summary">Key Learnings</a>
+</nav>
+
+<main>
+
+<section id="story">
+<h2>1. The Production Story</h2>
+<div class="box concept">
+<strong class="tag">Scenario</strong>
+Project 20's reporting workload needs to query the payment-api database from its OWN namespace (<code>reporting-prod</code>), not from inside <code>payment-api-prod</code> itself. Project 1's default-deny NetworkPolicy blocks all cross-namespace traffic by design — we need deliberate, narrow multi-tenant rules, not a blanket opening. Separately, security wants to restrict which external destinations payment-api's backend can reach at all (egress control), since it should only ever talk to the payment gateway's known IP range.
+</div>
+<div class="box warning">
+<strong class="tag">Business Problem</strong>
+"Just open the namespace to everything" is the fast answer and the wrong one — it undoes the isolation multi-tenancy depends on. We need namespace-to-namespace policy that's as narrow as the RBAC scoping from Projects 2 and 20.
+</div>
+<div class="box best">
+<strong class="tag">Our Mandate</strong>
+Automate a namespace-scoped NetworkPolicy allowing only the reporting namespace to reach the database port, plus an EgressFirewall restricting payment-api's outbound traffic to only the payment gateway's IP range.
+</div>
+</section>
+
+<section id="device">
+<h2>2. Run This On Your Device</h2>
+<div class="steps">
+<div class="step"><strong>Confirm the cluster uses OVN-Kubernetes (default since OpenShift 4.14+).</strong>
+<div class="codewrap"><pre>oc get network.config cluster -o jsonpath='{.status.networkType}'</pre></div>
+</div>
+<div class="step"><strong>Create the reporting namespace (reuses Project 1's baseline role).</strong>
+<div class="codewrap"><pre>ansible-playbook playbooks/site.yml -e app_name=reporting -e environment=prod \
+  -e team=platform -e owner=platform-team</pre></div>
+</div>
+<div class="step"><strong>Add the multi-tenant network role files from Section 4.</strong>
+<div class="codewrap"><pre>mkdir -p payment-stack/roles/{multi_tenant_network,egress_firewall}/tasks</pre></div>
+</div>
+<div class="step"><strong>Apply the cross-namespace policy and egress firewall.</strong>
+<div class="codewrap"><pre>ansible-playbook playbooks/network_policy.yml -e app_name=payment-api -e environment=prod</pre></div>
+</div>
+<div class="step"><strong>Test connectivity from the reporting namespace.</strong>
+<div class="codewrap"><pre>oc run test-conn --rm -it --image=busybox -n reporting-prod -- \
+  nc -zv payment-api-postgres.payment-api-prod.svc.cluster.local 5432</pre></div>
+</div>
+</div>
+</section>
+
+<section id="architecture">
+<h2>3. Architecture</h2>
+<div class="box arch"><strong class="tag">Concept</strong>OVN-Kubernetes implements NetworkPolicy as flows in a distributed virtual switch (OVN/OVS) spanning every node — there's no single central firewall to inspect. Each node's <code>ovnkube-node</code> pod programs local flow rules based on NetworkPolicy/EgressFirewall objects, which is why troubleshooting sometimes means checking a SPECIFIC node's OVN state, not just the Kubernetes API objects.</div>
+<div class="flow">Pod A (reporting-prod) wants to reach Pod B (payment-api-prod, port 5432)
+   │
+   ▼
+OVN evaluates NetworkPolicy objects in payment-api-prod (the DESTINATION namespace)
+   │
+   ├── default-deny-all (Project 1)      → denies by default
+   └── allow-reporting-to-db (this project) → explicit allow, namespace label match
+   │
+   ▼
+If an explicit allow matches → traffic permitted; else dropped silently
+   (no 403, no error -- just a connection timeout, which is why this
+    class of issue is hard to diagnose without knowing to check policy)
+
+EGRESS (payment-api-prod → external gateway):
+Pod → OVN egress evaluation → EgressFirewall rules (allow/deny by CIDR)
+   → if no explicit allow matches a non-default-deny rule set, denied</div>
+<table>
+<tr><th>Concept</th><th>Detail</th></tr>
+<tr><td>NetworkPolicy direction</td><td>Rules live in and are evaluated against the DESTINATION namespace's policies, matched against the SOURCE's labels</td></tr>
+<tr><td>namespaceSelector</td><td>Matches pods based on labels on the source namespace itself, not the pod</td></tr>
+<tr><td>EgressFirewall</td><td>OpenShift-specific CRD (not upstream NetworkPolicy) controlling OUTBOUND traffic to external CIDRs, evaluated in order, first match wins</td></tr>
+<tr><td>Silent drop behavior</td><td>Denied traffic doesn't error explicitly — it just times out, which is the single biggest diagnostic trap in network troubleshooting</td></tr>
+</table>
+</section>
+
+<section id="playbooks">
+<h2>4. The Playbooks — Fully Commented</h2>
+
+<h3>4.1 roles/multi_tenant_network/tasks/main.yml</h3>
+<div class="cmd-label">roles/multi_tenant_network/tasks/main.yml</div>
+<div class="codewrap"><pre><span class="c">---
+# Allows ONLY the reporting namespace to reach the database port,
+# on top of Project 1's default-deny-all baseline -- multiple
+# NetworkPolicies in a namespace are ADDITIVE (union of all allows).</span>
+
+- name: Label the reporting namespace so it can be selected by name              <span class="c"># namespaceSelector needs a stable label to match against</span>
+  kubernetes.core.k8s:
+    state: present                                                                <span class="c"># idempotent patch-style apply</span>
+    definition:
+      apiVersion: v1
+      kind: Namespace                                                              <span class="c"># labeling the namespace object itself, not a namespaced resource</span>
+      metadata:
+        name: reporting-prod                                                        <span class="c"># the SOURCE namespace we want to selectively allow</span>
+        labels:
+          purpose: reporting                                                          <span class="c"># the label our NetworkPolicy's namespaceSelector will match on</span>
+  register: ns_label_result                                                          <span class="c"># capture for assert</span>
+
+- name: Assert namespace labeling succeeded
+  ansible.builtin.assert:
+    that: [ns_label_result is succeeded]
+    fail_msg: "Failed to label reporting-prod namespace"
+
+- name: Allow ONLY the reporting namespace to reach the database port on 5432        <span class="c"># the actual narrow cross-namespace allow rule</span>
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: networking.k8s.io/v1                                                <span class="c"># standard upstream NetworkPolicy API -- portable across distros</span>
+      kind: NetworkPolicy
+      metadata:
+        name: allow-reporting-to-db                                                     <span class="c"># descriptive name -- shows intent clearly in 'oc get networkpolicy'</span>
+        namespace: "{{ app_name }}-{{ environment }}"                                    <span class="c"># lives in the DESTINATION namespace -- this is where the rule is evaluated</span>
+      spec:
+        podSelector:
+          matchLabels: {app: "{{ app_name }}-postgres"}                                   <span class="c"># applies ONLY to the database pods, not the whole namespace</span>
+        policyTypes: [Ingress]                                                             <span class="c"># this policy only concerns inbound traffic</span>
+        ingress:
+          - from:
+              - namespaceSelector:
+                  matchLabels: {purpose: reporting}                                          <span class="c"># matches the label we just set on reporting-prod</span>
+            ports:
+              - protocol: TCP
+                port: 5432                                                                    <span class="c"># ONLY the database port -- not a blanket namespace-to-namespace opening</span>
+  register: np_result                                                                          <span class="c"># capture for assert</span>
+
+- name: Assert NetworkPolicy apply succeeded                                                     <span class="c"># fail fast rather than silently leaving reporting unable to connect</span>
+  ansible.builtin.assert:
+    that: [np_result is succeeded]
+    fail_msg: "Failed to create allow-reporting-to-db NetworkPolicy"</pre></div>
+
+<h3>4.2 roles/egress_firewall/tasks/main.yml</h3>
+<div class="cmd-label">roles/egress_firewall/tasks/main.yml</div>
+<div class="codewrap"><pre><span class="c">---
+# Restricts payment-api's OUTBOUND traffic to only the payment
+# gateway's known IP range, plus DNS -- everything else denied.</span>
+
+- name: Apply EgressFirewall restricting outbound traffic                     <span class="c"># OpenShift-specific CRD, not standard NetworkPolicy</span>
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: k8s.ovn.org/v1                                               <span class="c"># OVN-Kubernetes's own EgressFirewall API group</span>
+      kind: EgressFirewall
+      metadata:
+        name: default                                                            <span class="c"># fixed required name -- ONE EgressFirewall per namespace</span>
+        namespace: "{{ app_name }}-{{ environment }}"
+      spec:
+        egress:                                                                   <span class="c"># rules evaluated TOP TO BOTTOM, first match wins</span>
+          - type: Allow                                                             <span class="c"># explicit allow for the payment gateway's IP range</span>
+            to:
+              cidrSelector: "{{ payment_gateway_cidr }}"                              <span class="c"># e.g. 203.0.113.0/24 -- the ONLY external destination this app should ever need</span>
+          - type: Allow                                                              <span class="c"># DNS must be explicitly allowed too -- easy to forget and breaks EVERYTHING</span>
+            to:
+              cidrSelector: "0.0.0.0/0"                                                <span class="c"># any destination...</span>
+            ports:
+              - protocol: UDP
+                port: 53                                                                <span class="c"># ...but ONLY for DNS resolution</span>
+          - type: Deny                                                                 <span class="c"># explicit catch-all deny -- belt and suspenders even though default behavior denies unmatched traffic</span>
+            to:
+              cidrSelector: "0.0.0.0/0"                                                  <span class="c"># everything else, blocked</span>
+  register: egress_result                                                                 <span class="c"># capture for assert</span>
+
+- name: Assert EgressFirewall apply succeeded                                              <span class="c"># fail fast -- a broken egress rule can silently break the whole app</span>
+  ansible.builtin.assert:
+    that: [egress_result is succeeded]
+    fail_msg: "Failed to apply EgressFirewall for {{ app_name }}-{{ environment }}"</pre></div>
+</section>
+
+<section id="run">
+<h2>5. Execution &amp; Idempotency</h2>
+<div class="codewrap"><pre>ansible-playbook playbooks/network_policy.yml -e app_name=payment-api -e environment=prod \
+  -e payment_gateway_cidr=203.0.113.0/24</pre></div>
+<div class="box success"><strong class="tag">First run</strong><pre style="background:#0f2b1c;border-color:#1a4a2c;">PLAY RECAP *** ok=5 changed=3 failed=0</pre></div>
+<div class="box success"><strong class="tag">Second run</strong><pre style="background:#0f2b1c;border-color:#1a4a2c;">PLAY RECAP *** ok=5 changed=0 failed=0</pre></div>
+</section>
+
+<section id="incident">
+<h2>6. Live Incident — "Works Internally But Not Externally... Sort Of"</h2>
+<div class="box fail"><strong class="tag">Report</strong>Right after the EgressFirewall (Section 4.2) is deployed, the backend starts failing ALL payment gateway calls — even though the CIDR was supposedly configured correctly.</div>
+
+<div class="cmd-label">Step 1 — confirm it's specifically an egress problem, not the gateway itself</div>
+<div class="codewrap"><pre>oc rsh deploy/payment-api-backend -n payment-api-prod
+curl -v https://gateway.paymentprovider.com/health
+curl: (28) Failed to connect: Connection timed out
+<span class="c"># no HTTP error at all -- consistent with a silent network-layer drop, not an app-layer rejection</span></pre></div>
+
+<div class="cmd-label">Step 2 — check the EgressFirewall rules actually applied</div>
+<div class="codewrap"><pre>oc get egressfirewall default -n payment-api-prod -o yaml
+spec:
+  egress:
+    - type: Allow
+      to: {cidrSelector: "203.0.113.0/8"}    <span class="c"># WRONG -- /8 instead of /24, but that's not even the real bug here</span></pre></div>
+
+<div class="cmd-label">Step 3 — resolve the actual gateway IP and compare</div>
+<div class="codewrap"><pre>dig +short gateway.paymentprovider.com
+198.51.100.42    <span class="c"># the gateway's REAL current IP is completely outside 203.0.113.0/24 entirely</span></pre></div>
+<div class="box fail"><strong class="tag">Root cause</strong>The payment gateway vendor rotated their IP range months ago (a CDN/load-balancer change on their end) and the CIDR baked into our EgressFirewall was stale — nobody had a process to notice, because without an EgressFirewall, outbound traffic just worked regardless of destination IP, so IP changes on the vendor's side were invisible to us until this project's stricter policy exposed the gap.</div>
+
+<div class="cmd-label">Step 4 — get the current authoritative range from the vendor and fix via Ansible</div>
+<div class="codewrap"><pre>ansible-playbook playbooks/network_policy.yml -e app_name=payment-api -e environment=prod \
+  -e payment_gateway_cidr=198.51.100.0/24</pre></div>
+
+<div class="cmd-label">Step 5 — validate</div>
+<div class="codewrap"><pre>oc rsh deploy/payment-api-backend -n payment-api-prod
+curl -v https://gateway.paymentprovider.com/health
+HTTP/1.1 200 OK</pre></div>
+<div class="box success"><strong class="tag">Resolved</strong>Restored connectivity with the corrected CIDR — and surfaced a real operational gap: without an EgressFirewall, vendor IP rotations are invisible; WITH one, they must be tracked deliberately.</div>
+
+<h3>RCA Summary</h3>
+<table>
+<tr><th>Field</th><th>Detail</th></tr>
+<tr><td>Impact</td><td>Complete payment gateway connectivity loss immediately after EgressFirewall rollout</td></tr>
+<tr><td>Root cause</td><td>Configured CIDR was stale relative to the vendor's actual current IP range, previously masked by having no egress restriction at all</td></tr>
+<tr><td>Fix</td><td>Updated the CIDR via Ansible using the vendor's current authoritative range</td></tr>
+<tr><td>Preventive action</td><td>Request the vendor's officially published/stable IP range (many vendors publish these specifically for firewall allow-listing) rather than a single resolved IP, and add a periodic connectivity check (extends Project 8's monitoring) that would catch this class of drift proactively</td></tr>
+</table>
+</section>
+
+<section id="breakfix">
+<h2>7. Additional Break-Fix Labs</h2>
+<details><summary>Break-Fix — forgot the DNS allow rule</summary>
+<div class="box fail"><strong class="tag">Break</strong>Deploy an EgressFirewall without the UDP/53 allow rule.</div>
+<div class="codewrap"><pre>oc rsh deploy/payment-api-backend -n payment-api-prod
+nslookup gateway.paymentprovider.com
+;; connection timed out; no servers could be reached</pre></div>
+<p><strong>Root cause:</strong> DNS resolution itself is outbound traffic subject to the EgressFirewall — without an explicit allow, even hostname lookups fail, which then LOOKS like the destination is unreachable when it's actually DNS that's blocked. <strong>Fix:</strong> our role always includes the DNS allow rule (Section 4.2) for exactly this reason — it's one of the most common EgressFirewall mistakes.</p>
+</details>
+<details><summary>Break-Fix — reporting can reach the Service but query times out (pod-level, not policy)</summary>
+<div class="codewrap"><pre>nc -zv payment-api-postgres.payment-api-prod.svc.cluster.local 5432
+Connection succeeded   <span class="c"># NetworkPolicy is fine -- TCP connects</span>
+
+<span class="c"># but actual queries hang -- this is NOT a networking issue anymore</span></pre></div>
+<p><strong>Root cause:</strong> once TCP connects, a hanging query points back to database-layer investigation (Project 15's performance triage), not NetworkPolicy — a good example of confirming which layer you're actually debugging before continuing to dig in the wrong place.</p>
+</details>
+</section>
+
+<section id="security">
+<h2>8. Security Review</h2>
+<table>
+<tr><th>Control</th><th>Detail</th></tr>
+<tr><td>Narrow cross-namespace access</td><td>Reporting can reach only the database port, only via label-matched namespace, nothing else in payment-api-prod</td></tr>
+<tr><td>Egress allow-listing</td><td>Backend can reach only the payment gateway CIDR and DNS — no arbitrary outbound internet access</td></tr>
+<tr><td>Explicit deny as documentation</td><td>The trailing <code>Deny 0.0.0.0/0</code> rule makes intent unambiguous even though it's technically redundant with default behavior</td></tr>
+</table>
+</section>
+
+<section id="interview">
+<h2>9. Interview Preparation</h2>
+<div class="qa"><div class="q">Interviewer: "How do you allow controlled cross-namespace traffic without breaking multi-tenant isolation?"</div>
+<p><strong>Answer:</strong> I label the source namespace with something stable and descriptive, then add a narrow NetworkPolicy in the DESTINATION namespace using a <code>namespaceSelector</code> matched to that label, scoped to just the specific pod selector and port that's actually needed — never a blanket namespace-to-namespace opening. It's additive on top of a default-deny baseline, so everything else stays blocked exactly as before.</p></div>
+<div class="qa"><div class="q">Interviewer: "You rolled out an EgressFirewall and it broke production — what happened and what did you learn?"</div>
+<p><strong>Answer:</strong> The configured CIDR was stale — the vendor had rotated IPs months earlier, invisible to us because without any egress restriction, outbound traffic just worked regardless of destination. The real lesson wasn't the CIDR typo itself, it was that egress control introduces a new maintenance burden: vendor IP changes now need active tracking, which we hadn't planned for. We requested the vendor's officially published stable range instead of a single resolved IP, and added a periodic connectivity check to catch drift before it becomes an outage.</p></div>
+</section>
+
+<section id="resume">
+<h2>10. Resume Points</h2>
+<div class="box best"><ul>
+<li>Designed and automated multi-tenant NetworkPolicy for controlled cross-namespace database access and an EgressFirewall restricting outbound traffic to a single approved vendor CIDR range.</li>
+<li>Diagnosed and resolved a production connectivity incident caused by a stale egress CIDR following an undetected vendor IP rotation, and established a process to prevent recurrence.</li>
+</ul></div>
+</section>
+
+<section id="cheatsheet">
+<h2>11. Troubleshooting Cheat Sheet</h2>
+<table>
+<tr><th>Symptom</th><th>Check</th></tr>
+<tr><td>Cross-namespace connection times out (no error)</td><td>NetworkPolicy in the DESTINATION namespace — silent drop is the default behavior</td></tr>
+<tr><td>All outbound traffic broken after EgressFirewall</td><td>Missing DNS (UDP/53) allow rule — the most common mistake</td></tr>
+<tr><td>Specific external service unreachable</td><td>CIDR staleness — verify against the vendor's current published range</td></tr>
+<tr><td>TCP connects but queries hang</td><td>Not a networking issue anymore — move to database/performance triage (Project 15)</td></tr>
+</table>
+</section>
+
+<section id="summary">
+<h2>12. Key Learnings</h2>
+<div class="card">
+<h4>OpenShift concepts</h4><p>OVN-Kubernetes distributed flow model, NetworkPolicy evaluated in the destination namespace, <code>namespaceSelector</code> vs <code>podSelector</code>, EgressFirewall ordering and DNS-allow requirement, silent-drop behavior as a troubleshooting trap.</p>
+<h4>Ansible concepts</h4><p>Labeling a namespace as a prerequisite for a selector-based policy elsewhere, structuring ordered egress rules where sequence matters (first-match-wins).</p>
+<h4>Commands learned</h4><p><code>oc get network.config cluster</code>, <code>nc -zv</code> for TCP reachability testing, <code>dig</code>/<code>nslookup</code> for confirming actual vs configured IPs.</p>
+<h4>Next project prerequisites</h4><p>Keep this repo — Project 22 covers Helm and Kustomize integration alongside Ansible, comparing templating approaches for the same payment-api manifests.</p>
+</div>
+</section>
+
+</main>
+<footer>OpenShift + Ansible Masterclass — Project 21 of ~28.</footer>
+<script>
+window.addEventListener('scroll', function(){
+  var h = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+  var p = h ? (window.scrollY / h) * 100 : 0;
+  document.getElementById('progressBar').style.width = p + '%';
+});
+document.querySelectorAll('pre').forEach(function(pre){
+  if(pre.parentElement.classList.contains('codewrap')){
+    var btn = document.createElement('button');
+    btn.className = 'copy-btn'; btn.textContent = 'Copy';
+    btn.onclick = function(){
+      navigator.clipboard.writeText(pre.innerText);
+      btn.textContent = 'Copied!';
+      setTimeout(function(){ btn.textContent = 'Copy'; }, 1500);
+    };
+    pre.parentElement.appendChild(btn);
+  }
+});
+</script>
+</body>
+</html>

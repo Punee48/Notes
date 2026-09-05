@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Project 6 — OpenShift Storage: Dynamic Provisioning, StorageClasses &amp; Volume Troubleshooting</title>
+<style>
+:root{
+  --blue:#5b9dff; --blue-bg:#132038;
+  --purple:#b58aff; --purple-bg:#221a3a;
+  --green:#3ed67f; --green-bg:#11301f;
+  --orange:#ffb15c; --orange-bg:#3a2712;
+  --red:#ff6b6b; --red-bg:#3a1616;
+  --teal:#4fd8e0; --teal-bg:#0f2f31;
+  --ink:#e7ecf5; --sub:#9aa7bd; --line:#2a3345; --bg:#0d1117; --card:#141b26;
+  --code-bg:#0a0e14; --code-ink:#dfe7f5;
+}
+*{box-sizing:border-box;}
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--ink);line-height:1.65;}
+a{color:var(--blue);}
+.progress{position:fixed;top:0;left:0;height:4px;background:linear-gradient(90deg,var(--blue),var(--teal));z-index:999;width:0%;transition:width .1s;}
+header.cover{background:linear-gradient(135deg,#101a30 0%,#241a3d 100%);color:#fff;padding:56px 24px 40px;text-align:center;border-bottom:1px solid var(--line);}
+header.cover .badge{display:inline-block;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);padding:6px 14px;border-radius:20px;font-size:13px;letter-spacing:.5px;margin-bottom:14px;}
+header.cover h1{margin:8px auto;max-width:900px;font-size:32px;}
+header.cover p.sub{max-width:750px;margin:10px auto 0;opacity:.85;font-size:16px;}
+.meta-grid{display:flex;flex-wrap:wrap;gap:12px;justify-content:center;margin-top:26px;}
+.meta-chip{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.18);padding:8px 16px;border-radius:8px;font-size:13px;}
+nav.toc{position:sticky;top:0;background:#0f151f;border-bottom:1px solid var(--line);z-index:100;padding:10px 16px;overflow-x:auto;white-space:nowrap;}
+nav.toc a{color:var(--sub);text-decoration:none;font-size:13px;margin-right:18px;padding:6px 10px;border-radius:6px;}
+nav.toc a:hover{background:var(--blue-bg);color:var(--blue);}
+main{max-width:980px;margin:0 auto;padding:30px 20px 80px;}
+section{margin-bottom:46px;}
+h2{font-size:24px;border-left:5px solid var(--blue);padding-left:12px;margin-top:10px;color:#fff;}
+h3{font-size:19px;color:var(--purple);margin-top:28px;}
+h4{font-size:16px;color:#fff;margin-top:20px;}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:20px 22px;margin:16px 0;}
+.box{border-radius:10px;padding:16px 18px;margin:14px 0;border-left:5px solid;}
+.box.concept{background:var(--blue-bg);border-color:var(--blue);}
+.box.arch{background:var(--purple-bg);border-color:var(--purple);}
+.box.success{background:var(--green-bg);border-color:var(--green);}
+.box.warning{background:var(--orange-bg);border-color:var(--orange);}
+.box.fail{background:var(--red-bg);border-color:var(--red);}
+.box.best{background:var(--teal-bg);border-color:var(--teal);}
+.box strong.tag{display:block;font-size:12px;text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px;opacity:.85;}
+details{background:var(--card);border:1px solid var(--line);border-radius:10px;margin:12px 0;padding:4px 16px;}
+details summary{cursor:pointer;font-weight:600;padding:12px 0;color:var(--blue);}
+table{width:100%;border-collapse:collapse;margin:14px 0;font-size:14px;}
+th,td{border:1px solid var(--line);padding:9px 12px;text-align:left;vertical-align:top;}
+th{background:var(--blue-bg);color:var(--blue);}
+tr:nth-child(even){background:#101623;}
+.codewrap{position:relative;margin:14px 0;}
+pre{background:var(--code-bg);color:var(--code-ink);padding:18px;border-radius:10px;overflow-x:auto;font-size:13px;line-height:1.6;font-family:"SF Mono",Menlo,Consolas,monospace;border:1px solid var(--line);}
+pre .c{color:#6fd18a;}
+.copy-btn{position:absolute;top:10px;right:10px;background:#22304a;color:#fff;border:1px solid var(--line);padding:6px 12px;border-radius:6px;font-size:12px;cursor:pointer;}
+.copy-btn:hover{background:#2c3d5e;}
+.cmd-label{font-size:12px;color:var(--sub);text-transform:uppercase;letter-spacing:.5px;margin:14px 0 4px;}
+.flow{background:var(--purple-bg);border:1px dashed var(--purple);border-radius:10px;padding:16px;font-family:monospace;white-space:pre;font-size:13px;overflow-x:auto;color:var(--ink);}
+.qa{margin:14px 0;padding:14px 16px;background:var(--card);border:1px solid var(--line);border-radius:8px;}
+.qa .q{font-weight:600;color:var(--purple);}
+.badge-diff{display:inline-block;padding:3px 10px;border-radius:12px;font-size:12px;font-weight:600;}
+.badge-diff.mid{background:var(--orange-bg);color:var(--orange);}
+.steps{counter-reset:step;}
+.step{position:relative;padding:14px 16px 14px 52px;margin:10px 0;background:var(--card);border:1px solid var(--line);border-radius:10px;}
+.step::before{counter-increment:step;content:counter(step);position:absolute;left:14px;top:14px;width:26px;height:26px;background:var(--blue);color:#0d1117;font-weight:700;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;}
+footer{text-align:center;padding:30px;color:var(--sub);font-size:13px;}
+</style>
+</head>
+<body>
+<div class="progress" id="progressBar"></div>
+
+<header class="cover">
+  <div class="badge">OPENSHIFT + ANSIBLE MASTERCLASS · PROJECT 6 OF ~28</div>
+  <h1>OpenShift Storage: Dynamic Provisioning, StorageClasses &amp; Volume Troubleshooting</h1>
+  <p class="sub">Automating StorageClass-aware PVC provisioning, safely expanding volumes, and resolving stuck-Pending and full-disk incidents for the PostgreSQL tier built in Project 3.</p>
+  <div class="meta-grid">
+    <div class="meta-chip">Difficulty: <span class="badge-diff mid">Intermediate</span></div>
+    <div class="meta-chip">Domain: Telecom / Platform Engineering</div>
+    <div class="meta-chip">OpenShift: 4.14+</div>
+    <div class="meta-chip">Ansible Core: 2.16 · kubernetes.core 3.x</div>
+    <div class="meta-chip">Lab Time: ~3 hrs</div>
+    <div class="meta-chip">Infra Cost: $0 (CRC / existing cluster)</div>
+  </div>
+</header>
+
+<nav class="toc">
+  <a href="#story">Story</a>
+  <a href="#device">Run On Your Device</a>
+  <a href="#architecture">Architecture</a>
+  <a href="#playbooks">Playbooks</a>
+  <a href="#run">Execution</a>
+  <a href="#incident">Incident</a>
+  <a href="#breakfix">Break-Fix</a>
+  <a href="#security">Security</a>
+  <a href="#interview">Interview</a>
+  <a href="#resume">Resume</a>
+  <a href="#cheatsheet">Cheat Sheet</a>
+  <a href="#summary">Key Learnings</a>
+</nav>
+
+<main>
+
+<section id="story">
+<h2>1. The Production Story</h2>
+<div class="box concept">
+<strong class="tag">Scenario</strong>
+The PostgreSQL tier from Project 3 has been running for a few months. Storage requests have so far been ad hoc — some namespaces got a fast SSD-backed StorageClass, others silently got the cluster default, which is slower and not built for database workloads. The database is also approaching its original 5Gi allocation.
+</div>
+<div class="box warning">
+<strong class="tag">Business Problem</strong>
+Nobody standardized which StorageClass database workloads should use, and there's no repeatable, safe process for expanding a PVC when a database grows — engineers have been improvising during incidents.
+</div>
+<div class="box best">
+<strong class="tag">Our Mandate</strong>
+Make StorageClass selection explicit and environment-aware in Ansible, and build a safe, auditable volume-expansion playbook — then use it during a live "disk almost full" incident.
+</div>
+</section>
+
+<section id="device">
+<h2>2. Run This On Your Device</h2>
+<div class="steps">
+<div class="step"><strong>Check what StorageClasses your cluster actually offers.</strong>
+<div class="codewrap"><pre>oc get storageclass
+<span class="c"># look at the ALLOWVOLUMEEXPANSION column -- must be true to expand later</span></pre></div>
+</div>
+<div class="step"><strong>Add the storage role files from Section 4 to your existing repo.</strong>
+<div class="codewrap"><pre>mkdir -p payment-stack/roles/db_storage/tasks</pre></div>
+</div>
+<div class="step"><strong>Run the storage playbook against your existing DB PVC from Project 3.</strong>
+<div class="codewrap"><pre>ansible-playbook playbooks/storage.yml \
+  -e app_name=payment-api -e environment=dev \
+  -e db_storage_class=standard -e db_storage_size=5Gi</pre></div>
+</div>
+<div class="step"><strong>Simulate the disk-almost-full incident by writing filler data (lab only).</strong>
+<div class="codewrap"><pre>oc rsh deploy/payment-api-postgres -n payment-api-dev
+fallocate -l 4G /var/lib/pgsql/data/filler.dat
+exit</pre></div>
+</div>
+<div class="step"><strong>Expand the volume with the playbook.</strong>
+<div class="codewrap"><pre>ansible-playbook playbooks/storage.yml \
+  -e app_name=payment-api -e environment=dev -e db_storage_size=10Gi</pre></div>
+</div>
+</div>
+</section>
+
+<section id="architecture">
+<h2>3. Architecture</h2>
+<div class="box arch"><strong class="tag">Concept</strong>A PersistentVolumeClaim (PVC) is a request; a StorageClass tells the cluster's CSI driver HOW to fulfill it (which backend, which performance tier, whether expansion is allowed). The actual PersistentVolume (PV) is created dynamically and bound to the PVC — you rarely create PVs by hand in a modern cluster.</div>
+<div class="flow">Ansible (PVC request: 5Gi, StorageClass=fast-ssd)
+   │
+   ▼
+PersistentVolumeClaim (Pending)
+   │  StorageClass's provisioner (CSI driver) is invoked
+   ▼
+PersistentVolume dynamically created + bound
+   │
+   ▼
+Pod mounts the PVC → reads/writes go to the backing CSI volume
+
+Expansion:
+PVC.spec.resources.requests.storage increased (if StorageClass allows)
+   │
+   ▼
+CSI driver resizes the underlying volume
+   │
+   ▼
+Filesystem resize triggered on next pod mount/restart (driver-dependent)</div>
+<table>
+<tr><th>Concept</th><th>Detail</th></tr>
+<tr><td>StorageClass</td><td>Defines provisioner, parameters, reclaim policy, and whether volume expansion is allowed</td></tr>
+<tr><td>Access Modes</td><td>ReadWriteOnce (single node), ReadWriteMany (shared, needs a capable backend), ReadOnlyMany</td></tr>
+<tr><td>Reclaim Policy</td><td>Delete (PV removed with PVC) vs Retain (PV kept for manual recovery) — PROD databases should use Retain</td></tr>
+<tr><td>Volume expansion</td><td>Only works if the StorageClass has <code>allowVolumeExpansion: true</code>; you can only grow, never shrink</td></tr>
+</table>
+</section>
+
+<section id="playbooks">
+<h2>4. The Playbooks — Fully Commented</h2>
+
+<h3>4.1 roles/db_storage/tasks/main.yml</h3>
+<div class="cmd-label">roles/db_storage/tasks/main.yml</div>
+<div class="codewrap"><pre><span class="c">---
+# Manages the PostgreSQL PVC: creates it if missing, or safely
+# EXPANDS it if the requested size is larger than what exists.
+# Never attempts to shrink -- Kubernetes doesn't support that.</span>
+
+- name: Confirm the target StorageClass allows expansion               <span class="c"># read-only pre-check before we ever touch the PVC</span>
+  kubernetes.core.k8s_info:                                             <span class="c"># info module -- never mutates</span>
+    kind: StorageClass                                                  <span class="c"># cluster-scoped object type</span
+    >
+    api_version: storage.k8s.io/v1                                      <span class="c"># storage API group</span>
+    name: "{{ db_storage_class }}"                                       <span class="c"># the class we intend to use, e.g. 'fast-ssd'</span>
+  register: sc_info                                                      <span class="c"># holds the StorageClass definition</span>
+
+- name: Fail early if expansion is not supported by this class           <span class="c"># prevents a confusing failure later during a real resize</span>
+  ansible.builtin.assert:
+    that:
+      - sc_info.resources[0].allowVolumeExpansion | default(false)       <span class="c"># must be explicitly true</span>
+    fail_msg: "StorageClass {{ db_storage_class }} does not support volume expansion"
+  when: db_storage_size is defined                                       <span class="c"># only relevant when we might resize</span>
+
+- name: Check current PVC size, if it exists                             <span class="c"># need this to detect grow-vs-noop before applying</span>
+  kubernetes.core.k8s_info:
+    kind: PersistentVolumeClaim
+    api_version: v1
+    name: "{{ app_name }}-db-pvc"
+    namespace: "{{ app_name }}-{{ environment }}"
+  register: existing_pvc                                                  <span class="c"># empty resources list if PVC doesn't exist yet</span>
+
+- name: Refuse to apply a SMALLER size than what already exists            <span class="c"># Kubernetes rejects shrink requests; catch it here with a clear message</span>
+  ansible.builtin.assert:
+    that:
+      - (db_storage_size | regex_replace('Gi','') | int) >=
+        (existing_pvc.resources[0].spec.resources.requests.storage
+          | regex_replace('Gi','') | int)                                  <span class="c"># strip 'Gi' and compare as integers</span>
+    fail_msg: "Refusing to shrink PVC from {{ existing_pvc.resources[0].spec.resources.requests.storage }} to {{ db_storage_size }}"
+  when: existing_pvc.resources | length &gt; 0                                <span class="c"># only check if the PVC already exists</span>
+
+- name: Create or expand the PostgreSQL PVC                                 <span class="c"># the actual declarative apply</span>
+  kubernetes.core.k8s:
+    state: present                                                          <span class="c"># idempotent create-or-update</span>
+    definition:
+      apiVersion: v1
+      kind: PersistentVolumeClaim
+      metadata:
+        name: "{{ app_name }}-db-pvc"
+        namespace: "{{ app_name }}-{{ environment }}"
+      spec:
+        accessModes: [ReadWriteOnce]                                        <span class="c"># single-node mount, correct for a single DB pod</span>
+        storageClassName: "{{ db_storage_class }}"                           <span class="c"># explicit -- never rely on an implicit cluster default</span>
+        resources:
+          requests:
+            storage: "{{ db_storage_size }}"                                 <span class="c"># the new/target size</span>
+  register: pvc_result                                                        <span class="c"># capture for the assert below</span>
+
+- name: Assert PVC apply succeeded                                            <span class="c"># fail loudly instead of assuming success</span>
+  ansible.builtin.assert:
+    that: [pvc_result is succeeded]
+    fail_msg: "Failed to create/expand PVC for {{ app_name }}"
+
+- name: Restart the DB pod so the filesystem resize takes effect              <span class="c"># many CSI drivers need a remount to finish resizing the filesystem</span>
+  kubernetes.core.k8s:
+    state: patched                                                            <span class="c"># patch, not full replace -- only touches the annotation</span>
+    kind: Deployment
+    api_version: apps/v1
+    name: "{{ app_name }}-postgres"
+    namespace: "{{ app_name }}-{{ environment }}"
+    definition:
+      spec:
+        template:
+          metadata:
+            annotations:
+              storage-resize-triggered-at: "{{ ansible_date_time.iso8601 }}"   <span class="c"># unique value forces a rolling pod restart</span>
+  when: existing_pvc.resources | length &gt; 0 and
+        existing_pvc.resources[0].spec.resources.requests.storage != db_storage_size  <span class="c"># only restart on an actual size CHANGE, not first creation</span></pre></div>
+</section>
+
+<section id="run">
+<h2>5. Execution &amp; Idempotency</h2>
+<div class="codewrap"><pre>ansible-playbook playbooks/storage.yml -e app_name=payment-api -e environment=dev \
+  -e db_storage_class=standard -e db_storage_size=5Gi</pre></div>
+<div class="box success"><strong class="tag">First run (create)</strong><pre style="background:#0f2b1c;border-color:#1a4a2c;">PLAY RECAP *** ok=5 changed=1 failed=0</pre></div>
+<div class="box success"><strong class="tag">Second run (same size, idempotency proof)</strong><pre style="background:#0f2b1c;border-color:#1a4a2c;">PLAY RECAP *** ok=5 changed=0 failed=0</pre></div>
+<div class="box success"><strong class="tag">Third run (expand to 10Gi)</strong><pre style="background:#0f2b1c;border-color:#1a4a2c;">PLAY RECAP *** ok=6 changed=2 failed=0   <span class="c"># PVC patch + pod restart annotation</span></pre></div>
+</section>
+
+<section id="incident">
+<h2>6. Live Incident — Database Disk Almost Full</h2>
+<div class="box fail"><strong class="tag">Report</strong>Monitoring alert: PostgreSQL PVC usage at 92%. Write latency climbing.</div>
+
+<div class="cmd-label">Step 1 — confirm current usage and size</div>
+<div class="codewrap"><pre>oc rsh deploy/payment-api-postgres -n payment-api-prod
+df -h /var/lib/pgsql/data
+Filesystem      Size  Used Avail Use%
+/dev/...          5G  4.6G  200M  92%</pre></div>
+
+<div class="cmd-label">Step 2 — confirm the StorageClass supports expansion before promising anything</div>
+<div class="codewrap"><pre>oc get storageclass fast-ssd -o jsonpath='{.allowVolumeExpansion}'
+true</pre></div>
+
+<div class="cmd-label">Step 3 — expand via the playbook (never a manual oc edit under pressure)</div>
+<div class="codewrap"><pre>ansible-playbook playbooks/storage.yml -e app_name=payment-api -e environment=prod \
+  -e db_storage_class=fast-ssd -e db_storage_size=20Gi</pre></div>
+
+<div class="cmd-label">Step 4 — validate the resize actually reached the filesystem</div>
+<div class="codewrap"><pre>oc get pvc payment-api-db-pvc -n payment-api-prod
+NAME                 STATUS   CAPACITY
+payment-api-db-pvc   Bound    20Gi
+
+oc rsh deploy/payment-api-postgres -n payment-api-prod
+df -h /var/lib/pgsql/data
+Filesystem      Size  Used Avail Use%
+/dev/...         20G  4.6G   15G  23%</pre></div>
+<div class="box success"><strong class="tag">Resolved</strong>Capacity restored with zero data loss and a single rolling pod restart.</div>
+<div class="box fail"><strong class="tag">Root cause</strong>No proactive alert existed until 92% usage — too close to the edge for a database. <strong>Preventive action:</strong> add a monitoring alert at 70% usage, and schedule a quarterly capacity review using growth trend data.</div>
+</section>
+
+<section id="breakfix">
+<h2>7. Additional Break-Fix Labs</h2>
+<details><summary>Break-Fix — PVC Pending forever, no StorageClass set</summary>
+<div class="codewrap"><pre>oc describe pvc payment-api-db-pvc -n payment-api-dev
+Events: waiting for a volume to be created, either by the external
+  provisioner 'none' or manually by the system administrator</pre></div>
+<p><strong>Root cause:</strong> <code>storageClassName</code> was omitted and the cluster has no default StorageClass. <strong>Fix:</strong> our role always sets <code>storageClassName</code> explicitly (Section 4.1) precisely to prevent this class of failure.</p>
+</details>
+<details><summary>Break-Fix — expansion request rejected</summary>
+<div class="codewrap"><pre>ansible-playbook playbooks/storage.yml -e db_storage_class=slow-hdd -e db_storage_size=10Gi
+TASK [Fail early if expansion is not supported] ***
+fatal: [localhost]: FAILED! =&gt; {"msg": "StorageClass slow-hdd does not support volume expansion"}</pre></div>
+<p><strong>Root cause:</strong> that StorageClass's <code>allowVolumeExpansion</code> is false. <strong>Fix:</strong> this is caught by our own pre-check before touching the PVC — the real fix is migrating to a StorageClass that supports expansion, which requires creating a new PVC and copying data (a separate, more careful runbook).</p>
+</details>
+</section>
+
+<section id="security">
+<h2>8. Security Review</h2>
+<table>
+<tr><th>Control</th><th>Detail</th></tr>
+<tr><td>No accidental data loss</td><td>Explicit assert refuses to apply a smaller size than what exists</td></tr>
+<tr><td>Explicit StorageClass</td><td>Never relies on an implicit cluster default that could change</td></tr>
+<tr><td>PROD reclaim policy</td><td>Recommend <code>Retain</code> for database PVs so accidental PVC deletion doesn't destroy the underlying volume</td></tr>
+</table>
+</section>
+
+<section id="interview">
+<h2>9. Interview Preparation</h2>
+<div class="qa"><div class="q">Interviewer: "How would you safely expand a PVC in production?"</div>
+<p><strong>Answer:</strong> First confirm the StorageClass has <code>allowVolumeExpansion: true</code> — otherwise the request will just fail. Update the PVC's requested storage size upward (never downward — Kubernetes doesn't support shrinking), then depending on the CSI driver, the pod may need a restart for the filesystem itself to pick up the new size. I automate this with an Ansible role that refuses to apply a smaller size than what's already there, so a bad variable can't accidentally trigger something unsupported.</p></div>
+<div class="qa"><div class="q">Interviewer: "PVC is stuck Pending — what do you check?"</div>
+<p><strong>Answer:</strong> <code>oc describe pvc</code> first — the Events section almost always states exactly why: no StorageClass, no available PV, or a provisioner error. Missing StorageClass, when there's no cluster default, is the most common cause I've seen.</p></div>
+</section>
+
+<section id="resume">
+<h2>10. Resume Points</h2>
+<div class="box best"><ul>
+<li>Automated PersistentVolumeClaim provisioning and safe volume expansion for a production PostgreSQL database using Ansible, including pre-checks against StorageClass expansion support.</li>
+<li>Resolved a near-capacity database storage incident by expanding the PVC with zero data loss, and added preventive monitoring at 70% usage.</li>
+</ul></div>
+</section>
+
+<section id="cheatsheet">
+<h2>11. Troubleshooting Cheat Sheet</h2>
+<table>
+<tr><th>Symptom</th><th>Check</th></tr>
+<tr><td>PVC stuck Pending</td><td><code>oc describe pvc</code> Events — StorageClass/provisioner issue</td></tr>
+<tr><td>Expansion fails</td><td><code>allowVolumeExpansion</code> on the StorageClass</td></tr>
+<tr><td>Disk nearly full</td><td><code>df -h</code> inside the pod via <code>oc rsh</code>, then expand PVC</td></tr>
+<tr><td>Resize applied but df unchanged</td><td>Pod likely needs a restart for filesystem resize to complete</td></tr>
+</table>
+</section>
+
+<section id="summary">
+<h2>12. Key Learnings</h2>
+<div class="card">
+<h4>OpenShift concepts</h4><p>PVC/PV/StorageClass relationship, dynamic provisioning, volume expansion mechanics, reclaim policies.</p>
+<h4>Ansible concepts</h4><p>Pre-flight <code>k8s_info</code> checks before a risky change, refusing unsafe input with <code>assert</code>, forcing a rolling restart via a timestamped annotation patch.</p>
+<h4>Commands learned</h4><p><code>oc get storageclass</code>, <code>oc describe pvc</code>, <code>oc rsh</code> + <code>df -h</code> for in-pod disk checks.</p>
+<h4>Next project prerequisites</h4><p>Keep this repo — Project 7 introduces the OpenShift Operator model, deploying and managing an application via an Operator instead of raw manifests.</p>
+</div>
+</section>
+
+</main>
+<footer>OpenShift + Ansible Masterclass — Project 6 of ~28.</footer>
+<script>
+window.addEventListener('scroll', function(){
+  var h = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+  var p = h ? (window.scrollY / h) * 100 : 0;
+  document.getElementById('progressBar').style.width = p + '%';
+});
+document.querySelectorAll('pre').forEach(function(pre){
+  if(pre.parentElement.classList.contains('codewrap')){
+    var btn = document.createElement('button');
+    btn.className = 'copy-btn'; btn.textContent = 'Copy';
+    btn.onclick = function(){
+      navigator.clipboard.writeText(pre.innerText);
+      btn.textContent = 'Copied!';
+      setTimeout(function(){ btn.textContent = 'Copy'; }, 1500);
+    };
+    pre.parentElement.appendChild(btn);
+  }
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,736 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Use Case 13: GitOps Application Deployment Using Argo CD | ShopNow Retail</title>
+<style>
+  :root{
+    --bg:#0b0f14; --panel:#111823; --panel2:#0e1420; --border:#1f2b3a;
+    --text:#dbe6f0; --muted:#8aa0b4; --accent:#3fb6a8; --accent2:#e8a33d;
+    --code-bg:#0a0e14; --good:#5ec98f; --bad:#e35d5d;
+  }
+  *{box-sizing:border-box}
+  body{background:var(--bg);color:var(--text);font-family:'Segoe UI',Roboto,Helvetica,Arial,sans-serif;line-height:1.65;margin:0;padding:0}
+  .wrap{max-width:980px;margin:0 auto;padding:32px 24px 120px}
+  h1{font-size:2rem;color:#fff;border-bottom:3px solid var(--accent);padding-bottom:12px;margin-top:0}
+  h2{color:var(--accent);font-size:1.5rem;margin-top:56px;border-left:5px solid var(--accent);padding-left:14px}
+  h3{color:var(--accent2);font-size:1.2rem;margin-top:32px}
+  h4{color:#fff;font-size:1.02rem;margin-top:22px;background:var(--panel2);padding:6px 10px;border-radius:4px;border-left:3px solid var(--muted)}
+  p{color:#c6d3df}
+  .story{background:linear-gradient(135deg,#132030,#0e1622);border:1px solid var(--border);border-radius:10px;padding:18px 22px;margin:18px 0;font-style:italic;color:#b9c9d8}
+  .story b{color:var(--accent2);font-style:normal}
+  .callout{background:#152a24;border:1px solid #235c4c;border-radius:8px;padding:14px 18px;margin:16px 0}
+  .callout.warn{background:#2a1f14;border-color:#6b4a1d}
+  .callout.why{background:#101b2c;border-color:#254268}
+  .step{background:var(--panel);border:1px solid var(--border);border-left:4px solid var(--accent);border-radius:6px;padding:12px 18px;margin:14px 0}
+  .step b.n{display:inline-block;background:var(--accent);color:#04120f;border-radius:50%;width:24px;height:24px;text-align:center;line-height:24px;font-size:.8rem;margin-right:10px}
+  pre{background:var(--code-bg);border:1px solid var(--border);border-radius:8px;padding:16px;overflow-x:auto;font-size:.85rem}
+  code{font-family:'Fira Code',Consolas,monospace;color:#c9d9e3}
+  .cmt{color:#5c7a8a}
+  .k{color:#e8a33d} .s{color:#7fd1a7} .v{color:#5aa9e6}
+  table{width:100%;border-collapse:collapse;margin:16px 0}
+  th,td{border:1px solid var(--border);padding:8px 12px;text-align:left;font-size:.9rem}
+  th{background:var(--panel2);color:var(--accent2)}
+  .toc{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:20px 26px}
+  .toc a{color:var(--accent);text-decoration:none}
+  .toc li{margin:6px 0}
+  .divider{border:none;border-top:1px solid var(--border);margin:40px 0}
+  .flow{display:flex;flex-wrap:wrap;gap:10px;margin:16px 0;align-items:center}
+  .flow div{background:var(--panel2);border:1px solid var(--border);border-radius:6px;padding:10px 16px;font-size:.85rem;font-weight:600}
+  .flow .arrow{background:none;border:none;padding:0;font-weight:400;color:var(--muted)}
+  .loop{border:2px dashed var(--accent);border-radius:12px;padding:20px;margin:20px 0;text-align:center;position:relative}
+  .loop-label{position:absolute;top:-12px;left:20px;background:var(--bg);padding:0 8px;color:var(--accent);font-size:.8rem;font-weight:700}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>Use Case 13: GitOps Application Deployment Using Argo CD</h1>
+<p><b>Company:</b> ShopNow Retail Pvt Ltd (fictional mid-size e-commerce company) &nbsp;|&nbsp; <b>Your role:</b> DevOps/Cloud Engineer &nbsp;|&nbsp; <b>Level:</b> 4+ years, resume-ready production project</p>
+
+<div class="toc">
+<b>What this document covers, start to finish:</b>
+<ol>
+<li><a href="#scenario">The Business Scenario</a></li>
+<li><a href="#concept">The Core Idea — the Continuous Reconciliation Loop</a></li>
+<li><a href="#folders">Project Folder Structure</a></li>
+<li><a href="#apparch">Application Architecture</a></li>
+<li><a href="#awsarch">AWS Architecture</a></li>
+<li><a href="#eks">EKS Cluster Design</a></li>
+<li><a href="#vpc">VPC and Networking</a></li>
+<li><a href="#iam">IAM Roles and IRSA</a></li>
+<li><a href="#install">Installing Argo CD on EKS</a></li>
+<li><a href="#appofapps">The App-of-Apps Pattern — Managing the Whole Fleet From One Root</a></li>
+<li><a href="#syncpolicy">Sync Policies — Automated, Manual, and Self-Heal Explained</a></li>
+<li><a href="#waves">Sync Waves and Resource Hooks — Ordering the Rollout</a></li>
+<li><a href="#rbac">Argo CD Projects and RBAC</a></li>
+<li><a href="#manifests">Deployment and Service</a></li>
+<li><a href="#config">ConfigMaps and Secrets</a></li>
+<li><a href="#ingress">Ingress with AWS Load Balancer Controller</a></li>
+<li><a href="#hpa">HPA, PDB, and NetworkPolicies</a></li>
+<li><a href="#ecr">ECR Integration</a></li>
+<li><a href="#pipeline">Jenkins and GitHub Actions — Where CI Ends and Argo CD Begins</a></li>
+<li><a href="#notifications">Argo CD Notifications</a></li>
+<li><a href="#monitoring">Prometheus and Grafana</a></li>
+<li><a href="#cloudwatch">CloudWatch Logging</a></li>
+<li><a href="#workflow">Running the Code — Full End-to-End Workflow</a></li>
+<li><a href="#failure">Failure Testing — Proving Drift Detection and Self-Heal</a></li>
+<li><a href="#rollback">Rollback Strategy — Using Argo CD's Own History</a></li>
+<li><a href="#troubleshoot">Troubleshooting Scenarios</a></li>
+<li><a href="#ansible">Ansible Automation</a></li>
+<li><a href="#report">HTML Deployment/Job Report</a></li>
+<li><a href="#email">Email Notification</a></li>
+<li><a href="#resume">How to Present This on Your Resume</a></li>
+</ol>
+</div>
+
+<h2 id="scenario">1. The Business Scenario — Why This Project Exists</h2>
+<div class="story">
+Six months ago, ShopNow Retail's production cluster and its Git repository quietly drifted apart. An engineer, chasing a live incident at 11 PM, ran <code>kubectl scale deployment payment-service --replicas=12</code> directly against the cluster to handle a traffic spike — a completely reasonable emergency action. The incident passed. Nobody ever scaled it back down, and nobody ever updated the Git repo to reflect 12 replicas as the new normal. Three weeks later, a routine CI/CD pipeline run for an unrelated change applied the Deployment manifest from Git — which still said <code>replicas: 6</code> — and silently cut Payment Service's capacity in half during a moderately busy afternoon, causing a fresh, smaller incident that took an hour to diagnose because nobody remembered the original manual change at all.
+</div>
+<p>Ramesh's ask: <i>"I want it to be impossible for the cluster and Git to quietly disagree with each other. Git should be the one and only source of truth for what's supposed to be running — and I want something continuously watching the real cluster, comparing it against Git, and telling us the moment they don't match, or better yet, fixing it automatically."</i></p>
+<p>This use case is the direct, complete answer: <b>Argo CD as ShopNow's GitOps engine</b>, continuously reconciling the entire EKS cluster's actual state against what's declared in Git — not as a one-time deploy tool, but as an always-running control loop that makes drift visible, alertable, and in most cases self-correcting.</p>
+
+<h2 id="concept">2. The Core Idea — the Continuous Reconciliation Loop</h2>
+<div class="flow">
+<div>Developer</div><div class="arrow">&rarr;</div>
+<div>Git Repository</div><div class="arrow">&rarr;</div>
+<div style="border-color:var(--accent2)">Argo CD</div><div class="arrow">&rarr;</div>
+<div>Amazon EKS</div>
+</div>
+<p>This is the exact flow from the original ask, and it looks like a simple one-way pipeline — but the crucial detail, and the entire reason Argo CD exists rather than a plain <code>kubectl apply</code> script, is that the arrow from Argo CD to EKS is not one-directional. It's a loop:</p>
+<div class="loop">
+<div class="loop-label">THE RECONCILIATION LOOP — running continuously, roughly every 3 minutes, forever</div>
+<p style="margin:8px 0 0">Argo CD reads the <b>desired state</b> from Git &nbsp;&harr;&nbsp; Argo CD reads the <b>actual state</b> from the live EKS cluster &nbsp;&rarr;&nbsp; <b>diffs the two</b> &nbsp;&rarr;&nbsp; reports <code>Synced</code> or <code>OutOfSync</code> &nbsp;&rarr;&nbsp; (if configured) automatically corrects the cluster to match Git</p>
+</div>
+<p>Every earlier use case in this series that mentioned Argo CD used it in this exact way, always briefly. This use case is the one that stops and explains the mechanism itself in full — what "desired state" and "actual state" concretely mean, how the diff is computed, what the three sync policy modes actually do differently, and how to prove, with a real live demonstration, that the loop genuinely closes.</p>
+<table>
+<tr><th>Traditional CI/CD push model (Use Case 12's deploy stage, in isolation)</th><th>GitOps pull model (Argo CD, this use case)</th></tr>
+<tr><td>Pipeline has direct <code>kubectl</code> credentials to production</td><td>Argo CD, running inside the cluster, pulls from Git — no external system needs cluster-admin credentials</td></tr>
+<tr><td>Deployment happens once, at pipeline run time</td><td>Reconciliation happens continuously, forever, whether or not a pipeline just ran</td></tr>
+<tr><td>A manual <code>kubectl edit</code> in prod is invisible until someone notices</td><td>A manual <code>kubectl edit</code> is detected within the next reconciliation cycle and flagged (or reverted)</td></tr>
+<tr><td>"What's actually running in prod?" requires querying the cluster directly</td><td>"What's actually running in prod?" is answered by reading Git, with Argo CD's UI confirming they match</td></tr>
+</table>
+
+<h2 id="folders">3. Project Folder Structure</h2>
+<pre><code>shopnow-gitops-repo/                       <span class="cmt"># Argo CD's ONLY source of truth</span>
+├── apps/
+│   ├── root-app.yaml                       <span class="cmt"># the "app of apps" — see section 10</span>
+│   ├── order-service.yaml
+│   ├── catalog-service.yaml
+│   ├── payment-service.yaml
+│   └── notification-service.yaml
+│
+├── services/
+│   ├── order-service/
+│   │   ├── base/
+│   │   └── overlays/{dev,qa,uat,prod}/
+│   ├── catalog-service/
+│   │   ├── base/
+│   │   └── overlays/{dev,qa,uat,prod}/
+│   ├── payment-service/
+│   │   ├── base/
+│   │   └── overlays/{dev,qa,uat,prod}/
+│   └── notification-service/
+│       ├── base/
+│       └── overlays/{dev,qa,uat,prod}/
+│
+├── platform/
+│   ├── argocd/
+│   │   ├── install/
+│   │   │   └── argocd-values.yaml
+│   │   ├── projects/
+│   │   │   └── shopnow-project.yaml
+│   │   └── notifications/
+│   │       └── notifications-cm.yaml
+│   └── argocd-image-updater/
+│       └── helm-values.yaml
+│
+├── ansible/
+│   ├── playbook.yml
+│   └── roles/argocd-app-bootstrap/
+│       ├── tasks/main.yml
+│       └── templates/application.yaml.j2
+│
+├── pipeline-scripts/
+│   ├── generate_report.py
+│   ├── send_email.py
+│   └── verify_sync_status.py
+│
+└── README.md
+</code></pre>
+<div class="callout why"><b>Notice this entire repository contains no Dockerfiles, no application source code, and no CI pipeline definitions.</b> This is a deliberate, structural separation: the <code>shopnow-order-service-repo</code> (application code, from Use Case 12) is where developers work and CI runs; <code>shopnow-gitops-repo</code> (this one) is where only deployment <i>state</i> lives, written to almost exclusively by pipelines, and read continuously by Argo CD. Mixing the two into one repository is one of the most common GitOps anti-patterns, because it makes it much harder to reason about exactly what Argo CD is watching.</div>
+
+<h2 id="apparch">4. Application Architecture</h2>
+<pre><code><span class="cmt">        Developer pushes application code (separate app repo, Use Case 12's pipeline)
+                          |
+              CI/CD pipeline builds, tests, scans, pushes to ECR,
+              then commits the new image tag to shopnow-gitops-repo
+                          |
+              +------------------------------------------+
+              |     Argo CD (running inside EKS itself)   |
+              |   watches shopnow-gitops-repo continuously |
+              +------------------------------------------+
+                          |
+              Detects the new commit within ~3 minutes (or instantly via webhook)
+                          |
+              Computes a diff: Git's desired state vs the live cluster's actual state
+                          |
+              Applies the diff (auto-sync) or waits for a human to click Sync (manual)
+                          |
+              Amazon EKS reflects exactly what Git says, continuously re-verified
+</span></code></pre>
+<p>This use case governs <b>all four</b> of ShopNow's services from earlier use cases — Order, Catalog, Payment, and Notification — demonstrated together specifically because the App-of-Apps pattern (section 10) only really shows its value when managing more than one application at once.</p>
+
+<h2 id="awsarch">5. AWS Architecture</h2>
+<table>
+<tr><th>AWS Service</th><th>Role in this project</th></tr>
+<tr><td>EKS</td><td>Runs Argo CD itself (as pods in the <code>argocd</code> namespace) alongside every application it manages</td></tr>
+<tr><td>ALB</td><td>Exposes the Argo CD UI/API itself, in addition to the applications it deploys</td></tr>
+<tr><td>ECR</td><td>Image registry Argo CD Image Updater (section 10) watches for new tags</td></tr>
+<tr><td>Secrets Manager</td><td>Holds the Git repository's deploy credentials and Argo CD's own admin/SSO secrets</td></tr>
+<tr><td>SES</td><td>Delivers Argo CD Notifications (section 19) for sync failures and drift events</td></tr>
+</table>
+
+<h2 id="eks">6. EKS Cluster Design</h2>
+<pre><code><span class="k">apiVersion</span>: eksctl.io/v1alpha5
+<span class="k">kind</span>: ClusterConfig
+<span class="k">metadata</span>:
+  <span class="k">name</span>: shopnow-cluster
+  <span class="k">region</span>: ap-south-1
+  <span class="k">version</span>: <span class="s">"1.29"</span>
+<span class="k">iam</span>:
+  <span class="k">withOIDC</span>: true
+<span class="k">managedNodeGroups</span>:
+  <span class="k">- name</span>: ng-platform
+    <span class="k">instanceType</span>: m5.large
+    <span class="k">desiredCapacity</span>: 3
+    <span class="k">minSize</span>: 3
+    <span class="k">maxSize</span>: 6
+    <span class="k">labels</span>: { workload: platform }
+</code></pre>
+<p>Argo CD's own components (API server, repo server, application controller, Redis) run on this dedicated <code>ng-platform</code> node group, deliberately separated from application workloads — the reasoning is identical to the dedicated node groups seen for secure/compliance workloads earlier in this series: platform tooling that every other deployment depends on shouldn't compete for capacity with, or be affected by, the noisy neighbor behavior of the applications it's managing.</p>
+
+<h2 id="vpc">7. VPC and Networking</h2>
+<p>Standard VPC layout from earlier use cases. Argo CD's repo-server component needs outbound HTTPS access to reach the Git provider (GitHub) — through the existing NAT Gateway, no new networking construct required.</p>
+
+<h2 id="iam">8. IAM Roles and IRSA</h2>
+<pre><code><span class="cmt"># Argo CD itself needs a broad but namespace-scoped ClusterRole to manage resources
+# across every namespace it's responsible for — this is Kubernetes RBAC, not IAM,
+# because Argo CD's job is manipulating Kubernetes objects, not calling AWS APIs directly</span>
+kubectl create namespace argocd
+
+<span class="cmt"># Argo CD Image Updater DOES need IRSA — it calls ECR's API to check for new image tags</span>
+eksctl create iamserviceaccount --cluster shopnow-cluster --namespace argocd \
+  --name argocd-image-updater \
+  --attach-policy-arn arn:aws:iam::111122223333:policy/ecr-readonly-policy \
+  --approve
+</code></pre>
+
+<h2 id="install">9. Installing Argo CD on EKS</h2>
+<pre><code>kubectl create namespace argocd
+kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+
+<span class="cmt"># Expose the UI via the shared ALB, same pattern as every application in this series</span>
+</code></pre>
+<pre><code><span class="k">apiVersion</span>: networking.k8s.io/v1
+<span class="k">kind</span>: Ingress
+<span class="k">metadata</span>:
+  <span class="k">name</span>: argocd-server-ingress
+  <span class="k">namespace</span>: argocd
+  <span class="k">annotations</span>:
+    <span class="k">kubernetes.io/ingress.class</span>: alb
+    <span class="k">alb.ingress.kubernetes.io/scheme</span>: internal   <span class="cmt"># internal only — never exposed to the public internet</span>
+    <span class="k">alb.ingress.kubernetes.io/target-type</span>: ip
+    <span class="k">alb.ingress.kubernetes.io/backend-protocol</span>: HTTPS
+<span class="k">spec</span>:
+  <span class="k">rules</span>:
+    <span class="k">- host</span>: argocd.shopnow.internal
+      <span class="k">http</span>:
+        <span class="k">paths</span>: [{ path: /, pathType: Prefix, backend: { service: { name: argocd-server, port: { number: 443 } } } }]
+</code></pre>
+<pre><code><span class="cmt"># Point Argo CD at the GitOps repo</span>
+argocd login argocd.shopnow.internal
+argocd repo add https://github.com/shopnow/gitops-repo.git \
+  --username shopnow-bot --password $GIT_TOKEN
+</code></pre>
+<div class="callout warn"><b>The Argo CD UI is internal-scheme only, deliberately.</b> It grants effective control over the entire cluster's desired state — exposing it to the public internet, even behind authentication, is an unnecessary attack surface. Engineers reach it over VPN or from within the office network only, consistent with the "internal" exposure pattern established for the Fulfillment gRPC Service in Use Case 8.</div>
+
+<h2 id="appofapps">10. The App-of-Apps Pattern — Managing the Whole Fleet From One Root</h2>
+<pre><code><span class="cmt"># apps/root-app.yaml — ONE Application object that itself manages the other four</span>
+<span class="k">apiVersion</span>: argoproj.io/v1alpha1
+<span class="k">kind</span>: Application
+<span class="k">metadata</span>: { name: shopnow-root, namespace: argocd }
+<span class="k">spec</span>:
+  <span class="k">project</span>: shopnow
+  <span class="k">source</span>:
+    <span class="k">repoURL</span>: https://github.com/shopnow/gitops-repo.git
+    <span class="k">targetRevision</span>: main
+    <span class="k">path</span>: apps          <span class="cmt"># this folder contains the OTHER four Application manifests</span>
+  <span class="k">destination</span>: { server: https://kubernetes.default.svc, namespace: argocd }
+  <span class="k">syncPolicy</span>: { automated: { prune: true, selfHeal: true } }
+</code></pre>
+<pre><code><span class="cmt"># apps/order-service.yaml — one of the FOUR "child" Applications the root manages</span>
+<span class="k">apiVersion</span>: argoproj.io/v1alpha1
+<span class="k">kind</span>: Application
+<span class="k">metadata</span>: { name: order-service-prod, namespace: argocd }
+<span class="k">spec</span>:
+  <span class="k">project</span>: shopnow
+  <span class="k">source</span>: { repoURL: https://github.com/shopnow/gitops-repo.git, targetRevision: main, path: services/order-service/overlays/prod }
+  <span class="k">destination</span>: { server: https://kubernetes.default.svc, namespace: prod }
+  <span class="k">syncPolicy</span>: { automated: { prune: true, selfHeal: true } }
+</code></pre>
+<div class="step"><b class="n">1</b>The <code>root-app</code> Application's source is the <code>apps/</code> folder — which contains ordinary Kubernetes YAML files that happen to themselves be Argo CD <code>Application</code> objects. Argo CD applies those YAML files exactly like any other manifest, which means it creates the four child Applications.</div>
+<div class="step"><b class="n">2</b>Once created, each child Application independently starts managing its own service, exactly as if it had been created by hand. Onboarding a fifth service — say, the Fulfillment gRPC Service from Use Case 8 — becomes a single new YAML file dropped into <code>apps/</code> and committed; the root Application syncs it in automatically, and from that moment on it's fully managed.</div>
+<div class="step"><b class="n">3</b>This is the concrete answer to "how do you manage a growing fleet of microservices without manually configuring Argo CD for each one" — the fleet's membership itself becomes declarative and version-controlled, not just each service's own contents.</div>
+
+<h2 id="syncpolicy">11. Sync Policies — Automated, Manual, and Self-Heal Explained</h2>
+<pre><code><span class="k">syncPolicy</span>:
+  <span class="k">automated</span>:
+    <span class="k">prune</span>: true
+    <span class="k">selfHeal</span>: true
+  <span class="k">syncOptions</span>:
+    <span class="k">- CreateNamespace=false
+</code></pre>
+<table>
+<tr><th>Setting</th><th>What it precisely controls</th></tr>
+<tr><td><code>automated</code> present at all</td><td>Argo CD applies a detected Git change to the cluster automatically, with no human clicking "Sync." Omitting this block entirely means Argo CD only ever <i>reports</i> OutOfSync and waits for a manual sync — this is what ShopNow uses for Payment Service's Blue-to-Green switch step, matching the manual gate from Use Case 4.</td></tr>
+<tr><td><code>prune: true</code></td><td>If a resource is <i>removed</i> from Git (a manifest file deleted), Argo CD deletes the corresponding object from the cluster too. Without this, deleted-from-Git resources simply linger in the cluster forever, orphaned and undocumented.</td></tr>
+<tr><td><code>selfHeal: true</code></td><td>This is the setting that directly answers section 1's incident. If the <i>live cluster</i> drifts from Git — a manual <code>kubectl scale</code>, a <code>kubectl edit</code>, anything — Argo CD doesn't just report OutOfSync, it actively reverts the cluster back to match Git, typically within the next reconciliation cycle (a few minutes, or near-instantly if a webhook triggers an immediate refresh).</td></tr>
+</table>
+<div class="callout why"><b>ShopNow's actual policy, by service, is deliberately not uniform — and that's the point.</b> Order, Catalog, and Notification Service run full <code>automated + selfHeal</code>, since fast, confident auto-correction fits their risk profile. Payment Service's <i>traffic-switching</i> Service object (the Blue/Green selector from Use Case 4) is deliberately excluded from selfHeal via a resource-level <code>ignoreDifferences</code> rule, because that one field is meant to be changed outside of a normal Git commit as part of the controlled Blue-Green cutover process — a case where blanket self-heal would fight the very workflow Use Case 4 was built around.</div>
+<pre><code><span class="cmt"># Excluding one specific field from self-heal, for Payment Service specifically</span>
+<span class="k">spec</span>:
+  <span class="k">ignoreDifferences</span>:
+    <span class="k">- group</span>: <span class="s">""</span>
+      <span class="k">kind</span>: Service
+      <span class="k">name</span>: payment-service-svc
+      <span class="k">jsonPointers</span>: [<span class="s">"/spec/selector/version"</span>]
+</code></pre>
+
+<h2 id="waves">12. Sync Waves and Resource Hooks — Ordering the Rollout</h2>
+<pre><code><span class="cmt"># A ConfigMap or Secret should exist BEFORE the Deployment that references it —
+# sync waves let you declare that ordering explicitly</span>
+<span class="k">apiVersion</span>: v1
+<span class="k">kind</span>: ConfigMap
+<span class="k">metadata</span>:
+  <span class="k">name</span>: order-service-config
+  <span class="k">annotations</span>:
+    <span class="k">argocd.argoproj.io/sync-wave</span>: <span class="s">"0"</span>   <span class="cmt"># applied FIRST</span>
+---
+<span class="k">apiVersion</span>: apps/v1
+<span class="k">kind</span>: Deployment
+<span class="k">metadata</span>:
+  <span class="k">name</span>: order-service
+  <span class="k">annotations</span>:
+    <span class="k">argocd.argoproj.io/sync-wave</span>: <span class="s">"1"</span>   <span class="cmt"># applied SECOND, after wave 0 finishes</span>
+</code></pre>
+<pre><code><span class="cmt"># A PreSync hook — runs a database migration job BEFORE any new pod starts,
+# and only proceeds to sync-wave "0" if this Job succeeds</span>
+<span class="k">apiVersion</span>: batch/v1
+<span class="k">kind</span>: Job
+<span class="k">metadata</span>:
+  <span class="k">name</span>: order-service-migration
+  <span class="k">annotations</span>:
+    <span class="k">argocd.argoproj.io/hook</span>: PreSync
+    <span class="k">argocd.argoproj.io/hook-delete-policy</span>: HookSucceeded
+<span class="k">spec</span>:
+  <span class="k">template</span>:
+    <span class="k">spec</span>:
+      <span class="k">containers</span>: [{ name: migrate, image: 111122223333.dkr.ecr.ap-south-1.amazonaws.com/order-service:prod-latest, command: [<span class="s">"./migrate.sh"</span>] }]
+      <span class="k">restartPolicy</span>: Never
+</code></pre>
+<div class="callout why"><b>This directly connects to Use Case 11's dependency-check logic, from the opposite direction.</b> Where Use Case 11 <i>validates</i> that a migration has already run before deploying, a PreSync hook can <i>perform</i> that migration as an ordered, gated step within the sync itself — both patterns are legitimate and often used together: the hook runs the migration, and the init-container validator (Use Case 11) double-checks it actually landed before the app container starts.</div>
+
+<h2 id="rbac">13. Argo CD Projects and RBAC</h2>
+<pre><code><span class="cmt"># platform/argocd/projects/shopnow-project.yaml — scopes what CAN be deployed where</span>
+<span class="k">apiVersion</span>: argoproj.io/v1alpha1
+<span class="k">kind</span>: AppProject
+<span class="k">metadata</span>: { name: shopnow, namespace: argocd }
+<span class="k">spec</span>:
+  <span class="k">sourceRepos</span>: [<span class="s">"https://github.com/shopnow/gitops-repo.git"</span>]
+  <span class="k">destinations</span>:
+    <span class="k">- namespace</span>: <span class="s">"dev"</span>
+      <span class="k">server</span>: https://kubernetes.default.svc
+    <span class="k">- namespace</span>: <span class="s">"qa"</span>
+      <span class="k">server</span>: https://kubernetes.default.svc
+    <span class="k">- namespace</span>: <span class="s">"prod"</span>
+      <span class="k">server</span>: https://kubernetes.default.svc
+  <span class="k">clusterResourceWhitelist</span>: []   <span class="cmt"># applications in this project CANNOT touch cluster-scoped resources at all</span>
+  <span class="k">roles</span>:
+    <span class="k">- name</span>: developer
+      <span class="k">policies</span>:
+        <span class="k">- p, proj:shopnow:developer, applications, sync, shopnow/*-dev, allow
+        <span class="k">- p, proj:shopnow:developer, applications, sync, shopnow/*-prod, deny
+      <span class="k">groups</span>: [<span class="s">"shopnow-engineers"</span>]
+    <span class="k">- name</span>: release-manager
+      <span class="k">policies</span>:
+        <span class="k">- p, proj:shopnow:release-manager, applications, sync, shopnow/*, allow
+      <span class="k">groups</span>: [<span class="s">"shopnow-release-managers"</span>]
+</code></pre>
+<div class="callout why"><b>This is the Argo CD equivalent of the IAM/IRSA scoping running throughout this whole series.</b> A regular engineer's SSO group can sync any service to Dev freely (fast iteration, low risk) but is explicitly denied syncing to Prod — that requires the release-manager group. <code>clusterResourceWhitelist: []</code> additionally means even a compromised or misconfigured Application in this project can never create a ClusterRole, a Namespace, or any other cluster-scoped object — its blast radius is structurally capped to namespaced resources only.</div>
+
+<h2 id="manifests">14. Deployment and Service</h2>
+<p>Standard across the series — shown here for Order Service, matching every earlier use case's pattern:</p>
+<pre><code><span class="k">apiVersion</span>: apps/v1
+<span class="k">kind</span>: Deployment
+<span class="k">metadata</span>: { name: order-service, labels: { app: order-service } }
+<span class="k">spec</span>:
+  <span class="k">replicas</span>: 6
+  <span class="k">selector</span>: { matchLabels: { app: order-service } }
+  <span class="k">template</span>:
+    <span class="k">metadata</span>: { labels: { app: order-service } }
+    <span class="k">spec</span>:
+      <span class="k">containers</span>:
+        <span class="k">- name</span>: order-service
+          <span class="k">image</span>: 111122223333.dkr.ecr.ap-south-1.amazonaws.com/order-service:prod-v3.6.0
+          <span class="k">ports</span>: [{ containerPort: 8080 }]
+          <span class="k">readinessProbe</span>: { httpGet: { path: /health/ready, port: 8080 }, periodSeconds: 10 }
+---
+<span class="k">apiVersion</span>: v1
+<span class="k">kind</span>: Service
+<span class="k">metadata</span>: { name: order-service-svc }
+<span class="k">spec</span>: { selector: { app: order-service }, ports: [{ port: 80, targetPort: 8080 }] }
+</code></pre>
+
+<h2 id="config">15. ConfigMaps and Secrets</h2>
+<p>Identical pattern to Use Cases 6 and 7 — Argo CD applies whatever is in the overlay, including <code>ExternalSecret</code> references, exactly as any other manifest, treating secret references no differently from any other Kubernetes object it reconciles.</p>
+
+<h2 id="ingress">16. Ingress with AWS Load Balancer Controller</h2>
+<pre><code><span class="k">apiVersion</span>: networking.k8s.io/v1
+<span class="k">kind</span>: Ingress
+<span class="k">metadata</span>:
+  <span class="k">name</span>: order-service-ingress
+  <span class="k">annotations</span>:
+    <span class="k">kubernetes.io/ingress.class</span>: alb
+    <span class="k">alb.ingress.kubernetes.io/group.name</span>: shopnow-shared-alb
+<span class="k">spec</span>:
+  <span class="k">rules</span>: [{ host: shopnow.com, http: { paths: [{ path: /api/orders, pathType: Prefix, backend: { service: { name: order-service-svc, port: { number: 80 } } } }] } }]
+</code></pre>
+
+<h2 id="hpa">17. HPA, PDB, and NetworkPolicies</h2>
+<pre><code><span class="k">apiVersion</span>: autoscaling/v2
+<span class="k">kind</span>: HorizontalPodAutoscaler
+<span class="k">metadata</span>: { name: order-service-hpa }
+<span class="k">spec</span>: { scaleTargetRef: { apiVersion: apps/v1, kind: Deployment, name: order-service }, minReplicas: 6, maxReplicas: 15, metrics: [{ type: Resource, resource: { name: cpu, target: { type: Utilization, averageUtilization: 70 } } }] }
+---
+<span class="k">apiVersion</span>: policy/v1
+<span class="k">kind</span>: PodDisruptionBudget
+<span class="k">metadata</span>: { name: order-service-pdb }
+<span class="k">spec</span>: { minAvailable: 4, selector: { matchLabels: { app: order-service } } }
+</code></pre>
+<div class="callout warn"><b>A subtlety worth being precise about: the HPA's <code>replicas</code> field is a legitimate, expected exception to "Git is the only source of truth."</b> HPA actively and continuously changes the live replica count based on load, which will constantly differ from whatever static number sits in Git. Argo CD handles this correctly out of the box — it recognizes HPA-managed fields and doesn't treat the resulting drift as OutOfSync, but this is worth understanding explicitly, since it's a common point of confusion: "why doesn't selfHeal fight my HPA?"</div>
+
+<h2 id="ecr">18. Jenkins and GitHub Actions — Where CI Ends and Argo CD Begins</h2>
+<pre><code><span class="cmt">// The relevant tail end of Use Case 12's full pipeline — everything up to and
+// including this step is CI's job; everything after is Argo CD's job, running
+// independently and continuously regardless of pipeline activity</span>
+stage(<span class="s">'Update GitOps Repo'</span>) {
+  steps {
+    sh <span class="s">'''
+      cd gitops-repo/services/order-service/overlays/prod
+      kustomize edit set image order-service=$ECR_REPO:$IMAGE_TAG
+      git commit -am "order-service: deploy $IMAGE_TAG"
+      git push
+    '''</span>
+  }
+  <span class="cmt">// Pipeline's job ends here. It does NOT run kubectl apply, does NOT hold
+  // cluster credentials, and does NOT wait around babysitting the rollout —
+  // that responsibility now belongs entirely to Argo CD's own reconciliation loop.</span>
+}
+stage(<span class="s">'Optionally Nudge Argo CD'</span>) {
+  steps { sh <span class="s">'argocd app sync order-service-prod --async'</span> }
+  <span class="cmt">// Purely a convenience to skip waiting for the next poll interval — Argo CD
+  // would eventually apply this exact same change on its own even without this line</span>
+}
+</code></pre>
+<div class="callout why"><b>This is the cleanest possible statement of the CI/CD-vs-GitOps boundary, worth having ready verbatim for an interview:</b> "our CI/CD pipeline's responsibility ends the moment it commits a new image tag to the GitOps repository. Argo CD, running independently inside the cluster, picks up that change and is solely responsible for making it real — the pipeline never touches the cluster directly, and if the pipeline crashed the instant after that git push, the deployment would still happen correctly."</div>
+
+<h2 id="notifications">19. Argo CD Notifications</h2>
+<pre><code><span class="cmt"># platform/argocd/notifications/notifications-cm.yaml</span>
+<span class="k">apiVersion</span>: v1
+<span class="k">kind</span>: ConfigMap
+<span class="k">metadata</span>: { name: argocd-notifications-cm, namespace: argocd }
+<span class="k">data</span>:
+  <span class="k">service.email</span>: |
+    host: email-smtp.ap-south-1.amazonaws.com
+    port: 587
+    username: $email-username
+    password: $email-password
+    from: devops-bot@shopnow.com
+
+  <span class="k">template.app-out-of-sync</span>: |
+    email:
+      subject: "[ShopNow] {{.app.metadata.name}} drifted from Git"
+    message: |
+      {{.app.metadata.name}} is OutOfSync.
+      Live cluster state no longer matches Git — check whether selfHeal will
+      correct this automatically, or whether manual investigation is needed.
+
+  <span class="k">trigger.on-sync-failed</span>: |
+    - when: app.status.operationState.phase in ['Error', 'Failed']
+      send: [app-sync-failed]
+
+  <span class="k">trigger.on-out-of-sync</span>: |
+    - when: app.status.sync.status == 'OutOfSync'
+      send: [app-out-of-sync]
+</code></pre>
+<p>These triggers fire for exactly the two events this whole use case cares about most: a sync that failed outright, and drift being detected at all — the second one is what would have caught section 1's incident within minutes, rather than three weeks later.</p>
+
+<h2 id="monitoring">20. Prometheus and Grafana</h2>
+<pre><code><span class="cmt"># Argo CD exposes its own Prometheus metrics natively</span>
+<span class="k">apiVersion</span>: monitoring.coreos.com/v1
+<span class="k">kind</span>: ServiceMonitor
+<span class="k">metadata</span>: { name: argocd-metrics, namespace: argocd }
+<span class="k">spec</span>:
+  <span class="k">selector</span>: { matchLabels: { app.kubernetes.io/name: argocd-metrics } }
+  <span class="k">endpoints</span>: [{ port: metrics, interval: 30s }]
+</code></pre>
+<pre><code><span class="cmt"># PrometheusRule — the direct, always-on version of section 1's missing alert</span>
+<span class="k">apiVersion</span>: monitoring.coreos.com/v1
+<span class="k">kind</span>: PrometheusRule
+<span class="k">metadata</span>: { name: argocd-drift-alerts, namespace: argocd }
+<span class="k">spec</span>:
+  <span class="k">groups</span>:
+    <span class="k">- name</span>: argocd.rules
+      <span class="k">rules</span>:
+        <span class="k">- alert</span>: ApplicationOutOfSync
+          <span class="k">expr</span>: argocd_app_info{sync_status="OutOfSync"} == 1
+          <span class="k">for</span>: 10m
+          <span class="k">labels</span>: { severity: warning }
+          <span class="k">annotations</span>: { summary: <span class="s">"{{ $labels.name }} has been OutOfSync for over 10 minutes"</span> }
+</code></pre>
+<p>The official Argo CD Grafana dashboard (imported from its public dashboard ID) gives a fleet-wide view — every managed Application's sync status, health status, and last-sync time on one screen, the direct visual answer to "what's actually running everywhere, right now, compared to Git."</p>
+
+<h2 id="cloudwatch">21. CloudWatch Logging</h2>
+<pre><code><span class="k">apiVersion</span>: v1
+<span class="k">kind</span>: ConfigMap
+<span class="k">metadata</span>: { name: fluent-bit-config, namespace: amazon-cloudwatch }
+<span class="k">data</span>:
+  <span class="k">output.conf</span>: |
+    [OUTPUT]
+        Name                cloudwatch_logs
+        Match               kube.argocd.*
+        region              ap-south-1
+        log_group_name      /eks/shopnow/argocd
+        auto_create_group   true
+</code></pre>
+<p>Argo CD's application-controller logs every sync operation and every detected diff — retained in CloudWatch, this becomes a complete, queryable audit trail answering "exactly when did this Application go OutOfSync, and what was the diff" for any point in the past, well beyond Argo CD's own UI history retention.</p>
+
+<h2 id="workflow">22. Running the Code — Full End-to-End Workflow</h2>
+
+<h3>Step 1 — Install and bootstrap the whole fleet via the App-of-Apps root</h3>
+<pre><code>kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+kubectl apply -f platform/argocd/projects/shopnow-project.yaml
+kubectl apply -f apps/root-app.yaml
+
+argocd app get shopnow-root
+<span class="cmt"># Expect: Synced, Healthy, and four child Applications listed as its managed resources</span>
+
+argocd app list
+<span class="cmt"># Expect: shopnow-root, order-service-prod, catalog-service-prod, payment-service-prod,
+# notification-service-prod — all Synced, all Healthy</span>
+</code></pre>
+
+<h3>Step 2 — Make a real Git change and watch the loop pick it up</h3>
+<pre><code>cd gitops-repo/services/order-service/overlays/prod
+sed -i 's/replicas: 6/replicas: 8/' patch-replicas.yaml
+git commit -am <span class="s">"order-service: bump baseline replicas to 8"</span>
+git push
+
+argocd app get order-service-prod --refresh
+<span class="cmt"># Within seconds of a manual refresh (or ~3 min automatically), status flips
+# to OutOfSync, briefly, then back to Synced once the change is applied</span>
+
+kubectl get deployment order-service -n prod -o jsonpath='{.spec.replicas}'
+<span class="cmt"># Expect: 8 — the cluster now matches Git</span>
+</code></pre>
+
+<h3>Step 3 — THE key demonstration: prove drift detection and self-heal, live</h3>
+<pre><code><span class="cmt"># Deliberately recreate section 1's exact incident — a manual, unauthorized change</span>
+kubectl scale deployment order-service -n prod --replicas=20
+
+<span class="cmt"># Watch Argo CD notice, in real time</span>
+argocd app get order-service-prod --refresh --hard-refresh
+<span class="cmt"># Expect: Sync Status flips to OutOfSync, with the diff clearly showing
+# "replicas: live=20, desired=8"</span>
+
+<span class="cmt"># Watch selfHeal correct it automatically, without anyone running `argocd app sync`</span>
+kubectl get deployment order-service -n prod -w
+<span class="cmt"># Expect: within roughly 3 minutes (the default reconciliation interval),
+# the replica count reverts from 20 back to 8, entirely on its own</span>
+
+argocd app get order-service-prod
+<span class="cmt"># Expect: back to Synced, Healthy — with an event in the app's history logging
+# that a self-heal operation occurred</span>
+</code></pre>
+<p>This single demonstration is the most important one in the entire use case — it is the literal, live proof that the incident from section 1 could not have gone unnoticed for three weeks under this system; the drift would have been visible within minutes, and in most configurations, corrected automatically before anyone even needed to look.</p>
+
+<h3>Step 4 — Confirm the App-of-Apps onboarding flow for a new service</h3>
+<pre><code>cat &gt; apps/fulfillment-grpc-service.yaml &lt;&lt;EOF
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata: { name: fulfillment-grpc-service-prod, namespace: argocd }
+spec:
+  project: shopnow
+  source: { repoURL: https://github.com/shopnow/gitops-repo.git, targetRevision: main, path: services/fulfillment-grpc-service/overlays/prod }
+  destination: { server: https://kubernetes.default.svc, namespace: prod }
+  syncPolicy: { automated: { prune: true, selfHeal: true } }
+EOF
+git add apps/fulfillment-grpc-service.yaml
+git commit -m "onboard fulfillment-grpc-service onto the platform"
+git push
+
+argocd app list
+<span class="cmt"># Expect: fulfillment-grpc-service-prod now appears automatically, created by
+# the root Application, with no direct argocd CLI command ever run against it</span>
+</code></pre>
+
+<h2 id="failure">23. Failure Testing — Proving Drift Detection and Self-Heal</h2>
+<pre><code><span class="cmt"># Test 1: Delete a resource directly and confirm prune-based self-heal recreates it</span>
+kubectl delete configmap order-service-config -n prod
+argocd app get order-service-prod --refresh
+<span class="cmt"># Expect: OutOfSync, then automatically recreated within the reconciliation cycle</span>
+
+<span class="cmt"># Test 2: Confirm a sync FAILURE (not just drift) alerts correctly</span>
+<span class="cmt"># Deliberately break the manifest with invalid YAML, push, and observe:</span>
+argocd app get order-service-prod
+<span class="cmt"># Expect: Sync Status shows "Unknown" or an explicit error, Health shows "Degraded",
+# and the ApplicationOutOfSync / on-sync-failed notification fires</span>
+
+<span class="cmt"># Test 3: Confirm the ignoreDifferences exception from section 11 actually holds</span>
+kubectl patch service payment-service-svc -n prod -p '{"spec":{"selector":{"version":"green"}}}'
+argocd app get payment-service-prod --refresh
+<span class="cmt"># Expect: Synced, NOT OutOfSync — the version selector field is correctly
+# excluded from Argo CD's diff, exactly as designed for the Blue-Green workflow</span>
+</code></pre>
+
+<h2 id="rollback">24. Rollback Strategy — Using Argo CD's Own History</h2>
+<pre><code><span class="cmt"># Argo CD tracks every sync as a numbered, browsable revision — rollback doesn't
+# require a manual Git revert if the previous state is still in Argo CD's history</span>
+argocd app history order-service-prod
+<span class="cmt">
+ID  DATE                           REVISION
+7   2026-08-20 14:02:11 +0530 IST  a1b2c3d (order-service: deploy prod-v3.6.0)
+6   2026-08-18 09:41:03 +0530 IST  9f8e7d6 (order-service: deploy prod-v3.5.0)
+</span>
+argocd app rollback order-service-prod 6
+<span class="cmt"># This performs a live, immediate rollback to revision 6's exact state</span>
+
+<span class="cmt"># The GitOps-correct follow-up: still commit the revert to Git, or the next
+# automated sync will simply roll FORWARD again to whatever Git currently says</span>
+git revert &lt;bad-commit-sha&gt; &amp;&amp; git push
+</code></pre>
+<div class="callout warn"><b>This is worth stating precisely, because it's a common point of confusion:</b> <code>argocd app rollback</code> changes the live cluster immediately, but if <code>selfHeal</code> is on and Git still points at the bad version, Argo CD will notice the "drift" from its own rollback and helpfully sync it right back to the broken state within minutes. A true rollback under GitOps always ultimately needs a Git-level change — <code>argocd app rollback</code> is best used as a fast stop-gap while the proper Git revert is prepared, exactly mirroring the emergency-vs-proper-fix pattern from earlier use cases in this series.</div>
+
+<h2 id="troubleshoot">25. Troubleshooting Scenarios</h2>
+<table>
+<tr><th>Symptom</th><th>Likely Cause</th><th>Diagnostic Commands</th></tr>
+<tr><td>Application stuck <code>Progressing</code> forever</td><td>A resource hook (PreSync Job) never completing, or a Deployment's readiness probe never passing</td><td><code>argocd app get &lt;app&gt; --show-operation</code>, <code>kubectl get jobs -n prod</code></td></tr>
+<tr><td>selfHeal doesn't revert a manual change</td><td>The specific field is covered by an <code>ignoreDifferences</code> rule (intentionally, or by mistake)</td><td>Review the Application's <code>spec.ignoreDifferences</code></td></tr>
+<tr><td>New service added to <code>apps/</code> never appears in <code>argocd app list</code></td><td>Root Application's own sync hasn't run yet, or a YAML syntax error in the new file</td><td><code>argocd app get shopnow-root --refresh</code></td></tr>
+<tr><td>A developer can sync to prod who shouldn't be able to</td><td>AppProject RBAC policy misconfigured or SSO group mapping wrong</td><td><code>argocd proj role list shopnow</code>, confirm SSO group membership</td></tr>
+<tr><td>Drift alert never fires despite an obvious manual change</td><td>Notifications ConfigMap trigger not actually subscribed on the Application, or SES credentials invalid</td><td><code>kubectl logs -n argocd deploy/argocd-notifications-controller</code></td></tr>
+</table>
+
+<h2 id="ansible">26. Ansible Automation</h2>
+<pre><code><span class="cmt"># roles/argocd-app-bootstrap/tasks/main.yml — onboards a new service the SAME
+# way Ansible has onboarded every other platform concern across this series</span>
+<span class="k">- name</span>: Render the Argo CD Application manifest for a new service
+  <span class="k">template</span>: { src: application.yaml.j2, dest: <span class="s">"gitops-repo/apps/{{ service_name }}.yaml"</span> }
+  <span class="k">vars</span>: { service_name: <span class="s">"{{ service_name }}"</span>, env: <span class="s">"{{ env_name | default('prod') }}"</span> }
+
+<span class="k">- name</span>: Commit and push to the GitOps repo — the root Application picks it up automatically
+  <span class="k">shell</span>: |
+    cd gitops-repo
+    git add apps/{{ service_name }}.yaml
+    git commit -m "onboard {{ service_name }} via Ansible"
+    git push
+</code></pre>
+<pre><code>ansible-playbook playbook.yml -e <span class="s">"service_name=returns-service"</span></code></pre>
+
+<h2 id="report">27. HTML Deployment/Job Report</h2>
+<pre><code><span class="cmt"># generate_report.py — fleet-wide sync/health snapshot, not just one service</span>
+<span class="k">import</span> argparse, subprocess, json, datetime
+
+<span class="k">def</span> get_all_apps():
+    out = subprocess.run([<span class="s">"argocd"</span>, <span class="s">"app"</span>, <span class="s">"list"</span>, <span class="s">"-o"</span>, <span class="s">"json"</span>], capture_output=<span class="k">True</span>, text=<span class="k">True</span>)
+    apps = json.loads(out.stdout)
+    <span class="k">return</span> [(a[<span class="s">"metadata"</span>][<span class="s">"name"</span>], a[<span class="s">"status"</span>][<span class="s">"sync"</span>][<span class="s">"status"</span>], a[<span class="s">"status"</span>][<span class="s">"health"</span>][<span class="s">"status"</span>]) <span class="k">for</span> a <span class="k">in</span> apps]
+
+<span class="k">def</span> build_report(build_no, status):
+    rows = <span class="s">""</span>
+    <span class="k">for</span> name, sync, health <span class="k">in</span> get_all_apps():
+        sync_color = <span class="s">"#5ec98f"</span> <span class="k">if</span> sync == <span class="s">"Synced"</span> <span class="k">else</span> <span class="s">"#e35d5d"</span>
+        health_color = <span class="s">"#5ec98f"</span> <span class="k">if</span> health == <span class="s">"Healthy"</span> <span class="k">else</span> <span class="s">"#e35d5d"</span>
+        rows += f<span class="s">"&lt;tr&gt;&lt;td&gt;{name}&lt;/td&gt;&lt;td style='color:{sync_color}'&gt;{sync}&lt;/td&gt;&lt;td style='color:{health_color}'&gt;{health}&lt;/td&gt;&lt;/tr&gt;"</span>
+    color = <span class="s">"#5ec98f"</span> <span class="k">if</span> status == <span class="s">"success"</span> <span class="k">else</span> <span class="s">"#e35d5d"</span>
+    html = f<span class="s">"""&lt;html&gt;&lt;body style="font-family:Arial;background:#0b0f14;color:#dbe6f0;padding:24px"&gt;
+    &lt;h2 style="color:{color}"&gt;ShopNow GitOps Fleet Report (Build #{build_no})&lt;/h2&gt;
+    &lt;p&gt;Time: {datetime.datetime.now()} | Status: {status.upper()}&lt;/p&gt;
+    &lt;table border="1" cellpadding="8" style="border-collapse:collapse"&gt;
+      &lt;tr&gt;&lt;th&gt;Application&lt;/th&gt;&lt;th&gt;Sync Status&lt;/th&gt;&lt;th&gt;Health&lt;/th&gt;&lt;/tr&gt;{rows}
+    &lt;/table&gt;&lt;/body&gt;&lt;/html&gt;"""</span>
+    <span class="k">with</span> open(<span class="s">"report.html"</span>, <span class="s">"w"</span>) <span class="k">as</span> f:
+        f.write(html)
+
+<span class="k">if</span> __name__ == <span class="s">"__main__"</span>:
+    parser = argparse.ArgumentParser()
+    parser.add_argument(<span class="s">"--status"</span>, default=<span class="s">"success"</span>)
+    parser.add_argument(<span class="s">"--build"</span>, required=<span class="k">True</span>)
+    args = parser.parse_args()
+    build_report(args.build, args.status)
+</code></pre>
+
+<h2 id="email">28. Email Notification</h2>
+<pre><code><span class="cmt"># send_email.py</span>
+<span class="k">import</span> argparse, smtplib, os
+<span class="k">from</span> email.mime.multipart <span class="k">import</span> MIMEMultipart
+<span class="k">from</span> email.mime.text <span class="k">import</span> MIMEText
+<span class="k">from</span> email.mime.application <span class="k">import</span> MIMEApplication
+
+<span class="k">def</span> send(status, build_no, report_path=<span class="s">"report.html"</span>):
+    msg = MIMEMultipart()
+    msg[<span class="s">"Subject"</span>] = f<span class="s">"[ShopNow] GitOps fleet report - Build #{build_no} - {status.upper()}"</span>
+    msg[<span class="s">"From"</span>] = <span class="s">"devops-bot@shopnow.com"</span>
+    msg[<span class="s">"To"</span>] = <span class="s">"release-managers@shopnow.com, platform-team@shopnow.com"</span>
+    msg.attach(MIMEText(f<span class="s">"Build: #{build_no}\nStatus: {status}\n\nSee attached fleet-wide Argo CD sync/health report."</span>, <span class="s">"plain"</span>))
+    <span class="k">if</span> os.path.exists(report_path):
+        <span class="k">with</span> open(report_path, <span class="s">"rb"</span>) <span class="k">as</span> f:
+            part = MIMEApplication(f.read(), Name=<span class="s">"report.html"</span>)
+        part[<span class="s">"Content-Disposition"</span>] = <span class="s">'attachment; filename="report.html"'</span>
+        msg.attach(part)
+    <span class="k">with</span> smtplib.SMTP(<span class="s">"email-smtp.ap-south-1.amazonaws.com"</span>, 587) <span class="k">as</span> server:
+        server.starttls()
+        server.login(os.environ[<span class="s">"SES_USER"</span>], os.environ[<span class="s">"SES_PASS"</span>])
+        server.send_message(msg)
+
+<span class="k">if</span> __name__ == <span class="s">"__main__"</span>:
+    parser = argparse.ArgumentParser()
+    parser.add_argument(<span class="s">"--status"</span>, default=<span class="s">"success"</span>)
+    parser.add_argument(<span class="s">"--build"</span>, required=<span class="k">True</span>)
+    parser.add_argument(<span class="s">"--report"</span>, default=<span class="s">"report.html"</span>)
+    args = parser.parse_args()
+    send(args.status, args.build, args.report)
+</code></pre>
+
+<hr class="divider">
+<h2 id="resume">29. How to Present This on Your Resume</h2>
+<div class="callout why">
+<b>Resume bullet (use as-is or adapt):</b><br>
+"Implemented GitOps-based continuous delivery for a four-service EKS platform using Argo CD, with Git as the sole source of truth; designed an App-of-Apps pattern to manage the entire application fleet from one root manifest, enabling new-service onboarding via a single Git commit; configured automated sync with self-heal to detect and automatically correct configuration drift from manual cluster changes, closing a real incident class caused by untracked manual kubectl commands; scoped access with Argo CD Projects and RBAC mapped to SSO groups; added Argo CD Notifications for drift and sync-failure alerting."
+</div>
+<table>
+<tr><th>Likely question</th><th>Section to re-read before the call</th></tr>
+<tr><td>"What does 'Git as source of truth' actually mean, mechanically?"</td><td>Section 2</td></tr>
+<tr><td>"What's the App-of-Apps pattern and why use it?"</td><td>Section 10</td></tr>
+<tr><td>"What's selfHeal, and can you prove it works?"</td><td>Section 11, Section 22 Step 3</td></tr>
+<tr><td>"Where does your CI pipeline's responsibility end?"</td><td>Section 18</td></tr>
+<tr><td>"How do you roll back safely under GitOps, without it just re-drifting back?"</td><td>Section 24</td></tr>
+</table>
+
+<div class="story" style="margin-top:40px">Ten months after this rollout, an engineer handling a genuine midnight incident runs the exact same kind of emergency <code>kubectl scale</code> command that caused section 1's original three-week-old surprise. This time, an email lands in the platform team's inbox within three minutes: <code>order-service-prod is OutOfSync — live replicas: 20, desired: 8</code>. The engineer, mid-incident, sees it, decides the scale-up should actually stick, and commits the change to Git themselves before going back to sleep — Argo CD, Git, and the cluster all agree again by morning, and nobody spends an hour three weeks later untangling why. That's Git actually being the source of truth, not just a place code happens to also live.</div>
+
+</div>
+</body>
+</html>

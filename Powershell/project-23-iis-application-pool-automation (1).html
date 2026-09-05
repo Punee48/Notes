@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Project 23 — IIS Application Pool Automation | PowerShell Masterclass</title>
+<style>
+  :root{
+    --primary:#A78BFA; --secondary:#C4B5FD; --surface:#1A1530; --surface2:#221B3D;
+    --bg:#0F0B1E; --text:#EDE9FE; --muted:#9CA3AF; --border:#332B57;
+    --success:#4ADE80; --warn:#FBBF24; --danger:#F87171;
+    --code-bg:#0A0716; --code-text:#E9E4FF;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0; font-family:"Segoe UI",Calibri,Roboto,Arial,sans-serif; background:var(--bg); color:var(--text); line-height:1.65;}
+  a{color:var(--secondary);}
+  .layout{display:flex; max-width:1400px; margin:0 auto;}
+  nav.sidebar{width:270px; flex-shrink:0; position:sticky; top:0; height:100vh; overflow-y:auto; background:var(--surface); border-right:1px solid var(--border); padding:22px 16px;}
+  nav.sidebar h3{color:var(--secondary); font-size:13px; text-transform:uppercase; letter-spacing:.06em; margin:18px 0 8px;}
+  nav.sidebar a{display:block; padding:7px 10px; border-radius:8px; color:var(--text); text-decoration:none; font-size:14px; margin-bottom:2px;}
+  nav.sidebar a:hover{background:var(--surface2); color:var(--secondary);}
+  #progressWrap{background:var(--surface2); border-radius:10px; padding:10px; margin-bottom:8px;}
+  #progressBar{height:8px; background:var(--border); border-radius:6px; overflow:hidden;}
+  #progressFill{height:100%; width:0%; background:linear-gradient(90deg,var(--primary),var(--secondary)); transition:width .2s;}
+  #progressLabel{font-size:12px; color:var(--muted); margin-top:6px;}
+  main{flex:1; min-width:0; padding:0;}
+  .cover{background:linear-gradient(135deg,#3B2A6B,#5B3FA0); color:#fff; padding:60px 48px; position:relative; overflow:hidden; border-bottom:1px solid var(--border);}
+  .cover::after{content:"";position:absolute;right:-80px;top:-80px;width:300px;height:300px;border-radius:50%;background:rgba(255,255,255,.06);}
+  .badge{display:inline-block; background:rgba(255,255,255,.14); padding:5px 14px; border-radius:20px; font-size:12px; letter-spacing:.05em; margin-right:8px; margin-bottom:14px;}
+  .cover h1{font-size:34px; margin:6px 0 10px; max-width:760px;}
+  .cover p.sub{font-size:16px; opacity:.92; max-width:640px;}
+  .cover-meta{display:flex; gap:28px; margin-top:26px; flex-wrap:wrap;}
+  .cover-meta div{background:rgba(255,255,255,.10); padding:12px 18px; border-radius:10px; min-width:140px;}
+  .cover-meta span{display:block; font-size:12px; opacity:.85;}
+  .cover-meta strong{font-size:16px;}
+  section{padding:34px 48px; border-bottom:1px solid var(--border);}
+  section h2{color:var(--secondary); font-size:24px; border-left:5px solid var(--primary); padding-left:14px; margin-top:0;}
+  section h3{color:var(--primary); font-size:18px; margin-top:26px;}
+  .story{background:var(--surface); border-left:5px solid var(--primary); padding:20px 24px; border-radius:0 10px 10px 0; font-size:15px;}
+  .story b{color:var(--secondary);}
+  .callout{border-radius:10px; padding:16px 18px; margin:16px 0; font-size:14.5px; border:1px solid var(--border);}
+  .callout.tip{background:#132A1E; border-left:5px solid var(--success);}
+  .callout.note{background:var(--surface); border-left:5px solid var(--secondary);}
+  .callout.warn{background:#2E2410; border-left:5px solid var(--warn);}
+  .callout.security{background:#2E1616; border-left:5px solid var(--danger);}
+  .callout .lbl{font-weight:700; display:block; margin-bottom:4px;}
+  table{width:100%; border-collapse:collapse; margin:16px 0; font-size:14px;}
+  th,td{border:1px solid var(--border); padding:9px 12px; text-align:left; vertical-align:top;}
+  th{background:var(--surface2); color:var(--secondary);}
+  tr:nth-child(even){background:var(--surface);}
+  .codewrap{position:relative; margin:16px 0;}
+  pre{background:var(--code-bg); color:var(--code-text); padding:18px 16px; border-radius:10px; overflow-x:auto; font-family:Consolas,"Cascadia Code",Menlo,monospace; font-size:13.5px; line-height:1.7; border:1px solid var(--border);}
+  pre code{white-space:pre;}
+  .copybtn{position:absolute; top:10px; right:10px; background:var(--primary); color:#1A1530; border:none; padding:6px 12px; border-radius:6px; font-size:12px; cursor:pointer; font-weight:600;}
+  .copybtn:hover{background:var(--secondary);}
+  .explain-list{list-style:none; padding:0; margin:14px 0;}
+  .explain-list li{background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:10px 14px; margin-bottom:6px; font-size:14.5px;}
+  .explain-list code{background:var(--surface2); padding:2px 6px; border-radius:5px; color:var(--secondary); font-weight:600;}
+  details{background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:12px 16px; margin:10px 0;}
+  details summary{cursor:pointer; font-weight:600; color:var(--secondary);}
+  .diagram{background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:20px; margin:16px 0; overflow-x:auto;}
+  .flow{display:flex; flex-wrap:wrap; align-items:center; gap:10px; font-size:13.5px;}
+  .flow .box{background:var(--surface2); border:2px solid var(--secondary); border-radius:8px; padding:8px 14px; font-weight:600; color:var(--secondary);}
+  .flow .arrow{color:var(--primary); font-size:18px;}
+  .steps{counter-reset:step;}
+  .steps .step{position:relative; padding-left:44px; margin-bottom:18px;}
+  .steps .step::before{counter-increment:step; content:counter(step); position:absolute; left:0; top:0; background:var(--primary); color:#1A1530; width:30px; height:30px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:700;}
+  .grid2{display:grid; grid-template-columns:1fr 1fr; gap:16px;}
+  @media(max-width:900px){.grid2{grid-template-columns:1fr;} nav.sidebar{display:none;} section{padding:26px 20px;} .cover{padding:36px 22px;}}
+  footer{padding:30px 48px; background:var(--surface); color:var(--muted); font-size:13px;}
+  code{color:var(--secondary);}
+</style>
+</head>
+<body>
+
+<div class="layout">
+  <nav class="sidebar">
+    <div id="progressWrap">
+      <div id="progressLabel">Reading progress</div>
+      <div id="progressBar"><div id="progressFill"></div></div>
+    </div>
+    <h3>Project 23</h3>
+    <a href="#cover">Cover</a>
+    <a href="#recap1">Recap: Projects 1–22</a>
+    <a href="#story">The Story</a>
+    <a href="#concepts">Concepts First</a>
+    <a href="#lab">Hands-On Lab</a>
+    <a href="#script">Full Script</a>
+    <a href="#linebyline">Line-by-Line</a>
+    <a href="#architecture">Architecture</a>
+    <a href="#incident">Production Incident</a>
+    <a href="#troubleshoot">Troubleshooting</a>
+    <a href="#security">Security Notes</a>
+    <a href="#recap">Key Learnings</a>
+    <a href="#interview">Interview Prep</a>
+    <a href="#challenges">Coding Challenges</a>
+    <a href="#resume">Resume Points</a>
+    <a href="#assignment">Practice Assignment</a>
+    <a href="#next">Next Project</a>
+  </nav>
+
+  <main id="top">
+    <div class="cover" id="cover">
+      <span class="badge">PROJECT 23</span><span class="badge">INTERMEDIATE</span><span class="badge">BFSI TRACK</span>
+      <h1>IIS Application Pool Automation</h1>
+      <p class="sub">Health-check and safely recycle IIS application pools — Project 10's idempotent recovery pattern, applied to the process that actually runs a site's code.</p>
+      <div class="cover-meta">
+        <div><span>Difficulty</span><strong>Intermediate</strong></div>
+        <div><span>Estimated Lab Time</span><strong>75–90 min</strong></div>
+        <div><span>Concepts</span><strong>8 core concepts</strong></div>
+        <div><span>Track</span><strong>23 of 40</strong></div>
+      </div>
+    </div>
+
+    <section id="recap1">
+      <h2>Quick Recap of Projects 1–22</h2>
+      <p>Projects 21-22 handled certificates and their IIS bindings. This project moves to what actually
+      <i>executes</i> a website's code: the <b>application pool</b>. We'll reuse Project 10's exact
+      detect-idempotent-retry-log recovery shape, applied to a new IIS-specific target.</p>
+    </section>
+
+    <section id="story">
+      <h2>The Story — Why We're Building This</h2>
+      <div class="story">
+        The banking portal occasionally returns 503 errors for a few minutes before recovering on its own — a
+        classic symptom of an application pool crashing and needing a recycle. Operations currently has to notice
+        the alerts, log into the server, and manually recycle the pool through IIS Manager, losing several minutes
+        each time. Our manager wants the same kind of safe, automatic recovery we built for Windows Services in
+        Project 10 — but for application pools.
+      </div>
+    </section>
+
+    <section id="concepts">
+      <h2>Concepts First — Before We Touch Code</h2>
+
+      <h3>1. What an Application Pool Actually Is</h3>
+      <div class="callout note"><span class="lbl">Not the same thing as the site</span>A <b>website</b> in IIS is
+      just configuration — bindings, folder paths, settings. An <b>application pool</b> is the actual worker process
+      (<code>w3wp.exe</code>) that runs the site's code and holds it in memory. Multiple sites can share one pool, or
+      each can have its own — recycling a pool restarts that worker process, similar in spirit to restarting a
+      Windows service (Project 10), but specifically for a web application's runtime.</div>
+
+      <h3>2. Checking Application Pool State</h3>
+      <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code>Get-WebAppPoolState -Name "DefaultAppPool"</code></pre></div>
+      <p>Returns the pool's current state — <code>Started</code>, <code>Stopped</code>, or a transitional state like
+      <code>Stopping</code>.</p>
+
+      <h3>3. Recycling vs Stopping/Starting — An Important Distinction</h3>
+      <table>
+        <tr><th>Action</th><th>What Happens</th><th>Cmdlet</th></tr>
+        <tr><td>Recycle</td><td>Gracefully starts a new worker process, finishes in-flight requests on the old one, then retires it — minimal disruption</td><td><code>Restart-WebAppPool</code></td></tr>
+        <tr><td>Stop + Start</td><td>Immediately kills the worker process, then starts a fresh one — every in-flight request is dropped</td><td><code>Stop-WebAppPool</code> / <code>Start-WebAppPool</code></td></tr>
+      </table>
+      <div class="callout warn"><span class="lbl">Why this distinction matters for our incident</span>Recycling is
+      the standard, low-disruption way to refresh a healthy-but-stuck pool. Stop/Start is a heavier hammer, more
+      appropriate when a pool is already fully stopped and recycling wouldn't apply — our script needs to choose the
+      right tool for the actual state it finds, not use the same action regardless.</div>
+
+      <h3>4. Idempotency and Retry — Reused Directly from Project 10</h3>
+      <p>The exact same shape: check current state first, only act if actually needed, retry with a capped attempt
+      count, log everything, return a consistent result object — nothing new to learn here, just a new target for a
+      pattern you already know well.</p>
+
+      <h3>5. SupportsShouldProcess — Also Reused</h3>
+      <p>Recycling a live application pool affects real traffic, exactly like Project 22's binding change — the same
+      <code>-WhatIf</code> preview discipline applies.</p>
+    </section>
+
+    <section id="lab">
+      <h2>Hands-On Lab — Build It Yourself</h2>
+      <div class="callout note"><span class="lbl">Local practice note</span>This lab assumes IIS is installed (see
+      Project 22's local practice note if you haven't enabled it yet). "DefaultAppPool" exists by default alongside
+      "Default Web Site" on a fresh IIS install.</div>
+      <div class="steps">
+        <div class="step"><b>Create the project folder:</b>
+          <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code>New-Item -ItemType Directory -Path "C:\PS-Masterclass\Project23\logs" -Force
+Set-Location "C:\PS-Masterclass\Project23"</code></pre></div>
+        </div>
+        <div class="step"><b>Create <code>Repair-AppPoolHealth.ps1</code></b> (as Administrator) and paste the full
+        script below.</div>
+        <div class="step"><b>Run it in preview mode first:</b>
+          <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code>.\Repair-AppPoolHealth.ps1</code></pre></div>
+        </div>
+        <div class="step"><b>Test a real recovery:</b> manually stop the pool first, then run the script for real:
+          <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code>Stop-WebAppPool -Name "DefaultAppPool"
+.\Repair-AppPoolHealth.ps1 -WhatIf:$false</code></pre></div>
+        </div>
+        <div class="step"><b>Validate:</b> confirm the pool is back to <code>Started</code>, the log shows the
+        recovery, and running the script again reports "already healthy."</div>
+      </div>
+    </section>
+
+    <section id="script">
+      <h2>Full Script — Repair-AppPoolHealth.ps1</h2>
+      <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code># =====================================================================
+# Repair-AppPoolHealth.ps1
+# ABC Bank - Windows Infrastructure Automation Team
+# Purpose: Idempotent, retry-capable IIS application pool health check and recovery
+# =====================================================================
+
+[CmdletBinding(SupportsShouldProcess)]
+param(
+    [switch]$WhatIf = $true,
+    [string[]]$AppPoolNames = @("DefaultAppPool")   # The pool(s) we're responsible for keeping healthy
+)
+
+Import-Module WebAdministration -ErrorAction Stop
+
+$LogPath    = ".\logs\AppPoolRecovery.log"
+$MaxRetries = 3
+$RetryDelaySeconds = 5
+
+function Write-Log {
+    param([string]$Message, [string]$Status = "INFO")
+    $Line = "{0} | {1} | {2}" -f (Get-Date -Format "yyyy-MM-dd HH:mm:ss"), $Status, $Message
+    Add-Content -Path $LogPath -Value $Line
+}
+
+# ---------------------------------------------------------------
+# FUNCTION: Idempotent, WhatIf-aware, retry-capable app pool recovery
+# ---------------------------------------------------------------
+function Repair-AppPool {
+    [CmdletBinding(SupportsShouldProcess)]
+    param([string]$AppPoolName)
+
+    try {
+        $State = Get-WebAppPoolState -Name $AppPoolName -ErrorAction Stop
+
+        # --- Idempotency check ---
+        if ($State.Value -eq "Started") {                          # Already healthy - Project 10's exact pattern
+            Write-Log -Status "INFO" -Message "$AppPoolName already Started - no action needed"
+            return [PSCustomObject]@{ AppPoolName = $AppPoolName; Action = "NONE (already running)"; Success = $true }
+        }
+
+        if ($PSCmdlet.ShouldProcess($AppPoolName, "Recover Application Pool")) {
+
+            $Attempt = 0
+            $Recovered = $false
+
+            while (-not $Recovered -and $Attempt -lt $MaxRetries) {   # Capped retry loop, identical to Project 10
+                $Attempt++
+                Write-Log -Status "INFO" -Message "$AppPoolName is $($State.Value) - recovery attempt $Attempt of $MaxRetries"
+
+                try {
+                    if ($State.Value -eq "Stopped") {                  # Choosing the RIGHT action for the actual state
+                        Start-WebAppPool -Name $AppPoolName -ErrorAction Stop   # Stopped pools need Start, not Recycle
+                    }
+                    else {
+                        Restart-WebAppPool -Name $AppPoolName -ErrorAction Stop   # Any other non-Started state gets a graceful recycle
+                    }
+                    Start-Sleep -Seconds 2
+                    $State = Get-WebAppPoolState -Name $AppPoolName     # Re-reads current state
+                    if ($State.Value -eq "Started") { $Recovered = $true }
+                }
+                catch {
+                    Write-Log -Status "WARNING" -Message "$AppPoolName recovery attempt $Attempt failed: $($_.Exception.Message)"
+                }
+
+                if (-not $Recovered -and $Attempt -lt $MaxRetries) {
+                    Start-Sleep -Seconds $RetryDelaySeconds
+                }
+            }
+
+            if ($Recovered) {
+                Write-Log -Status "SUCCESS" -Message "$AppPoolName recovered after $Attempt attempt(s)"
+                return [PSCustomObject]@{ AppPoolName = $AppPoolName; Action = "RECOVERED"; Success = $true }
+            }
+            else {
+                Write-Log -Status "ERROR" -Message "$AppPoolName FAILED to recover after $MaxRetries attempt(s)"
+                return [PSCustomObject]@{ AppPoolName = $AppPoolName; Action = "RECOVERY FAILED"; Success = $false }
+            }
+        }
+        else {
+            return [PSCustomObject]@{ AppPoolName = $AppPoolName; Action = "PREVIEWED (WhatIf)"; Success = $null }
+        }
+    }
+    catch {
+        Write-Log -Status "ERROR" -Message "$AppPoolName not found: $($_.Exception.Message)"
+        return [PSCustomObject]@{ AppPoolName = $AppPoolName; Action = "NOT FOUND"; Success = $false }
+    }
+}
+
+# ---------------------------------------------------------------
+# MAIN
+# ---------------------------------------------------------------
+Write-Host "`n=== APPLICATION POOL RECOVERY ===" -ForegroundColor Magenta
+$Results = @()
+
+foreach ($PoolName in $AppPoolNames) {
+    Write-Host "`nChecking $PoolName..." -ForegroundColor Cyan
+    $Result = Repair-AppPool -AppPoolName $PoolName -WhatIf:$WhatIf
+    $Results += $Result
+
+    $Color = if ($Result.Success -eq $true) { "Green" } elseif ($Result.Success -eq $false) { "Red" } else { "Yellow" }
+    Write-Host "  $($Result.Action)" -ForegroundColor $Color
+}
+
+if (-not (Test-Path ".\reports")) { New-Item -ItemType Directory -Path ".\reports" | Out-Null }
+$Timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
+$Results | Export-Csv -Path ".\reports\AppPoolRecovery_$Timestamp.csv" -NoTypeInformation
+
+Write-Host "`nAudit log: $LogPath" -ForegroundColor Cyan
+</code></pre></div>
+      </div>
+    </section>
+
+    <section id="linebyline">
+      <h2>Line-by-Line Explanation</h2>
+
+      <h3><code>if ($State.Value -eq "Started") { ... return ... }</code></h3>
+      <ul class="explain-list">
+        <li><code>Get-WebAppPoolState</code> returns an object whose actual state string lives in a
+        <code>.Value</code> property, rather than being the object itself — a small but important detail to notice
+        when working with a cmdlet for the first time; always check the real shape of what's returned rather than
+        assuming.</li>
+      </ul>
+
+      <h3><code>if ($State.Value -eq "Stopped") { Start-WebAppPool ... } else { Restart-WebAppPool ... }</code></h3>
+      <ul class="explain-list">
+        <li>This is the one genuinely new piece of logic compared to Project 10: rather than always calling one
+        fixed recovery action, the script chooses <b>Start</b> for a fully stopped pool versus <b>Restart (recycle)</b>
+        for any other non-Started state — because attempting to "recycle" an already-stopped pool doesn't make sense,
+        and a stopped pool specifically needs to be started.</li>
+      </ul>
+
+      <h3>Everything else in <code>Repair-AppPool</code></h3>
+      <ul class="explain-list">
+        <li>Deliberately unchanged from Project 10's <code>Repair-CriticalService</code>: the
+        <code>[CmdletBinding(SupportsShouldProcess)]</code> attribute, the <code>ShouldProcess</code> check, the
+        capped <code>while</code> retry loop, the consistent result-object shape, and the structured logging are all
+        copied directly. This is intentional — once a pattern is proven correct, reusing it exactly (rather than
+        reinventing a similar-but-subtly-different version) reduces risk and speeds up development.</li>
+      </ul>
+    </section>
+
+    <section id="architecture">
+      <h2>Architecture &amp; Recovery Flow</h2>
+      <div class="diagram">
+        <div class="flow">
+          <div class="box">Get-WebAppPoolState</div><div class="arrow">→</div>
+          <div class="box">Started?</div><div class="arrow">→</div>
+          <div class="box">Yes → Log + Exit (idempotent)</div>
+        </div>
+        <div class="flow" style="margin-top:12px;">
+          <div class="box">Not Started</div><div class="arrow">→</div>
+          <div class="box">ShouldProcess</div><div class="arrow">→</div>
+          <div class="box">Stopped? Start : Restart</div><div class="arrow">→</div>
+          <div class="box">Retry Loop (max 3)</div><div class="arrow">→</div>
+          <div class="box">Log + Report</div>
+        </div>
+      </div>
+      <p>Comparing this diagram directly to Project 10's should look almost identical — because it is, structurally.
+      The one meaningful difference (choosing Start vs Restart based on the specific stopped/other-state distinction)
+      is the only real new thinking this project required; everything else is pattern reuse.</p>
+    </section>
+
+    <section id="incident">
+      <h2>Production Incident Walkthrough</h2>
+      <div class="story">
+        This script runs on a 5-minute schedule (using Project 11's scheduling technique). At 2 AM, the banking
+        portal's application pool crashes into a stuck state; within 5 minutes, the script detects it, correctly
+        chooses to recycle (not stop/start, since the pool wasn't fully stopped) it, confirms recovery, and logs the
+        whole sequence — customer-facing downtime measured in single-digit minutes instead of however long it would
+        have taken someone to notice and respond manually overnight.
+      </div>
+      <ul class="explain-list">
+        <li><b>Why does choosing Restart over Stop+Start matter for customer impact specifically?</b> A recycle
+        (Restart-WebAppPool) lets in-flight requests on the old worker process finish before it's retired, while
+        Stop+Start would abruptly terminate every active request immediately — for a banking application, dropped
+        in-flight transactions are a much bigger problem than a few extra seconds of graceful transition.</li>
+      </ul>
+    </section>
+
+    <section id="troubleshoot">
+      <h2>Troubleshooting Cheat Sheet</h2>
+      <table>
+        <tr><th>Symptom</th><th>Likely Root Cause</th><th>Fix</th></tr>
+        <tr><td>"The term 'Get-WebAppPoolState' is not recognized"</td><td>WebAdministration module not imported, or IIS not installed</td><td>Confirm Import-Module WebAdministration succeeds first, standalone</td></tr>
+        <tr><td>Pool shows Started but the site still returns errors</td><td>The pool process itself is healthy, but the application code inside it has its own bug - outside this script's scope</td><td>Expected limitation - this script verifies the POOL's state, not the application's correctness</td></tr>
+        <tr><td>Recovery always fails after 3 attempts</td><td>A deeper, non-transient problem (bad deployment, missing dependency) that a restart can't fix</td><td>This is the retry ceiling working as intended - time to investigate manually, not increase the retry count blindly</td></tr>
+        <tr><td>Script reports NOT FOUND for a pool name you're sure exists</td><td>Typo, or case-sensitivity/whitespace mismatch in the pool name</td><td>Confirm exact names with Get-ChildItem "IIS:\AppPools"</td></tr>
+      </table>
+    </section>
+
+    <section id="security">
+      <h2>Security &amp; Best Practices</h2>
+      <div class="callout tip"><span class="lbl">Reusing a proven pattern is itself a best practice</span>This
+      project's biggest lesson isn't new PowerShell syntax — it's recognizing that Project 10's recovery shape
+      (idempotent check, ShouldProcess, capped retry, structured logging, consistent result objects) is genuinely
+      reusable infrastructure, not a one-off solution specific to Windows Services.</div>
+      <div class="callout security"><span class="lbl">Least privilege still applies</span>Managing application pools
+      typically requires local administrator rights or specific IIS management delegation — in a real enterprise
+      environment, this would run under a scoped service account, following the same reasoning as Project 10's
+      security notes.</div>
+    </section>
+
+    <section id="recap">
+      <h2>Key Learnings &amp; Recap</h2>
+      <div class="grid2">
+        <div>
+          <h3>Commands/Syntax Learned</h3>
+          <ul class="explain-list">
+            <li><code>Get-WebAppPoolState</code></li>
+            <li><code>Start-WebAppPool</code> / <code>Restart-WebAppPool</code></li>
+          </ul>
+        </div>
+        <div>
+          <h3>Concepts Learned</h3>
+          <ul class="explain-list">
+            <li>Application pool vs website — different things entirely</li>
+            <li>Recycle (graceful) vs Stop/Start (abrupt) and when each applies</li>
+            <li>Choosing the correct recovery action based on actual current state</li>
+            <li>Deliberately reusing a proven pattern exactly, rather than reinventing it</li>
+          </ul>
+        </div>
+      </div>
+      <h3>Common Mistakes to Avoid</h3>
+      <ul class="explain-list">
+        <li>Confusing an application pool with the website configuration itself.</li>
+        <li>Always recycling regardless of state, instead of starting a pool that's fully stopped.</li>
+        <li>Using Stop+Start when a graceful Restart would minimize disruption to in-flight requests.</li>
+        <li>Reinventing a slightly different, unproven recovery pattern instead of reusing Project 10's tested one.</li>
+      </ul>
+    </section>
+
+    <section id="interview">
+      <h2>Interview Preparation</h2>
+      <details><summary>Q1. What's the difference between an IIS website and an IIS application pool?</summary>
+        <p><b>Answer:</b> A website is configuration — bindings, physical path, settings. An application pool is the
+        actual worker process that executes the site's code and holds it in memory. One pool can serve multiple
+        sites, or each site can have a dedicated pool; recycling a pool restarts that worker process without
+        changing the site's configuration.</p>
+        <p><b>Follow-up:</b> "If two sites share one app pool and it crashes, what's the impact?" — Answer: both
+        sites go down together, since they depend on the same worker process — a good reason larger or more critical
+        sites are often given their own dedicated pool rather than sharing.</p>
+      </details>
+      <details><summary>Q2. Why does this script check the pool's state before deciding whether to Start or Restart it?</summary>
+        <p><b>Answer:</b> "Restart" implies something was already running that needs cycling; a fully stopped pool
+        has nothing running to cycle, and needs to be explicitly started instead. Choosing the wrong action for the
+        actual state could fail or behave unexpectedly, so checking state first ensures the right operation is used.</p>
+        <p><b>Follow-up:</b> "What IIS-specific transitional states might complicate this logic further in a fully
+        production-hardened version?" — Answer: states like "Stopping" or "Starting" represent a pool mid-transition —
+        a more robust script might wait briefly and re-check rather than immediately attempting another action
+        against a pool that's already in the middle of changing state.</p>
+      </details>
+      <details><summary>Q3. Why does this project deliberately reuse Project 10's exact recovery pattern instead of writing something new?</summary>
+        <p><b>Answer:</b> The underlying problem — detect an unhealthy thing, check if action is really needed, act
+        safely with preview support, retry a bounded number of times, log everything, return a consistent result —
+        is genuinely the same shape regardless of whether the "thing" is a Windows Service or an IIS application
+        pool. Reusing a pattern that's already been reasoned through carefully reduces the chance of introducing a
+        new, unproven bug.</p>
+        <p><b>Follow-up:</b> "At what point would you extract this shared logic into a reusable function or module
+        instead of copying it between scripts?" — Answer: once a third or fourth thing needs the same recovery shape
+        (a foreshadowing of the Module Development stage later in the course), extracting a generic
+        <code>Repair-Resource</code>-style function that accepts the resource-specific check/start/restart logic as
+        parameters would avoid the duplication entirely.</p>
+      </details>
+    </section>
+
+    <section id="challenges">
+      <h2>Coding Challenges</h2>
+      <details><summary>Challenge 1: Add a check for excessive worker process memory usage (a common real-world recycle trigger) using Get-Process on w3wp.exe</summary>
+        <details><summary>Show answer</summary>
+        <pre><code>$WorkerProcesses = Get-Process -Name "w3wp" -ErrorAction SilentlyContinue
+$HighMemory = $WorkerProcesses | Where-Object { ($_.WorkingSet64 / 1MB) -gt 1000 }   # Over 1GB, for example
+if ($HighMemory) { Write-Warning "A w3wp.exe process is using over 1GB of memory - consider recycling" }</code></pre>
+        </details>
+      </details>
+      <details><summary>Challenge 2: Add a scheduled recycle time check - only recycle automatically outside business hours (9 AM - 5 PM)</summary>
+        <details><summary>Show answer</summary>
+        <pre><code>$Hour = (Get-Date).Hour
+if ($Hour -ge 9 -and $Hour -lt 17) {
+    Write-Host "Within business hours - skipping automatic recycle, flagging for manual review instead" -ForegroundColor Yellow
+}
+else {
+    # proceed with the existing Repair-AppPool logic
+}</code></pre>
+        </details>
+      </details>
+      <details><summary>Challenge 3: List all application pools and their state as a quick health dashboard, regardless of $AppPoolNames</summary>
+        <details><summary>Show answer</summary>
+        <pre><code>Get-ChildItem "IIS:\AppPools" | ForEach-Object {
+    [PSCustomObject]@{ Name = $_.Name; State = (Get-WebAppPoolState -Name $_.Name).Value }
+}</code></pre>
+        </details>
+      </details>
+    </section>
+
+    <section id="resume">
+      <h2>Resume Points</h2>
+      <ul class="explain-list">
+        <li>Built an idempotent, self-healing PowerShell IIS application pool recovery automation reusing a proven ShouldProcess/retry/logging pattern.</li>
+        <li>Implemented state-aware recovery logic distinguishing graceful recycling from full restart based on actual pool state.</li>
+        <li>Reduced customer-facing downtime by automating a previously manual application pool recovery process.</li>
+      </ul>
+    </section>
+
+    <section id="assignment">
+      <h2>Practice Assignment</h2>
+      <div class="callout note">
+        Add a second application pool name to <code>$AppPoolNames</code> (create one via
+        <code>New-WebAppPool -Name "TestPool2"</code> if needed), run the script, and confirm it correctly handles
+        both pools independently in a single run, with separate log entries and result rows for each.
+      </div>
+    </section>
+
+    <section id="next">
+      <h2>Next Project Prerequisites</h2>
+      <p>Project 24 (IIS Website Deployment) moves from managing existing sites to creating new ones end-to-end —
+      site, binding, and application pool together — pulling together everything from this entire Certificate/IIS
+      mini-track. When ready, say <b>"Next Project."</b></p>
+    </section>
+
+    <footer>
+      PowerShell Masterclass — ABC Bank Automation Track · Project 23 of 40 · Generated for offline, self-contained use.
+    </footer>
+  </main>
+</div>
+
+<script>
+function copyCode(btn){
+  const code = btn.parentElement.querySelector('pre').innerText;
+  navigator.clipboard.writeText(code).then(()=>{
+    const old = btn.innerText; btn.innerText = "Copied!";
+    setTimeout(()=>btn.innerText = old, 1200);
+  });
+}
+window.addEventListener('scroll', ()=>{
+  const h = document.documentElement;
+  const pct = (h.scrollTop) / (h.scrollHeight - h.clientHeight) * 100;
+  document.getElementById('progressFill').style.width = pct + '%';
+  document.getElementById('progressLabel').innerText = 'Reading progress: ' + Math.round(pct) + '%';
+});
+</script>
+</body>
+</html>

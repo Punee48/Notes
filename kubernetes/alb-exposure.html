@@ -1,0 +1,781 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Use Case 8: Application Exposure Using AWS Load Balancer Controller | ShopNow Retail</title>
+<style>
+  :root{
+    --bg:#0b0f14; --panel:#111823; --panel2:#0e1420; --border:#1f2b3a;
+    --text:#dbe6f0; --muted:#8aa0b4; --accent:#3fb6a8; --accent2:#e8a33d;
+    --code-bg:#0a0e14; --good:#5ec98f; --bad:#e35d5d; --alb:#e8a33d; --nlb:#5aa9e6;
+  }
+  *{box-sizing:border-box}
+  body{background:var(--bg);color:var(--text);font-family:'Segoe UI',Roboto,Helvetica,Arial,sans-serif;line-height:1.65;margin:0;padding:0}
+  .wrap{max-width:980px;margin:0 auto;padding:32px 24px 120px}
+  h1{font-size:2rem;color:#fff;border-bottom:3px solid var(--accent);padding-bottom:12px;margin-top:0}
+  h2{color:var(--accent);font-size:1.5rem;margin-top:56px;border-left:5px solid var(--accent);padding-left:14px}
+  h3{color:var(--accent2);font-size:1.2rem;margin-top:32px}
+  h4{color:#fff;font-size:1.02rem;margin-top:22px;background:var(--panel2);padding:6px 10px;border-radius:4px;border-left:3px solid var(--muted)}
+  p{color:#c6d3df}
+  .story{background:linear-gradient(135deg,#132030,#0e1622);border:1px solid var(--border);border-radius:10px;padding:18px 22px;margin:18px 0;font-style:italic;color:#b9c9d8}
+  .story b{color:var(--accent2);font-style:normal}
+  .callout{background:#152a24;border:1px solid #235c4c;border-radius:8px;padding:14px 18px;margin:16px 0}
+  .callout.warn{background:#2a1f14;border-color:#6b4a1d}
+  .callout.why{background:#101b2c;border-color:#254268}
+  .step{background:var(--panel);border:1px solid var(--border);border-left:4px solid var(--accent);border-radius:6px;padding:12px 18px;margin:14px 0}
+  .step b.n{display:inline-block;background:var(--accent);color:#04120f;border-radius:50%;width:24px;height:24px;text-align:center;line-height:24px;font-size:.8rem;margin-right:10px}
+  pre{background:var(--code-bg);border:1px solid var(--border);border-radius:8px;padding:16px;overflow-x:auto;font-size:.85rem}
+  code{font-family:'Fira Code',Consolas,monospace;color:#c9d9e3}
+  .cmt{color:#5c7a8a}
+  .k{color:#e8a33d} .s{color:#7fd1a7} .v{color:#5aa9e6}
+  table{width:100%;border-collapse:collapse;margin:16px 0}
+  th,td{border:1px solid var(--border);padding:8px 12px;text-align:left;font-size:.9rem}
+  th{background:var(--panel2);color:var(--accent2)}
+  .toc{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:20px 26px}
+  .toc a{color:var(--accent);text-decoration:none}
+  .toc li{margin:6px 0}
+  .divider{border:none;border-top:1px solid var(--border);margin:40px 0}
+  .flow{display:flex;flex-wrap:wrap;gap:10px;margin:16px 0;align-items:center}
+  .flow div{background:var(--panel2);border:1px solid var(--border);border-radius:6px;padding:10px 16px;font-size:.85rem;font-weight:600}
+  .flow .arrow{background:none;border:none;padding:0;font-weight:400;color:var(--muted)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>Use Case 8: Application Exposure Using AWS Load Balancer Controller</h1>
+<p><b>Company:</b> ShopNow Retail Pvt Ltd (fictional mid-size e-commerce company) &nbsp;|&nbsp; <b>Your role:</b> DevOps/Cloud Engineer &nbsp;|&nbsp; <b>Level:</b> 4+ years, resume-ready production project</p>
+
+<div class="toc">
+<b>What this document covers, start to finish:</b>
+<ol>
+<li><a href="#scenario">The Business Scenario</a></li>
+<li><a href="#concept">The Core Idea — ALB vs NLB vs Ingress, and How They Actually Relate</a></li>
+<li><a href="#folders">Project Folder Structure</a></li>
+<li><a href="#apparch">Application Architecture</a></li>
+<li><a href="#awsarch">AWS Architecture</a></li>
+<li><a href="#eks">EKS Cluster Design</a></li>
+<li><a href="#vpc">VPC and Networking</a></li>
+<li><a href="#iam">IAM Roles and IRSA for the Controller Itself</a></li>
+<li><a href="#controller">Installing the AWS Load Balancer Controller</a></li>
+<li><a href="#alb">Exposing HTTP(S) Traffic via ALB Ingress</a></li>
+<li><a href="#tls">HTTPS/TLS — ACM, Redirect, and Security Policy</a></li>
+<li><a href="#nlb">Exposing TCP Traffic via Network Load Balancer</a></li>
+<li><a href="#manifests">Deployment and Service — Completing the Flow</a></li>
+<li><a href="#config">ConfigMaps and Secrets</a></li>
+<li><a href="#hpa">HPA and Autoscaling</a></li>
+<li><a href="#pdb">PodDisruptionBudget</a></li>
+<li><a href="#netpol">NetworkPolicies</a></li>
+<li><a href="#ecr">ECR Integration</a></li>
+<li><a href="#pipeline">Jenkins and GitHub Actions Pipelines</a></li>
+<li><a href="#argocd">Argo CD GitOps</a></li>
+<li><a href="#monitoring">Prometheus and Grafana</a></li>
+<li><a href="#cloudwatch">CloudWatch Logging — ALB Access Logs</a></li>
+<li><a href="#workflow">Running the Code — Full End-to-End Workflow</a></li>
+<li><a href="#failure">Failure Testing</a></li>
+<li><a href="#rollback">Rollback Strategy</a></li>
+<li><a href="#troubleshoot">Troubleshooting Scenarios</a></li>
+<li><a href="#ansible">Ansible Automation</a></li>
+<li><a href="#report">HTML Deployment/Job Report</a></li>
+<li><a href="#email">Email Notification</a></li>
+<li><a href="#resume">How to Present This on Your Resume</a></li>
+</ol>
+</div>
+
+<h2 id="scenario">1. The Business Scenario — Why This Project Exists</h2>
+<div class="story">
+When ShopNow Retail first moved to EKS, the engineer setting it up did the fastest thing that worked: <code>kubectl expose deployment order-service --type=LoadBalancer</code>. This silently provisions a "Classic Load Balancer" for every single service that needs one — and eight months later, ShopNow's AWS bill review turned up <b>fourteen separate Classic Load Balancers</b>, one per service, each billed independently, none of them supporting modern routing rules, host-based paths, or WAF integration, and several of them completely forgotten about, still running, attached to services nobody used anymore.
+</div>
+<p>Ramesh's ask: <i>"I want one clean, understood way that traffic gets from the internet into our pods. HTTP and HTTPS traffic should go through a shared Application Load Balancer with proper routing. Anything that genuinely needs raw TCP — like our internal gRPC service — should go through a Network Load Balancer instead, deliberately, not by accident. And I want to be able to draw the exact path a request takes, from a customer's browser down to a specific pod, on a whiteboard, in under a minute."</i></p>
+<p>This use case builds exactly that clarity: the <b>AWS Load Balancer Controller</b> as the single, understood bridge between AWS's load balancing layer and Kubernetes' own Ingress and Service objects — replacing ad-hoc, expensive, unmanaged load balancers with a consistent, GitOps-managed pattern.</p>
+
+<h2 id="concept">2. The Core Idea — ALB vs NLB vs Ingress, and How They Actually Relate</h2>
+<div class="flow">
+<div>User</div><div class="arrow">&darr;</div>
+<div style="background:#2b2110;border-color:var(--alb)">AWS ALB</div><div class="arrow">&darr;</div>
+<div>Kubernetes Ingress</div><div class="arrow">&darr;</div>
+<div>Service</div><div class="arrow">&darr;</div>
+<div>Application Pods</div>
+</div>
+<p>This diagram, exactly as given in the original ask, is the mental model for the entire use case — but each arrow hides a mechanism worth naming precisely, because "how does traffic actually get from the ALB to a pod" is a very common interview question that a surprising number of engineers can't answer past "the Ingress routes it."</p>
+<table>
+<tr><th>Layer</th><th>What it actually is</th><th>Who manages it</th></tr>
+<tr><td><b>AWS ALB</b></td><td>A real AWS resource (Application Load Balancer) — Layer 7, understands HTTP/HTTPS, host and path routing</td><td>Created and updated automatically by the AWS Load Balancer Controller, based on your Ingress object</td></tr>
+<tr><td><b>Kubernetes Ingress</b></td><td>A Kubernetes API object — just a set of routing <i>rules</i>, with no traffic-handling capability of its own</td><td>You declare it in YAML; it does nothing by itself without a controller watching it</td></tr>
+<tr><td><b>AWS Load Balancer Controller</b></td><td>A pod running inside your cluster that watches Ingress and Service objects and translates them into real AWS API calls</td><td>Installed once per cluster (section 9)</td></tr>
+<tr><td><b>Service (type: ClusterIP)</b></td><td>Internal-only Kubernetes networking — the ALB Controller registers pod IPs directly into an AWS Target Group, bypassing the Service's own internal load-balancing entirely when using <code>target-type: ip</code></td><td>You declare it; kube-proxy and the ALB Controller both use it, differently</td></tr>
+<tr><td><b>Application Pods</b></td><td>Where the request finally lands</td><td>Your Deployment</td></tr>
+</table>
+<div class="callout why"><b>The detail most engineers get wrong: with <code>target-type: ip</code> (the mode used throughout this series), the ALB sends traffic <i>directly to pod IPs</i>, not to the Service at all.</b> The Service object still exists and still matters — the Ingress references it by name, and the ALB Controller reads the Service's Endpoints to learn which pod IPs to register — but the actual customer request, once the Target Group is built, never passes through kube-proxy or the Service's virtual IP. This is different from <code>target-type: instance</code> (the older mode), which does route through the Service via a NodePort. Knowing this distinction, and being able to explain why <code>ip</code> mode is preferred (fewer network hops, more accurate health checks, no dependency on NodePort ranges) is exactly the kind of depth that separates a surface-level answer from a strong one.</div>
+<h3>Where NLB fits — a genuinely different tool, not a smaller ALB</h3>
+<table>
+<tr><th></th><th>Application Load Balancer (ALB)</th><th>Network Load Balancer (NLB)</th></tr>
+<tr><td>OSI Layer</td><td>Layer 7 (HTTP/HTTPS)</td><td>Layer 4 (raw TCP/UDP)</td></tr>
+<tr><td>Understands</td><td>Hosts, paths, headers — can route <code>/api/orders</code> and <code>/api/catalog</code> differently</td><td>Only IP + port — no visibility into HTTP semantics at all</td></tr>
+<tr><td>Kubernetes object used</td><td><code>Ingress</code></td><td><code>Service</code> of <code>type: LoadBalancer</code>, with NLB annotations</td></tr>
+<tr><td>ShopNow's use</td><td>All customer-facing web/API traffic (shopnow.com)</td><td>Internal gRPC service between Order Service and a fulfillment partner's system, and the TLS-terminating internal webhook receiver from Use Case 7</td></tr>
+<tr><td>Why not just use ALB for everything?</td><td>—</td><td>gRPC and raw TCP protocols don't fit HTTP host/path routing semantics; NLB's ultra-low latency and static IP support also matter for time-sensitive internal traffic</td></tr>
+</table>
+
+<h2 id="folders">3. Project Folder Structure</h2>
+<pre><code>shopnow-gitops-repo/
+├── platform/
+│   └── aws-load-balancer-controller/
+│       ├── helm-values.yaml
+│       └── iam-policy.json
+│
+├── services/
+│   ├── order-service/
+│   │   ├── base/
+│   │   │   ├── deployment.yaml
+│   │   │   ├── service.yaml
+│   │   │   ├── ingress.yaml            <span class="cmt"># ALB — HTTP/HTTPS exposure</span>
+│   │   │   ├── hpa.yaml
+│   │   │   ├── pdb.yaml
+│   │   │   └── kustomization.yaml
+│   │   └── overlays/
+│   │       └── prod/
+│   │           ├── configmap.yaml
+│   │           └── kustomization.yaml
+│   │
+│   └── fulfillment-grpc-service/
+│       ├── base/
+│       │   ├── deployment.yaml
+│       │   ├── service-nlb.yaml        <span class="cmt"># NLB — raw TCP/gRPC exposure</span>
+│       │   ├── hpa.yaml
+│       │   └── kustomization.yaml
+│       └── overlays/
+│           └── prod/
+│               └── kustomization.yaml
+│
+├── argocd-apps/
+│   ├── order-service-prod.yaml
+│   └── fulfillment-grpc-service-prod.yaml
+│
+├── ansible/
+│   ├── playbook.yml
+│   └── roles/expose-service/
+│       ├── tasks/main.yml
+│       └── templates/ingress.yaml.j2
+│
+├── pipeline-scripts/
+│   ├── generate_report.py
+│   ├── send_email.py
+│   └── verify_exposure.py              <span class="cmt"># curl + DNS + cert checks against the live endpoint</span>
+│
+├── Jenkinsfile
+└── .github/workflows/deploy.yml
+</code></pre>
+<p>Two services deliberately included side by side — <b>Order Service (ALB/Ingress)</b> and a new <b>Fulfillment gRPC Service (NLB)</b> — precisely so this project demonstrates both exposure paths from the diagram, not just one.</p>
+
+<h2 id="apparch">4. Application Architecture</h2>
+<pre><code><span class="cmt">   Customer Browser (HTTPS)                Internal Fulfillment Partner (gRPC/TCP)
+           |                                              |
+     AWS ALB (Layer 7)                          AWS NLB (Layer 4)
+           |                                              |
+   Kubernetes Ingress                         Kubernetes Service (type=LoadBalancer,
+    (host + path rules)                        NLB annotations, no Ingress involved)
+           |                                              |
+  order-service-svc (ClusterIP)               fulfillment-grpc-svc
+           |                                              |
+    Order Service Pods                    Fulfillment gRPC Service Pods
+</span></code></pre>
+<p>Both paths terminate in ordinary Kubernetes pods — the entire difference between them is which AWS load balancer type sits at the front door and which Kubernetes object (Ingress vs Service) the AWS Load Balancer Controller is watching to configure it.</p>
+
+<h2 id="awsarch">5. AWS Architecture</h2>
+<table>
+<tr><th>AWS Service</th><th>Role in this project</th></tr>
+<tr><td>Application Load Balancer</td><td>Single shared ALB for all HTTP(S) services, host/path-routed via Ingress objects grouped together</td></tr>
+<tr><td>Network Load Balancer</td><td>Dedicated NLB for the Fulfillment gRPC Service, provisioned directly from a Kubernetes Service annotation</td></tr>
+<tr><td>ACM</td><td>Issues and auto-renews the TLS certificate the ALB terminates HTTPS with</td></tr>
+<tr><td>Route53</td><td>DNS records pointing shopnow.com at the ALB, and an internal record pointing at the NLB</td></tr>
+<tr><td>EKS</td><td>Runs both the AWS Load Balancer Controller and the application pods it routes to</td></tr>
+<tr><td>WAF</td><td>Attached to the ALB (not possible on the NLB, since WAF is an HTTP-layer protection) to filter malicious HTTP requests before they reach any pod</td></tr>
+</table>
+
+<h2 id="eks">6. EKS Cluster Design</h2>
+<pre><code><span class="k">apiVersion</span>: eksctl.io/v1alpha5
+<span class="k">kind</span>: ClusterConfig
+<span class="k">metadata</span>:
+  <span class="k">name</span>: shopnow-cluster
+  <span class="k">region</span>: ap-south-1
+  <span class="k">version</span>: <span class="s">"1.29"</span>
+<span class="k">iam</span>:
+  <span class="k">withOIDC</span>: true
+<span class="k">managedNodeGroups</span>:
+  <span class="k">- name</span>: ng-general
+    <span class="k">instanceType</span>: m5.large
+    <span class="k">desiredCapacity</span>: 3
+    <span class="k">minSize</span>: 3
+    <span class="k">maxSize</span>: 8
+</code></pre>
+<p>No exposure-specific node sizing is needed — the AWS Load Balancer Controller itself is lightweight (typically 2 small replicas for HA) and the ALB/NLB resources it manages live entirely outside the cluster in AWS, not as cluster compute.</p>
+
+<h2 id="vpc">7. VPC and Networking</h2>
+<p>This use case has one VPC requirement that's easy to get wrong: subnets must be <b>explicitly tagged</b> so the AWS Load Balancer Controller knows where it's allowed to place load balancer network interfaces.</p>
+<pre><code><span class="cmt"># Public subnets — tag for ALB/NLB internet-facing placement</span>
+aws ec2 create-tags --resources subnet-pub1 subnet-pub2 subnet-pub3 \
+  --tags Key=kubernetes.io/role/elb,Value=1
+
+<span class="cmt"># Private subnets — tag for internal-facing load balancer placement</span>
+aws ec2 create-tags --resources subnet-priv1 subnet-priv2 subnet-priv3 \
+  --tags Key=kubernetes.io/role/internal-elb,Value=1
+
+<span class="cmt"># Every subnet also needs the cluster-association tag (usually set by eksctl automatically)</span>
+aws ec2 create-tags --resources subnet-pub1 subnet-pub2 subnet-pub3 subnet-priv1 subnet-priv2 subnet-priv3 \
+  --tags Key=kubernetes.io/cluster/shopnow-cluster,Value=shared
+</code></pre>
+<div class="callout warn"><b>Missing these tags is the single most common reason an Ingress or LoadBalancer Service gets stuck with no ADDRESS.</b> The AWS Load Balancer Controller uses these exact tags to auto-discover which subnets it's allowed to use — without them, it has no idea where to place the load balancer's network interfaces, and fails silently in its own logs rather than in anything visible from <code>kubectl get ingress</code>.</div>
+
+<h2 id="iam">8. IAM Roles and IRSA for the Controller Itself</h2>
+<pre><code><span class="cmt"># The controller needs broad EC2/ELB permissions — it's provisioning real AWS
+# infrastructure (load balancers, target groups, security group rules) on your behalf</span>
+curl -O https://raw.githubusercontent.com/kubernetes-sigs/aws-load-balancer-controller/main/docs/install/iam_policy.json
+
+aws iam create-policy \
+  --policy-name AWSLoadBalancerControllerIAMPolicy \
+  --policy-document file://iam_policy.json
+
+eksctl create iamserviceaccount \
+  --cluster shopnow-cluster \
+  --namespace kube-system \
+  --name aws-load-balancer-controller \
+  --attach-policy-arn arn:aws:iam::111122223333:policy/AWSLoadBalancerControllerIAMPolicy \
+  --approve
+</code></pre>
+<div class="callout why"><b>This is the same IRSA pattern from Use Case 7, applied to a platform component instead of an application.</b> The controller pod itself has no long-lived AWS credentials — it authenticates via its ServiceAccount's bound IAM role, and that role is what actually has permission to call <code>CreateLoadBalancer</code>, <code>CreateTargetGroup</code>, <code>ModifyListener</code>, and similar EC2/ELB APIs on ShopNow's behalf.</div>
+
+<h2 id="controller">9. Installing the AWS Load Balancer Controller</h2>
+<pre><code>helm repo add eks https://aws.github.io/eks-charts
+helm repo update
+
+helm install aws-load-balancer-controller eks/aws-load-balancer-controller \
+  -n kube-system \
+  --set clusterName=shopnow-cluster \
+  --set serviceAccount.create=false \
+  --set serviceAccount.name=aws-load-balancer-controller \
+  --set region=ap-south-1 \
+  --set vpcId=vpc-0abc123
+
+kubectl get deployment -n kube-system aws-load-balancer-controller
+<span class="cmt"># Expect 2/2 READY — it runs in HA by default</span>
+</code></pre>
+<p>From this point forward, the controller continuously watches every <code>Ingress</code> object annotated <code>kubernetes.io/ingress.class: alb</code> and every <code>Service</code> annotated for NLB across the whole cluster, and keeps the real AWS resources in sync with whatever those objects declare — this single controller is what makes both halves of section 2's comparison table actually work.</p>
+
+<h2 id="alb">10. Exposing HTTP(S) Traffic via ALB Ingress</h2>
+<pre><code><span class="cmt"># services/order-service/base/ingress.yaml</span>
+<span class="k">apiVersion</span>: networking.k8s.io/v1
+<span class="k">kind</span>: Ingress
+<span class="k">metadata</span>:
+  <span class="k">name</span>: order-service-ingress
+  <span class="k">annotations</span>:
+    <span class="k">kubernetes.io/ingress.class</span>: alb
+    <span class="k">alb.ingress.kubernetes.io/scheme</span>: internet-facing
+    <span class="k">alb.ingress.kubernetes.io/target-type</span>: ip
+    <span class="k">alb.ingress.kubernetes.io/group.name</span>: shopnow-shared-alb   <span class="cmt"># <-- see callout below</span>
+    <span class="k">alb.ingress.kubernetes.io/healthcheck-path</span>: /actuator/health/readiness
+    <span class="k">alb.ingress.kubernetes.io/healthcheck-interval-seconds</span>: <span class="s">"15"</span>
+    <span class="k">alb.ingress.kubernetes.io/success-codes</span>: <span class="s">"200"</span>
+<span class="k">spec</span>:
+  <span class="k">rules</span>:
+    <span class="k">- host</span>: shopnow.com
+      <span class="k">http</span>:
+        <span class="k">paths</span>:
+          <span class="k">- path</span>: /api/orders
+            <span class="k">pathType</span>: Prefix
+            <span class="k">backend</span>: { service: { name: order-service-svc, port: { number: 80 } } }
+</code></pre>
+<div class="callout why"><b>The <code>group.name</code> annotation is the answer to section 1's "fourteen load balancers" problem.</b> Every Ingress across every service in ShopNow that shares this same <code>group.name</code> value gets merged by the controller into <b>one single ALB</b>, with each Ingress contributing its own listener rule. Catalog Service's Ingress, Payment Service's Ingress, and this one all point at the same physical load balancer — this is the exact mechanism that took ShopNow from fourteen billed load balancers down to one.</div>
+
+<h2 id="tls">11. HTTPS/TLS — ACM, Redirect, and Security Policy</h2>
+<pre><code><span class="k">apiVersion</span>: networking.k8s.io/v1
+<span class="k">kind</span>: Ingress
+<span class="k">metadata</span>:
+  <span class="k">name</span>: order-service-ingress
+  <span class="k">annotations</span>:
+    <span class="k">kubernetes.io/ingress.class</span>: alb
+    <span class="k">alb.ingress.kubernetes.io/scheme</span>: internet-facing
+    <span class="k">alb.ingress.kubernetes.io/target-type</span>: ip
+    <span class="k">alb.ingress.kubernetes.io/group.name</span>: shopnow-shared-alb
+    <span class="k">alb.ingress.kubernetes.io/certificate-arn</span>: arn:aws:acm:ap-south-1:111122223333:certificate/xxxx
+    <span class="k">alb.ingress.kubernetes.io/listen-ports</span>: <span class="s">'[{"HTTP":80},{"HTTPS":443}]'</span>
+    <span class="k">alb.ingress.kubernetes.io/ssl-redirect</span>: <span class="s">"443"</span>
+    <span class="k">alb.ingress.kubernetes.io/ssl-policy</span>: ELBSecurityPolicy-TLS13-1-2-2021-06
+<span class="k">spec</span>:
+  <span class="k">rules</span>:
+    <span class="k">- host</span>: shopnow.com
+      <span class="k">http</span>:
+        <span class="k">paths</span>:
+          <span class="k">- path</span>: /api/orders
+            <span class="k">pathType</span>: Prefix
+            <span class="k">backend</span>: { service: { name: order-service-svc, port: { number: 80 } } }
+</code></pre>
+<div class="step"><b class="n">1</b><b>certificate-arn</b> points at an ACM certificate — TLS is terminated <i>at the ALB</i>, not inside the pods. This means Order Service's containers only ever need to speak plain HTTP on port 8080 internally; they never handle certificates or private keys at all, which is deliberately simpler and matches the "certificates are AWS's job when they can be" principle from Use Case 7.</div>
+<div class="step"><b class="n">2</b><b>listen-ports</b> opens both 80 and 443, and <b>ssl-redirect: "443"</b> makes the controller automatically configure the ALB to redirect any plain HTTP request straight to HTTPS — customers typing <code>http://shopnow.com</code> are bounced to the secure version before the request ever reaches a pod.</div>
+<div class="step"><b class="n">3</b><b>ssl-policy</b> pins the allowed TLS versions and ciphers — <code>TLS13-1-2-2021-06</code> disables old, weak TLS versions at the load balancer, protecting every backend service behind this shared ALB without any application code change.</div>
+
+<h2 id="nlb">12. Exposing TCP Traffic via Network Load Balancer</h2>
+<pre><code><span class="cmt"># services/fulfillment-grpc-service/base/service-nlb.yaml</span>
+<span class="k">apiVersion</span>: v1
+<span class="k">kind</span>: Service
+<span class="k">metadata</span>:
+  <span class="k">name</span>: fulfillment-grpc-svc
+  <span class="k">annotations</span>:
+    <span class="k">service.beta.kubernetes.io/aws-load-balancer-type</span>: external
+    <span class="k">service.beta.kubernetes.io/aws-load-balancer-nlb-target-type</span>: ip
+    <span class="k">service.beta.kubernetes.io/aws-load-balancer-scheme</span>: internal   <span class="cmt"># never internet-facing — internal traffic only</span>
+    <span class="k">service.beta.kubernetes.io/aws-load-balancer-healthcheck-protocol</span>: TCP
+<span class="k">spec</span>:
+  <span class="k">type</span>: LoadBalancer
+  <span class="k">selector</span>: { app: fulfillment-grpc-service }
+  <span class="k">ports</span>:
+    <span class="k">- port</span>: 50051
+      <span class="k">targetPort</span>: 50051
+      <span class="k">protocol</span>: TCP
+</code></pre>
+<p>Notice there is <b>no Ingress object at all</b> for this service — NLB exposure happens directly through annotations on a <code>Service</code> of <code>type: LoadBalancer</code>, exactly matching the "Kubernetes Service" row from section 2's comparison table. The AWS Load Balancer Controller watches for these specific annotations and provisions a Network Load Balancer instead of the older, unmanaged Classic Load Balancer that plain <code>type: LoadBalancer</code> would have created before this controller existed.</p>
+<div class="callout why"><b>Why <code>scheme: internal</code> here specifically?</b> This gRPC service talks only to ShopNow's fulfillment partner over a private connection (a VPN or Direct Connect link, not the public internet), so it deliberately never gets a public IP at all — a concrete example of matching exposure scope to actual need, the same judgment-call theme that's run through every deployment-strategy use case in this series.</div>
+
+<h2 id="manifests">13. Deployment and Service — Completing the Flow</h2>
+<pre><code><span class="cmt"># services/order-service/base/deployment.yaml</span>
+<span class="k">apiVersion</span>: apps/v1
+<span class="k">kind</span>: Deployment
+<span class="k">metadata</span>: { name: order-service, labels: { app: order-service } }
+<span class="k">spec</span>:
+  <span class="k">replicas</span>: 6
+  <span class="k">selector</span>: { matchLabels: { app: order-service } }
+  <span class="k">template</span>:
+    <span class="k">metadata</span>: { labels: { app: order-service } }
+    <span class="k">spec</span>:
+      <span class="k">containers</span>:
+        <span class="k">- name</span>: order-service
+          <span class="k">image</span>: 111122223333.dkr.ecr.ap-south-1.amazonaws.com/order-service:prod-v3.4.0
+          <span class="k">ports</span>: [{ containerPort: 8080 }]
+          <span class="k">readinessProbe</span>: { httpGet: { path: /actuator/health/readiness, port: 8080 }, initialDelaySeconds: 20, periodSeconds: 10 }
+          <span class="k">resources</span>:
+            <span class="k">requests</span>: { cpu: <span class="s">"250m"</span>, memory: <span class="s">"512Mi"</span> }
+            <span class="k">limits</span>:   { cpu: <span class="s">"1"</span>, memory: <span class="s">"1Gi"</span> }
+---
+<span class="cmt"># services/order-service/base/service.yaml — a plain ClusterIP, deliberately NOT
+# type: LoadBalancer, because the Ingress + ALB in front of it already handles
+# external exposure; this Service exists only to give the Ingress a name to
+# reference and a set of pod IPs to discover</span>
+<span class="k">apiVersion</span>: v1
+<span class="k">kind</span>: Service
+<span class="k">metadata</span>: { name: order-service-svc }
+<span class="k">spec</span>:
+  <span class="k">type</span>: ClusterIP
+  <span class="k">selector</span>: { app: order-service }
+  <span class="k">ports</span>: [{ port: 80, targetPort: 8080 }]
+</code></pre>
+<div class="callout warn"><b>A ClusterIP Service in front of an ALB Ingress is correct, not a mistake — this trips people up.</b> Since <code>target-type: ip</code> means the ALB talks to pod IPs directly, the Service never needs to be internet-reachable itself; it only needs to exist so the Ingress has something to point at and the controller can read its Endpoints. Setting this Service's type to <code>LoadBalancer</code> as well would be redundant and would create a second, unwanted load balancer.</div>
+
+<h2 id="config">14. ConfigMaps and Secrets</h2>
+<pre><code><span class="k">apiVersion</span>: v1
+<span class="k">kind</span>: ConfigMap
+<span class="k">metadata</span>: { name: order-service-config }
+<span class="k">data</span>:
+  <span class="k">APP_URL</span>: <span class="s">"https://shopnow.com"</span>
+  <span class="k">LOG_LEVEL</span>: <span class="s">"warn"</span>
+</code></pre>
+<p>Config and secrets follow the exact same patterns from Use Case 6 and 7 — this use case doesn't change how they're managed, only how the resulting application becomes reachable from outside the cluster.</p>
+
+<h2 id="hpa">15. HPA and Autoscaling</h2>
+<pre><code><span class="k">apiVersion</span>: autoscaling/v2
+<span class="k">kind</span>: HorizontalPodAutoscaler
+<span class="k">metadata</span>: { name: order-service-hpa }
+<span class="k">spec</span>:
+  <span class="k">scaleTargetRef</span>: { apiVersion: apps/v1, kind: Deployment, name: order-service }
+  <span class="k">minReplicas</span>: 6
+  <span class="k">maxReplicas</span>: 15
+  <span class="k">metrics</span>: [{ type: Resource, resource: { name: cpu, target: { type: Utilization, averageUtilization: 70 } } }]
+</code></pre>
+<div class="callout why"><b>An important behavior worth knowing:</b> when the HPA scales the Deployment up or down, the AWS Load Balancer Controller automatically detects the Service's changed Endpoints and updates the ALB Target Group's registered IPs to match — no manual Target Group management is ever needed, even as pod count changes continuously.</div>
+
+<h2 id="pdb">16. PodDisruptionBudget</h2>
+<pre><code><span class="k">apiVersion</span>: policy/v1
+<span class="k">kind</span>: PodDisruptionBudget
+<span class="k">metadata</span>: { name: order-service-pdb }
+<span class="k">spec</span>:
+  <span class="k">minAvailable</span>: 4
+  <span class="k">selector</span>: { matchLabels: { app: order-service } }
+</code></pre>
+
+<h2 id="netpol">17. NetworkPolicies</h2>
+<pre><code><span class="k">apiVersion</span>: networking.k8s.io/v1
+<span class="k">kind</span>: NetworkPolicy
+<span class="k">metadata</span>: { name: allow-alb-to-order }
+<span class="k">spec</span>:
+  <span class="k">podSelector</span>: { matchLabels: { app: order-service } }
+  <span class="k">policyTypes</span>: [Ingress]
+  <span class="k">ingress</span>: [{ from: [], ports: [{ protocol: TCP, port: 8080 }] }]
+---
+<span class="cmt"># Fulfillment gRPC service — only allow the specific internal CIDR the NLB and
+# partner connection use, not "from anywhere" even though it's already internal-scheme</span>
+<span class="k">apiVersion</span>: networking.k8s.io/v1
+<span class="k">kind</span>: NetworkPolicy
+<span class="k">metadata</span>: { name: allow-nlb-to-fulfillment }
+<span class="k">spec</span>:
+  <span class="k">podSelector</span>: { matchLabels: { app: fulfillment-grpc-service } }
+  <span class="k">policyTypes</span>: [Ingress]
+  <span class="k">ingress</span>:
+    <span class="k">- from</span>: [{ ipBlock: { cidr: 10.30.0.0/16 } }]
+      <span class="k">ports</span>: [{ protocol: TCP, port: 50051 }]
+</code></pre>
+
+<h2 id="ecr">18. ECR Integration</h2>
+<pre><code>aws ecr create-repository --repository-name order-service --region ap-south-1
+aws ecr create-repository --repository-name fulfillment-grpc-service --region ap-south-1
+
+docker build -t order-service:$TAG .
+docker tag order-service:$TAG 111122223333.dkr.ecr.ap-south-1.amazonaws.com/order-service:prod-$TAG
+docker push 111122223333.dkr.ecr.ap-south-1.amazonaws.com/order-service:prod-$TAG
+</code></pre>
+
+<h2 id="pipeline">19. CI/CD Pipeline — Jenkins and GitHub Actions</h2>
+<pre><code><span class="cmt">// Jenkinsfile</span>
+pipeline {
+  agent any
+  environment { ECR_REPO = <span class="s">"111122223333.dkr.ecr.ap-south-1.amazonaws.com/order-service"</span> }
+  stages {
+    stage(<span class="s">'Test'</span>) { steps { sh <span class="s">'./gradlew test'</span> } }
+    stage(<span class="s">'Build & Push'</span>) {
+      steps {
+        sh <span class="s">'''
+          docker build -t $ECR_REPO:${GIT_COMMIT} .
+          aws ecr get-login-password | docker login --username AWS --password-stdin $ECR_REPO
+          docker push $ECR_REPO:${GIT_COMMIT}
+        '''</span>
+      }
+    }
+    stage(<span class="s">'Deploy'</span>) {
+      steps {
+        sh <span class="s">'''
+          kubectl apply -k gitops-repo/services/order-service/overlays/prod
+          kubectl rollout status deployment/order-service -n prod --timeout=180s
+        '''</span>
+      }
+    }
+    stage(<span class="s">'Verify Exposure'</span>) {
+      steps { sh <span class="s">'python3 pipeline-scripts/verify_exposure.py --url https://shopnow.com/api/orders/health'</span> }
+    }
+    stage(<span class="s">'Report & Notify'</span>) {
+      steps {
+        sh <span class="s">'python3 pipeline-scripts/generate_report.py --status success --build ${BUILD_NUMBER}'</span>
+        sh <span class="s">'python3 pipeline-scripts/send_email.py --report report.html'</span>
+      }
+    }
+  }
+}
+</code></pre>
+<pre><code><span class="cmt"># .github/workflows/deploy.yml</span>
+<span class="k">name</span>: Order Service Deploy
+<span class="k">on</span>: { push: { branches: [<span class="s">"main"</span>] } }
+<span class="k">jobs</span>:
+  <span class="k">deploy</span>:
+    <span class="k">runs-on</span>: ubuntu-latest
+    <span class="k">environment</span>: production
+    <span class="k">steps</span>:
+      <span class="k">- uses</span>: actions/checkout@v4
+      <span class="k">- uses</span>: aws-actions/configure-aws-credentials@v4
+        <span class="k">with</span>: { role-to-assume: arn:aws:iam::111122223333:role/gha-eks-deploy, aws-region: ap-south-1 }
+      <span class="k">- name</span>: Build, push, deploy
+        <span class="k">run</span>: |
+          aws eks update-kubeconfig --name shopnow-cluster --region ap-south-1
+          docker build -t $ECR_REGISTRY/order-service:${{ github.sha }} .
+          docker push $ECR_REGISTRY/order-service:${{ github.sha }}
+          kubectl apply -k gitops-repo/services/order-service/overlays/prod
+      <span class="k">- name</span>: Verify exposure end to end
+        <span class="k">run</span>: python3 pipeline-scripts/verify_exposure.py --url https://shopnow.com/api/orders/health
+</code></pre>
+
+<h2 id="argocd">20. Argo CD GitOps</h2>
+<pre><code><span class="k">apiVersion</span>: argoproj.io/v1alpha1
+<span class="k">kind</span>: Application
+<span class="k">metadata</span>: { name: order-service-prod, namespace: argocd }
+<span class="k">spec</span>:
+  <span class="k">project</span>: default
+  <span class="k">source</span>: { repoURL: https://github.com/shopnow/gitops-repo.git, targetRevision: main, path: services/order-service/overlays/prod }
+  <span class="k">destination</span>: { server: https://kubernetes.default.svc, namespace: prod }
+  <span class="k">syncPolicy</span>: { automated: { prune: true, selfHeal: true } }
+</code></pre>
+<p>Because the Ingress object itself is just another manifest in this Application, adding a brand-new path rule for a new microservice (say, a future Returns Service) is a one-line Git change, automatically synced and automatically merged into the shared ALB via the <code>group.name</code> mechanism from section 10 — no manual AWS Console load balancer configuration, ever.</p>
+
+<h2 id="monitoring">21. Prometheus and Grafana</h2>
+<pre><code><span class="k">apiVersion</span>: monitoring.coreos.com/v1
+<span class="k">kind</span>: ServiceMonitor
+<span class="k">metadata</span>: { name: order-service-monitor }
+<span class="k">spec</span>:
+  <span class="k">selector</span>: { matchLabels: { app: order-service } }
+  <span class="k">endpoints</span>: [{ port: metrics, path: /metrics, interval: 30s }]
+---
+<span class="cmt"># Scrape the controller itself — its own metrics reveal reconciliation failures</span>
+<span class="k">apiVersion</span>: monitoring.coreos.com/v1
+<span class="k">kind</span>: ServiceMonitor
+<span class="k">metadata</span>: { name: alb-controller-monitor, namespace: kube-system }
+<span class="k">spec</span>:
+  <span class="k">selector</span>: { matchLabels: { app.kubernetes.io/name: aws-load-balancer-controller } }
+  <span class="k">endpoints</span>: [{ port: metrics, interval: 30s }]
+</code></pre>
+<p>CloudWatch (section 22) shows what the ALB itself measured — request counts, target health, 4xx/5xx rates directly from AWS's perspective. Grafana via Prometheus shows the application's own perspective from inside the pods. Comparing both together is how you catch, for example, an ALB reporting healthy targets while the application itself is quietly logging elevated error rates — two different vantage points on the same request path.</p>
+
+<h2 id="cloudwatch">22. CloudWatch Logging — ALB Access Logs</h2>
+<pre><code><span class="cmt"># Enable ALB access logs, delivered to S3, via an Ingress annotation</span>
+    <span class="k">alb.ingress.kubernetes.io/load-balancer-attributes</span>: |
+      access_logs.s3.enabled=true,
+      access_logs.s3.bucket=shopnow-alb-access-logs,
+      access_logs.s3.prefix=order-service
+</code></pre>
+<pre><code><span class="cmt"># Standard Fluent Bit shipping for application-level pod logs, unchanged from earlier use cases</span>
+<span class="k">apiVersion</span>: v1
+<span class="k">kind</span>: ConfigMap
+<span class="k">metadata</span>: { name: fluent-bit-config, namespace: amazon-cloudwatch }
+<span class="k">data</span>:
+  <span class="k">output.conf</span>: |
+    [OUTPUT]
+        Name                cloudwatch_logs
+        Match               kube.*
+        region              ap-south-1
+        log_group_name      /eks/shopnow/order-service
+        auto_create_group   true
+</code></pre>
+<div class="callout why"><b>ALB access logs and pod logs answer different questions, and both matter.</b> ALB access logs (in S3, queryable via Athena) show every request that hit the load balancer — including ones that never reached a healthy pod at all, such as requests rejected by WAF or ones that hit a target group with zero healthy targets. Pod logs only show what the application itself actually processed. A request that "disappeared" — the customer saw an error but no pod log shows it — is a classic sign to check the ALB access logs first.</div>
+
+<h2 id="workflow">23. Running the Code — Full End-to-End Workflow</h2>
+
+<h3>Step 1 — Confirm the controller and subnet tags are healthy</h3>
+<pre><code>kubectl get deployment -n kube-system aws-load-balancer-controller
+kubectl logs -n kube-system deploy/aws-load-balancer-controller --tail=50
+
+aws ec2 describe-subnets --filters "Name=tag:kubernetes.io/role/elb,Values=1" \
+  --query 'Subnets[].SubnetId'
+</code></pre>
+
+<h3>Step 2 — Apply the ALB path (Order Service)</h3>
+<pre><code>kubectl apply -f services/order-service/base/service.yaml
+kubectl apply -f services/order-service/base/ingress.yaml
+
+kubectl get ingress order-service-ingress -n prod -w
+<span class="cmt"># Wait for an ADDRESS to appear — this is the ALB's DNS name, typically 2-3 minutes
+# on first creation</span>
+</code></pre>
+
+<h3>Step 3 — Confirm the ALB and Target Group in AWS directly</h3>
+<pre><code>ALB_DNS=$(kubectl get ingress order-service-ingress -n prod -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
+echo $ALB_DNS
+
+aws elbv2 describe-load-balancers --query "LoadBalancers[?DNSName=='$ALB_DNS']"
+aws elbv2 describe-target-groups --load-balancer-arn &lt;alb-arn-from-above&gt;
+aws elbv2 describe-target-health --target-group-arn &lt;target-group-arn&gt;
+<span class="cmt"># Expect: every registered target shows "healthy"</span>
+</code></pre>
+
+<h3>Step 4 — Point DNS and test the full HTTPS path</h3>
+<pre><code>aws route53 change-resource-record-sets --hosted-zone-id Z0123456789 \
+  --change-batch '{"Changes":[{"Action":"UPSERT","ResourceRecordSet":{"Name":"shopnow.com","Type":"A","AliasTarget":{"HostedZoneId":"Z35SXDOTRQ7X7K","DNSName":"'"$ALB_DNS"'","EvaluateTargetHealth":false}}}]}'
+
+curl -v http://shopnow.com/api/orders/health
+<span class="cmt"># Expect a 301/302 redirect to https:// — proving the ssl-redirect annotation works</span>
+
+curl -v https://shopnow.com/api/orders/health
+<span class="cmt"># Expect 200 OK, and inspect the certificate details:</span>
+openssl s_client -connect shopnow.com:443 -servername shopnow.com &lt;/dev/null 2&gt;/dev/null | openssl x509 -noout -dates -subject
+</code></pre>
+
+<h3>Step 5 — Apply the NLB path (Fulfillment gRPC Service)</h3>
+<pre><code>kubectl apply -f services/fulfillment-grpc-service/base/service-nlb.yaml
+kubectl get svc fulfillment-grpc-svc -n prod -w
+<span class="cmt"># Wait for EXTERNAL-IP to populate with the NLB's internal DNS name</span>
+
+<span class="cmt"># Test raw TCP reachability (from inside the VPC, since scheme is internal)</span>
+kubectl run grpc-test --rm -it --image=fullstorydev/grpcurl -n prod -- \
+  -plaintext fulfillment-grpc-svc.prod.svc.cluster.local:50051 list
+</code></pre>
+
+<h3>Step 6 — Trace one full request end to end, matching the original diagram exactly</h3>
+<pre><code><span class="cmt"># 1. DNS resolution</span>
+dig shopnow.com +short
+<span class="cmt"># 2. TCP/TLS handshake with the ALB</span>
+curl -v https://shopnow.com/api/orders/health 2&gt;&amp;1 | grep -E "Connected to|SSL connection"
+<span class="cmt"># 3. Confirm which Target Group / pod actually answered</span>
+kubectl logs -n prod -l app=order-service --tail=5 | grep health
+<span class="cmt"># 4. Confirm the Ingress rule that routed it</span>
+kubectl describe ingress order-service-ingress -n prod
+<span class="cmt"># 5. Confirm the Service's Endpoints match the pod that logged the request</span>
+kubectl get endpoints order-service-svc -n prod
+</code></pre>
+<p>Running these five commands in sequence, once, is the exercise that turns the diagram from the original ask into something you've personally verified end to end rather than just drawn.</p>
+
+<h2 id="failure">24. Failure Testing</h2>
+<pre><code><span class="cmt"># Test 1: Scale Order Service to zero and confirm the ALB reports it correctly, not silently</span>
+kubectl scale deployment order-service -n prod --replicas=0
+aws elbv2 describe-target-health --target-group-arn &lt;target-group-arn&gt;
+<span class="cmt"># Expected: target group shows zero registered/healthy targets; ALB returns 503
+curl -s -o /dev/null -w "%{http_code}\n" https://shopnow.com/api/orders/health</span>
+kubectl scale deployment order-service -n prod --replicas=6   <span class="cmt"># restore</span>
+
+<span class="cmt"># Test 2: Remove the subnet ELB tag temporarily and confirm a NEW Ingress fails to provision
+# (do this only on a throwaway test Ingress, never on the live one)</span>
+aws ec2 delete-tags --resources subnet-pub1 --tags Key=kubernetes.io/role/elb
+kubectl apply -f test-ingress.yaml
+kubectl describe ingress test-ingress -n prod
+<span class="cmt"># Expected: Events show a clear subnet discovery failure from the controller</span>
+aws ec2 create-tags --resources subnet-pub1 --tags Key=kubernetes.io/role/elb,Value=1   <span class="cmt"># restore</span>
+
+<span class="cmt"># Test 3: Confirm HTTP really does redirect and never silently serves plaintext</span>
+curl -v http://shopnow.com/api/orders/health 2&gt;&amp;1 | grep "< HTTP"
+</code></pre>
+
+<h2 id="rollback">25. Rollback Strategy</h2>
+<pre><code><span class="cmt"># A bad Ingress annotation change (e.g. broken health check path) — revert in Git</span>
+cd gitops-repo/services/order-service/base
+git revert &lt;bad-commit-sha&gt; &amp;&amp; git push
+<span class="cmt"># Argo CD re-syncs, the AWS Load Balancer Controller reconciles the ALB back automatically</span>
+
+<span class="cmt"># Emergency direct fix without waiting for GitOps sync:</span>
+kubectl apply -f ingress-known-good-backup.yaml -n prod
+
+<span class="cmt"># If the controller itself is misbehaving after an upgrade, roll back the Helm release</span>
+helm rollback aws-load-balancer-controller -n kube-system
+</code></pre>
+
+<h2 id="troubleshoot">26. Troubleshooting Scenarios</h2>
+<table>
+<tr><th>Symptom</th><th>Likely Cause</th><th>Diagnostic Commands</th></tr>
+<tr><td>Ingress has no ADDRESS after several minutes</td><td>Missing subnet tags, or controller IAM role missing a permission</td><td><code>kubectl logs -n kube-system deploy/aws-load-balancer-controller</code></td></tr>
+<tr><td>ALB shows targets as unhealthy</td><td>Wrong health check path/port annotation, or readiness probe path mismatch</td><td><code>aws elbv2 describe-target-health</code>, compare against the Deployment's own readinessProbe path</td></tr>
+<tr><td>Two separate ALBs created instead of one shared one</td><td><code>group.name</code> annotation missing or mismatched between services' Ingress objects</td><td><code>kubectl get ingress -A -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{.metadata.annotations.alb\.ingress\.kubernetes\.io/group\.name}{"\n"}{end}'</code></td></tr>
+<tr><td>HTTPS works but HTTP doesn't redirect</td><td><code>ssl-redirect</code> annotation missing, or <code>listen-ports</code> doesn't include port 80</td><td>Review Ingress annotations against section 11</td></tr>
+<tr><td>NLB Service stuck with EXTERNAL-IP "pending"</td><td>Missing NLB-specific annotations, or private subnets not tagged for internal-elb</td><td><code>kubectl describe svc fulfillment-grpc-svc -n prod</code></td></tr>
+</table>
+
+<h2 id="ansible">27. Ansible Automation</h2>
+<pre><code><span class="cmt"># roles/expose-service/tasks/main.yml — onboards a new HTTP(S) service onto the shared ALB</span>
+<span class="k">- name</span>: Render Ingress for the new service, joining the shared ALB group
+  <span class="k">template</span>:
+    <span class="k">src</span>: ingress.yaml.j2
+    <span class="k">dest</span>: <span class="s">"gitops-repo/services/{{ service_name }}/base/ingress.yaml"</span>
+  <span class="k">vars</span>:
+    <span class="k">alb_group_name</span>: shopnow-shared-alb
+    <span class="k">host</span>: <span class="s">"{{ public_host }}"</span>
+    <span class="k">path</span>: <span class="s">"{{ api_path }}"</span>
+
+<span class="k">- name</span>: Apply to the cluster
+  <span class="k">kubernetes.core.k8s</span>: { state: present, src: <span class="s">"gitops-repo/services/{{ service_name }}/base/ingress.yaml"</span> }
+
+<span class="k">- name</span>: Wait for the shared ALB to register the new target group as healthy
+  <span class="k">kubernetes.core.k8s_info</span>:
+    <span class="k">kind</span>: Ingress
+    <span class="k">name</span>: <span class="s">"{{ service_name }}-ingress"</span>
+    <span class="k">namespace</span>: prod
+  <span class="k">register</span>: ing_status
+  <span class="k">until</span>: ing_status.resources[0].status.loadBalancer.ingress is defined
+  <span class="k">retries</span>: 10
+  <span class="k">delay</span>: 15
+</code></pre>
+<pre><code>ansible-playbook playbook.yml -e <span class="s">"service_name=returns-service public_host=shopnow.com api_path=/api/returns"</span>
+</code></pre>
+
+<h2 id="report">28. HTML Deployment/Job Report</h2>
+<pre><code><span class="cmt"># generate_report.py</span>
+<span class="k">import</span> argparse, subprocess, json, datetime
+
+<span class="k">def</span> get_ingress_status(name, ns=<span class="s">"prod"</span>):
+    out = subprocess.run([<span class="s">"kubectl"</span>, <span class="s">"get"</span>, <span class="s">"ingress"</span>, name, <span class="s">"-n"</span>, ns, <span class="s">"-o"</span>, <span class="s">"json"</span>], capture_output=<span class="k">True</span>, text=<span class="k">True</span>)
+    d = json.loads(out.stdout)
+    <span class="k">return</span> d.get(<span class="s">"status"</span>, {}).get(<span class="s">"loadBalancer"</span>, {}).get(<span class="s">"ingress"</span>, [{}])[0].get(<span class="s">"hostname"</span>, <span class="s">"NOT ASSIGNED"</span>)
+
+<span class="k">def</span> build_report(build_no, status):
+    alb_host = get_ingress_status(<span class="s">"order-service-ingress"</span>)
+    color = <span class="s">"#5ec98f"</span> <span class="k">if</span> status == <span class="s">"success"</span> <span class="k">else</span> <span class="s">"#e35d5d"</span>
+    html = f<span class="s">"""&lt;html&gt;&lt;body style="font-family:Arial;background:#0b0f14;color:#dbe6f0;padding:24px"&gt;
+    &lt;h2 style="color:{color}"&gt;ShopNow Exposure Report — order-service (Build #{build_no})&lt;/h2&gt;
+    &lt;p&gt;Time: {datetime.datetime.now()} | Status: {status.upper()}&lt;/p&gt;
+    &lt;p&gt;ALB Hostname: {alb_host}&lt;/p&gt;
+    &lt;/body&gt;&lt;/html&gt;"""</span>
+    <span class="k">with</span> open(<span class="s">"report.html"</span>, <span class="s">"w"</span>) <span class="k">as</span> f:
+        f.write(html)
+
+<span class="k">if</span> __name__ == <span class="s">"__main__"</span>:
+    parser = argparse.ArgumentParser()
+    parser.add_argument(<span class="s">"--status"</span>, default=<span class="s">"success"</span>)
+    parser.add_argument(<span class="s">"--build"</span>, required=<span class="k">True</span>)
+    args = parser.parse_args()
+    build_report(args.build, args.status)
+</code></pre>
+<pre><code><span class="cmt"># verify_exposure.py — the pipeline gate referenced in section 19</span>
+<span class="k">import</span> requests, argparse, sys
+
+<span class="k">def</span> verify(url):
+    checks = []
+    r = requests.get(url.replace(<span class="s">"https://"</span>, <span class="s">"http://"</span>), allow_redirects=<span class="k">False</span>, timeout=5)
+    checks.append((<span class="s">"HTTP redirects to HTTPS"</span>, r.status_code <span class="k">in</span> (301, 302)))
+
+    r = requests.get(url, timeout=5)
+    checks.append((<span class="s">"HTTPS returns 200"</span>, r.status_code == 200))
+
+    failed = [name <span class="k">for</span> name, ok <span class="k">in</span> checks <span class="k">if</span> <span class="k">not</span> ok]
+    <span class="k">if</span> failed:
+        print(<span class="s">"EXPOSURE VERIFICATION FAILED:"</span>, failed)
+        sys.exit(1)
+    print(<span class="s">"EXPOSURE VERIFIED: HTTPS live, HTTP redirect working"</span>)
+
+<span class="k">if</span> __name__ == <span class="s">"__main__"</span>:
+    p = argparse.ArgumentParser()
+    p.add_argument(<span class="s">"--url"</span>, required=<span class="k">True</span>)
+    args = p.parse_args()
+    verify(args.url)
+</code></pre>
+
+<h2 id="email">29. Email Notification</h2>
+<pre><code><span class="cmt"># send_email.py</span>
+<span class="k">import</span> argparse, smtplib, os
+<span class="k">from</span> email.mime.multipart <span class="k">import</span> MIMEMultipart
+<span class="k">from</span> email.mime.text <span class="k">import</span> MIMEText
+<span class="k">from</span> email.mime.application <span class="k">import</span> MIMEApplication
+
+<span class="k">def</span> send(status, build_no, report_path=<span class="s">"report.html"</span>):
+    msg = MIMEMultipart()
+    msg[<span class="s">"Subject"</span>] = f<span class="s">"[ShopNow] order-service exposure deploy - Build #{build_no} - {status.upper()}"</span>
+    msg[<span class="s">"From"</span>] = <span class="s">"devops-bot@shopnow.com"</span>
+    msg[<span class="s">"To"</span>] = <span class="s">"release-managers@shopnow.com"</span>
+    msg.attach(MIMEText(f<span class="s">"Build: #{build_no}\nStatus: {status}\n\nSee attached report for ALB hostname and health status."</span>, <span class="s">"plain"</span>))
+    <span class="k">if</span> os.path.exists(report_path):
+        <span class="k">with</span> open(report_path, <span class="s">"rb"</span>) <span class="k">as</span> f:
+            part = MIMEApplication(f.read(), Name=<span class="s">"report.html"</span>)
+        part[<span class="s">"Content-Disposition"</span>] = <span class="s">'attachment; filename="report.html"'</span>
+        msg.attach(part)
+    <span class="k">with</span> smtplib.SMTP(<span class="s">"email-smtp.ap-south-1.amazonaws.com"</span>, 587) <span class="k">as</span> server:
+        server.starttls()
+        server.login(os.environ[<span class="s">"SES_USER"</span>], os.environ[<span class="s">"SES_PASS"</span>])
+        server.send_message(msg)
+
+<span class="k">if</span> __name__ == <span class="s">"__main__"</span>:
+    parser = argparse.ArgumentParser()
+    parser.add_argument(<span class="s">"--status"</span>, default=<span class="s">"success"</span>)
+    parser.add_argument(<span class="s">"--build"</span>, required=<span class="k">True</span>)
+    parser.add_argument(<span class="s">"--report"</span>, default=<span class="s">"report.html"</span>)
+    args = parser.parse_args()
+    send(args.status, args.build, args.report)
+</code></pre>
+
+<hr class="divider">
+<h2 id="resume">30. How to Present This on Your Resume</h2>
+<div class="callout why">
+<b>Resume bullet (use as-is or adapt):</b><br>
+"Consolidated fourteen unmanaged Classic Load Balancers into a single shared, GitOps-managed Application Load Balancer using the AWS Load Balancer Controller and Kubernetes Ingress with host/path-based routing and Ingress group merging; implemented HTTPS termination with ACM, automatic HTTP-to-HTTPS redirect, and a modern TLS security policy; provisioned a dedicated internal Network Load Balancer for a raw-TCP gRPC service; documented and validated the full request path from DNS through ALB, Ingress, Service, to pod, reducing load balancer-related AWS spend and eliminating manually-managed, undocumented load balancers."
+</div>
+<table>
+<tr><th>Likely question</th><th>Section to re-read before the call</th></tr>
+<tr><td>"Walk me through exactly what happens between a user's request and your pod"</td><td>Section 2, Section 23 Step 6</td></tr>
+<tr><td>"When would you use an NLB instead of an ALB?"</td><td>Section 2 table, Section 12</td></tr>
+<tr><td>"How do multiple services share one load balancer?"</td><td>Section 10 callout</td></tr>
+<tr><td>"Where does TLS actually terminate?"</td><td>Section 11</td></tr>
+<tr><td>"An Ingress has no ADDRESS — what do you check first?"</td><td>Section 7 callout, Section 26</td></tr>
+</table>
+
+<div class="story" style="margin-top:40px">The next AWS bill review at ShopNow shows one Application Load Balancer and one Network Load Balancer, both named clearly, both defined entirely in Git, both provisioned by a controller everyone on the team understands — down from fourteen forgotten, hand-created load balancers nobody could fully account for. When Ramesh is asked in a leadership review to explain how customer traffic reaches the application, he pulls up the exact five-layer diagram from section 2 and walks through it in under a minute, exactly as he'd originally asked for.</div>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,1957 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Project 01 — OpenShift Cluster Connectivity & Health Validation | Enterprise Ansible Masterclass</title>
+<style>
+  :root {
+    --bg:          #0B1120;
+    --bg2:         #111827;
+    --card:        #1E293B;
+    --card2:       #162032;
+    --border:      #2D3E55;
+    --accent:      #8B5CF6;
+    --accent2:     #06B6D4;
+    --accent3:     #F59E0B;
+    --text:        #F8FAFC;
+    --muted:       #94A3B8;
+    --success:     #22C55E;
+    --warning:     #F59E0B;
+    --error:       #EF4444;
+    --code-bg:     #020617;
+    --code-border: #1E3A5F;
+    --tag-purple:  #4C1D95;
+    --tag-cyan:    #164E63;
+    --tag-green:   #14532D;
+    --tag-yellow:  #713F12;
+    --tag-red:     #7F1D1D;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    font-size: 15px;
+    line-height: 1.7;
+  }
+
+  /* ── LAYOUT ── */
+  .layout { display: flex; min-height: 100vh; }
+
+  /* ── SIDEBAR ── */
+  .sidebar {
+    width: 260px;
+    flex-shrink: 0;
+    background: var(--bg2);
+    border-right: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow-y: auto;
+    padding: 24px 0;
+  }
+  .sidebar-logo {
+    padding: 0 20px 20px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 16px;
+  }
+  .sidebar-logo .series { font-size: 10px; text-transform: uppercase; letter-spacing: 2px; color: var(--muted); margin-bottom: 4px; }
+  .sidebar-logo .title  { font-size: 13px; font-weight: 700; color: var(--accent); line-height: 1.3; }
+
+  .toc-section { padding: 8px 20px 4px; font-size: 10px; text-transform: uppercase; letter-spacing: 1.5px; color: var(--muted); font-weight: 600; margin-top: 8px; }
+  .toc-item { display: block; padding: 6px 20px; font-size: 12.5px; color: var(--muted); text-decoration: none; border-left: 2px solid transparent; transition: all 0.2s; }
+  .toc-item:hover { color: var(--text); border-left-color: var(--accent); background: rgba(139,92,246,0.06); }
+  .toc-item.active { color: var(--accent); border-left-color: var(--accent); background: rgba(139,92,246,0.1); }
+
+  /* ── MAIN CONTENT ── */
+  .main { flex: 1; max-width: 960px; padding: 48px 56px; overflow-x: hidden; }
+
+  /* ── COVER ── */
+  .cover {
+    background: linear-gradient(135deg, #0F172A 0%, #1E1B4B 50%, #0C1A2E 100%);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 48px;
+    margin-bottom: 48px;
+    position: relative;
+    overflow: hidden;
+  }
+  .cover::before {
+    content: '';
+    position: absolute; top: -60px; right: -60px;
+    width: 300px; height: 300px;
+    background: radial-gradient(circle, rgba(139,92,246,0.15) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .cover-badge { display: inline-flex; align-items: center; gap: 8px; background: rgba(139,92,246,0.15); border: 1px solid rgba(139,92,246,0.3); border-radius: 99px; padding: 4px 14px; font-size: 11px; font-weight: 600; color: var(--accent); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 20px; }
+  .cover-badge .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+  .cover h1 { font-size: 32px; font-weight: 800; line-height: 1.2; margin-bottom: 12px; }
+  .cover h1 span { background: linear-gradient(90deg, var(--accent), var(--accent2)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+  .cover-sub { font-size: 16px; color: var(--muted); margin-bottom: 32px; max-width: 600px; }
+  .cover-meta { display: flex; flex-wrap: wrap; gap: 24px; }
+  .meta-item { display: flex; flex-direction: column; gap: 2px; }
+  .meta-label { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); }
+  .meta-value { font-size: 14px; font-weight: 600; color: var(--text); }
+  .meta-value.green { color: var(--success); }
+  .meta-value.purple { color: var(--accent); }
+  .meta-value.cyan { color: var(--accent2); }
+
+  /* ── SECTION HEADINGS ── */
+  h2.section-title {
+    font-size: 22px;
+    font-weight: 700;
+    margin: 48px 0 20px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  h2.section-title .num {
+    width: 32px; height: 32px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; font-weight: 800; color: #fff; flex-shrink: 0;
+  }
+  h3.sub-title { font-size: 17px; font-weight: 700; margin: 28px 0 12px; color: var(--accent2); }
+  h4.mini-title { font-size: 14px; font-weight: 700; margin: 20px 0 8px; color: var(--accent3); text-transform: uppercase; letter-spacing: 0.5px; }
+
+  /* ── PROSE ── */
+  p { margin-bottom: 14px; color: var(--text); }
+  p.muted { color: var(--muted); }
+  strong { color: var(--text); font-weight: 700; }
+  em { color: var(--accent2); font-style: normal; font-weight: 600; }
+
+  /* ── CALLOUT BOXES ── */
+  .callout {
+    border-radius: 10px;
+    padding: 16px 20px;
+    margin: 20px 0;
+    border-left: 4px solid;
+    display: flex;
+    gap: 12px;
+  }
+  .callout-icon { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
+  .callout-body { flex: 1; }
+  .callout-title { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; }
+  .callout p { margin-bottom: 0; font-size: 14px; }
+  .callout.info  { background: rgba(6,182,212,0.07);  border-color: var(--accent2); }
+  .callout.info  .callout-title { color: var(--accent2); }
+  .callout.warn  { background: rgba(245,158,11,0.07); border-color: var(--warning); }
+  .callout.warn  .callout-title { color: var(--warning); }
+  .callout.danger{ background: rgba(239,68,68,0.07);  border-color: var(--error); }
+  .callout.danger .callout-title { color: var(--error); }
+  .callout.tip   { background: rgba(34,197,94,0.07);  border-color: var(--success); }
+  .callout.tip   .callout-title { color: var(--success); }
+  .callout.security { background: rgba(139,92,246,0.07); border-color: var(--accent); }
+  .callout.security .callout-title { color: var(--accent); }
+
+  /* ── STORY BOX ── */
+  .story-box {
+    background: linear-gradient(135deg, #1A1040 0%, #0C1A2E 100%);
+    border: 1px solid rgba(139,92,246,0.3);
+    border-radius: 12px;
+    padding: 24px 28px;
+    margin: 24px 0;
+    position: relative;
+  }
+  .story-box::before { content: '"'; position: absolute; top: -10px; left: 20px; font-size: 60px; color: rgba(139,92,246,0.3); font-family: Georgia, serif; line-height: 1; }
+  .story-box p { color: #CBD5E1; font-size: 14.5px; line-height: 1.8; margin-bottom: 8px; }
+  .story-box p:last-child { margin-bottom: 0; }
+  .story-box .story-tag { font-size: 10px; text-transform: uppercase; letter-spacing: 2px; color: var(--accent); font-weight: 700; margin-bottom: 12px; }
+
+  /* ── CODE BLOCKS ── */
+  .code-wrapper { margin: 20px 0; border-radius: 10px; overflow: hidden; border: 1px solid var(--code-border); }
+  .code-header {
+    display: flex; justify-content: space-between; align-items: center;
+    background: #0D1117; padding: 10px 16px;
+    border-bottom: 1px solid var(--code-border);
+  }
+  .code-lang { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--accent2); }
+  .code-filename { font-size: 11px; color: var(--muted); font-family: 'Courier New', monospace; }
+  .copy-btn {
+    background: rgba(139,92,246,0.15); border: 1px solid rgba(139,92,246,0.3);
+    color: var(--accent); border-radius: 5px; padding: 3px 10px;
+    font-size: 11px; cursor: pointer; transition: all 0.2s;
+  }
+  .copy-btn:hover { background: rgba(139,92,246,0.3); }
+  pre {
+    background: var(--code-bg);
+    padding: 20px;
+    overflow-x: auto;
+    font-family: 'Courier New', 'Consolas', 'Fira Code', monospace;
+    font-size: 13px;
+    line-height: 1.65;
+    margin: 0;
+  }
+  pre code { color: #E2E8F0; }
+
+  /* Syntax colors */
+  .sy-comment  { color: #4A5568; font-style: italic; }
+  .sy-key      { color: #7C86B5; }
+  .sy-string   { color: #68D391; }
+  .sy-var      { color: #F6AD55; }
+  .sy-module   { color: #63B3ED; }
+  .sy-jinja    { color: #FC8181; }
+  .sy-bool     { color: #B794F4; }
+  .sy-num      { color: #F6AD55; }
+  .sy-keyword  { color: #90CDF4; font-weight: bold; }
+  .sy-op       { color: #E53E3E; }
+
+  /* ── DIAGRAM BOX ── */
+  .diagram {
+    background: var(--code-bg);
+    border: 1px solid var(--code-border);
+    border-radius: 10px;
+    padding: 28px 32px;
+    margin: 20px 0;
+    font-family: 'Courier New', monospace;
+    font-size: 13px;
+    line-height: 2;
+    color: #94A3B8;
+    overflow-x: auto;
+  }
+  .diagram .d-title { color: var(--accent2); font-weight: 700; font-size: 11px; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 16px; }
+  .diagram .d-box   { color: var(--text); }
+  .diagram .d-arrow { color: var(--accent); }
+  .diagram .d-label { color: var(--success); }
+  .diagram .d-note  { color: var(--warning); font-style: italic; }
+  .diagram .d-err   { color: var(--error); }
+
+  /* ── TAGS ── */
+  .tag { display: inline-block; border-radius: 4px; padding: 2px 8px; font-size: 11px; font-weight: 600; margin: 2px; }
+  .tag.purple { background: var(--tag-purple); color: #A78BFA; }
+  .tag.cyan   { background: var(--tag-cyan);   color: #67E8F9; }
+  .tag.green  { background: var(--tag-green);  color: #4ADE80; }
+  .tag.yellow { background: var(--tag-yellow); color: #FCD34D; }
+  .tag.red    { background: var(--tag-red);    color: #FCA5A5; }
+
+  /* ── CARDS ── */
+  .card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px,1fr)); gap: 16px; margin: 20px 0; }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px;
+    transition: border-color 0.2s;
+  }
+  .card:hover { border-color: var(--accent); }
+  .card-icon { font-size: 24px; margin-bottom: 10px; }
+  .card-title { font-size: 13px; font-weight: 700; margin-bottom: 6px; color: var(--text); }
+  .card-desc  { font-size: 12px; color: var(--muted); line-height: 1.6; }
+
+  /* ── TABLE ── */
+  .table-wrap { overflow-x: auto; margin: 20px 0; border-radius: 10px; border: 1px solid var(--border); }
+  table { width: 100%; border-collapse: collapse; }
+  th { background: var(--card); padding: 12px 16px; text-align: left; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); border-bottom: 1px solid var(--border); }
+  td { padding: 12px 16px; font-size: 13px; border-bottom: 1px solid rgba(45,62,85,0.5); vertical-align: top; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: rgba(255,255,255,0.02); }
+
+  /* ── STATUS BADGES ── */
+  .badge { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; border-radius: 99px; font-size: 11px; font-weight: 700; }
+  .badge.ok   { background: rgba(34,197,94,0.15);  color: var(--success); }
+  .badge.fail { background: rgba(239,68,68,0.15);  color: var(--error); }
+  .badge.warn { background: rgba(245,158,11,0.15); color: var(--warning); }
+  .badge::before { content: '●'; font-size: 8px; }
+
+  /* ── STEP LIST ── */
+  .step-list { list-style: none; margin: 16px 0; }
+  .step-list li { display: flex; gap: 16px; margin-bottom: 16px; align-items: flex-start; }
+  .step-num { width: 28px; height: 28px; border-radius: 50%; background: linear-gradient(135deg, var(--accent), var(--accent2)); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 800; color: #fff; flex-shrink: 0; }
+  .step-content { flex: 1; }
+  .step-content strong { display: block; font-size: 14px; margin-bottom: 4px; }
+  .step-content span { font-size: 13px; color: var(--muted); }
+
+  /* ── DETAIL / EXPLANATION BLOCK ── */
+  .explain-block {
+    background: #0D1F3C;
+    border: 1px solid #1E3A5F;
+    border-radius: 10px;
+    padding: 20px 24px;
+    margin: 16px 0;
+  }
+  .explain-block .explain-title { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--accent2); margin-bottom: 12px; }
+  .explain-row { display: flex; gap: 16px; padding: 8px 0; border-bottom: 1px solid rgba(45,62,85,0.4); font-size: 13px; }
+  .explain-row:last-child { border-bottom: none; }
+  .explain-term { color: var(--accent3); font-family: monospace; min-width: 160px; flex-shrink: 0; }
+  .explain-def  { color: #CBD5E1; }
+
+  /* ── INTERVIEW / CHALLENGE ── */
+  .qa-block { background: var(--card); border: 1px solid var(--border); border-radius: 10px; margin: 16px 0; overflow: hidden; }
+  .qa-q { padding: 14px 18px; background: #162032; font-size: 13.5px; font-weight: 600; color: var(--accent2); border-bottom: 1px solid var(--border); }
+  .qa-q::before { content: 'Q: '; color: var(--accent); }
+  .qa-a { padding: 14px 18px; font-size: 13px; color: #CBD5E1; line-height: 1.7; }
+  .qa-a::before { content: 'A: '; color: var(--success); font-weight: 700; }
+
+  /* ── CHALLENGE BLOCK ── */
+  .challenge { background: linear-gradient(135deg, #1A1040 0%, #0C1A2E 100%); border: 1px solid rgba(139,92,246,0.3); border-radius: 10px; padding: 20px 24px; margin: 16px 0; }
+  .challenge-num { font-size: 10px; text-transform: uppercase; letter-spacing: 2px; color: var(--accent); font-weight: 700; margin-bottom: 8px; }
+  .challenge p { font-size: 13.5px; color: var(--text); margin-bottom: 10px; }
+  details { margin-top: 10px; }
+  summary { cursor: pointer; color: var(--accent); font-size: 12px; font-weight: 600; padding: 6px 0; user-select: none; }
+  summary:hover { color: var(--text); }
+  details[open] summary { color: var(--text); }
+  details .answer { margin-top: 10px; }
+
+  /* ── RESUME BULLETS ── */
+  .resume-box { background: var(--card); border: 1px solid var(--border); border-left: 4px solid var(--success); border-radius: 10px; padding: 20px 24px; margin: 16px 0; }
+  .resume-box h4 { font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: var(--success); margin-bottom: 12px; }
+  .resume-box ul { list-style: none; }
+  .resume-box li { font-size: 13px; color: #CBD5E1; padding: 6px 0; border-bottom: 1px solid rgba(45,62,85,0.3); padding-left: 16px; position: relative; line-height: 1.6; }
+  .resume-box li::before { content: '▸'; position: absolute; left: 0; color: var(--success); }
+  .resume-box li:last-child { border-bottom: none; }
+
+  /* ── PROGRESS BAR ── */
+  .progress-wrap { margin: 24px 0; }
+  .progress-label { font-size: 11px; color: var(--muted); margin-bottom: 6px; display: flex; justify-content: space-between; }
+  .progress-bar { height: 6px; background: var(--card); border-radius: 99px; overflow: hidden; }
+  .progress-fill { height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent2)); border-radius: 99px; }
+
+  /* ── DIVIDER ── */
+  .divider { border: none; border-top: 1px solid var(--border); margin: 40px 0; }
+
+  /* ── FOLDER TREE ── */
+  .folder-tree { font-family: 'Courier New', monospace; font-size: 13px; line-height: 2; }
+  .folder-tree .dir  { color: var(--accent2); }
+  .folder-tree .file { color: #CBD5E1; }
+  .folder-tree .note { color: var(--muted); }
+
+  /* ── FOOTER ── */
+  .footer { margin-top: 64px; padding-top: 24px; border-top: 1px solid var(--border); font-size: 12px; color: var(--muted); text-align: center; }
+
+  /* ── RESPONSIVE ── */
+  @media (max-width: 900px) {
+    .sidebar { display: none; }
+    .main { padding: 24px 20px; }
+    .cover { padding: 28px 24px; }
+    .cover h1 { font-size: 24px; }
+  }
+
+  /* ── INLINE CODE ── */
+  code.inline { background: #0D1117; border: 1px solid var(--code-border); border-radius: 4px; padding: 1px 7px; font-family: 'Courier New', monospace; font-size: 12.5px; color: #F6AD55; }
+
+  /* ── CONCEPT TAGS GRID ── */
+  .concepts { display: flex; flex-wrap: wrap; gap: 8px; margin: 16px 0; }
+</style>
+</head>
+<body>
+
+<div class="layout">
+
+<!-- ═══════════════════════ SIDEBAR ═══════════════════════ -->
+<nav class="sidebar">
+  <div class="sidebar-logo">
+    <div class="series">Enterprise Ansible Masterclass</div>
+    <div class="title">OpenShift Automation with RHAAP</div>
+  </div>
+
+  <div class="toc-section">Project Navigation</div>
+  <a href="#cover"      class="toc-item active">Project Overview</a>
+  <a href="#story"      class="toc-item">Enterprise Scenario</a>
+  <a href="#what"       class="toc-item">What is OpenShift?</a>
+  <a href="#ansible"    class="toc-item">What is Ansible?</a>
+  <a href="#rhaap"      class="toc-item">What is RHAAP?</a>
+  <a href="#arch"       class="toc-item">Architecture</a>
+  <a href="#auth"       class="toc-item">Authentication</a>
+  <a href="#collections"class="toc-item">Collections Setup</a>
+  <a href="#inventory"  class="toc-item">Inventory & Variables</a>
+  <a href="#vault"      class="toc-item">Ansible Vault</a>
+  <a href="#playbook"   class="toc-item">The Playbook</a>
+  <a href="#explanation"class="toc-item">Code Explanation</a>
+  <a href="#report"     class="toc-item">HTML Report Template</a>
+  <a href="#email"      class="toc-item">Email Notification</a>
+  <a href="#rhaap-cfg"  class="toc-item">RHAAP Configuration</a>
+  <a href="#trouble"    class="toc-item">Troubleshooting</a>
+  <a href="#interview"  class="toc-item">Interview Questions</a>
+  <a href="#challenges" class="toc-item">Coding Challenges</a>
+  <a href="#resume"     class="toc-item">Resume Points</a>
+  <a href="#assignment" class="toc-item">Practice Assignment</a>
+
+  <div class="toc-section">Course Progress</div>
+  <div style="padding:0 20px">
+    <div class="progress-wrap">
+      <div class="progress-label"><span>Project 1 of 35</span><span>3%</span></div>
+      <div class="progress-bar"><div class="progress-fill" style="width:3%"></div></div>
+    </div>
+    <div class="progress-wrap">
+      <div class="progress-label"><span>Stage: Beginner</span><span></span></div>
+      <div class="progress-bar"><div class="progress-fill" style="width:100%;background:linear-gradient(90deg,#22C55E,#06B6D4)"></div></div>
+    </div>
+  </div>
+</nav>
+
+<!-- ═══════════════════════ MAIN ═══════════════════════ -->
+<main class="main">
+
+  <!-- ── COVER ── -->
+  <div class="cover" id="cover">
+    <div class="cover-badge"><span class="dot"></span>Project 01 of 35 — Beginner Stage</div>
+    <h1>OpenShift Cluster <span>Connectivity &amp; Health Validation</span></h1>
+    <p class="cover-sub">Build your first production-grade Ansible playbook to verify cluster connectivity, authenticate to the OpenShift API, run pre-checks, and generate a professional HTML report — all executed through RHAAP.</p>
+    <div class="cover-meta">
+      <div class="meta-item"><span class="meta-label">Difficulty</span><span class="meta-value green">Beginner</span></div>
+      <div class="meta-item"><span class="meta-label">Estimated Time</span><span class="meta-value purple">4–6 Hours</span></div>
+      <div class="meta-item"><span class="meta-label">Stage</span><span class="meta-value cyan">Foundation</span></div>
+      <div class="meta-item"><span class="meta-label">Ticket</span><span class="meta-value">INFRA-1001</span></div>
+      <div class="meta-item"><span class="meta-label">Domain</span><span class="meta-value">OpenShift · Ansible · RHAAP</span></div>
+    </div>
+  </div>
+
+  <!-- Concepts Covered -->
+  <h4 class="mini-title">Concepts Introduced in This Project</h4>
+  <div class="concepts">
+    <span class="tag purple">What is Ansible</span>
+    <span class="tag purple">What is RHAAP</span>
+    <span class="tag purple">What is OpenShift</span>
+    <span class="tag cyan">Playbook Structure</span>
+    <span class="tag cyan">YAML Syntax</span>
+    <span class="tag cyan">Tasks &amp; Modules</span>
+    <span class="tag cyan">Variables</span>
+    <span class="tag cyan">Facts</span>
+    <span class="tag cyan">Register</span>
+    <span class="tag green">kubernetes.core Collection</span>
+    <span class="tag green">k8s_info Module</span>
+    <span class="tag green">OpenShift Authentication</span>
+    <span class="tag yellow">Ansible Vault</span>
+    <span class="tag yellow">Idempotency</span>
+    <span class="tag yellow">Assert</span>
+    <span class="tag yellow">Block / Rescue / Always</span>
+    <span class="tag yellow">Retry / Until</span>
+    <span class="tag red">HTML Report (Jinja2)</span>
+    <span class="tag red">Email Notification</span>
+    <span class="tag red">RHAAP Job Template</span>
+    <span class="tag red">Execution Environment</span>
+  </div>
+
+  <!-- Agile Story -->
+  <div class="card-grid" style="grid-template-columns:repeat(auto-fill,minmax(180px,1fr));margin-top:32px">
+    <div class="card"><div class="card-icon">📋</div><div class="card-title">Epic</div><div class="card-desc">OpenShift Platform Automation</div></div>
+    <div class="card"><div class="card-icon">🎯</div><div class="card-title">Feature</div><div class="card-desc">Cluster Health Monitoring</div></div>
+    <div class="card"><div class="card-icon">👤</div><div class="card-title">User Story</div><div class="card-desc">Automated daily cluster health verification</div></div>
+    <div class="card"><div class="card-icon">✅</div><div class="card-title">Sprint</div><div class="card-desc">Sprint 1 — Day 1 Ticket</div></div>
+    <div class="card"><div class="card-icon">🏷️</div><div class="card-title">Ticket</div><div class="card-desc">INFRA-1001 — Assigned by Manager</div></div>
+  </div>
+
+  <!-- ── STORY ── -->
+  <h2 class="section-title" id="story"><span class="num">01</span> Enterprise Scenario — The Manager's Ticket</h2>
+
+  <div class="story-box">
+    <div class="story-tag">🏢 Enterprise Context — ABC Bank OpenShift Platform Team</div>
+    <p>We have joined the <strong>OpenShift Platform Engineering team at ABC Bank</strong>, a large financial institution operating multiple OpenShift clusters across <strong>DEV, QA, UAT, Production, and DR</strong> environments.</p>
+    <p>Our manager, Rajesh (Senior DevOps Architect), walks over to our desk on Day 1 and says:</p>
+    <p><em>"Right now, every morning the team manually runs <code>oc get nodes</code> and <code>oc get pods -A</code> on five different clusters. This takes 30–45 minutes. If something is wrong, Operations only finds out during the next manual check. I need you to automate this. The automation should connect to all clusters, verify connectivity, check node and namespace health, and generate an HTML report that we can email to Operations every morning. It must run through our RHAAP platform. Can you have a working version in the first sprint?"</em></p>
+    <p>This is our first production automation ticket. Let us build it step by step.</p>
+  </div>
+
+  <h4 class="mini-title">Acceptance Criteria</h4>
+  <ul class="step-list">
+    <li><span class="step-num">1</span><div class="step-content"><strong>Authenticate to OpenShift API</strong><span>Using a ServiceAccount token securely stored in RHAAP — no hard-coded credentials.</span></div></li>
+    <li><span class="step-num">2</span><div class="step-content"><strong>Verify cluster API is reachable</strong><span>Retry up to 3 times with delay before declaring failure.</span></div></li>
+    <li><span class="step-num">3</span><div class="step-content"><strong>Collect node health</strong><span>List all nodes and check Ready status. Alert if any node is NotReady.</span></div></li>
+    <li><span class="step-num">4</span><div class="step-content"><strong>Verify critical namespaces exist</strong><span>Confirm that kube-system, openshift-monitoring, openshift-ingress are present.</span></div></li>
+    <li><span class="step-num">5</span><div class="step-content"><strong>Check for CrashLoopBackOff pods</strong><span>Identify any pod in a problem state across all namespaces.</span></div></li>
+    <li><span class="step-num">6</span><div class="step-content"><strong>Generate HTML report</strong><span>Professional, dark-themed, self-contained report with full results.</span></div></li>
+    <li><span class="step-num">7</span><div class="step-content"><strong>Send email to Operations</strong><span>HTML report embedded or attached. Success or failure must be clearly visible in the subject line.</span></div></li>
+  </ul>
+
+  <!-- ── WHAT IS OPENSHIFT ── -->
+  <h2 class="section-title" id="what"><span class="num">02</span> What is OpenShift? (Understand Before You Automate)</h2>
+
+  <p>Before we write a single line of Ansible, we need to understand what we are automating. You cannot automate something you do not understand.</p>
+
+  <h3 class="sub-title">OpenShift in Plain English</h3>
+  <p>Imagine you need to run 50 different applications at ABC Bank. Each application needs to:</p>
+  <ul style="margin-left:20px;margin-bottom:14px;color:var(--muted)">
+    <li>Start automatically if it crashes</li>
+    <li>Scale up when more users arrive</li>
+    <li>Have its own isolated network</li>
+    <li>Be updated without downtime</li>
+    <li>Be monitored at all times</li>
+  </ul>
+  <p>Running this manually across hundreds of servers is impossible. <strong>OpenShift is a container platform</strong> that does all of this for you. It is built on <strong>Kubernetes</strong> (the open-source container orchestration engine) and adds enterprise security, developer tools, monitoring, and management features on top.</p>
+
+  <div class="card-grid">
+    <div class="card"><div class="card-icon">🧠</div><div class="card-title">OpenShift API Server</div><div class="card-desc">The brain. Everything — Ansible, oc CLI, UI — talks to this HTTPS endpoint.</div></div>
+    <div class="card"><div class="card-icon">🖥️</div><div class="card-title">Nodes</div><div class="card-desc">Virtual or physical machines that run containerized workloads (worker nodes) or control the cluster (master/control-plane nodes).</div></div>
+    <div class="card"><div class="card-icon">📦</div><div class="card-title">Pods</div><div class="card-desc">The smallest unit. A Pod contains one or more containers (Docker/OCI). Your application runs inside a Pod.</div></div>
+    <div class="card"><div class="card-icon">🗂️</div><div class="card-title">Namespaces / Projects</div><div class="card-desc">Isolated virtual boundaries within the cluster. DEV, QA, UAT each get their own namespace.</div></div>
+    <div class="card"><div class="card-icon">🔌</div><div class="card-title">Services</div><div class="card-desc">Internal load balancers that route traffic to pods.</div></div>
+    <div class="card"><div class="card-icon">🌐</div><div class="card-title">Routes</div><div class="card-desc">OpenShift-specific external URL that exposes your application to the internet.</div></div>
+  </div>
+
+  <div class="diagram">
+    <div class="d-title">OpenShift Internal Architecture</div>
+    <span class="d-box">  ┌─────────────────────────────────────────────────────────────┐</span><br>
+    <span class="d-box">  │                    OpenShift Cluster                        │</span><br>
+    <span class="d-box">  │                                                             │</span><br>
+    <span class="d-box">  │   ┌─────────────────┐     ┌────────────────────────────┐   │</span><br>
+    <span class="d-box">  │   │  Control Plane  │     │       Worker Nodes          │   │</span><br>
+    <span class="d-box">  │   │                 │     │                            │   │</span><br>
+    <span class="d-box">  │   │  API Server ◀───┼─────┼── oc CLI / Ansible / UI    │   │</span><br>
+    <span class="d-box">  │   │  etcd (DB)      │     │                            │   │</span><br>
+    <span class="d-box">  │   │  Scheduler      │────▶│  ┌──────┐ ┌──────┐        │   │</span><br>
+    <span class="d-box">  │   │  Controller Mgr │     │  │ Pod  │ │ Pod  │  ...   │   │</span><br>
+    <span class="d-box">  │   └─────────────────┘     │  └──────┘ └──────┘        │   │</span><br>
+    <span class="d-box">  │                           └────────────────────────────┘   │</span><br>
+    <span class="d-box">  └─────────────────────────────────────────────────────────────┘</span>
+  </div>
+
+  <div class="callout info">
+    <div class="callout-icon">💡</div>
+    <div class="callout-body">
+      <div class="callout-title">Key Insight</div>
+      <p>Everything in OpenShift is a <strong>resource</strong> (Node, Pod, Namespace, Deployment, etc.) and all resources are managed through the <strong>API Server</strong> via HTTPS. This is why Ansible can automate OpenShift — it simply makes API calls on your behalf.</p>
+    </div>
+  </div>
+
+  <!-- ── WHAT IS ANSIBLE ── -->
+  <h2 class="section-title" id="ansible"><span class="num">03</span> What is Ansible? (And Why Does ABC Bank Use It?)</h2>
+
+  <h3 class="sub-title">The Problem Without Ansible</h3>
+  <p>Before automation, an engineer at ABC Bank would have to:</p>
+  <ol style="margin-left:20px;margin-bottom:14px;color:var(--muted)">
+    <li>Manually <code class="inline">oc login</code> to each cluster</li>
+    <li>Manually run <code class="inline">oc get nodes</code> and copy output</li>
+    <li>Manually check each namespace</li>
+    <li>Manually write up the results</li>
+    <li>Manually send an email</li>
+    <li>Repeat this for every environment — DEV, QA, UAT, PROD, DR</li>
+  </ol>
+  <p>This is slow, error-prone, and not auditable. If something breaks at 2 AM, nobody wants to do this manually.</p>
+
+  <h3 class="sub-title">Ansible in Plain English</h3>
+  <p><strong>Ansible is an automation tool</strong> that lets you describe what you want done in a simple YAML file called a <strong>Playbook</strong>, and Ansible will do it automatically — connecting to systems, making API calls, performing checks, handling errors, and reporting results.</p>
+
+  <div class="card-grid">
+    <div class="card"><div class="card-icon">🤖</div><div class="card-title">Agentless</div><div class="card-desc">Ansible does NOT need software installed on the target. For OpenShift, it uses the API. For Linux servers, it uses SSH.</div></div>
+    <div class="card"><div class="card-icon">📝</div><div class="card-title">YAML Playbooks</div><div class="card-desc">Human-readable automation scripts. Not a programming language — you describe WHAT you want, not HOW to do it.</div></div>
+    <div class="card"><div class="card-icon">🔌</div><div class="card-title">Modules</div><div class="card-desc">Pre-built functions. Instead of writing API code, you call <code class="inline">kubernetes.core.k8s_info</code>.</div></div>
+    <div class="card"><div class="card-icon">♻️</div><div class="card-title">Idempotent</div><div class="card-desc">Run the playbook 10 times — it only makes changes when needed. Same result every time.</div></div>
+    <div class="card"><div class="card-icon">📚</div><div class="card-title">Collections</div><div class="card-desc">Packages of modules. <code class="inline">kubernetes.core</code> provides all OpenShift/Kubernetes modules.</div></div>
+    <div class="card"><div class="card-icon">🏗️</div><div class="card-title">Roles</div><div class="card-desc">Reusable, organized automation components. Like functions in programming.</div></div>
+  </div>
+
+  <div class="diagram">
+    <div class="d-title">How Ansible Executes a Task</div>
+    <span class="d-box">  You write YAML describing desired state</span><br>
+    <span class="d-arrow">           ↓</span><br>
+    <span class="d-box">  Ansible reads the Playbook</span><br>
+    <span class="d-arrow">           ↓</span><br>
+    <span class="d-box">  Ansible loads the Collection (kubernetes.core)</span><br>
+    <span class="d-arrow">           ↓</span><br>
+    <span class="d-box">  Collection calls OpenShift API via HTTPS</span><br>
+    <span class="d-arrow">           ↓</span><br>
+    <span class="d-box">  OpenShift API validates authentication</span><br>
+    <span class="d-arrow">           ↓</span><br>
+    <span class="d-box">  OpenShift API checks RBAC permissions</span><br>
+    <span class="d-arrow">           ↓</span><br>
+    <span class="d-box">  OpenShift performs the operation</span><br>
+    <span class="d-arrow">           ↓</span><br>
+    <span class="d-box">  Response returned to Ansible</span><br>
+    <span class="d-arrow">           ↓</span><br>
+    <span class="d-box">  Ansible records: changed / ok / failed</span>
+  </div>
+
+  <!-- ── WHAT IS RHAAP ── -->
+  <h2 class="section-title" id="rhaap"><span class="num">04</span> What is RHAAP / AAP? (Where Playbooks Actually Run at ABC Bank)</h2>
+
+  <p>You could run Ansible from your laptop. But that raises questions:</p>
+  <ul style="margin-left:20px;margin-bottom:14px;color:var(--muted)">
+    <li>Where are the credentials stored safely?</li>
+    <li>Who approved this automation run?</li>
+    <li>What is the audit trail?</li>
+    <li>How does it run automatically at 6 AM?</li>
+    <li>How can the Manager track job status?</li>
+    <li>Who can see the output?</li>
+  </ul>
+
+  <p><strong>Red Hat Ansible Automation Platform (RHAAP/AAP)</strong> solves all of this. It is the enterprise platform that manages, executes, governs, and audits all Ansible automation.</p>
+
+  <div class="card-grid">
+    <div class="card"><div class="card-icon">🔐</div><div class="card-title">Credential Store</div><div class="card-desc">OpenShift tokens, Vault passwords, SSH keys — all stored encrypted. Never in Git.</div></div>
+    <div class="card"><div class="card-icon">📅</div><div class="card-title">Schedules</div><div class="card-desc">Run automation at 6 AM every weekday. Like cron, but enterprise-grade with history.</div></div>
+    <div class="card"><div class="card-icon">📋</div><div class="card-title">Job Templates</div><div class="card-desc">Pre-configured automation runs. Define playbook, inventory, credentials, variables once. Run on demand.</div></div>
+    <div class="card"><div class="card-icon">🔄</div><div class="card-title">Workflows</div><div class="card-desc">Chain multiple Job Templates with success/failure branching. Full deployment pipelines.</div></div>
+    <div class="card"><div class="card-icon">👥</div><div class="card-title">RBAC</div><div class="card-desc">Control who can run, view, or edit automation. Junior engineers can run, not edit.</div></div>
+    <div class="card"><div class="card-icon">📦</div><div class="card-title">Execution Environments</div><div class="card-desc">Container images with all required Ansible collections and Python libraries pre-installed.</div></div>
+  </div>
+
+  <!-- ── FULL ARCHITECTURE ── -->
+  <h2 class="section-title" id="arch"><span class="num">05</span> Full Execution Architecture</h2>
+
+  <p>This is what happens end-to-end when our cluster health check runs at 6 AM:</p>
+
+  <div class="diagram">
+    <div class="d-title">End-to-End Automation Architecture — ABC Bank Cluster Health Check</div>
+    <br>
+    <span class="d-box">  ┌──────────────────────────────────────────────────────────────────────┐</span><br>
+    <span class="d-box">  │                        DEVELOPER / ENGINEER                         │</span><br>
+    <span class="d-box">  │   Writes Ansible Playbook → Commits to Git Feature Branch           │</span><br>
+    <span class="d-box">  │   Creates PR → Code Review → Merge to main                          │</span><br>
+    <span class="d-box">  └─────────────────────────────┬────────────────────────────────────────┘</span><br>
+    <span class="d-arrow">                                ↓</span><br>
+    <span class="d-box">  ┌─────────────────────────────────────────────────────────────────────┐</span><br>
+    <span class="d-box">  │                        GIT REPOSITORY (GitHub / GitLab)            │</span><br>
+    <span class="d-box">  │   openshift-automation/  (ansible.cfg, playbooks/, roles/, etc.)   │</span><br>
+    <span class="d-box">  └─────────────────────────────┬───────────────────────────────────────┘</span><br>
+    <span class="d-arrow">                                ↓  RHAAP syncs project on schedule or webhook</span><br>
+    <span class="d-box">  ┌─────────────────────────────────────────────────────────────────────┐</span><br>
+    <span class="d-box">  │              RHAAP / AUTOMATION CONTROLLER                          │</span><br>
+    <span class="d-box">  │   Schedule → 06:00 daily → Triggers Job Template                    │</span><br>
+    <span class="d-box">  │   Injects Credentials (OpenShift Token, SMTP, Vault)                │</span><br>
+    <span class="d-box">  │   Selects Inventory + Execution Environment                         │</span><br>
+    <span class="d-box">  └─────────────────────────────┬───────────────────────────────────────┘</span><br>
+    <span class="d-arrow">                                ↓</span><br>
+    <span class="d-box">  ┌─────────────────────────────────────────────────────────────────────┐</span><br>
+    <span class="d-box">  │                    EXECUTION ENVIRONMENT (Container)                │</span><br>
+    <span class="d-box">  │   ansible-core 2.15+                                                 │</span><br>
+    <span class="d-box">  │   kubernetes.core collection                                         │</span><br>
+    <span class="d-box">  │   Python kubernetes library                                          │</span><br>
+    <span class="d-box">  │   Jinja2                                                             │</span><br>
+    <span class="d-box">  └─────────────────────────────┬───────────────────────────────────────┘</span><br>
+    <span class="d-arrow">                                ↓  Ansible Runner executes playbook</span><br>
+    <span class="d-box">  ┌─────────────────────────────────────────────────────────────────────┐</span><br>
+    <span class="d-box">  │                       ANSIBLE PLAYBOOK                              │</span><br>
+    <span class="d-box">  │   Pre-checks → Connectivity → Nodes → Namespaces → Pods            │</span><br>
+    <span class="d-box">  │   Collect results → Jinja2 HTML report → Email                      │</span><br>
+    <span class="d-box">  └─────────────────────────────┬───────────────────────────────────────┘</span><br>
+    <span class="d-arrow">                                ↓  HTTPS API calls</span><br>
+    <span class="d-box">  ┌─────────────────────────────────────────────────────────────────────┐</span><br>
+    <span class="d-box">  │                    OPENSHIFT API SERVER                              │</span><br>
+    <span class="d-box">  │   Authenticates token → Checks RBAC → Returns resources             │</span><br>
+    <span class="d-box">  └────────────┬──────────────────┬──────────────────────┬──────────────┘</span><br>
+    <span class="d-arrow">               ↓                  ↓                      ↓</span><br>
+    <span class="d-box">         DEV Cluster         UAT Cluster           PROD Cluster</span>
+  </div>
+
+  <!-- ── AUTHENTICATION ── -->
+  <h2 class="section-title" id="auth"><span class="num">06</span> OpenShift Authentication — The Right Way</h2>
+
+  <p>This is one of the most important concepts. <strong>Never hard-code passwords or tokens.</strong></p>
+
+  <h3 class="sub-title">How Authentication Works</h3>
+  <p>Ansible connects to OpenShift using a <strong>Bearer Token</strong>. The token belongs to a <strong>ServiceAccount</strong> that has only the permissions needed for our health check — nothing more. This is called the <strong>Least Privilege Principle</strong>.</p>
+
+  <div class="diagram">
+    <div class="d-title">Authentication Flow</div>
+    <span class="d-box">  RHAAP Credential Store</span>  <span class="d-note">← token encrypted here, never in Git</span><br>
+    <span class="d-arrow">         ↓</span><br>
+    <span class="d-box">  Execution Environment starts</span><br>
+    <span class="d-arrow">         ↓</span><br>
+    <span class="d-box">  RHAAP injects K8S_AUTH_API_KEY env variable into container</span><br>
+    <span class="d-arrow">         ↓</span><br>
+    <span class="d-box">  Ansible playbook reads host/api_key from environment or variables</span><br>
+    <span class="d-arrow">         ↓</span><br>
+    <span class="d-box">  kubernetes.core module sends HTTPS request with Authorization: Bearer &lt;token&gt;</span><br>
+    <span class="d-arrow">         ↓</span><br>
+    <span class="d-box">  OpenShift API Server validates token against etcd</span><br>
+    <span class="d-arrow">         ↓</span><br>
+    <span class="d-box">  RBAC checked: does this ServiceAccount have permission?</span><br>
+    <span class="d-arrow">         ↓</span><br>
+    <span class="d-box">  YES → response returned → Ansible processes result</span>
+  </div>
+
+  <h3 class="sub-title">Creating the ServiceAccount in OpenShift</h3>
+  <p>Before running any playbook, a cluster admin must create a ServiceAccount with read permissions:</p>
+
+  <div class="code-wrapper">
+    <div class="code-header">
+      <span class="code-lang">bash</span>
+      <span class="code-filename">Run these commands once as cluster-admin</span>
+      <button class="copy-btn" onclick="navigator.clipboard.writeText(this.closest('.code-wrapper').querySelector('pre').innerText)">Copy</button>
+    </div>
+    <pre><code><span class="sy-comment"># Step 1: Create a dedicated namespace for our automation ServiceAccount</span>
+oc create namespace abc-ansible-automation
+
+<span class="sy-comment"># Step 2: Create the ServiceAccount</span>
+<span class="sy-comment"># This is the identity our Ansible automation will use</span>
+oc create serviceaccount ansible-cluster-reader \
+  --namespace abc-ansible-automation
+
+<span class="sy-comment"># Step 3: Grant cluster-reader ClusterRole</span>
+<span class="sy-comment"># cluster-reader = read-only access to all resources cluster-wide</span>
+<span class="sy-comment"># This is the minimum privilege needed for health checks</span>
+oc adm policy add-cluster-role-to-user cluster-reader \
+  system:serviceaccount:abc-ansible-automation:ansible-cluster-reader
+
+<span class="sy-comment"># Step 4: Extract the ServiceAccount token</span>
+<span class="sy-comment"># OpenShift 4.11+ requires creating a Secret explicitly for long-lived tokens</span>
+cat &lt;&lt;EOF | oc apply -f -
+apiVersion: v1
+kind: Secret
+metadata:
+  name: ansible-cluster-reader-token
+  namespace: abc-ansible-automation
+  annotations:
+    kubernetes.io/service-account.name: ansible-cluster-reader
+type: kubernetes.io/service-account-token
+EOF
+
+<span class="sy-comment"># Step 5: Retrieve the token (do NOT commit this to Git)</span>
+oc get secret ansible-cluster-reader-token \
+  --namespace abc-ansible-automation \
+  -o jsonpath='{.data.token}' | base64 -d</code></pre>
+  </div>
+
+  <div class="explain-block">
+    <div class="explain-title">What Each Command Does</div>
+    <div class="explain-row"><span class="explain-term">create namespace</span><span class="explain-def">Creates an isolated OpenShift project to house our automation resources. Keeps things organized and secure.</span></div>
+    <div class="explain-row"><span class="explain-term">create serviceaccount</span><span class="explain-def">Creates a non-human identity in OpenShift. Like a user account, but for automation. Cannot log in interactively.</span></div>
+    <div class="explain-row"><span class="explain-term">add-cluster-role-to-user</span><span class="explain-def">Grants the ServiceAccount permission to read resources across the entire cluster. Read-only — cannot create or delete.</span></div>
+    <div class="explain-row"><span class="explain-term">kubernetes.io/service-account-token</span><span class="explain-def">Creates a long-lived token Secret associated with the ServiceAccount. Required in OCP 4.11+ for automation.</span></div>
+    <div class="explain-row"><span class="explain-term">base64 -d</span><span class="explain-def">Decodes the base64-encoded token from the Secret. The decoded value is what you put in RHAAP Credentials.</span></div>
+  </div>
+
+  <div class="callout security">
+    <div class="callout-icon">🔐</div>
+    <div class="callout-body">
+      <div class="callout-title">Security Rule — Never in Git</div>
+      <p>The token you extracted above must <strong>NEVER</strong> be placed in a file that is committed to Git. It goes into <strong>RHAAP Credentials</strong> or <strong>Ansible Vault</strong>. If a token is ever accidentally committed, rotate it immediately using <code class="inline">oc delete secret</code> and create a new one.</p>
+    </div>
+  </div>
+
+  <!-- ── COLLECTIONS ── -->
+  <h2 class="section-title" id="collections"><span class="num">07</span> Collections — The Tools Ansible Uses to Talk to OpenShift</h2>
+
+  <h3 class="sub-title">What is a Collection?</h3>
+  <p>A <strong>Collection</strong> is a packaged set of Ansible modules, plugins, and roles. Instead of writing Python code to call the OpenShift API yourself, you install a Collection and it provides ready-made modules.</p>
+  <p>For OpenShift automation, we need the <strong><code class="inline">kubernetes.core</code></strong> collection. This gives us modules like:</p>
+
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Module</th><th>What It Does</th><th>Common Use</th></tr></thead>
+      <tbody>
+        <tr><td><code class="inline">kubernetes.core.k8s_info</code></td><td>Read/query resources from OpenShift</td><td>Get nodes, pods, namespaces</td></tr>
+        <tr><td><code class="inline">kubernetes.core.k8s</code></td><td>Create, update, or delete resources</td><td>Apply YAML manifests</td></tr>
+        <tr><td><code class="inline">kubernetes.core.k8s_exec</code></td><td>Execute commands inside a pod</td><td>Run tests inside containers</td></tr>
+        <tr><td><code class="inline">kubernetes.core.helm</code></td><td>Manage Helm chart deployments</td><td>Deploy Helm applications</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3 class="sub-title">Project Setup — Directory Structure</h3>
+
+  <div class="code-wrapper">
+    <div class="code-header">
+      <span class="code-lang">bash</span>
+      <span class="code-filename">Terminal — Create Project Structure</span>
+      <button class="copy-btn" onclick="navigator.clipboard.writeText(this.closest('.code-wrapper').querySelector('pre').innerText)">Copy</button>
+    </div>
+    <pre><code><span class="sy-comment"># Create the project directory structure</span>
+mkdir -p openshift-automation/{inventories/{dev,qa,uat,prod}/group_vars,\
+  playbooks,roles,templates,vars,files,reports}
+
+<span class="sy-comment"># Navigate into the project</span>
+cd openshift-automation
+
+<span class="sy-comment"># Verify the structure was created</span>
+find . -type d | sort</code></pre>
+  </div>
+
+  <h4 class="mini-title">Final Directory Structure</h4>
+  <div class="code-wrapper">
+    <div class="code-header"><span class="code-lang">text</span><span class="code-filename">openshift-automation/ — Project Layout</span></div>
+    <pre><code class="folder-tree"><span class="dir">openshift-automation/</span>
+│
+├── ansible.cfg                    <span class="sy-comment"># Ansible runtime configuration</span>
+├── requirements.yml               <span class="sy-comment"># Collections to install</span>
+├── README.md
+│
+├── <span class="dir">inventories/</span>
+│   ├── <span class="dir">dev/</span>
+│   │   ├── hosts.yml              <span class="sy-comment"># DEV cluster connection info</span>
+│   │   └── <span class="dir">group_vars/</span>
+│   │       └── all.yml            <span class="sy-comment"># DEV-specific variables</span>
+│   ├── <span class="dir">qa/</span>
+│   ├── <span class="dir">uat/</span>
+│   └── <span class="dir">prod/</span>
+│
+├── <span class="dir">playbooks/</span>
+│   └── cluster_health_check.yml   <span class="sy-comment"># Our main playbook</span>
+│
+├── <span class="dir">templates/</span>
+│   └── cluster_health_report.html.j2  <span class="sy-comment"># Jinja2 HTML report template</span>
+│
+├── <span class="dir">vars/</span>
+│   └── common.yml                 <span class="sy-comment"># Shared variables</span>
+│
+└── <span class="dir">reports/</span>                       <span class="sy-comment"># Generated HTML reports saved here</span></code></pre>
+  </div>
+
+  <h3 class="sub-title">requirements.yml — Declaring Collections</h3>
+
+  <div class="code-wrapper">
+    <div class="code-header">
+      <span class="code-lang">yaml</span>
+      <span class="code-filename">requirements.yml</span>
+      <button class="copy-btn" onclick="navigator.clipboard.writeText(this.closest('.code-wrapper').querySelector('pre').innerText)">Copy</button>
+    </div>
+    <pre><code><span class="sy-comment">---
+# requirements.yml
+# Declares all external collections this project depends on.
+# Install with: ansible-galaxy collection install -r requirements.yml
+# In RHAAP, this file is read automatically when the Execution Environment is built.
+</span>
+<span class="sy-key">collections:</span>
+
+  <span class="sy-comment"># kubernetes.core — Primary collection for OpenShift/Kubernetes automation</span>
+  <span class="sy-comment"># Provides: k8s, k8s_info, k8s_exec, helm modules and more</span>
+  <span class="sy-comment"># Vendor: Red Hat / Ansible community</span>
+  - <span class="sy-key">name:</span> <span class="sy-string">kubernetes.core</span>
+    <span class="sy-key">version:</span> <span class="sy-string">">=2.4.0"</span>       <span class="sy-comment"># Pin minimum version for stability</span>
+
+  <span class="sy-comment"># community.general — Provides email, file, template utilities</span>
+  - <span class="sy-key">name:</span> <span class="sy-string">community.general</span>
+    <span class="sy-key">version:</span> <span class="sy-string">">=7.0.0"</span>
+
+  <span class="sy-comment"># ansible.utils — Provides network/data filtering utilities</span>
+  - <span class="sy-key">name:</span> <span class="sy-string">ansible.utils</span>
+    <span class="sy-key">version:</span> <span class="sy-string">">=2.10.0"</span></code></pre>
+  </div>
+
+  <div class="explain-block">
+    <div class="explain-title">Why we pin versions</div>
+    <div class="explain-row"><span class="explain-term">version: ">=2.4.0"</span><span class="explain-def">In production, we pin collection versions so automation doesn't break silently when a collection author releases a breaking change. Always test new versions in DEV first.</span></div>
+  </div>
+
+  <!-- ── INVENTORY ── -->
+  <h2 class="section-title" id="inventory"><span class="num">08</span> Inventory &amp; Variables — Telling Ansible About Our Clusters</h2>
+
+  <h3 class="sub-title">What is an Inventory?</h3>
+  <p>An <strong>Inventory</strong> tells Ansible about the systems it will interact with. For OpenShift automation, instead of listing SSH servers, we define our cluster API endpoints.</p>
+  <p>In production, we have <strong>separate inventories</strong> for each environment. This prevents a playbook written for DEV from accidentally running against Production.</p>
+
+  <h3 class="sub-title">ansible.cfg — Runtime Configuration</h3>
+  <div class="code-wrapper">
+    <div class="code-header">
+      <span class="code-lang">ini</span>
+      <span class="code-filename">ansible.cfg</span>
+      <button class="copy-btn" onclick="navigator.clipboard.writeText(this.closest('.code-wrapper').querySelector('pre').innerText)">Copy</button>
+    </div>
+    <pre><code><span class="sy-comment"># ansible.cfg
+# This file configures Ansible's runtime behavior.
+# Ansible looks for this file in the current directory first.
+</span>
+[defaults]
+<span class="sy-comment"># Do not check SSH host keys (for OpenShift API, not SSH)</span>
+host_key_checking     = False
+
+<span class="sy-comment"># Make playbook output more readable for humans</span>
+stdout_callback       = yaml
+
+<span class="sy-comment"># Default inventory — used when no -i flag is provided</span>
+<span class="sy-comment"># We will override this per environment from RHAAP</span>
+inventory             = inventories/dev
+
+<span class="sy-comment"># Retry failed tasks with a file (optional — here disabled)</span>
+retry_files_enabled   = False
+
+<span class="sy-comment"># Show task timing at the end of the playbook</span>
+[callback_profile_tasks]
+task_output_limit     = 20</code></pre>
+  </div>
+
+  <h3 class="sub-title">Inventory File — DEV Cluster</h3>
+  <div class="code-wrapper">
+    <div class="code-header">
+      <span class="code-lang">yaml</span>
+      <span class="code-filename">inventories/dev/hosts.yml</span>
+      <button class="copy-btn" onclick="navigator.clipboard.writeText(this.closest('.code-wrapper').querySelector('pre').innerText)">Copy</button>
+    </div>
+    <pre><code><span class="sy-comment">---
+# inventories/dev/hosts.yml
+# Defines the DEV OpenShift cluster as an Ansible host.
+# For OpenShift API automation, the "host" is the API server URL.
+# Ansible does NOT SSH into the cluster — it makes HTTPS API calls.
+</span>
+<span class="sy-key">all:</span>
+  <span class="sy-key">children:</span>
+    <span class="sy-key">openshift_clusters:</span>         <span class="sy-comment"># Group name — used to target tasks</span>
+      <span class="sy-key">hosts:</span>
+        <span class="sy-key">ocp-dev:</span>                  <span class="sy-comment"># Logical name for this cluster</span>
+          <span class="sy-key">ansible_host:</span> <span class="sy-string">localhost</span>  <span class="sy-comment"># Ansible control node (API calls go over HTTPS)</span>
+          <span class="sy-key">ansible_connection:</span> <span class="sy-string">local</span> <span class="sy-comment"># Use local connection — no SSH needed</span>
+
+          <span class="sy-comment"># OpenShift cluster details</span>
+          <span class="sy-key">ocp_api_url:</span> <span class="sy-string">"https://api.dev.abcbank.internal:6443"</span>
+          <span class="sy-key">ocp_cluster_name:</span> <span class="sy-string">"ocp-dev"</span>
+          <span class="sy-key">ocp_environment:</span> <span class="sy-string">"dev"</span>
+
+          <span class="sy-comment"># Critical namespaces that MUST exist for this cluster to be healthy</span>
+          <span class="sy-key">ocp_critical_namespaces:</span>
+            - <span class="sy-string">kube-system</span>
+            - <span class="sy-string">openshift-monitoring</span>
+            - <span class="sy-string">openshift-ingress</span>
+            - <span class="sy-string">openshift-etcd</span>
+            - <span class="sy-string">openshift-kube-apiserver</span>
+
+          <span class="sy-comment"># Expected minimum node count for this cluster</span>
+          <span class="sy-key">ocp_minimum_node_count:</span> <span class="sy-num">3</span></code></pre>
+  </div>
+
+  <h3 class="sub-title">Group Variables — Environment-Wide Defaults</h3>
+  <div class="code-wrapper">
+    <div class="code-header">
+      <span class="code-lang">yaml</span>
+      <span class="code-filename">inventories/dev/group_vars/all.yml</span>
+      <button class="copy-btn" onclick="navigator.clipboard.writeText(this.closest('.code-wrapper').querySelector('pre').innerText)">Copy</button>
+    </div>
+    <pre><code><span class="sy-comment">---
+# inventories/dev/group_vars/all.yml
+# Variables that apply to ALL hosts in the DEV inventory.
+# These override defaults but are overridden by host_vars.
+</span>
+
+<span class="sy-comment">##############################################</span>
+<span class="sy-comment"># ENVIRONMENT IDENTIFICATION</span>
+<span class="sy-comment">##############################################</span>
+<span class="sy-key">environment_name:</span>        <span class="sy-string">"DEV"</span>
+<span class="sy-key">environment_code:</span>        <span class="sy-string">"dev"</span>
+
+<span class="sy-comment">##############################################</span>
+<span class="sy-comment"># OPENSHIFT AUTHENTICATION</span>
+<span class="sy-comment"># The actual token value comes from RHAAP Credentials or Ansible Vault</span>
+<span class="sy-comment"># NEVER put the real token value here</span>
+<span class="sy-comment">##############################################</span>
+<span class="sy-key">ocp_api_token:</span> <span class="sy-string">"{{ lookup('env', 'K8S_AUTH_API_KEY') }}"</span>
+<span class="sy-key">ocp_validate_certs:</span> <span class="sy-bool">false</span>   <span class="sy-comment"># Set true in PROD with valid CA</span>
+
+<span class="sy-comment">##############################################</span>
+<span class="sy-comment"># RETRY SETTINGS</span>
+<span class="sy-comment">##############################################</span>
+<span class="sy-key">api_connect_retries:</span>     <span class="sy-num">3</span>    <span class="sy-comment"># How many times to retry API connection</span>
+<span class="sy-key">api_connect_delay:</span>       <span class="sy-num">10</span>   <span class="sy-comment"># Seconds to wait between retries</span>
+
+<span class="sy-comment">##############################################</span>
+<span class="sy-comment"># HEALTH THRESHOLDS</span>
+<span class="sy-comment">##############################################</span>
+<span class="sy-key">allowed_notready_nodes:</span>  <span class="sy-num">0</span>    <span class="sy-comment"># Zero tolerance for NotReady nodes</span>
+<span class="sy-key">pod_problem_states:</span>            <span class="sy-comment"># Pod states that indicate a problem</span>
+  - <span class="sy-string">CrashLoopBackOff</span>
+  - <span class="sy-string">OOMKilled</span>
+  - <span class="sy-string">ImagePullBackOff</span>
+  - <span class="sy-string">ErrImagePull</span>
+  - <span class="sy-string">Error</span>
+  - <span class="sy-string">Terminating</span>
+
+<span class="sy-comment">##############################################</span>
+<span class="sy-comment"># REPORT CONFIGURATION</span>
+<span class="sy-comment">##############################################</span>
+<span class="sy-key">report_output_dir:</span>       <span class="sy-string">"{{ playbook_dir }}/../reports"</span>
+<span class="sy-key">report_template:</span>         <span class="sy-string">"cluster_health_report.html.j2"</span>
+
+<span class="sy-comment">##############################################</span>
+<span class="sy-comment"># EMAIL NOTIFICATION</span>
+<span class="sy-comment"># Password comes from Vault or RHAAP — never here</span>
+<span class="sy-comment">##############################################</span>
+<span class="sy-key">notification_email_to:</span>   <span class="sy-string">"operations@abcbank.internal"</span>
+<span class="sy-key">notification_email_from:</span> <span class="sy-string">"ansible-automation@abcbank.internal"</span>
+<span class="sy-key">smtp_host:</span>               <span class="sy-string">"smtp.abcbank.internal"</span>
+<span class="sy-key">smtp_port:</span>               <span class="sy-num">587</span></code></pre>
+  </div>
+
+  <!-- ── VAULT ── -->
+  <h2 class="section-title" id="vault"><span class="num">09</span> Ansible Vault — Protecting Secrets</h2>
+
+  <p>Even though the real token comes from RHAAP Credentials in production, during <strong>local development</strong> we use Ansible Vault to encrypt sensitive values so they can be safely included in Git.</p>
+
+  <div class="callout warn">
+    <div class="callout-icon">⚠️</div>
+    <div class="callout-body">
+      <div class="callout-title">Important Distinction</div>
+      <p>In <strong>local development</strong>: use Ansible Vault to encrypt secrets in files.<br>In <strong>RHAAP production</strong>: use RHAAP Credential Store — the token is injected as an environment variable, Vault is used for additional secrets like SMTP passwords.</p>
+    </div>
+  </div>
+
+  <div class="code-wrapper">
+    <div class="code-header">
+      <span class="code-lang">bash</span>
+      <span class="code-filename">Terminal — Ansible Vault Commands</span>
+      <button class="copy-btn" onclick="navigator.clipboard.writeText(this.closest('.code-wrapper').querySelector('pre').innerText)">Copy</button>
+    </div>
+    <pre><code><span class="sy-comment"># Create a vault-encrypted secrets file</span>
+ansible-vault create vars/secrets.yml
+
+<span class="sy-comment"># Ansible will prompt for a vault password</span>
+<span class="sy-comment"># Then open an editor where you type your secrets:</span>
+<span class="sy-comment">#   ---</span>
+<span class="sy-comment">#   vault_ocp_api_token: "sha256~yourtokenhere"</span>
+<span class="sy-comment">#   vault_smtp_password: "smtp-secret-password"</span>
+
+<span class="sy-comment"># View an encrypted file without decrypting permanently</span>
+ansible-vault view vars/secrets.yml
+
+<span class="sy-comment"># Edit an encrypted file</span>
+ansible-vault edit vars/secrets.yml
+
+<span class="sy-comment"># Encrypt an existing plain file</span>
+ansible-vault encrypt vars/secrets.yml
+
+<span class="sy-comment"># Decrypt permanently (only for migration, never commit decrypted)</span>
+ansible-vault decrypt vars/secrets.yml
+
+<span class="sy-comment"># Run a playbook with vault — prompts for password</span>
+ansible-playbook playbooks/cluster_health_check.yml --ask-vault-pass
+
+<span class="sy-comment"># Run with vault password file (for scheduled automation)</span>
+ansible-playbook playbooks/cluster_health_check.yml \
+  --vault-password-file ~/.vault_pass.txt</code></pre>
+  </div>
+
+  <div class="code-wrapper">
+    <div class="code-header">
+      <span class="code-lang">yaml</span>
+      <span class="code-filename">vars/secrets.yml — ENCRYPTED by Vault (content shown for learning)</span>
+    </div>
+    <pre><code><span class="sy-comment">---
+# vars/secrets.yml
+# THIS FILE IS ENCRYPTED WITH ANSIBLE VAULT IN REAL USAGE
+# Shown here for educational purposes only
+# In production: use RHAAP Credential Store instead
+</span>
+<span class="sy-key">vault_ocp_api_token:</span>  <span class="sy-string">"sha256~YOUR_TOKEN_HERE_NEVER_COMMIT_REAL_TOKEN"</span>
+<span class="sy-key">vault_smtp_password:</span>  <span class="sy-string">"your-smtp-password"</span></code></pre>
+  </div>
+
+  <!-- ── THE PLAYBOOK ── -->
+  <h2 class="section-title" id="playbook"><span class="num">10</span> The Complete Playbook — Step by Step</h2>
+
+  <p>Now we write the actual automation. We will build this piece by piece and explain every part.</p>
+
+  <h3 class="sub-title">Understanding the Playbook Flow First</h3>
+  <div class="diagram">
+    <div class="d-title">Playbook Execution Flow</div>
+    <span class="d-box">  START</span><br>
+    <span class="d-arrow">    ↓</span><br>
+    <span class="d-box">  Record start time, set job metadata</span><br>
+    <span class="d-arrow">    ↓</span><br>
+    <span class="d-box">  [BLOCK] Try to connect to OpenShift API</span>  <span class="d-note">← retry up to 3 times</span><br>
+    <span class="d-arrow">    ↓</span><br>
+    <span class="d-box">  Query all cluster Nodes</span><br>
+    <span class="d-arrow">    ↓</span><br>
+    <span class="d-box">  Check each Node: is it Ready?</span><br>
+    <span class="d-arrow">    ↓</span><br>
+    <span class="d-box">  Verify critical namespaces exist</span><br>
+    <span class="d-arrow">    ↓</span><br>
+    <span class="d-box">  Detect pods in problem states</span><br>
+    <span class="d-arrow">    ↓</span><br>
+    <span class="d-box">  Assert: were all checks healthy?</span><br>
+    <span class="d-arrow">    ↓                  ↓</span><br>
+    <span class="d-label">  HEALTHY</span>          <span class="d-err">UNHEALTHY</span><br>
+    <span class="d-arrow">    ↓                  ↓</span><br>
+    <span class="d-box">  [ALWAYS] Generate HTML Report regardless of outcome</span><br>
+    <span class="d-arrow">    ↓</span><br>
+    <span class="d-box">  [ALWAYS] Send Email Notification</span><br>
+    <span class="d-arrow">    ↓</span><br>
+    <span class="d-box">  END</span>
+  </div>
+
+  <h3 class="sub-title">The Complete Playbook</h3>
+  <div class="code-wrapper">
+    <div class="code-header">
+      <span class="code-lang">yaml</span>
+      <span class="code-filename">playbooks/cluster_health_check.yml</span>
+      <button class="copy-btn" onclick="navigator.clipboard.writeText(this.closest('.code-wrapper').querySelector('pre').innerText)">Copy</button>
+    </div>
+    <pre><code><span class="sy-comment">---
+###############################################################################
+# PLAYBOOK: OpenShift Cluster Health Check
+# TICKET:   INFRA-1001
+# AUTHOR:   ABC Bank OpenShift Platform Team
+# PURPOSE:  Verify OpenShift cluster connectivity and resource health.
+#           Generates an HTML report and sends email to Operations.
+# RUNS ON:  RHAAP / Automation Controller
+###############################################################################
+</span>
+- <span class="sy-key">name:</span> <span class="sy-string">"OpenShift Cluster Health Check — ABC Bank"</span>
+  <span class="sy-key">hosts:</span> <span class="sy-string">openshift_clusters</span>         <span class="sy-comment"># Target: all hosts in this inventory group</span>
+  <span class="sy-key">gather_facts:</span> <span class="sy-bool">false</span>               <span class="sy-comment"># Disable SSH fact-gathering; we use OpenShift API</span>
+  <span class="sy-key">connection:</span> <span class="sy-string">local</span>                  <span class="sy-comment"># All tasks run locally (API calls, not SSH)</span>
+
+  <span class="sy-key">vars:</span>
+    <span class="sy-comment"># The OpenShift API token</span>
+    <span class="sy-comment"># In RHAAP: injected via K8S_AUTH_API_KEY environment variable</span>
+    <span class="sy-comment"># In local dev: comes from Vault or environment variable</span>
+    <span class="sy-key">ocp_token:</span> <span class="sy-string">"{{ lookup('env', 'K8S_AUTH_API_KEY') | default(vault_ocp_api_token, true) }}"</span>
+
+    <span class="sy-comment"># Collection of health check results — we populate this throughout execution</span>
+    <span class="sy-key">health_results:</span>
+      <span class="sy-key">cluster_reachable:</span>     <span class="sy-string">"UNKNOWN"</span>
+      <span class="sy-key">nodes_healthy:</span>         <span class="sy-string">"UNKNOWN"</span>
+      <span class="sy-key">namespaces_healthy:</span>    <span class="sy-string">"UNKNOWN"</span>
+      <span class="sy-key">no_problem_pods:</span>       <span class="sy-string">"UNKNOWN"</span>
+      <span class="sy-key">overall_status:</span>        <span class="sy-string">"UNKNOWN"</span>
+      <span class="sy-key">problem_pods:</span>          []
+      <span class="sy-key">notready_nodes:</span>        []
+      <span class="sy-key">missing_namespaces:</span>    []
+      <span class="sy-key">errors:</span>                []
+
+  <span class="sy-key">tasks:</span>
+
+    <span class="sy-comment">##########################################################</span>
+    <span class="sy-comment"># TASK 1 — Record start time and metadata</span>
+    <span class="sy-comment">##########################################################</span>
+    - <span class="sy-key">name:</span> <span class="sy-string">"Record playbook start time"</span>
+      <span class="sy-key">ansible.builtin.set_fact:</span>
+        <span class="sy-key">playbook_start_time:</span> <span class="sy-string">"{{ ansible_date_time.iso8601 }}"</span>
+        <span class="sy-key">playbook_start_epoch:</span> <span class="sy-string">"{{ ansible_date_time.epoch }}"</span>
+      <span class="sy-key">tags:</span> [<span class="sy-string">always</span>]                 <span class="sy-comment"># 'always' tag: this task ALWAYS runs, even with --tags filter</span>
+
+    <span class="sy-comment">##########################################################</span>
+    <span class="sy-comment"># TASKS 2-6 — OpenShift Health Checks inside a BLOCK</span>
+    <span class="sy-comment"># Block allows us to catch errors with rescue/always</span>
+    <span class="sy-comment">##########################################################</span>
+    - <span class="sy-keyword">block:</span>
+
+        <span class="sy-comment"># TASK 2 — Verify OpenShift API is reachable</span>
+        <span class="sy-comment"># We use k8s_info to query the API version endpoint</span>
+        <span class="sy-comment"># If this fails, the API is down or authentication failed</span>
+        - <span class="sy-key">name:</span> <span class="sy-string">"[PRE-CHECK] Verify OpenShift API connectivity and authentication"</span>
+          <span class="sy-module">kubernetes.core.k8s_info:</span>      <span class="sy-comment"># Module from kubernetes.core collection</span>
+            <span class="sy-key">api_version:</span> <span class="sy-string">v1</span>              <span class="sy-comment"># Use Kubernetes core API v1</span>
+            <span class="sy-key">kind:</span> <span class="sy-string">Namespace</span>              <span class="sy-comment"># Query Namespace resources (cheap, always exists)</span>
+            <span class="sy-key">host:</span> <span class="sy-string">"{{ ocp_api_url }}"</span>    <span class="sy-comment"># OpenShift API server URL from inventory</span>
+            <span class="sy-key">api_key:</span> <span class="sy-string">"{{ ocp_token }}"</span>  <span class="sy-comment"># Bearer token for authentication</span>
+            <span class="sy-key">validate_certs:</span> <span class="sy-string">"{{ ocp_validate_certs }}"</span>  <span class="sy-comment"># SSL cert verification</span>
+            <span class="sy-key">name:</span> <span class="sy-string">kube-system</span>            <span class="sy-comment"># Query a specific namespace that always exists</span>
+          <span class="sy-key">register:</span> <span class="sy-string">api_connectivity_result</span>  <span class="sy-comment"># Store result in variable for later use</span>
+          <span class="sy-key">until:</span> <span class="sy-string">api_connectivity_result is not failed</span>  <span class="sy-comment"># Retry until success</span>
+          <span class="sy-key">retries:</span> <span class="sy-string">"{{ api_connect_retries }}"</span>            <span class="sy-comment"># Max 3 retries</span>
+          <span class="sy-key">delay:</span> <span class="sy-string">"{{ api_connect_delay }}"</span>              <span class="sy-comment"># 10 seconds between retries</span>
+          <span class="sy-key">tags:</span> [<span class="sy-string">connectivity</span>, <span class="sy-string">precheck</span>]
+
+        <span class="sy-comment"># Record connectivity success</span>
+        - <span class="sy-key">name:</span> <span class="sy-string">"Record: API connectivity successful"</span>
+          <span class="sy-key">ansible.builtin.set_fact:</span>
+            <span class="sy-key">health_results:</span> <span class="sy-string">"{{ health_results | combine({'cluster_reachable': 'PASSED'}) }}"</span>
+          <span class="sy-key">tags:</span> [<span class="sy-string">connectivity</span>, <span class="sy-string">precheck</span>]
+
+        <span class="sy-comment"># TASK 3 — Collect all nodes</span>
+        - <span class="sy-key">name:</span> <span class="sy-string">"[CHECK] Collect all cluster nodes"</span>
+          <span class="sy-module">kubernetes.core.k8s_info:</span>
+            <span class="sy-key">api_version:</span> <span class="sy-string">v1</span>
+            <span class="sy-key">kind:</span> <span class="sy-string">Node</span>                  <span class="sy-comment"># Node resource — represents a physical/virtual machine</span>
+            <span class="sy-key">host:</span> <span class="sy-string">"{{ ocp_api_url }}"</span>
+            <span class="sy-key">api_key:</span> <span class="sy-string">"{{ ocp_token }}"</span>
+            <span class="sy-key">validate_certs:</span> <span class="sy-string">"{{ ocp_validate_certs }}"</span>
+          <span class="sy-key">register:</span> <span class="sy-string">all_nodes_result</span>       <span class="sy-comment"># Contains .resources list of all nodes</span>
+          <span class="sy-key">tags:</span> [<span class="sy-string">nodes</span>]
+
+        <span class="sy-comment"># TASK 4 — Find NotReady nodes using Jinja2 filtering</span>
+        - <span class="sy-key">name:</span> <span class="sy-string">"[CHECK] Identify NotReady nodes"</span>
+          <span class="sy-key">ansible.builtin.set_fact:</span>
+            <span class="sy-comment"># This is a Jinja2 expression — let's read it step by step:</span>
+            <span class="sy-comment"># all_nodes_result.resources    → list of all node objects from OpenShift</span>
+            <span class="sy-comment"># | selectattr(...)              → filter: keep only nodes where condition is true</span>
+            <span class="sy-comment"># item.status.conditions         → each node has a list of conditions</span>
+            <span class="sy-comment"># | selectattr('type','eq','Ready')  → find the condition where type == 'Ready'</span>
+            <span class="sy-comment"># | selectattr('status','ne','True') → keep where Ready status is NOT True</span>
+            <span class="sy-comment"># | list                          → convert filter result to a list</span>
+            <span class="sy-comment"># | length > 0                    → check if there are any such conditions</span>
+            <span class="sy-key">notready_nodes_list:</span> >-
+              {{
+                all_nodes_result.resources
+                | selectattr('status.conditions', 'defined')
+                | selectattr('status.conditions',
+                    'contains_value', {'type': 'Ready', 'status': 'True'})
+                | map(attribute='metadata.name')
+                | list
+              }}
+
+            <span class="sy-comment"># Simpler approach: extract all node names and ready conditions</span>
+            <span class="sy-key">node_health_list:</span> >-
+              {{
+                all_nodes_result.resources | map(attribute='metadata.name') | list
+              }}
+          <span class="sy-key">tags:</span> [<span class="sy-string">nodes</span>]
+
+        <span class="sy-comment"># TASK 4b — More reliable node readiness check</span>
+        - <span class="sy-key">name:</span> <span class="sy-string">"[CHECK] Evaluate node readiness for each node"</span>
+          <span class="sy-key">ansible.builtin.set_fact:</span>
+            <span class="sy-key">notready_nodes_list:</span> >-
+              {{
+                all_nodes_result.resources
+                | selectattr('status.conditions', 'defined')
+                | rejectattr('status.conditions | selectattr("type","eq","Ready")
+                             | selectattr("status","eq","True") | list | length', 'gt', 0)
+                | map(attribute='metadata.name')
+                | list
+              }}
+          <span class="sy-key">tags:</span> [<span class="sy-string">nodes</span>]
+
+        <span class="sy-comment"># TASK 5 — Assert node health</span>
+        - <span class="sy-key">name:</span> <span class="sy-string">"[ASSERT] All nodes must be Ready"</span>
+          <span class="sy-key">ansible.builtin.assert:</span>
+            <span class="sy-key">that:</span>
+              - <span class="sy-string">"notready_nodes_list | length == 0"</span>   <span class="sy-comment"># Condition: no NotReady nodes</span>
+            <span class="sy-key">fail_msg:</span> <span class="sy-string">"CRITICAL: {{ notready_nodes_list | length }} node(s) are NotReady: {{ notready_nodes_list | join(', ') }}"</span>
+            <span class="sy-key">success_msg:</span> <span class="sy-string">"All {{ all_nodes_result.resources | length }} nodes are Ready"</span>
+          <span class="sy-key">register:</span> <span class="sy-string">node_assertion_result</span>
+          <span class="sy-key">ignore_errors:</span> <span class="sy-bool">true</span>             <span class="sy-comment"># Don't stop — record the failure and continue</span>
+          <span class="sy-key">tags:</span> [<span class="sy-string">nodes</span>]
+
+        <span class="sy-comment"># Record node health status</span>
+        - <span class="sy-key">name:</span> <span class="sy-string">"Record node health status"</span>
+          <span class="sy-key">ansible.builtin.set_fact:</span>
+            <span class="sy-key">health_results:</span> >-
+              {{
+                health_results | combine({
+                  'nodes_healthy': 'PASSED' if node_assertion_result is not failed else 'FAILED',
+                  'notready_nodes': notready_nodes_list,
+                  'total_nodes': all_nodes_result.resources | length
+                })
+              }}
+          <span class="sy-key">tags:</span> [<span class="sy-string">nodes</span>]
+
+        <span class="sy-comment"># TASK 6 — Check critical namespaces</span>
+        - <span class="sy-key">name:</span> <span class="sy-string">"[CHECK] Verify critical namespace: {{ item }}"</span>
+          <span class="sy-module">kubernetes.core.k8s_info:</span>
+            <span class="sy-key">api_version:</span> <span class="sy-string">v1</span>
+            <span class="sy-key">kind:</span> <span class="sy-string">Namespace</span>
+            <span class="sy-key">name:</span> <span class="sy-string">"{{ item }}"</span>             <span class="sy-comment"># Loop variable — current namespace name</span>
+            <span class="sy-key">host:</span> <span class="sy-string">"{{ ocp_api_url }}"</span>
+            <span class="sy-key">api_key:</span> <span class="sy-string">"{{ ocp_token }}"</span>
+            <span class="sy-key">validate_certs:</span> <span class="sy-string">"{{ ocp_validate_certs }}"</span>
+          <span class="sy-key">register:</span> <span class="sy-string">namespace_results</span>
+          <span class="sy-key">loop:</span> <span class="sy-string">"{{ ocp_critical_namespaces }}"</span>  <span class="sy-comment"># Iterate over list defined in inventory</span>
+          <span class="sy-key">loop_control:</span>
+            <span class="sy-key">label:</span> <span class="sy-string">"{{ item }}"</span>             <span class="sy-comment"># Show namespace name in output (not whole dict)</span>
+          <span class="sy-key">tags:</span> [<span class="sy-string">namespaces</span>]
+
+        <span class="sy-comment"># Identify missing namespaces from loop results</span>
+        - <span class="sy-key">name:</span> <span class="sy-string">"[EVALUATE] Identify missing critical namespaces"</span>
+          <span class="sy-key">ansible.builtin.set_fact:</span>
+            <span class="sy-key">missing_ns_list:</span> >-
+              {{
+                namespace_results.results
+                | selectattr('resources', 'defined')
+                | selectattr('resources', 'equalto', [])
+                | map(attribute='item')
+                | list
+              }}
+          <span class="sy-key">tags:</span> [<span class="sy-string">namespaces</span>]
+
+        - <span class="sy-key">name:</span> <span class="sy-string">"Record namespace health status"</span>
+          <span class="sy-key">ansible.builtin.set_fact:</span>
+            <span class="sy-key">health_results:</span> >-
+              {{
+                health_results | combine({
+                  'namespaces_healthy': 'PASSED' if missing_ns_list | length == 0 else 'FAILED',
+                  'missing_namespaces': missing_ns_list
+                })
+              }}
+          <span class="sy-key">tags:</span> [<span class="sy-string">namespaces</span>]
+
+        <span class="sy-comment"># TASK 7 — Collect all pods across all namespaces</span>
+        - <span class="sy-key">name:</span> <span class="sy-string">"[CHECK] Collect all pods cluster-wide"</span>
+          <span class="sy-module">kubernetes.core.k8s_info:</span>
+            <span class="sy-key">api_version:</span> <span class="sy-string">v1</span>
+            <span class="sy-key">kind:</span> <span class="sy-string">Pod</span>
+            <span class="sy-key">host:</span> <span class="sy-string">"{{ ocp_api_url }}"</span>
+            <span class="sy-key">api_key:</span> <span class="sy-string">"{{ ocp_token }}"</span>
+            <span class="sy-key">validate_certs:</span> <span class="sy-string">"{{ ocp_validate_certs }}"</span>
+            <span class="sy-comment"># No 'namespace' field = query ALL namespaces</span>
+          <span class="sy-key">register:</span> <span class="sy-string">all_pods_result</span>
+          <span class="sy-key">tags:</span> [<span class="sy-string">pods</span>]
+
+        <span class="sy-comment"># TASK 8 — Find pods in problem states</span>
+        - <span class="sy-key">name:</span> <span class="sy-string">"[EVALUATE] Identify pods in problem states"</span>
+          <span class="sy-key">ansible.builtin.set_fact:</span>
+            <span class="sy-key">problem_pods_list:</span> >-
+              {{
+                all_pods_result.resources
+                | selectattr('status.containerStatuses', 'defined')
+                | selectattr('status.containerStatuses', 'ne', none)
+                | map(attribute='status') | list
+              }}
+            <span class="sy-comment"># Simpler: find pods where phase is not Running/Succeeded/Pending</span>
+            <span class="sy-key">non_running_pods:</span> >-
+              {{
+                all_pods_result.resources
+                | rejectattr('status.phase', 'in', ['Running', 'Succeeded', 'Pending'])
+                | map('combine', {})
+                | list
+              }}
+          <span class="sy-key">tags:</span> [<span class="sy-string">pods</span>]
+
+        - <span class="sy-key">name:</span> <span class="sy-string">"Record pod health status"</span>
+          <span class="sy-key">ansible.builtin.set_fact:</span>
+            <span class="sy-key">health_results:</span> >-
+              {{
+                health_results | combine({
+                  'no_problem_pods': 'PASSED' if non_running_pods | length == 0 else 'WARNING',
+                  'total_pods': all_pods_result.resources | length,
+                  'problem_pod_count': non_running_pods | length
+                })
+              }}
+          <span class="sy-key">tags:</span> [<span class="sy-string">pods</span>]
+
+        <span class="sy-comment"># TASK 9 — Set overall status</span>
+        - <span class="sy-key">name:</span> <span class="sy-string">"[EVALUATE] Determine overall cluster health status"</span>
+          <span class="sy-key">ansible.builtin.set_fact:</span>
+            <span class="sy-key">health_results:</span> >-
+              {{
+                health_results | combine({
+                  'overall_status': 'HEALTHY' if (
+                    health_results.cluster_reachable == 'PASSED' and
+                    health_results.nodes_healthy == 'PASSED' and
+                    health_results.namespaces_healthy == 'PASSED'
+                  ) else 'UNHEALTHY'
+                })
+              }}
+          <span class="sy-key">tags:</span> [<span class="sy-string">always</span>]
+
+      <span class="sy-comment">##########################################################</span>
+      <span class="sy-comment"># RESCUE — Runs if any task in the block fails</span>
+      <span class="sy-comment">##########################################################</span>
+      <span class="sy-keyword">rescue:</span>
+
+        - <span class="sy-key">name:</span> <span class="sy-string">"[RESCUE] Health check encountered a critical failure"</span>
+          <span class="sy-key">ansible.builtin.debug:</span>
+            <span class="sy-key">msg:</span> <span class="sy-string">"CRITICAL: Health check failed. Marking cluster as UNREACHABLE."</span>
+
+        - <span class="sy-key">name:</span> <span class="sy-string">"[RESCUE] Set cluster status to FAILED"</span>
+          <span class="sy-key">ansible.builtin.set_fact:</span>
+            <span class="sy-key">health_results:</span> >-
+              {{
+                health_results | combine({
+                  'cluster_reachable': 'FAILED',
+                  'overall_status': 'CRITICAL',
+                  'errors': ['OpenShift API connection failed after ' ~ api_connect_retries ~ ' retries']
+                })
+              }}
+
+      <span class="sy-comment">##########################################################</span>
+      <span class="sy-comment"># ALWAYS — Runs regardless of block success or failure</span>
+      <span class="sy-comment">##########################################################</span>
+      <span class="sy-keyword">always:</span>
+
+        <span class="sy-comment"># TASK 10 — Calculate execution duration</span>
+        - <span class="sy-key">name:</span> <span class="sy-string">"[REPORT] Calculate execution duration"</span>
+          <span class="sy-key">ansible.builtin.set_fact:</span>
+            <span class="sy-key">playbook_end_time:</span> <span class="sy-string">"{{ ansible_date_time.iso8601 }}"</span>
+            <span class="sy-key">execution_duration_seconds:</span> >-
+              {{ (ansible_date_time.epoch | int) - (playbook_start_epoch | int) }}
+
+        <span class="sy-comment"># TASK 11 — Generate HTML Report</span>
+        - <span class="sy-key">name:</span> <span class="sy-string">"[REPORT] Generate HTML health check report"</span>
+          <span class="sy-key">ansible.builtin.template:</span>           <span class="sy-comment"># Render Jinja2 template to file</span>
+            <span class="sy-key">src:</span> <span class="sy-string">"{{ report_template }}"</span>          <span class="sy-comment"># Template file in templates/ directory</span>
+            <span class="sy-key">dest:</span> >-
+              {{ report_output_dir }}/cluster_health_{{ ocp_cluster_name }}_{{ ansible_date_time.date }}.html
+            <span class="sy-key">mode:</span> <span class="sy-string">'0644'</span>
+          <span class="sy-key">register:</span> <span class="sy-string">report_file_result</span>
+
+        <span class="sy-comment"># TASK 12 — Send email notification</span>
+        - <span class="sy-key">name:</span> <span class="sy-string">"[NOTIFY] Send health check report email to Operations"</span>
+          <span class="sy-key">community.general.mail:</span>
+            <span class="sy-key">host:</span> <span class="sy-string">"{{ smtp_host }}"</span>
+            <span class="sy-key">port:</span> <span class="sy-string">"{{ smtp_port }}"</span>
+            <span class="sy-key">username:</span> <span class="sy-string">"{{ notification_email_from }}"</span>
+            <span class="sy-key">password:</span> <span class="sy-string">"{{ vault_smtp_password }}"</span>  <span class="sy-comment"># From Vault — never hard-coded</span>
+            <span class="sy-key">to:</span> <span class="sy-string">"{{ notification_email_to }}"</span>
+            <span class="sy-key">from:</span> <span class="sy-string">"{{ notification_email_from }}"</span>
+            <span class="sy-key">subject:</span> >-
+              [{{ environment_name }}] OpenShift Health Check — {{ ocp_cluster_name }}
+              — {{ health_results.overall_status }}
+            <span class="sy-key">body:</span> <span class="sy-string">"Please find the cluster health report attached."</span>
+            <span class="sy-key">attach:</span>
+              - <span class="sy-string">"{{ report_file_result.dest }}"</span>    <span class="sy-comment"># Attach the HTML report</span>
+            <span class="sy-key">subtype:</span> <span class="sy-string">html</span>
+          <span class="sy-key">no_log:</span> <span class="sy-bool">false</span>                     <span class="sy-comment"># Allow logging except for password field</span>
+          <span class="sy-key">ignore_errors:</span> <span class="sy-bool">true</span>             <span class="sy-comment"># Don't fail playbook if email fails</span>
+          <span class="sy-key">tags:</span> [<span class="sy-string">notify</span>]
+
+        <span class="sy-comment"># TASK 13 — Debug: Print summary to console</span>
+        - <span class="sy-key">name:</span> <span class="sy-string">"[SUMMARY] Print health check summary"</span>
+          <span class="sy-key">ansible.builtin.debug:</span>
+            <span class="sy-key">msg:</span>
+              - <span class="sy-string">"===== OPENSHIFT CLUSTER HEALTH CHECK SUMMARY ====="</span>
+              - <span class="sy-string">"Cluster    : {{ ocp_cluster_name }}"</span>
+              - <span class="sy-string">"Environment: {{ environment_name }}"</span>
+              - <span class="sy-string">"API URL    : {{ ocp_api_url }}"</span>
+              - <span class="sy-string">"API Status : {{ health_results.cluster_reachable }}"</span>
+              - <span class="sy-string">"Node Health: {{ health_results.nodes_healthy }}"</span>
+              - <span class="sy-string">"Namespaces : {{ health_results.namespaces_healthy }}"</span>
+              - <span class="sy-string">"Pod Status : {{ health_results.no_problem_pods }}"</span>
+              - <span class="sy-string">"OVERALL    : {{ health_results.overall_status }}"</span>
+              - <span class="sy-string">"Duration   : {{ execution_duration_seconds }}s"</span>
+              - <span class="sy-string">"Report     : {{ report_file_result.dest | default('N/A') }}"</span>
+              - <span class="sy-string">"==================================================="</span>
+          <span class="sy-key">tags:</span> [<span class="sy-string">always</span>]</code></pre>
+  </div>
+
+  <!-- ── CODE EXPLANATION ── -->
+  <h2 class="section-title" id="explanation"><span class="num">11</span> Code Explanation — Every Important Concept</h2>
+
+  <h3 class="sub-title">Understanding YAML Playbook Structure</h3>
+  <div class="explain-block">
+    <div class="explain-title">Top-Level Playbook Keywords</div>
+    <div class="explain-row"><span class="explain-term">---</span><span class="explain-def">Every YAML file starts with three dashes. This marks the start of the YAML document.</span></div>
+    <div class="explain-row"><span class="explain-term">- name:</span><span class="explain-def">The dash (-) marks the start of a list item. This is a Play — the top-level unit of a playbook. You can have multiple plays in one playbook file.</span></div>
+    <div class="explain-row"><span class="explain-term">hosts:</span><span class="explain-def">Tells Ansible which inventory hosts to run this play against. "openshift_clusters" matches the group name we defined in hosts.yml.</span></div>
+    <div class="explain-row"><span class="explain-term">gather_facts: false</span><span class="explain-def">By default, Ansible runs a "setup" module that collects facts (OS, memory, IP, etc.) from each host via SSH. We set this to false because we're using local API calls, not SSH — no facts to gather.</span></div>
+    <div class="explain-row"><span class="explain-term">connection: local</span><span class="explain-def">Tells Ansible to run all tasks on the Ansible control node (or Execution Environment) itself, not to SSH into any machine. Perfect for API-based automation.</span></div>
+    <div class="explain-row"><span class="explain-term">vars:</span><span class="explain-def">Play-level variables. These are available to all tasks in this play. Lower precedence than inventory variables.</span></div>
+    <div class="explain-row"><span class="explain-term">tasks:</span><span class="explain-def">The list of actions to execute. Each task calls one module. Tasks run in order, top to bottom.</span></div>
+  </div>
+
+  <h3 class="sub-title">Understanding Block / Rescue / Always</h3>
+  <p>This is one of the most important patterns in production Ansible. Think of it like a try/catch/finally in programming:</p>
+
+  <div class="diagram">
+    <div class="d-title">block / rescue / always — Execution Flow</div>
+    <span class="d-box">  block:               </span>  <span class="d-note">← This is like "try" — run these tasks normally</span><br>
+    <span class="d-box">    - task 1           </span><br>
+    <span class="d-box">    - task 2           </span><br>
+    <span class="d-box">    - task 3 ← FAILS  </span>  <span class="d-err">←  Something goes wrong here</span><br>
+    <span class="d-arrow">                        ↓  Ansible jumps to rescue</span><br>
+    <span class="d-box">  rescue:              </span>  <span class="d-note">← Like "catch" — runs ONLY if block had a failure</span><br>
+    <span class="d-box">    - log the error    </span><br>
+    <span class="d-box">    - set status=FAILED</span><br>
+    <span class="d-arrow">                        ↓  Always runs next</span><br>
+    <span class="d-box">  always:              </span>  <span class="d-note">← Like "finally" — runs regardless of success or failure</span><br>
+    <span class="d-box">    - generate report  </span>  <span class="d-label">← ALWAYS runs</span><br>
+    <span class="d-box">    - send email       </span>  <span class="d-label">← ALWAYS runs</span>
+  </div>
+
+  <div class="callout tip">
+    <div class="callout-icon">✅</div>
+    <div class="callout-body">
+      <div class="callout-title">Why This Pattern is Critical</div>
+      <p>Without block/rescue/always, if the API connection fails, the playbook would stop immediately and <strong>no one would know</strong>. With this pattern, even if everything fails, the report is generated and the email is sent — Operations are always notified.</p>
+    </div>
+  </div>
+
+  <h3 class="sub-title">Understanding the register Keyword</h3>
+  <div class="explain-block">
+    <div class="explain-title">How register Works</div>
+    <div class="explain-row"><span class="explain-term">register: api_connectivity_result</span><span class="explain-def">Saves the entire output of the k8s_info module call into a variable called api_connectivity_result. This variable contains: .resources (list of OpenShift objects), .failed (bool), .changed (bool), .msg (string).</span></div>
+    <div class="explain-row"><span class="explain-term">api_connectivity_result.resources</span><span class="explain-def">The list of Kubernetes/OpenShift objects returned. For a Namespace query, this is a list of Namespace objects.</span></div>
+    <div class="explain-row"><span class="explain-term">api_connectivity_result is not failed</span><span class="explain-def">Jinja2 test — checks if the registered variable indicates the task failed. Used in the "until" condition for retry logic.</span></div>
+  </div>
+
+  <h3 class="sub-title">Understanding until / retries / delay</h3>
+  <div class="code-wrapper">
+    <div class="code-header"><span class="code-lang">yaml</span><span class="code-filename">Retry Logic Explained</span></div>
+    <pre><code><span class="sy-key">until:</span> <span class="sy-string">api_connectivity_result is not failed</span>
+<span class="sy-key">retries:</span> <span class="sy-num">3</span>
+<span class="sy-key">delay:</span> <span class="sy-num">10</span></code></pre>
+  </div>
+
+  <div class="diagram">
+    <div class="d-title">Retry Execution Flow</div>
+    <span class="d-box">  Attempt 1 → API call → FAILED (network blip)</span><br>
+    <span class="d-arrow">    ↓  wait 10 seconds</span><br>
+    <span class="d-box">  Attempt 2 → API call → FAILED (still down)</span><br>
+    <span class="d-arrow">    ↓  wait 10 seconds</span><br>
+    <span class="d-box">  Attempt 3 → API call → SUCCESS</span><br>
+    <span class="d-arrow">    ↓  condition met: "not failed"</span><br>
+    <span class="d-box">  Task completes → moves to next task</span><br>
+    <br>
+    <span class="d-note">  If all 3 attempts fail → rescue block is triggered</span>
+  </div>
+
+  <h3 class="sub-title">Understanding Jinja2 Filters</h3>
+  <p>Jinja2 is the templating engine built into Ansible. The <code class="inline">|</code> character is the <strong>filter separator</strong> — it passes data through a function.</p>
+
+  <div class="explain-block">
+    <div class="explain-title">Breaking Down a Complex Jinja2 Expression</div>
+    <div class="explain-row"><span class="explain-term">all_nodes_result.resources</span><span class="explain-def">The list of Node objects returned by k8s_info. Each object is a dictionary representing an OpenShift Node.</span></div>
+    <div class="explain-row"><span class="explain-term">| selectattr('status.conditions', 'defined')</span><span class="explain-def">Filter: keep only nodes where the status.conditions field is defined (not null). Prevents errors on nodes with missing data.</span></div>
+    <div class="explain-row"><span class="explain-term">| map(attribute='metadata.name')</span><span class="explain-def">For each node object, extract the value of metadata.name (the node hostname). Transforms a list of objects into a list of strings.</span></div>
+    <div class="explain-row"><span class="explain-term">| list</span><span class="explain-def">Converts the map/select generator object into an actual Python list. Always needed after selectattr/map.</span></div>
+    <div class="explain-row"><span class="explain-term">| combine({'key': 'value'})</span><span class="explain-def">Merges a dictionary with new key-value pairs. Used to update our health_results tracking dictionary.</span></div>
+    <div class="explain-row"><span class="explain-term">| default(vault_ocp_api_token, true)</span><span class="explain-def">If the first value is empty/undefined, use vault_ocp_api_token instead. The "true" means treat empty string as undefined too.</span></div>
+    <div class="explain-row"><span class="explain-term">| length</span><span class="explain-def">Returns the count of items in a list. length == 0 means the list is empty.</span></div>
+    <div class="explain-row"><span class="explain-term">| join(', ')</span><span class="explain-def">Joins a list of strings with commas. ['node1', 'node2'] becomes "node1, node2".</span></div>
+  </div>
+
+  <h3 class="sub-title">Understanding set_fact</h3>
+  <p><code class="inline">ansible.builtin.set_fact</code> creates or updates variables during playbook execution. Unlike <code class="inline">vars:</code> which are static, <code class="inline">set_fact</code> lets you compute values dynamically based on task results.</p>
+
+  <div class="callout info">
+    <div class="callout-icon">💡</div>
+    <div class="callout-body">
+      <div class="callout-title">Why We Use a health_results Dictionary</div>
+      <p>Instead of 5 separate variables, we use one <code class="inline">health_results</code> dictionary. This makes it easy to pass all results to the Jinja2 HTML template in one variable, and to update individual fields using <code class="inline">| combine()</code> without overwriting the others.</p>
+    </div>
+  </div>
+
+  <!-- ── HTML REPORT TEMPLATE ── -->
+  <h2 class="section-title" id="report"><span class="num">12</span> HTML Report Template (Jinja2)</h2>
+
+  <p>The template is a <code class="inline">.j2</code> file that combines HTML with Jinja2 expressions. Ansible processes it and replaces all <code class="inline">{{ }}</code> expressions with real values.</p>
+
+  <div class="code-wrapper">
+    <div class="code-header">
+      <span class="code-lang">jinja2</span>
+      <span class="code-filename">templates/cluster_health_report.html.j2</span>
+      <button class="copy-btn" onclick="navigator.clipboard.writeText(this.closest('.code-wrapper').querySelector('pre').innerText)">Copy</button>
+    </div>
+    <pre><code>&lt;!DOCTYPE html&gt;
+&lt;html lang="en"&gt;
+&lt;head&gt;
+&lt;meta charset="UTF-8"&gt;
+&lt;title&gt;OpenShift Health Check — {{ ocp_cluster_name }}&lt;/title&gt;
+&lt;style&gt;
+  body { background:#0B1120; color:#F8FAFC; font-family:system-ui,sans-serif; padding:32px; }
+  h1   { font-size:26px; margin-bottom:4px; }
+  h2   { font-size:16px; color:#94A3B8; font-weight:400; margin-bottom:32px; }
+  .card { background:#1E293B; border-radius:10px; padding:24px; margin-bottom:20px; border:1px solid #2D3E55; }
+  .card-title { font-size:12px; text-transform:uppercase; letter-spacing:1px; color:#94A3B8; margin-bottom:12px; }
+  .status { display:inline-block; padding:4px 14px; border-radius:99px; font-size:13px; font-weight:700; }
+  .PASSED, .HEALTHY { background:rgba(34,197,94,0.15); color:#22C55E; }
+  .FAILED, .CRITICAL, .UNHEALTHY { background:rgba(239,68,68,0.15); color:#EF4444; }
+  .WARNING { background:rgba(245,158,11,0.15); color:#F59E0B; }
+  .UNKNOWN { background:rgba(148,163,184,0.15); color:#94A3B8; }
+  table { width:100%; border-collapse:collapse; }
+  th,td { padding:10px 14px; text-align:left; border-bottom:1px solid #2D3E55; font-size:13px; }
+  th { color:#94A3B8; font-size:11px; text-transform:uppercase; letter-spacing:1px; }
+  .banner { font-size:28px; font-weight:800; text-align:center; padding:28px;
+            border-radius:12px; margin-bottom:28px; letter-spacing:1px; }
+  .banner.HEALTHY { background:rgba(34,197,94,0.15); color:#22C55E; border:1px solid rgba(34,197,94,0.3); }
+  .banner.UNHEALTHY, .banner.CRITICAL { background:rgba(239,68,68,0.15); color:#EF4444; border:1px solid rgba(239,68,68,0.3); }
+&lt;/style&gt;
+&lt;/head&gt;
+&lt;body&gt;
+
+&lt;h1&gt;🔍 OpenShift Cluster Health Check&lt;/h1&gt;
+&lt;h2&gt;Generated: {{ playbook_start_time }} | Cluster: {{ ocp_cluster_name }} | Environment: {{ environment_name }}&lt;/h2&gt;
+
+{# Jinja2 comment — set the CSS class based on overall status #}
+&lt;div class="banner {{ health_results.overall_status }}"&gt;
+  {{ health_results.overall_status }}
+&lt;/div&gt;
+
+&lt;div class="card"&gt;
+  &lt;div class="card-title"&gt;📊 Health Check Summary&lt;/div&gt;
+  &lt;table&gt;
+    &lt;thead&gt;
+      &lt;tr&gt;&lt;th&gt;Check&lt;/th&gt;&lt;th&gt;Status&lt;/th&gt;&lt;th&gt;Detail&lt;/th&gt;&lt;/tr&gt;
+    &lt;/thead&gt;
+    &lt;tbody&gt;
+      &lt;tr&gt;
+        &lt;td&gt;API Connectivity&lt;/td&gt;
+        &lt;td&gt;&lt;span class="status {{ health_results.cluster_reachable }}"&gt;{{ health_results.cluster_reachable }}&lt;/span&gt;&lt;/td&gt;
+        &lt;td&gt;{{ ocp_api_url }}&lt;/td&gt;
+      &lt;/tr&gt;
+      &lt;tr&gt;
+        &lt;td&gt;Node Health&lt;/td&gt;
+        &lt;td&gt;&lt;span class="status {{ health_results.nodes_healthy }}"&gt;{{ health_results.nodes_healthy }}&lt;/span&gt;&lt;/td&gt;
+        &lt;td&gt;
+          Total: {{ health_results.total_nodes | default('N/A') }}
+          {% if health_results.notready_nodes | length &gt; 0 %}
+            | NotReady: {{ health_results.notready_nodes | join(', ') }}
+          {% else %}
+            | All nodes Ready
+          {% endif %}
+        &lt;/td&gt;
+      &lt;/tr&gt;
+      &lt;tr&gt;
+        &lt;td&gt;Critical Namespaces&lt;/td&gt;
+        &lt;td&gt;&lt;span class="status {{ health_results.namespaces_healthy }}"&gt;{{ health_results.namespaces_healthy }}&lt;/span&gt;&lt;/td&gt;
+        &lt;td&gt;
+          {% if health_results.missing_namespaces | length &gt; 0 %}
+            Missing: {{ health_results.missing_namespaces | join(', ') }}
+          {% else %}
+            All critical namespaces present
+          {% endif %}
+        &lt;/td&gt;
+      &lt;/tr&gt;
+      &lt;tr&gt;
+        &lt;td&gt;Pod Health&lt;/td&gt;
+        &lt;td&gt;&lt;span class="status {{ health_results.no_problem_pods }}"&gt;{{ health_results.no_problem_pods }}&lt;/span&gt;&lt;/td&gt;
+        &lt;td&gt;
+          Total pods: {{ health_results.total_pods | default('N/A') }}
+          | Problem pods: {{ health_results.problem_pod_count | default(0) }}
+        &lt;/td&gt;
+      &lt;/tr&gt;
+    &lt;/tbody&gt;
+  &lt;/table&gt;
+&lt;/div&gt;
+
+&lt;div class="card"&gt;
+  &lt;div class="card-title"&gt;⏱️ Execution Metadata&lt;/div&gt;
+  &lt;table&gt;
+    &lt;tbody&gt;
+      &lt;tr&gt;&lt;th&gt;Start Time&lt;/th&gt;&lt;td&gt;{{ playbook_start_time }}&lt;/td&gt;&lt;/tr&gt;
+      &lt;tr&gt;&lt;th&gt;End Time&lt;/th&gt;&lt;td&gt;{{ playbook_end_time }}&lt;/td&gt;&lt;/tr&gt;
+      &lt;tr&gt;&lt;th&gt;Duration&lt;/th&gt;&lt;td&gt;{{ execution_duration_seconds }}s&lt;/td&gt;&lt;/tr&gt;
+      &lt;tr&gt;&lt;th&gt;Cluster&lt;/th&gt;&lt;td&gt;{{ ocp_cluster_name }}&lt;/td&gt;&lt;/tr&gt;
+      &lt;tr&gt;&lt;th&gt;Environment&lt;/th&gt;&lt;td&gt;{{ environment_name }}&lt;/td&gt;&lt;/tr&gt;
+      &lt;tr&gt;&lt;th&gt;API URL&lt;/th&gt;&lt;td&gt;{{ ocp_api_url }}&lt;/td&gt;&lt;/tr&gt;
+    &lt;/tbody&gt;
+  &lt;/table&gt;
+&lt;/div&gt;
+
+{% if health_results.errors | length &gt; 0 %}
+&lt;div class="card" style="border-color:#EF4444"&gt;
+  &lt;div class="card-title" style="color:#EF4444"&gt;❌ Errors&lt;/div&gt;
+  &lt;ul&gt;
+    {% for error in health_results.errors %}
+    &lt;li&gt;{{ error }}&lt;/li&gt;
+    {% endfor %}
+  &lt;/ul&gt;
+&lt;/div&gt;
+{% endif %}
+
+&lt;p style="color:#94A3B8;font-size:12px;margin-top:32px"&gt;
+  Generated by ABC Bank OpenShift Automation Platform | RHAAP | Ticket: INFRA-1001
+&lt;/p&gt;
+&lt;/body&gt;
+&lt;/html&gt;</code></pre>
+  </div>
+
+  <div class="explain-block">
+    <div class="explain-title">Jinja2 in Templates — Key Symbols</div>
+    <div class="explain-row"><span class="explain-term">{{ variable }}</span><span class="explain-def">Expression block. Outputs the value of the variable. Replaced with actual data when Ansible processes the template.</span></div>
+    <div class="explain-row"><span class="explain-term">{% if ... %} ... {% endif %}</span><span class="explain-def">Control block. Conditional logic. The HTML between if and endif only appears in the output if the condition is true.</span></div>
+    <div class="explain-row"><span class="explain-term">{% for item in list %} ... {% endfor %}</span><span class="explain-def">Loop block. Repeats the HTML block for each item in the list.</span></div>
+    <div class="explain-row"><span class="explain-term">{# comment #}</span><span class="explain-def">Comment block. Not included in the output. Used to annotate the template.</span></div>
+    <div class="explain-row"><span class="explain-term">| default('N/A')</span><span class="explain-def">Filter: if the variable is undefined or empty, show 'N/A' instead of an error.</span></div>
+    <div class="explain-row"><span class="explain-term">| length</span><span class="explain-def">Filter: counts items in a list.</span></div>
+    <div class="explain-row"><span class="explain-term">| join(', ')</span><span class="explain-def">Filter: converts a list to a comma-separated string.</span></div>
+  </div>
+
+  <!-- ── RHAAP CONFIGURATION ── -->
+  <h2 class="section-title" id="rhaap-cfg"><span class="num">13</span> RHAAP Configuration — Running This in Production</h2>
+
+  <p>Now that we have our playbook, let us set up RHAAP so that it executes automatically every morning at 6 AM.</p>
+
+  <h3 class="sub-title">Step-by-Step RHAAP UI Configuration</h3>
+
+  <ul class="step-list">
+    <li><span class="step-num">1</span><div class="step-content"><strong>Create an Organization</strong><span>Navigate to <em>Access → Organizations → Add</em>. Name it "ABC Bank Platform". This is the top-level container for all our automation.</span></div></li>
+    <li><span class="step-num">2</span><div class="step-content"><strong>Create Credentials</strong><span>Navigate to <em>Resources → Credentials → Add</em>. Select type <em>OpenShift or Kubernetes API Bearer Token</em>. Enter Cluster API URL and the ServiceAccount token. RHAAP encrypts this and injects it as K8S_AUTH_API_KEY at runtime.</span></div></li>
+    <li><span class="step-num">3</span><div class="step-content"><strong>Create Source Control Credential</strong><span>Add another credential of type <em>Source Control</em> with your Git username and PAT (Personal Access Token). Used to pull the playbook from Git.</span></div></li>
+    <li><span class="step-num">4</span><div class="step-content"><strong>Create Project</strong><span>Navigate to <em>Resources → Projects → Add</em>. Set SCM Type to Git, enter your repository URL, choose the Source Control credential, set branch to main.</span></div></li>
+    <li><span class="step-num">5</span><div class="step-content"><strong>Create Inventory</strong><span>Navigate to <em>Resources → Inventories → Add</em>. Create a static inventory for DEV. Add a Host with all the variables from hosts.yml.</span></div></li>
+    <li><span class="step-num">6</span><div class="step-content"><strong>Create Execution Environment</strong><span>Navigate to <em>Administration → Execution Environments → Add</em>. Use the community EE or build a custom one with kubernetes.core pre-installed.</span></div></li>
+    <li><span class="step-num">7</span><div class="step-content"><strong>Create Job Template</strong><span>Navigate to <em>Resources → Templates → Add Job Template</em>. Select: Project, Playbook (playbooks/cluster_health_check.yml), Inventory, Credentials (OpenShift + Vault), Execution Environment.</span></div></li>
+    <li><span class="step-num">8</span><div class="step-content"><strong>Create Schedule</strong><span>Inside the Job Template, navigate to the <em>Schedules</em> tab. Add schedule: Name "Daily 6AM Health Check", Start: 06:00 Monday–Friday.</span></div></li>
+  </ul>
+
+  <h3 class="sub-title">RHAAP REST API — Launch Job Programmatically</h3>
+  <div class="code-wrapper">
+    <div class="code-header">
+      <span class="code-lang">bash</span>
+      <span class="code-filename">RHAAP REST API — Launch Health Check Job</span>
+      <button class="copy-btn" onclick="navigator.clipboard.writeText(this.closest('.code-wrapper').querySelector('pre').innerText)">Copy</button>
+    </div>
+    <pre><code><span class="sy-comment"># Variables — never hard-code these</span>
+RHAAP_URL="https://rhaap.abcbank.internal"
+RHAAP_TOKEN="your-personal-access-token"    <span class="sy-comment"># From RHAAP user settings</span>
+JOB_TEMPLATE_ID="42"                         <span class="sy-comment"># From RHAAP UI</span>
+
+<span class="sy-comment"># Launch the health check job</span>
+curl -sk -X POST \
+  -H "Authorization: Bearer ${RHAAP_TOKEN}" \
+  -H "Content-Type: application/json" \
+  -d '{"limit": "ocp-dev"}' \
+  "${RHAAP_URL}/api/v2/job_templates/${JOB_TEMPLATE_ID}/launch/"
+
+<span class="sy-comment"># Get job status</span>
+curl -sk \
+  -H "Authorization: Bearer ${RHAAP_TOKEN}" \
+  "${RHAAP_URL}/api/v2/jobs/123/"
+
+<span class="sy-comment"># Get job output</span>
+curl -sk \
+  -H "Authorization: Bearer ${RHAAP_TOKEN}" \
+  "${RHAAP_URL}/api/v2/jobs/123/stdout/?format=txt"</code></pre>
+  </div>
+
+  <!-- ── TROUBLESHOOTING ── -->
+  <h2 class="section-title" id="trouble"><span class="num">14</span> Troubleshooting Guide</h2>
+
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Symptom</th><th>Error</th><th>Root Cause</th><th>Fix</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>Task fails immediately on k8s_info</td>
+          <td><code class="inline">Unauthorized: 401</code></td>
+          <td>Token is expired, invalid, or not passed correctly</td>
+          <td>Check RHAAP credential has correct token. Verify with <code class="inline">oc whoami --token=TOKEN --server=URL</code></td>
+        </tr>
+        <tr>
+          <td>Module not found</td>
+          <td><code class="inline">couldn't resolve module/action 'kubernetes.core.k8s_info'</code></td>
+          <td>Collection not installed in Execution Environment</td>
+          <td>Check EE includes kubernetes.core. Run <code class="inline">ansible-galaxy collection install kubernetes.core</code> locally to test.</td>
+        </tr>
+        <tr>
+          <td>SSL/TLS error</td>
+          <td><code class="inline">SSL: CERTIFICATE_VERIFY_FAILED</code></td>
+          <td>Self-signed cert in non-production cluster</td>
+          <td>Set <code class="inline">ocp_validate_certs: false</code> in group_vars for dev/qa only. Use proper CA certs in production.</td>
+        </tr>
+        <tr>
+          <td>Jinja2 error</td>
+          <td><code class="inline">AnsibleUndefinedVariable</code></td>
+          <td>Variable referenced but not defined</td>
+          <td>Run with <code class="inline">-vvv</code> to see exact variable name. Check inventory and group_vars. Use <code class="inline">| default('fallback')</code>.</td>
+        </tr>
+        <tr>
+          <td>YAML parse error</td>
+          <td><code class="inline">mapping values are not allowed here</code></td>
+          <td>Wrong indentation or missing quotes</td>
+          <td>Run <code class="inline">ansible-playbook --syntax-check</code>. Use a YAML linter. Ensure consistent 2-space indentation.</td>
+        </tr>
+        <tr>
+          <td>Project sync fails in RHAAP</td>
+          <td><code class="inline">Permission denied (publickey)</code></td>
+          <td>Source control credential not attached or SSH key wrong</td>
+          <td>Verify Git credential in Project settings. Test SSH key against repo with <code class="inline">ssh -T git@github.com</code>.</td>
+        </tr>
+        <tr>
+          <td>k8s_info returns empty resources</td>
+          <td>No error, but <code class="inline">.resources == []</code></td>
+          <td>Namespace/resource doesn't exist, or RBAC denies listing</td>
+          <td>Check with <code class="inline">oc get namespace NAME</code>. Check ServiceAccount has list/get permissions.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3 class="sub-title">Debugging Commands</h3>
+  <div class="code-wrapper">
+    <div class="code-header"><span class="code-lang">bash</span><span class="code-filename">Debug Toolkit</span></div>
+    <pre><code><span class="sy-comment"># Check playbook syntax without running</span>
+ansible-playbook playbooks/cluster_health_check.yml --syntax-check
+
+<span class="sy-comment"># Run with maximum verbosity (see every API call)</span>
+ansible-playbook playbooks/cluster_health_check.yml -vvv
+
+<span class="sy-comment"># Check what inventory Ansible sees</span>
+ansible-inventory -i inventories/dev --graph
+ansible-inventory -i inventories/dev --list | python3 -m json.tool
+
+<span class="sy-comment"># Run only specific tagged tasks</span>
+ansible-playbook playbooks/cluster_health_check.yml --tags connectivity
+
+<span class="sy-comment"># Dry run — show what would change (check mode)</span>
+ansible-playbook playbooks/cluster_health_check.yml --check
+
+<span class="sy-comment"># Validate your OpenShift token manually</span>
+oc whoami --token=YOUR_TOKEN --server=https://api.dev.abcbank.internal:6443
+
+<span class="sy-comment"># Verify nodes from CLI</span>
+oc get nodes
+
+<span class="sy-comment"># Look at pod problems</span>
+oc get pods -A | grep -v "Running\|Completed"
+
+<span class="sy-comment"># Describe a specific failing pod</span>
+oc describe pod POD_NAME -n NAMESPACE
+
+<span class="sy-comment"># View RHAAP job output via CLI (awx tool)</span>
+awx jobs stdout JOB_ID</code></pre>
+  </div>
+
+  <hr class="divider">
+
+  <!-- ── INTERVIEW ── -->
+  <h2 class="section-title" id="interview"><span class="num">15</span> Interview Questions</h2>
+
+  <div class="qa-block">
+    <div class="qa-q">What is Ansible and why is it preferred over shell scripts for OpenShift automation?</div>
+    <div class="qa-a">Ansible is an agentless automation tool that uses YAML playbooks to define desired state. Unlike shell scripts, Ansible provides idempotency (safe to re-run), error handling with block/rescue/always, a rich module library that abstracts API complexity, built-in retry logic, and integration with RHAAP for enterprise scheduling, RBAC, and audit trails. Shell scripts can drift, have no error recovery pattern, and don't integrate natively with RHAAP.</div>
+  </div>
+
+  <div class="qa-block">
+    <div class="qa-q">What is the kubernetes.core collection and why do we use it?</div>
+    <div class="qa-a">kubernetes.core is an Ansible collection provided by Red Hat/community that contains modules for interacting with Kubernetes and OpenShift APIs. We use k8s_info to read resources, k8s to create/update/delete resources. It abstracts the raw HTTP API calls, handles authentication, and provides idempotent operations. Without it, we would need to write raw Python/curl code to interact with the API.</div>
+  </div>
+
+  <div class="qa-block">
+    <div class="qa-q">How does Ansible authenticate to OpenShift in production?</div>
+    <div class="qa-a">In production via RHAAP, we create an OpenShift/Kubernetes credential in RHAAP's credential store. This credential contains the API URL and a Bearer token belonging to a ServiceAccount. When the Job Template runs, RHAAP injects the token as the K8S_AUTH_API_KEY environment variable into the Execution Environment container. The kubernetes.core modules automatically read this environment variable. The token never appears in playbooks or Git.</div>
+  </div>
+
+  <div class="qa-block">
+    <div class="qa-q">Explain block / rescue / always in production context.</div>
+    <div class="qa-a">Block contains the main tasks — if any task fails, execution jumps to rescue instead of stopping. Rescue handles the failure — recording the error, sending alerts, initiating rollback. Always runs regardless of success or failure — used for report generation and notification so Operations are always informed. This prevents the worst-case scenario of automation failing silently with no one notified.</div>
+  </div>
+
+  <div class="qa-block">
+    <div class="qa-q">What is idempotency and how does kubernetes.core achieve it?</div>
+    <div class="qa-a">Idempotency means running the same automation multiple times produces the same result — no unintended changes. kubernetes.core achieves this by querying the current state of resources before applying changes. For k8s_info (read), it's always idempotent. For k8s (write), it compares the desired manifest with the existing resource and only patches if there is a difference. Running the health check playbook 10 times should produce no changes — only ok statuses.</div>
+  </div>
+
+  <!-- ── CODING CHALLENGES ── -->
+  <h2 class="section-title" id="challenges"><span class="num">16</span> Coding Challenges</h2>
+
+  <div class="challenge">
+    <div class="challenge-num">Challenge 1 of 3</div>
+    <p>Write an Ansible task that uses <code class="inline">kubernetes.core.k8s_info</code> to query all pods in the <code class="inline">openshift-monitoring</code> namespace, then uses <code class="inline">ansible.builtin.assert</code> to fail the playbook if fewer than 5 pods are Running. Include the actual pod count in the failure message.</p>
+    <details>
+      <summary>▶ Show Answer</summary>
+      <div class="answer">
+        <div class="code-wrapper">
+          <div class="code-header"><span class="code-lang">yaml</span><span class="code-filename">Answer</span></div>
+          <pre><code>- name: "Query pods in openshift-monitoring"
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Pod
+    namespace: openshift-monitoring
+    host: "{{ ocp_api_url }}"
+    api_key: "{{ ocp_token }}"
+    validate_certs: "{{ ocp_validate_certs }}"
+  register: monitoring_pods_result
+
+- name: "Count running monitoring pods"
+  ansible.builtin.set_fact:
+    running_monitoring_pods: >-
+      {{
+        monitoring_pods_result.resources
+        | selectattr('status.phase', 'eq', 'Running')
+        | list
+        | length
+      }}
+
+- name: "Assert minimum monitoring pods are running"
+  ansible.builtin.assert:
+    that:
+      - running_monitoring_pods | int >= 5
+    fail_msg: >-
+      CRITICAL: Only {{ running_monitoring_pods }} pods Running in
+      openshift-monitoring. Expected at least 5.
+    success_msg: "openshift-monitoring has {{ running_monitoring_pods }} Running pods. OK."</code></pre>
+        </div>
+      </div>
+    </details>
+  </div>
+
+  <div class="challenge">
+    <div class="challenge-num">Challenge 2 of 3</div>
+    <p>Modify the inventory <code class="inline">group_vars/all.yml</code> to add a variable <code class="inline">email_on_healthy</code> (boolean, default true). Then modify the email notification task so it only sends email when the overall status is UNHEALTHY OR when <code class="inline">email_on_healthy</code> is true. Use a <code class="inline">when:</code> condition with multiple conditions.</p>
+    <details>
+      <summary>▶ Show Answer</summary>
+      <div class="answer">
+        <div class="code-wrapper">
+          <div class="code-header"><span class="code-lang">yaml</span><span class="code-filename">group_vars/all.yml addition + task</span></div>
+          <pre><code># In group_vars/all.yml:
+email_on_healthy: true   # Set to false to only email on failures
+
+# Email task with conditional:
+- name: "Send email notification"
+  community.general.mail:
+    # ... mail parameters ...
+  when:
+    - >
+      health_results.overall_status != 'HEALTHY'
+      or email_on_healthy | bool</code></pre>
+        </div>
+        <p style="color:var(--muted);font-size:13px;margin-top:8px">The <code class="inline">or</code> operator means: send email if cluster is unhealthy (always) OR if email_on_healthy is true (optionally on success). The <code class="inline">| bool</code> filter converts the string/var to a proper boolean.</p>
+      </div>
+    </details>
+  </div>
+
+  <div class="challenge">
+    <div class="challenge-num">Challenge 3 of 3</div>
+    <p>Write a task that uses <code class="inline">ansible.builtin.debug</code> to print a formatted message for each NotReady node. The message should show: the node name, and the word "CRITICAL" in the message. Use a <code class="inline">loop</code> over the <code class="inline">notready_nodes_list</code> variable. If the list is empty, the task should be skipped cleanly.</p>
+    <details>
+      <summary>▶ Show Answer</summary>
+      <div class="answer">
+        <div class="code-wrapper">
+          <div class="code-header"><span class="code-lang">yaml</span><span class="code-filename">Answer</span></div>
+          <pre><code>- name: "CRITICAL: Report each NotReady node"
+  ansible.builtin.debug:
+    msg: "CRITICAL: Node {{ item }} is NotReady — immediate investigation required"
+  loop: "{{ notready_nodes_list }}"
+  loop_control:
+    label: "{{ item }}"    # Show node name in output header
+  when: notready_nodes_list | length > 0   # Skip entirely if list is empty</code></pre>
+        </div>
+        <p style="color:var(--muted);font-size:13px;margin-top:8px">When <code class="inline">notready_nodes_list</code> is empty, the <code class="inline">when</code> condition evaluates to false and the task is <strong>skipped</strong> — shown as yellow "skipping" in output. If the list has items, one debug message is printed per node.</p>
+      </div>
+    </details>
+  </div>
+
+  <!-- ── RESUME POINTS ── -->
+  <h2 class="section-title" id="resume"><span class="num">17</span> Resume Points</h2>
+
+  <div class="resume-box">
+    <h4>Project 01 — Resume Bullets</h4>
+    <ul>
+      <li>Developed Ansible automation using <code class="inline">kubernetes.core</code> collection to perform OpenShift cluster health validation, including API connectivity verification, node readiness checks, critical namespace validation, and pod state analysis.</li>
+      <li>Implemented production-grade error handling using Ansible block/rescue/always pattern, ensuring HTML reports and email notifications are always generated regardless of check outcome.</li>
+      <li>Designed secure OpenShift authentication using ServiceAccount tokens with cluster-reader RBAC, stored in RHAAP Credential Store — no credentials in Git or playbooks.</li>
+      <li>Created Jinja2-based HTML reporting system generating professional dark-themed cluster health reports with status indicators, automatically emailed to the Operations team.</li>
+      <li>Configured RHAAP Job Template with daily schedule, enabling fully automated morning health checks across multiple OpenShift clusters without manual intervention.</li>
+    </ul>
+  </div>
+
+  <!-- ── PRACTICE ASSIGNMENT ── -->
+  <h2 class="section-title" id="assignment"><span class="num">18</span> Practice Assignment</h2>
+
+  <div class="callout tip">
+    <div class="callout-icon">🎯</div>
+    <div class="callout-body">
+      <div class="callout-title">Your Assignment — INFRA-1001-EXT</div>
+      <p>Extend the cluster health check playbook with the following requirements. Attempt this yourself before looking at solutions.</p>
+    </div>
+  </div>
+
+  <ol style="margin-left:20px;line-height:2.2;color:var(--muted)">
+    <li><strong style="color:var(--text)">Add a QA inventory</strong> — Create <code class="inline">inventories/qa/hosts.yml</code> pointing to a different API URL. The playbook should work against both DEV and QA without code changes.</li>
+    <li><strong style="color:var(--text)">Add a Persistent Volume check</strong> — Use <code class="inline">kubernetes.core.k8s_info</code> to query all PersistentVolumes and check if any are in <code class="inline">Failed</code> status. Add this result to the HTML report.</li>
+    <li><strong style="color:var(--text)">Add a condition</strong> — Only run the pod check if the node check passed first. Use a <code class="inline">when:</code> condition based on the recorded <code class="inline">health_results.nodes_healthy</code> value.</li>
+    <li><strong style="color:var(--text)">Add a tag</strong> — Tag the email task with <code class="inline">notify</code> so it can be skipped with <code class="inline">--skip-tags notify</code> during development testing.</li>
+    <li><strong style="color:var(--text)">Test idempotency</strong> — Run the playbook twice. Confirm all tasks show <code class="inline">ok</code> on the second run (not <code class="inline">changed</code>). Note which tasks, if any, always show <code class="inline">changed</code> and why.</li>
+  </ol>
+
+  <!-- ── KEY LEARNINGS ── -->
+  <h2 class="section-title"><span class="num">19</span> Key Learnings — What You Covered Today</h2>
+
+  <div class="card-grid">
+    <div class="card"><div class="card-icon">📘</div><div class="card-title">Ansible Concepts</div><div class="card-desc">Playbooks, Plays, Tasks, Modules, register, set_fact, until/retries, block/rescue/always, tags, loops, loop_control, when, assert, debug, template</div></div>
+    <div class="card"><div class="card-icon">🔴</div><div class="card-title">OpenShift Concepts</div><div class="card-desc">API Server, Nodes, Pods, Namespaces, ServiceAccounts, RBAC, Bearer Tokens, cluster-reader, kubectl-style API queries</div></div>
+    <div class="card"><div class="card-icon">🔵</div><div class="card-title">RHAAP Concepts</div><div class="card-desc">Organizations, Projects, Inventories, Credentials, Credential Types, Execution Environments, Job Templates, Schedules</div></div>
+    <div class="card"><div class="card-icon">🟡</div><div class="card-title">Security</div><div class="card-desc">Ansible Vault, Least Privilege, no_log, credential injection, environment variables, never in Git</div></div>
+    <div class="card"><div class="card-icon">🟢</div><div class="card-title">Jinja2</div><div class="card-desc">{{ }}, {% %}, {# #}, filters: default, length, join, combine, selectattr, map, list</div></div>
+    <div class="card"><div class="card-icon">⚙️</div><div class="card-title">Modules Used</div><div class="card-desc">kubernetes.core.k8s_info, ansible.builtin.set_fact, ansible.builtin.assert, ansible.builtin.debug, ansible.builtin.template, community.general.mail</div></div>
+  </div>
+
+  <div class="callout info">
+    <div class="callout-icon">🚀</div>
+    <div class="callout-body">
+      <div class="callout-title">Next Project Prerequisites</div>
+      <p>For Project 02 (Namespace/Project Provisioning), ensure you understand: what you covered in Project 01, what the <code class="inline">kubernetes.core.k8s</code> module does (create/update/delete vs. k8s_info which is read-only), and the concept of idempotent resource creation. You'll also be introduced to <strong>Roles</strong> — the way production playbooks are organized into reusable components.</p>
+    </div>
+  </div>
+
+  <div class="footer">
+    <p>Enterprise Ansible Masterclass — OpenShift Automation with RHAAP</p>
+    <p style="margin-top:8px">Project 01 of 35 · Beginner Stage · INFRA-1001 · ABC Bank OpenShift Platform Team</p>
+    <p style="margin-top:8px">When you are ready → say <strong style="color:var(--accent)">"Next Project"</strong> to continue to Project 02</p>
+  </div>
+
+</main>
+</div>
+
+<script>
+// Highlight active TOC item on scroll
+const sections = document.querySelectorAll('[id]');
+const tocItems = document.querySelectorAll('.toc-item');
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      tocItems.forEach(item => item.classList.remove('active'));
+      const active = document.querySelector(`.toc-item[href="#${entry.target.id}"]`);
+      if (active) active.classList.add('active');
+    }
+  });
+}, { threshold: 0.3 });
+sections.forEach(s => observer.observe(s));
+</script>
+</body>
+</html>

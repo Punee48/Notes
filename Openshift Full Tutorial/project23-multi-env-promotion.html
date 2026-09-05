@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Project 23 — Multi-Environment Promotion Workflows: DEV → QA → STAGE → PROD</title>
+<style>
+:root{
+  --blue:#5b9dff; --blue-bg:#132038;
+  --purple:#b58aff; --purple-bg:#221a3a;
+  --green:#3ed67f; --green-bg:#11301f;
+  --orange:#ffb15c; --orange-bg:#3a2712;
+  --red:#ff6b6b; --red-bg:#3a1616;
+  --teal:#4fd8e0; --teal-bg:#0f2f31;
+  --ink:#e7ecf5; --sub:#9aa7bd; --line:#2a3345; --bg:#0d1117; --card:#141b26;
+  --code-bg:#0a0e14; --code-ink:#dfe7f5;
+}
+*{box-sizing:border-box;}
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--ink);line-height:1.65;}
+a{color:var(--blue);}
+.progress{position:fixed;top:0;left:0;height:4px;background:linear-gradient(90deg,var(--blue),var(--teal));z-index:999;width:0%;transition:width .1s;}
+header.cover{background:linear-gradient(135deg,#101a30 0%,#241a3d 100%);color:#fff;padding:56px 24px 40px;text-align:center;border-bottom:1px solid var(--line);}
+header.cover .badge{display:inline-block;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);padding:6px 14px;border-radius:20px;font-size:13px;letter-spacing:.5px;margin-bottom:14px;}
+header.cover h1{margin:8px auto;max-width:900px;font-size:32px;}
+header.cover p.sub{max-width:750px;margin:10px auto 0;opacity:.85;font-size:16px;}
+.meta-grid{display:flex;flex-wrap:wrap;gap:12px;justify-content:center;margin-top:26px;}
+.meta-chip{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.18);padding:8px 16px;border-radius:8px;font-size:13px;}
+nav.toc{position:sticky;top:0;background:#0f151f;border-bottom:1px solid var(--line);z-index:100;padding:10px 16px;overflow-x:auto;white-space:nowrap;}
+nav.toc a{color:var(--sub);text-decoration:none;font-size:13px;margin-right:18px;padding:6px 10px;border-radius:6px;}
+nav.toc a:hover{background:var(--blue-bg);color:var(--blue);}
+main{max-width:980px;margin:0 auto;padding:30px 20px 80px;}
+section{margin-bottom:46px;}
+h2{font-size:24px;border-left:5px solid var(--blue);padding-left:12px;margin-top:10px;color:#fff;}
+h3{font-size:19px;color:var(--purple);margin-top:28px;}
+h4{font-size:16px;color:#fff;margin-top:20px;}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:20px 22px;margin:16px 0;}
+.box{border-radius:10px;padding:16px 18px;margin:14px 0;border-left:5px solid;}
+.box.concept{background:var(--blue-bg);border-color:var(--blue);}
+.box.arch{background:var(--purple-bg);border-color:var(--purple);}
+.box.success{background:var(--green-bg);border-color:var(--green);}
+.box.warning{background:var(--orange-bg);border-color:var(--orange);}
+.box.fail{background:var(--red-bg);border-color:var(--red);}
+.box.best{background:var(--teal-bg);border-color:var(--teal);}
+.box strong.tag{display:block;font-size:12px;text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px;opacity:.85;}
+details{background:var(--card);border:1px solid var(--line);border-radius:10px;margin:12px 0;padding:4px 16px;}
+details summary{cursor:pointer;font-weight:600;padding:12px 0;color:var(--blue);}
+table{width:100%;border-collapse:collapse;margin:14px 0;font-size:14px;}
+th,td{border:1px solid var(--line);padding:9px 12px;text-align:left;vertical-align:top;}
+th{background:var(--blue-bg);color:var(--blue);}
+tr:nth-child(even){background:#101623;}
+.codewrap{position:relative;margin:14px 0;}
+pre{background:var(--code-bg);color:var(--code-ink);padding:18px;border-radius:10px;overflow-x:auto;font-size:13px;line-height:1.6;font-family:"SF Mono",Menlo,Consolas,monospace;border:1px solid var(--line);}
+pre .c{color:#6fd18a;}
+.copy-btn{position:absolute;top:10px;right:10px;background:#22304a;color:#fff;border:1px solid var(--line);padding:6px 12px;border-radius:6px;font-size:12px;cursor:pointer;}
+.copy-btn:hover{background:#2c3d5e;}
+.cmd-label{font-size:12px;color:var(--sub);text-transform:uppercase;letter-spacing:.5px;margin:14px 0 4px;}
+.flow{background:var(--purple-bg);border:1px dashed var(--purple);border-radius:10px;padding:16px;font-family:monospace;white-space:pre;font-size:13px;overflow-x:auto;color:var(--ink);}
+.qa{margin:14px 0;padding:14px 16px;background:var(--card);border:1px solid var(--line);border-radius:8px;}
+.qa .q{font-weight:600;color:var(--purple);}
+.badge-diff{display:inline-block;padding:3px 10px;border-radius:12px;font-size:12px;font-weight:600;}
+.badge-diff.mid{background:var(--orange-bg);color:var(--orange);}
+.steps{counter-reset:step;}
+.step{position:relative;padding:14px 16px 14px 52px;margin:10px 0;background:var(--card);border:1px solid var(--line);border-radius:10px;}
+.step::before{counter-increment:step;content:counter(step);position:absolute;left:14px;top:14px;width:26px;height:26px;background:var(--blue);color:#0d1117;font-weight:700;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;}
+footer{text-align:center;padding:30px;color:var(--sub);font-size:13px;}
+</style>
+</head>
+<body>
+<div class="progress" id="progressBar"></div>
+
+<header class="cover">
+  <div class="badge">OPENSHIFT + ANSIBLE MASTERCLASS · PROJECT 23 OF ~28</div>
+  <h1>Multi-Environment Promotion Workflows: DEV → QA → STAGE → PROD</h1>
+  <p class="sub">Building a single Ansible-driven promotion pipeline that moves one validated artifact through every environment with escalating safeguards, and resolving a "PROD got a version QA never actually tested" incident.</p>
+  <div class="meta-grid">
+    <div class="meta-chip">Difficulty: <span class="badge-diff mid">Advanced</span></div>
+    <div class="meta-chip">Domain: Telecom / Platform Engineering</div>
+    <div class="meta-chip">OpenShift: 4.14+</div>
+    <div class="meta-chip">Ansible Core: 2.16 · AAP 2.4+ (Project 19)</div>
+    <div class="meta-chip">Lab Time: ~3.5 hrs</div>
+    <div class="meta-chip">Infra Cost: $0</div>
+  </div>
+</header>
+
+<nav class="toc">
+  <a href="#story">Story</a>
+  <a href="#device">Run On Your Device</a>
+  <a href="#architecture">Architecture</a>
+  <a href="#playbooks">Playbooks</a>
+  <a href="#run">Execution</a>
+  <a href="#incident">Incident</a>
+  <a href="#breakfix">Break-Fix</a>
+  <a href="#security">Security</a>
+  <a href="#interview">Interview</a>
+  <a href="#resume">Resume</a>
+  <a href="#cheatsheet">Cheat Sheet</a>
+  <a href="#summary">Key Learnings</a>
+</nav>
+
+<main>
+
+<section id="story">
+<h2>1. The Production Story</h2>
+<div class="box concept">
+<strong class="tag">Scenario</strong>
+Projects 5, 18, and 19 gave us safe deploys, a CI/CD pipeline, and governed execution — but each environment has effectively been deployed independently. Nothing guarantees the exact artifact that passed QA is the SAME artifact that reaches PROD. The compliance team wants provable promotion: one image, one Git SHA, moving through a defined sequence with evidence at each gate.
+</div>
+<div class="box warning">
+<strong class="tag">Business Problem</strong>
+Without a formal promotion chain, it's possible (and it has happened) for PROD to receive a rebuild from the same source that technically differs from what QA actually validated — different base image layer, different dependency resolution at build time, etc.
+</div>
+<div class="box best">
+<strong class="tag">Our Mandate</strong>
+Build a promotion workflow where ONE immutable image, identified by digest (not just tag), moves through DEV → QA → STAGE → PROD, with each stage's validation results recorded as promotion evidence, and increasingly strict gates the closer we get to PROD.
+</div>
+</section>
+
+<section id="device">
+<h2>2. Run This On Your Device</h2>
+<div class="steps">
+<div class="step"><strong>Confirm you can resolve an image's digest, not just its tag.</strong>
+<div class="codewrap"><pre>oc image info quay.io/yourorg/payment-backend:v2.5.0 | grep Digest</pre></div>
+</div>
+<div class="step"><strong>Add the promotion playbooks from Section 4 to your repo.</strong>
+<div class="codewrap"><pre>mkdir -p payment-stack/playbooks</pre></div>
+</div>
+<div class="step"><strong>Start a promotion chain from DEV.</strong>
+<div class="codewrap"><pre>ansible-playbook playbooks/promote.yml -e app_name=payment-api -e from_env=dev -e to_env=qa</pre></div>
+</div>
+<div class="step"><strong>Review the promotion record it generates.</strong>
+<div class="codewrap"><pre>cat promotions/payment-api/dev-to-qa-*.json</pre></div>
+</div>
+<div class="step"><strong>Continue the chain: QA → STAGE → PROD, each requiring the prior stage's record to exist.</strong>
+<div class="codewrap"><pre>ansible-playbook playbooks/promote.yml -e app_name=payment-api -e from_env=qa -e to_env=stage
+ansible-playbook playbooks/promote.yml -e app_name=payment-api -e from_env=stage -e to_env=prod</pre></div>
+</div>
+</div>
+</section>
+
+<section id="architecture">
+<h2>3. Architecture</h2>
+<div class="flow">DEV: image built, tagged with Git SHA, deployed, smoke-tested
+   │  promote.yml (dev→qa): records DEV's exact image DIGEST
+   ▼
+QA: SAME digest deployed (never rebuilt) + full test suite run
+   │  promote.yml (qa→stage): requires QA promotion record to exist
+   │                          AND QA's recorded digest == what's being promoted
+   ▼
+STAGE: SAME digest + production-like load test
+   │  promote.yml (stage→prod): requires STAGE record + MANUAL APPROVAL
+   │                            (Project 19's Workflow approval node)
+   ▼
+PROD: SAME digest, zero rebuilds anywhere in the chain</div>
+<div class="box arch"><strong class="tag">The core guarantee</strong>Every stage deploys the exact same image DIGEST that the previous stage validated — never a re-tagged or rebuilt version. Promotion literally means "point the next environment at the same immutable artifact," not "build again and hope it's equivalent."</div>
+<table>
+<tr><th>Stage</th><th>Gate strictness</th><th>Validation required</th></tr>
+<tr><td>DEV → QA</td><td>Low</td><td>DEV smoke test passed (Project 13-style validation)</td></tr>
+<tr><td>QA → STAGE</td><td>Medium</td><td>Full QA test suite passed, digest match confirmed</td></tr>
+<tr><td>STAGE → PROD</td><td>High</td><td>Load test passed, digest match confirmed, manual approval (Project 19)</td></tr>
+</table>
+</section>
+
+<section id="playbooks">
+<h2>4. The Playbooks — Fully Commented</h2>
+
+<h3>4.1 playbooks/promote.yml</h3>
+<div class="cmd-label">playbooks/promote.yml</div>
+<div class="codewrap"><pre><span class="c">---
+# Promotes ONE immutable image digest from one environment to the
+# next, refusing to proceed unless the source environment's own
+# promotion record exists and digests match exactly.</span>
+- name: Promote {{ app_name }} from {{ from_env }} to {{ to_env }}
+  hosts: localhost
+  connection: local
+  gather_facts: true
+
+  tasks:
+    - name: Get the currently-running image digest in the SOURCE environment    <span class="c"># the artifact we're about to promote</span>
+      kubernetes.core.k8s_info:
+        kind: Deployment
+        name: "{{ app_name }}-backend"
+        namespace: "{{ app_name }}-{{ from_env }}"
+      register: source_deploy                                                    <span class="c"># holds the live Deployment spec</span>
+
+    - name: Resolve the image reference to its immutable digest                   <span class="c"># tags can move; digests cannot -- this is the actual identity we promote</span>
+      ansible.builtin.command:
+        cmd: "oc image info {{ source_deploy.resources[0].spec.template.spec.containers[0].image }} -o json"  <span class="c"># queries the registry directly</span>
+      register: image_info_raw                                                     <span class="c"># raw JSON output</span>
+      changed_when: false                                                            <span class="c"># read-only query</span>
+
+    - name: Extract the digest as a fact                                             <span class="c"># parse the JSON for just the digest field</span>
+      ansible.builtin.set_fact:
+        source_digest: "{{ (image_info_raw.stdout | from_json).digest }}"              <span class="c"># the sha256:... immutable identifier</span>
+
+    - name: If promoting BEYOND dev, require the source env's OWN promotion record to exist  <span class="c"># prevents skipping a stage in the chain</span>
+      ansible.builtin.stat:
+        path: "promotions/{{ app_name }}/{{ previous_env_lookup[from_env] }}-to-{{ from_env }}-latest.json"  <span class="c"># e.g. dev-to-qa-latest.json when promoting FROM qa</span>
+      register: source_record
+      when: from_env != 'dev'                                                          <span class="c"># dev is the chain's starting point, has no prior record</span>
+
+    - name: Assert the source environment's own promotion record exists                  <span class="c"># hard stop -- can't promote from an environment that was never itself promoted-into</span>
+      ansible.builtin.assert:
+        that: [source_record.stat.exists]
+        fail_msg: "{{ from_env }} has no promotion record -- it may have been deployed directly, bypassing the chain"
+      when: from_env != 'dev'
+
+    - name: Confirm the digest matches what the source env was ITSELF promoted with        <span class="c"># catches a rebuild/re-tag that silently diverged</span>
+      ansible.builtin.assert:
+        that:
+          - (lookup('file', 'promotions/' + app_name + '/' + previous_env_lookup[from_env] + '-to-' + from_env + '-latest.json') | from_json).digest == source_digest
+        fail_msg: "Digest running in {{ from_env }} does not match what was originally promoted into it -- investigate before proceeding"
+      when: from_env != 'dev'
+
+    - name: Deploy the SAME digest into the target environment                              <span class="c"># the actual promotion action -- never rebuilds, only re-points</span>
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: apps/v1
+          kind: Deployment
+          metadata:
+            name: "{{ app_name }}-backend"
+            namespace: "{{ app_name }}-{{ to_env }}"
+          spec:
+            template:
+              spec:
+                containers:
+                  - name: backend
+                    image: "{{ source_deploy.resources[0].spec.template.spec.containers[0].image.split(':')[0] }}@{{ source_digest }}"  <span class="c"># repo@digest form -- immutable, unambiguous</span>
+      register: promote_result                                                                <span class="c"># capture for assert</span>
+
+    - name: Assert promotion deploy succeeded
+      ansible.builtin.assert:
+        that: [promote_result is succeeded]
+        fail_msg: "Failed to deploy promoted digest into {{ to_env }}"
+
+    - name: Write the promotion record as evidence                                              <span class="c"># the audit trail this whole project exists to create</span>
+      ansible.builtin.copy:
+        dest: "promotions/{{ app_name }}/{{ from_env }}-to-{{ to_env }}-{{ ansible_date_time.epoch }}.json"  <span class="c"># timestamped, permanent record</span>
+        content: "{{ {
+            'app_name': app_name, 'from_env': from_env, 'to_env': to_env,
+            'digest': source_digest, 'promoted_at': ansible_date_time.iso8601,
+            'promoted_by': lookup('env', 'USER')
+          } | to_nice_json }}"
+
+    - name: Also write/overwrite the 'latest' pointer for this promotion pair                    <span class="c"># used by the NEXT stage's digest-match check</span>
+      ansible.builtin.copy:
+        dest: "promotions/{{ app_name }}/{{ from_env }}-to-{{ to_env }}-latest.json"
+        content: "{{ {'digest': source_digest, 'promoted_at': ansible_date_time.iso8601} | to_nice_json }}"</pre></div>
+</section>
+
+<section id="run">
+<h2>5. Execution</h2>
+<div class="codewrap"><pre>ansible-playbook playbooks/promote.yml -e app_name=payment-api -e from_env=dev -e to_env=qa \
+  -e previous_env_lookup='{"qa":"dev","stage":"qa","prod":"stage"}'</pre></div>
+<div class="box success"><strong class="tag">Successful promotion</strong><pre style="background:#0f2b1c;border-color:#1a4a2c;">PLAY RECAP *** ok=7 changed=3 failed=0</pre></div>
+<div class="box fail"><strong class="tag">Blocked promotion (chain violation)</strong><pre style="background:#3a1616;border-color:#5a2020;">TASK [Assert the source environment's own promotion record exists] ***
+fatal: [localhost]: FAILED! =&gt; {"msg": "stage has no promotion record -- it may have been deployed directly, bypassing the chain"}</pre></div>
+</section>
+
+<section id="incident">
+<h2>6. Live Incident — "PROD Got a Version QA Never Actually Tested"</h2>
+<div class="box fail"><strong class="tag">Report</strong>A bug reaches PROD that QA's test suite should have caught. QA insists they tested this version and it passed.</div>
+
+<div class="cmd-label">Step 1 — compare the actual running digests across environments</div>
+<div class="codewrap"><pre>oc image info $(oc get deploy payment-api-backend -n payment-api-qa -o jsonpath='{.spec.template.spec.containers[0].image}') | grep Digest
+Digest: sha256:aaa111...
+
+oc image info $(oc get deploy payment-api-backend -n payment-api-prod -o jsonpath='{.spec.template.spec.containers[0].image}') | grep Digest
+Digest: sha256:bbb222...   <span class="c"># DIFFERENT digest -- these are NOT the same artifact</span></pre></div>
+<div class="box fail"><strong class="tag">Root cause candidate</strong>PROD is running a different image than what's currently in QA — meaning either PROD was deployed independently (bypassing promotion entirely) or the tag was rebuilt at some point after QA validated it.</div>
+
+<div class="cmd-label">Step 2 — check the promotion evidence trail</div>
+<div class="codewrap"><pre>ls promotions/payment-api/
+dev-to-qa-1723...json
+<span class="c"># qa-to-stage and stage-to-prod records are MISSING entirely</span></pre></div>
+<div class="box fail"><strong class="tag">Root cause</strong>Someone deployed directly to PROD using Project 5's release playbook independently, with a freshly-built image from the same source branch — bypassing this project's promotion chain entirely. That rebuild picked up a newer base image layer with a subtly different behavior, which is exactly the class of drift the digest-based promotion chain exists to prevent.</div>
+
+<div class="cmd-label">Step 3 — remediate: promote the ACTUAL validated digest properly</div>
+<div class="codewrap"><pre>ansible-playbook playbooks/promote.yml -e app_name=payment-api -e from_env=qa -e to_env=stage \
+  -e previous_env_lookup='{"stage":"qa","prod":"stage"}'
+<span class="c"># run the full chain properly, in order, from the last validated point</span>
+ansible-playbook playbooks/promote.yml -e app_name=payment-api -e from_env=stage -e to_env=prod \
+  -e previous_env_lookup='{"stage":"qa","prod":"stage"}'</pre></div>
+
+<div class="cmd-label">Step 4 — validate digests now match end to end</div>
+<div class="codewrap"><pre><span class="c">All three environments now report sha256:aaa111... -- the SAME artifact QA actually validated.</span></pre></div>
+<div class="box success"><strong class="tag">Resolved</strong>PROD now runs the exact digest that passed QA's test suite, with a complete promotion record proving it.</div>
+
+<h3>RCA Summary</h3>
+<table>
+<tr><th>Field</th><th>Detail</th></tr>
+<tr><td>Impact</td><td>A bug reached PROD that QA's own testing should have caught, because PROD ran a different build entirely</td></tr>
+<tr><td>Root cause</td><td>Direct PROD deployment bypassed the promotion chain, deploying a freshly-rebuilt image instead of the digest QA had validated</td></tr>
+<tr><td>Fix</td><td>Re-ran the promotion chain properly from the last validated stage</td></tr>
+<tr><td>Preventive action</td><td>Restrict direct deploy access to PROD at the RBAC/Controller level (extends Project 19) so Project 5's raw release playbook can no longer target PROD directly — only <code>promote.yml</code> can</td></tr>
+</table>
+</section>
+
+<section id="breakfix">
+<h2>7. Additional Break-Fix Labs</h2>
+<details><summary>Break-Fix — digest mismatch caught mid-chain</summary>
+<div class="codewrap"><pre>TASK [Confirm the digest matches what the source env was ITSELF promoted with] ***
+fatal: [localhost]: FAILED! =&gt; {"msg": "Digest running in qa does not match what was originally promoted into it"}</pre></div>
+<p><strong>Root cause:</strong> someone manually redeployed QA with a different image after the promotion record was written — QA itself drifted. <strong>Fix:</strong> this is the chain working exactly as designed — investigate why QA changed outside the promotion flow before proceeding, don't just override the check.</p>
+</details>
+<details><summary>Break-Fix — promotion record directory not version controlled, lost on a container rebuild</summary>
+<p><strong>Symptom:</strong> promotion history disappears after the Ansible control node's container is recreated.</p>
+<p><strong>Root cause:</strong> <code>promotions/</code> was treated as scratch space instead of durable evidence. <strong>Fix:</strong> commit the promotions directory to Git (or write records to object storage) — this is compliance evidence and needs the same durability guarantees as the backup bundles from Project 14.</p>
+</details>
+</section>
+
+<section id="security">
+<h2>8. Security Review</h2>
+<table>
+<tr><th>Control</th><th>Detail</th></tr>
+<tr><td>Digest-based identity</td><td>Immutable <code>sha256:...</code> reference, not a mutable tag, eliminates "same tag, different bits" ambiguity</td></tr>
+<tr><td>Chain-of-custody evidence</td><td>Every promotion writes a permanent, attributable record — who, when, which digest, between which environments</td></tr>
+<tr><td>No stage-skipping</td><td>Each promotion requires the source environment's own record to exist first</td></tr>
+<tr><td>PROD requires the full chain</td><td>Combined with Project 19's approval gate, PROD can only receive digests that passed through every prior stage</td></tr>
+</table>
+</section>
+
+<section id="interview">
+<h2>9. Interview Preparation</h2>
+<div class="qa"><div class="q">Interviewer: "How do you guarantee the version tested in QA is the exact version that reaches production?"</div>
+<p><strong>Answer:</strong> By promoting the image's immutable digest, not its tag, and never rebuilding between stages. My promotion playbook resolves the running image to its <code>sha256:...</code> digest, deploys that exact reference into the next environment, and writes a permanent record. Each subsequent promotion checks that the source environment's own record exists and that its running digest still matches what was originally promoted — so any drift or bypass is caught before it can propagate further.</p></div>
+<div class="qa"><div class="q">Interviewer: "A bug reached PROD that QA's tests should have caught — how would you investigate?"</div>
+<p><strong>Answer:</strong> First question: are PROD and QA actually running the same artifact? Comparing image digests, not tags, answers that immediately. In a real case, they didn't match — PROD had been deployed directly with a freshly-built image, bypassing the promotion chain entirely, which is why the bug that QA's version didn't have showed up anyway. The fix wasn't just re-promoting the right digest; it was restricting direct-deploy access to PROD so that bypass path couldn't happen again.</p></div>
+</section>
+
+<section id="resume">
+<h2>10. Resume Points</h2>
+<div class="box best"><ul>
+<li>Designed and automated a digest-based multi-environment promotion pipeline (DEV→QA→STAGE→PROD) with Ansible, guaranteeing the exact validated artifact — not a rebuild — reaches each subsequent stage.</li>
+<li>Investigated and resolved a production defect traced to a promotion-chain bypass, and implemented an RBAC restriction preventing direct PROD deploys outside the governed promotion flow.</li>
+</ul></div>
+</section>
+
+<section id="cheatsheet">
+<h2>11. Troubleshooting Cheat Sheet</h2>
+<table>
+<tr><th>Symptom</th><th>Check</th></tr>
+<tr><td>Bug in PROD that QA should have caught</td><td>Compare image DIGESTS across environments, not tags</td></tr>
+<tr><td>Promotion blocked, "no promotion record"</td><td>The source environment was likely deployed directly, bypassing the chain — investigate before overriding</td></tr>
+<tr><td>Digest mismatch mid-chain</td><td>An environment drifted after its own promotion — find what changed it</td></tr>
+<tr><td>Promotion history missing</td><td>Ensure <code>promotions/</code> is committed to Git or durable storage, not scratch space</td></tr>
+</table>
+</section>
+
+<section id="summary">
+<h2>12. Key Learnings</h2>
+<div class="card">
+<h4>OpenShift/DevOps concepts</h4><p>Image digest vs tag identity, why promotion means "re-point," never "rebuild," chain-of-custody evidence for compliance, escalating gate strictness by environment.</p>
+<h4>Ansible concepts</h4><p>Resolving and comparing immutable image digests, building a self-referential validation chain where each stage checks the previous stage's own recorded evidence, writing durable JSON audit records.</p>
+<h4>Commands learned</h4><p><code>oc image info</code>, digest (<code>sha256:...</code>) vs tag reference syntax, <code>repo@digest</code> image reference form.</p>
+<h4>Next project prerequisites</h4><p>Keep this repo — Project 24 covers image registry and software supply chain security: vulnerability scanning gates, image signature verification, and registry mirroring for restricted environments.</p>
+</div>
+</section>
+
+</main>
+<footer>OpenShift + Ansible Masterclass — Project 23 of ~28.</footer>
+<script>
+window.addEventListener('scroll', function(){
+  var h = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+  var p = h ? (window.scrollY / h) * 100 : 0;
+  document.getElementById('progressBar').style.width = p + '%';
+});
+document.querySelectorAll('pre').forEach(function(pre){
+  if(pre.parentElement.classList.contains('codewrap')){
+    var btn = document.createElement('button');
+    btn.className = 'copy-btn'; btn.textContent = 'Copy';
+    btn.onclick = function(){
+      navigator.clipboard.writeText(pre.innerText);
+      btn.textContent = 'Copied!';
+      setTimeout(function(){ btn.textContent = 'Copy'; }, 1500);
+    };
+    pre.parentElement.appendChild(btn);
+  }
+});
+</script>
+</body>
+</html>

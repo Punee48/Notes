@@ -1,0 +1,679 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RHAAP Masterclass — Project 17: Execution Environment Development</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/nord.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/yaml.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/json.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/bash.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/python.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/dockerfile.min.js"></script>
+<style>
+:root{
+  --bg:#0B1120; --panel:#111827; --card:#1E293B; --card-hover:#243146;
+  --primary:#8B5CF6; --primary-dim:#6D42C7; --secondary:#06B6D4;
+  --text:#F8FAFC; --muted:#94A3B8; --code-bg:#020617;
+  --success:#22C55E; --warning:#F59E0B; --error:#EF4444; --border:#243044;
+  --sans:'IBM Plex Sans',-apple-system,sans-serif; --mono:'IBM Plex Mono',ui-monospace,monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html{scroll-behavior:smooth;}
+body{background:var(--bg);color:var(--text);font-family:var(--sans);line-height:1.65;font-size:15.5px;-webkit-font-smoothing:antialiased;}
+::selection{background:var(--primary);color:#fff;}
+a{color:var(--secondary);text-decoration:none;}
+a:hover{text-decoration:underline;}
+.ticker-wrap{position:sticky;top:0;z-index:200;background:linear-gradient(90deg,#150C2E,#031B24);border-bottom:1px solid var(--border);overflow:hidden;height:34px;display:flex;align-items:center;}
+.ticker-track{display:inline-flex;white-space:nowrap;animation:scroll-left 38s linear infinite;font-family:var(--mono);font-size:12px;letter-spacing:.03em;color:var(--secondary);}
+.ticker-track span{padding:0 2.2rem;color:var(--muted);}
+.ticker-track span b{color:var(--primary);font-weight:600;}
+@keyframes scroll-left{0%{transform:translateX(0);}100%{transform:translateX(-50%);}}
+.topbar{position:sticky;top:34px;z-index:190;background:rgba(17,24,39,.92);backdrop-filter:blur(10px);border-bottom:1px solid var(--border);padding:.7rem 1.4rem;display:flex;align-items:center;justify-content:space-between;gap:1rem;}
+.brand{display:flex;align-items:center;gap:.6rem;font-family:var(--mono);font-size:13px;}
+.brand-dot{width:9px;height:9px;border-radius:50%;background:var(--primary);box-shadow:0 0 10px var(--primary);}
+.brand b{color:var(--text);letter-spacing:.02em;}
+.brand span{color:var(--muted);}
+.progress-shell{flex:1;max-width:280px;height:5px;background:var(--card);border-radius:3px;overflow:hidden;display:none;}
+.progress-fill{height:100%;width:0%;background:linear-gradient(90deg,var(--primary),var(--secondary));transition:width .15s;}
+@media(min-width:900px){.progress-shell{display:block;}}
+.meta-chips{display:flex;gap:.5rem;}
+.chip{font-family:var(--mono);font-size:11px;padding:.3rem .6rem;border-radius:5px;background:var(--card);border:1px solid var(--border);color:var(--muted);}
+.chip.proj{color:var(--primary);border-color:var(--primary-dim);}
+.layout{display:flex;max-width:1440px;margin:0 auto;align-items:flex-start;}
+.sidebar{width:270px;flex-shrink:0;position:sticky;top:96px;height:calc(100vh - 96px);overflow-y:auto;padding:1.5rem 1rem 3rem 1.4rem;border-right:1px solid var(--border);}
+.sidebar::-webkit-scrollbar{width:5px;}
+.sidebar::-webkit-scrollbar-thumb{background:var(--card);border-radius:3px;}
+.toc-group{margin-bottom:1.3rem;}
+.toc-label{font-family:var(--mono);font-size:10.5px;text-transform:uppercase;letter-spacing:.1em;color:var(--primary);margin-bottom:.5rem;font-weight:600;}
+.toc-link{display:flex;align-items:center;gap:.5rem;font-size:13px;color:var(--muted);padding:.35rem .5rem;border-radius:6px;border-left:2px solid transparent;margin-bottom:1px;transition:.15s;}
+.toc-link:hover{color:var(--text);background:var(--card);text-decoration:none;}
+.toc-link.active{color:var(--secondary);border-left-color:var(--secondary);background:var(--card);font-weight:600;}
+.main{flex:1;min-width:0;padding:0 0 6rem 0;}
+.section{padding:3.2rem clamp(1.4rem,4vw,4rem);border-bottom:1px solid var(--border);scroll-margin-top:100px;}
+.section:last-child{border-bottom:none;}
+.eyebrow{font-family:var(--mono);font-size:12px;color:var(--secondary);letter-spacing:.08em;text-transform:uppercase;margin-bottom:.6rem;display:flex;align-items:center;gap:.5rem;}
+.eyebrow::before{content:'';width:22px;height:1px;background:var(--secondary);}
+h1{font-size:clamp(1.9rem,4vw,2.7rem);font-weight:700;letter-spacing:-.01em;line-height:1.15;}
+h2{font-size:1.55rem;font-weight:700;margin-bottom:.9rem;letter-spacing:-.01em;}
+h3{font-size:1.15rem;font-weight:600;margin:1.4rem 0 .6rem;color:var(--text);}
+h4{font-size:.98rem;font-weight:600;margin:1.1rem 0 .4rem;color:var(--secondary);}
+p{color:#CBD5E1;margin-bottom:.85rem;}
+strong{color:var(--text);}
+.lead{font-size:1.05rem;color:var(--muted);max-width:70ch;}
+.cover{padding:4.5rem clamp(1.4rem,5vw,4.5rem) 3rem;position:relative;overflow:hidden;}
+.cover::before{content:'';position:absolute;top:-120px;right:-120px;width:420px;height:420px;border-radius:50%;background:radial-gradient(circle,rgba(139,92,246,.25),transparent 70%);filter:blur(10px);}
+.cover::after{content:'';position:absolute;bottom:-160px;left:-80px;width:380px;height:380px;border-radius:50%;background:radial-gradient(circle,rgba(6,182,212,.18),transparent 70%);filter:blur(10px);}
+.cover-badge{display:inline-flex;align-items:center;gap:.5rem;font-family:var(--mono);font-size:12px;padding:.4rem .8rem;border:1px solid var(--primary-dim);border-radius:20px;color:var(--primary);margin-bottom:1.4rem;position:relative;z-index:1;}
+.cover h1{position:relative;z-index:1;max-width:18ch;}
+.cover-sub{position:relative;z-index:1;color:var(--muted);max-width:62ch;margin-top:1rem;font-size:1.05rem;}
+.cover-stats{display:flex;gap:1.8rem;margin-top:2.2rem;flex-wrap:wrap;position:relative;z-index:1;}
+.stat b{display:block;font-size:1.5rem;font-family:var(--mono);color:var(--text);}
+.stat span{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;}
+.card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:1.3rem 1.5rem;margin:1rem 0;}
+.card-title{font-weight:600;color:var(--text);margin-bottom:.5rem;display:flex;align-items:center;gap:.5rem;}
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:1rem;}
+.grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;}
+@media(max-width:760px){.grid-2,.grid-3{grid-template-columns:1fr;}}
+.story{background:linear-gradient(135deg,rgba(139,92,246,.08),rgba(6,182,212,.05));border:1px solid var(--primary-dim);border-left:3px solid var(--primary);border-radius:10px;padding:1.3rem 1.5rem;margin:1rem 0;}
+.story .who{font-family:var(--mono);font-size:11px;color:var(--primary);text-transform:uppercase;letter-spacing:.08em;margin-bottom:.5rem;}
+.story p{color:#E2E8F0;font-style:italic;}
+.callout{border-radius:10px;padding:1.1rem 1.4rem;margin:1.1rem 0;border:1px solid;display:flex;gap:.8rem;}
+.callout .icon{font-size:1.1rem;line-height:1.4;}
+.callout p{margin:0;color:#E2E8F0;}
+.callout.tip{border-color:#164e63;background:rgba(6,182,212,.08);}
+.callout.tip .icon{color:var(--secondary);}
+.callout.warn{border-color:#78350f;background:rgba(245,158,11,.08);}
+.callout.warn .icon{color:var(--warning);}
+.callout.danger{border-color:#7f1d1d;background:rgba(239,68,68,.08);}
+.callout.danger .icon{color:var(--error);}
+.callout.prod{border-color:#3730a3;background:rgba(99,102,241,.08);}
+.callout.prod .icon{color:#818cf8;}
+.diagram{background:var(--code-bg);border:1px solid var(--border);border-radius:10px;padding:1.4rem;margin:1.1rem 0;overflow-x:auto;}
+.diagram pre{font-family:var(--mono);font-size:12.5px;color:var(--secondary);line-height:1.5;white-space:pre;}
+.diagram .cap{font-family:var(--mono);font-size:11px;color:var(--muted);margin-top:.6rem;border-top:1px dashed var(--border);padding-top:.5rem;}
+.codeblock{position:relative;margin:1.1rem 0;border-radius:10px;overflow:hidden;border:1px solid var(--border);}
+.codeblock .head{display:flex;justify-content:space-between;align-items:center;background:#0d1424;padding:.5rem 1rem;font-family:var(--mono);font-size:11.5px;color:var(--muted);border-bottom:1px solid var(--border);}
+.codeblock .head .fname{color:var(--secondary);}
+.copy-btn{background:var(--card);border:1px solid var(--border);color:var(--muted);font-family:var(--mono);font-size:11px;padding:.25rem .6rem;border-radius:5px;cursor:pointer;transition:.15s;}
+.copy-btn:hover{background:var(--primary-dim);color:#fff;}
+.copy-btn.copied{background:var(--success);color:#fff;border-color:var(--success);}
+pre code.hljs{padding:1.1rem 1.3rem !important;font-size:13px;font-family:var(--mono) !important;background:var(--code-bg) !important;}
+.tbl-wrap{overflow-x:auto;margin:1.1rem 0;border:1px solid var(--border);border-radius:10px;}
+table{width:100%;border-collapse:collapse;font-size:13.5px;}
+th{background:#0d1424;color:var(--primary);text-align:left;padding:.65rem .9rem;font-family:var(--mono);font-size:11.5px;text-transform:uppercase;letter-spacing:.05em;border-bottom:1px solid var(--border);}
+td{padding:.6rem .9rem;border-bottom:1px solid var(--border);color:#CBD5E1;vertical-align:top;}
+tr:last-child td{border-bottom:none;}
+td code,p code,li code{font-family:var(--mono);background:var(--code-bg);color:var(--secondary);padding:.1rem .4rem;border-radius:4px;font-size:.9em;border:1px solid var(--border);}
+.steps{counter-reset:step;list-style:none;margin:1rem 0;}
+.steps li{counter-increment:step;position:relative;padding:.55rem 0 .55rem 2.6rem;border-left:1px solid var(--border);margin-left:.6rem;}
+.steps li::before{content:counter(step);position:absolute;left:-.72rem;top:.4rem;width:1.4rem;height:1.4rem;border-radius:50%;background:var(--card);border:1px solid var(--primary-dim);color:var(--primary);font-family:var(--mono);font-size:11px;display:flex;align-items:center;justify-content:center;}
+.steps li:last-child{border-left-color:transparent;}
+.steps li b{color:var(--text);}
+.steps li .field-note{display:block;color:var(--muted);font-size:13px;margin-top:.15rem;}
+.collapse{border:1px solid var(--border);border-radius:10px;margin:1rem 0;overflow:hidden;background:var(--panel);}
+.collapse summary{padding:.85rem 1.2rem;cursor:pointer;font-weight:600;color:var(--text);display:flex;align-items:center;justify-content:space-between;list-style:none;font-size:14px;}
+.collapse summary::-webkit-details-marker{display:none;}
+.collapse summary::after{content:'+';color:var(--primary);font-family:var(--mono);font-size:16px;transition:.2s;}
+.collapse[open] summary::after{content:'−';}
+.collapse summary:hover{background:var(--card);}
+.collapse .body{padding:0 1.2rem 1.2rem;color:#CBD5E1;}
+.collapse .body p:first-child{margin-top:.3rem;}
+.badge{display:inline-block;font-family:var(--mono);font-size:10.5px;padding:.18rem .55rem;border-radius:20px;text-transform:uppercase;letter-spacing:.05em;font-weight:600;}
+.badge.ui{background:rgba(139,92,246,.15);color:var(--primary);border:1px solid var(--primary-dim);}
+.badge.api{background:rgba(6,182,212,.15);color:var(--secondary);border:1px solid #0e7490;}
+.badge.ans{background:rgba(34,197,94,.15);color:var(--success);border:1px solid #15803d;}
+.badge.concept{background:rgba(148,163,184,.15);color:var(--muted);border:1px solid var(--border);}
+.method{font-family:var(--mono);font-weight:700;font-size:12px;padding:.2rem .55rem;border-radius:5px;}
+.method.get{background:rgba(6,182,212,.18);color:var(--secondary);}
+.method.post{background:rgba(34,197,94,.18);color:var(--success);}
+.method.patch{background:rgba(245,158,11,.18);color:var(--warning);}
+.method.delete{background:rgba(239,68,68,.18);color:var(--error);}
+.qa{border:1px solid var(--border);border-radius:10px;padding:1.1rem 1.3rem;margin-bottom:.9rem;background:var(--panel);}
+.qa .q{font-weight:600;color:var(--secondary);margin-bottom:.4rem;display:flex;gap:.5rem;}
+.qa .q .qn{font-family:var(--mono);color:var(--primary);}
+.qa .a{color:#CBD5E1;margin-bottom:.5rem;}
+.qa .follow{font-size:12.5px;color:var(--muted);border-top:1px dashed var(--border);padding-top:.5rem;margin-top:.5rem;}
+.qa .follow b{color:var(--warning);}
+.challenge{border:1px solid var(--primary-dim);border-radius:10px;padding:1.2rem 1.4rem;margin:1rem 0;background:rgba(139,92,246,.06);}
+.challenge .num{font-family:var(--mono);color:var(--primary);font-size:12px;text-transform:uppercase;letter-spacing:.08em;margin-bottom:.4rem;}
+.resume-list{list-style:none;}
+.resume-list li{padding:.6rem 0 .6rem 1.6rem;position:relative;color:#CBD5E1;border-bottom:1px dashed var(--border);}
+.resume-list li:last-child{border-bottom:none;}
+.resume-list li::before{content:'▹';position:absolute;left:0;color:var(--secondary);}
+.checklist{list-style:none;}
+.checklist li{padding:.35rem 0 .35rem 1.7rem;position:relative;color:#CBD5E1;}
+.checklist li::before{content:'✓';position:absolute;left:0;color:var(--success);font-weight:700;}
+.footer-nav{display:flex;justify-content:space-between;align-items:center;padding:2.2rem clamp(1.4rem,4vw,4rem);background:var(--panel);flex-wrap:wrap;gap:1rem;}
+.next-card{border:1px solid var(--primary-dim);border-radius:10px;padding:1.1rem 1.4rem;background:linear-gradient(135deg,rgba(139,92,246,.1),rgba(6,182,212,.05));max-width:520px;}
+.next-card .lbl{font-family:var(--mono);font-size:11px;color:var(--primary);text-transform:uppercase;letter-spacing:.08em;margin-bottom:.3rem;}
+.next-card b{font-size:1.05rem;}
+@media(max-width:960px){.sidebar{display:none;}.section{padding:2.2rem 1.1rem;}}
+.small{font-size:12.5px;color:var(--muted);}
+.tree-note{display:inline-block;color:var(--muted);font-style:italic;}
+</style>
+</head>
+<body>
+
+<div class="ticker-wrap"><div class="ticker-track" id="tickerTrack"></div></div>
+
+<div class="topbar">
+  <div class="brand"><span class="brand-dot"></span><b>RHAAP MASTERCLASS</b><span>/ ABC Bank Automation Platform Team</span></div>
+  <div class="progress-shell"><div class="progress-fill" id="progressFill"></div></div>
+  <div class="meta-chips">
+    <span class="chip proj">PROJECT 17 / 40</span>
+    <span class="chip">DEVELOPMENT</span>
+  </div>
+</div>
+
+<div class="layout">
+  <nav class="sidebar" id="sidebar">
+    <div class="toc-group">
+      <div class="toc-label">Orientation</div>
+      <a class="toc-link" href="#objectives">Learning Objectives</a>
+      <a class="toc-link" href="#story">Enterprise Story</a>
+      <a class="toc-link" href="#repo-structure">Repository Structure So Far</a>
+    </div>
+    <div class="toc-group">
+      <div class="toc-label">Concept</div>
+      <a class="toc-link" href="#ee-recap">Execution Environments, Full Depth</a>
+      <a class="toc-link" href="#anatomy">Anatomy of execution-environment.yml</a>
+      <a class="toc-link" href="#base-images">Choosing a Base Image</a>
+    </div>
+    <div class="toc-group">
+      <div class="toc-label">Build</div>
+      <a class="toc-link" href="#define-ee">Defining the Linux Ops EE</a>
+      <a class="toc-link" href="#build-ee">Building With ansible-builder</a>
+      <a class="toc-link" href="#test-locally">Testing Before Publishing</a>
+      <a class="toc-link" href="#push-registry">Versioning &amp; Pushing to a Registry</a>
+      <a class="toc-link" href="#register-rhaap">Registering It in RHAAP</a>
+    </div>
+    <div class="toc-group">
+      <div class="toc-label">Run It</div>
+      <a class="toc-link" href="#security">Security Notes</a>
+      <a class="toc-link" href="#troubleshoot">Troubleshooting</a>
+      <a class="toc-link" href="#production-day">A Day On The Team</a>
+    </div>
+    <div class="toc-group">
+      <div class="toc-label">Practice</div>
+      <a class="toc-link" href="#interview">Interview Prep</a>
+      <a class="toc-link" href="#challenges">Coding Challenges</a>
+      <a class="toc-link" href="#resume">Resume Points</a>
+      <a class="toc-link" href="#assignment">Practice Assignment</a>
+    </div>
+  </nav>
+
+  <main class="main">
+
+    <section class="section cover" id="cover">
+      <div class="cover-badge">● PROJECT 17 OF 40 — DEVELOPMENT TRACK BEGINS — MANDATORY ADVANCED TOPIC</div>
+      <h1>Execution Environment Development</h1>
+      <p class="cover-sub">Every job template built since Project 1 has quietly used "Default execution environment" without asking what's actually inside it. Today that stops — Linux Operations gets its own versioned, reproducible, dependency-pinned container image, built with <code>ansible-builder</code>, pushed to a real registry, and registered in RHAAP as a first-class Execution Environment object.</p>
+      <div class="cover-stats">
+        <div class="stat"><b>Advanced</b><span>Difficulty</span></div>
+        <div class="stat"><b>3 hrs</b><span>Estimated Time</span></div>
+        <div class="stat"><b>1</b><span>Custom EE, Built From Scratch</span></div>
+        <div class="stat"><b>UI · API · Ansible</b><span>Every Operation, 3 Ways</span></div>
+      </div>
+    </section>
+
+    <section class="section" id="objectives">
+      <div class="eyebrow">Orientation</div>
+      <h2>Learning Objectives</h2>
+      <ul class="checklist">
+        <li>Explain, at implementation depth, why containerized Execution Environments replace control-node-installed dependencies</li>
+        <li>Write a complete <code>execution-environment.yml</code> definition, including Python dependencies, system dependencies, and Galaxy collections</li>
+        <li>Choose an appropriate base image and justify the choice against ABC Bank's requirements</li>
+        <li>Build an image using <code>ansible-builder</code>, and test it locally before it ever reaches RHAAP</li>
+        <li>Version and tag an EE image deliberately — never relying on a mutable <code>latest</code> tag</li>
+        <li>Push a built image to an internal container registry and register it as a RHAAP Execution Environment object with an appropriate pull credential</li>
+        <li>Diagnose a playbook failure caused by a collection or dependency missing from a newly built EE</li>
+      </ul>
+    </section>
+
+    <section class="section" id="story">
+      <div class="eyebrow">Enterprise Story</div>
+      <h2>Week Seventeen — What's Actually Inside "Default"?</h2>
+      <div class="story">
+        <div class="who">Priya Nair, Head of Platform Engineering</div>
+        <p>"Every Job Template we've built — sixteen projects' worth — has used 'Default execution environment' without any of us asking what Ansible Core version it runs, which collections it has, or who controls when it changes. That's a real risk: if Red Hat updates that default image and a collection version shifts underneath us, our playbooks could start behaving differently with zero code change on our side. I want Linux Operations running on our own, explicitly versioned image. And Security wants to know we can eventually run fully air-gapped, without a live connection to public Galaxy at job-run time — the EE needs to already contain everything it needs."</p>
+      </div>
+    </section>
+
+    <section class="section" id="repo-structure">
+      <div class="eyebrow">Orientation</div>
+      <h2>Repository Structure So Far</h2>
+      <div class="diagram">
+<pre>linux-ops-automation/
+│   (playbooks, rhaap-config, inventories — unchanged, see Project 16)
+
+linux-ops-execution-environment/              <span class="tree-note"># NEW Git repo — Project 17</span>
+│
+├── execution-environment.yml                  <span class="tree-note"># the EE build definition itself</span>
+├── requirements.yml                           <span class="tree-note"># pinned Ansible Collections</span>
+├── requirements.txt                           <span class="tree-note"># pinned Python packages</span>
+├── bindep.txt                                 <span class="tree-note"># pinned system (RPM) packages</span>
+├── ansible.cfg                                <span class="tree-note"># baked-in Ansible configuration defaults</span
+├── CHANGELOG.md                               <span class="tree-note"># image version history — what changed, why</span>
+└── README.md                                  <span class="tree-note"># how to build, test, and publish this EE</span></pre>
+        <div class="cap">Fig 17.1 — the EE gets its own dedicated repository, separate from the playbooks it runs. This mirrors the real-world separation between "automation content" and "the runtime that executes it," and lets the EE version independently from any single team's playbook changes.</div>
+      </div>
+    </section>
+
+    <section class="section" id="ee-recap">
+      <div class="eyebrow">Concept</div>
+      <h2>Execution Environments, Full Depth</h2>
+      <p>Project 1 introduced EEs at a glance: a container bundling Ansible Core, Python, and collections. Here's the complete picture.</p>
+      <div class="diagram">
+<pre>Execution Environment image contains:
+   |
+   +-- A base OS layer (e.g. a minimal UBI-based image)
+   +-- Python interpreter + pip
+   +-- ansible-core (a specific, pinned version)
+   +-- Ansible Collections (community.general, ansible.posix, etc.
+   |    — each pinned to a specific version)
+   +-- Any Python libraries those collections depend on
+   +-- Any system (RPM/deb) packages those collections or libraries
+        depend on (e.g. openssh-clients, libxml2)
+
+Every job that uses this EE runs inside a fresh container built
+from this exact image — identical every single time, on every
+execution node, regardless of what's installed on the node itself.</pre>
+        <div class="cap">Fig 17.2 — "identical every time" is the entire value proposition. It's also what makes air-gapped operation possible: once built, this image needs no further internet access to run jobs.</div>
+      </div>
+      <div class="callout tip">
+        <div class="icon">◆</div>
+        <p><strong>This directly resolves both of Priya's concerns.</strong> An explicitly-versioned, ABC-Bank-controlled EE means Red Hat's default image updating no longer silently changes Linux Operations' runtime. And because collections/dependencies are baked into the image at build time (not fetched live during a job run), the resulting image can run in a fully air-gapped RHAAP deployment.</p>
+      </div>
+    </section>
+
+    <section class="section" id="anatomy">
+      <div class="eyebrow">Concept</div>
+      <h2>Anatomy of <code>execution-environment.yml</code></h2>
+      <div class="tbl-wrap">
+        <table>
+          <tr><th>Section</th><th>Purpose</th></tr>
+          <tr><td><code>version</code></td><td>The schema version of the EE definition file itself (not the image's own version) — determines which fields <code>ansible-builder</code> understands</td></tr>
+          <tr><td><code>images.base_image</code></td><td>The starting container image everything else is layered on top of</td></tr>
+          <tr><td><code>dependencies.galaxy</code></td><td>Points at a <code>requirements.yml</code> listing Ansible Collections to install</td></tr>
+          <tr><td><code>dependencies.python</code></td><td>Points at a <code>requirements.txt</code> listing Python packages</td></tr>
+          <tr><td><code>dependencies.system</code></td><td>Points at a <code>bindep.txt</code> listing OS-level packages needed by the above</td></tr>
+          <tr><td><code>additional_build_steps</code></td><td>Escape hatch for anything not covered by the structured sections above — used sparingly and deliberately</td></tr>
+        </table>
+      </div>
+    </section>
+
+    <section class="section" id="base-images">
+      <div class="eyebrow">Concept</div>
+      <h2>Choosing a Base Image</h2>
+      <div class="tbl-wrap">
+        <table>
+          <tr><th>Base image class</th><th>Trade-off</th><th>ABC Bank's choice</th></tr>
+          <tr><td>Minimal (e.g. a bare UBI-minimal-based EE base)</td><td>Smallest attack surface, smallest image size; you add everything explicitly</td><td><strong>Chosen</strong> — aligns with least-privilege thinking already applied to RBAC and credentials throughout this course</td></tr>
+          <tr><td>Default/"batteries included"</td><td>Convenient, ships with many collections pre-installed; larger image, larger attack surface, less explicit control over what's actually present</td><td>Rejected — exactly the "what's actually inside it" problem Priya raised</td></tr>
+          <tr><td>A fully custom, from-scratch Containerfile</td><td>Maximum control, maximum maintenance burden</td><td>Not needed yet — <code>ansible-builder</code> on a minimal base covers today's requirements</td></tr>
+        </table>
+      </div>
+    </section>
+
+    <section class="section" id="define-ee">
+      <div class="eyebrow">Build</div>
+      <h2>Defining the Linux Ops EE</h2>
+      <div class="codeblock">
+        <div class="head"><span class="fname">execution-environment.yml</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre><code class="language-yaml">---
+version: 3
+
+images:
+  base_image:
+    name: registry.access.redhat.com/ubi9/ubi-minimal:latest
+    # NOTE: pin this to a specific digest (not a mutable tag) before
+    # this image is considered production-ready — see Security Notes.
+
+dependencies:
+  galaxy: requirements.yml
+  python: requirements.txt
+  system: bindep.txt
+
+additional_build_steps:
+  prepend_base:
+    - RUN microdnf update -y
+  append_final:
+    - LABEL org.abcbank.team="linux-operations"
+    - LABEL org.abcbank.ee-version="1.0.0"</code></pre>
+      </div>
+      <div class="codeblock">
+        <div class="head"><span class="fname">requirements.yml</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre><code class="language-yaml">---
+collections:
+  - name: ansible.posix
+    version: "1.5.4"
+  - name: community.general
+    version: "8.2.0"
+  - name: awx.awx
+    version: "23.7.0"</code></pre>
+      </div>
+      <div class="codeblock">
+        <div class="head"><span class="fname">requirements.txt</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre><code class="language-yaml">resolvelib>=0.5.3,<0.9.0
+packaging==23.2</code></pre>
+      </div>
+      <div class="codeblock">
+        <div class="head"><span class="fname">bindep.txt</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre><code class="language-yaml">openssh-clients [platform:rpm]
+rsync [platform:rpm]</code></pre>
+      </div>
+      <div class="collapse">
+        <summary>Explain every pinned version and why pinning matters here specifically</summary>
+        <div class="body">
+          <p><code>ansible.posix</code> and <code>community.general</code> pinned to exact versions — these provide modules the restart-service and health-check playbooks rely on (<code>ansible.builtin.systemd</code> is core, but several other modules used across this course's playbooks live in <code>community.general</code>). Pinning means "the collection behaves exactly the way it did when this EE was built and tested" — an unpinned <code>collections: [ansible.posix]</code> entry would silently pull whatever the latest version happens to be at build time, potentially introducing a breaking change with zero warning.</p>
+          <p><code>openssh-clients</code> in <code>bindep.txt</code> — needed because the container itself needs an SSH client to connect out to target hosts; this is exactly the kind of system-level dependency that used to be "whatever happened to be installed on the control node" before EEs existed.</p>
+          <p>The <code>LABEL</code> instructions in <code>additional_build_steps</code> bake ownership and version metadata directly into the image itself — so <code>podman inspect</code> or a registry UI can answer "who owns this and what version is it" without needing to cross-reference anything external.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="build-ee">
+      <div class="eyebrow">Build</div>
+      <h2>Building With ansible-builder</h2>
+      <div class="codeblock">
+        <div class="head"><span class="fname">Build the image</span><span class="method post">RUN</span></div>
+        <pre><code class="language-bash">cd linux-ops-execution-environment/
+
+ansible-builder build \
+  --tag linux-ops-ee:1.0.0 \
+  --container-runtime podman \
+  -v3
+
+# -v3 gives verbose output — worth using on every build until you're
+# confident the definition is correct; silent build failures are
+# painful to debug after the fact.</code></pre>
+      </div>
+      <div class="callout tip">
+        <div class="icon">◆</div>
+        <p><strong><code>ansible-builder</code> generates an intermediate Containerfile</strong> from your <code>execution-environment.yml</code> and dependency files, then hands it to Podman (or Docker) to actually build the image. You can inspect this generated Containerfile (in the build context's output directory) if you need to debug exactly what instructions are being run — it's not a black box.</p>
+      </div>
+    </section>
+
+    <section class="section" id="test-locally">
+      <div class="eyebrow">Build</div>
+      <h2>Testing Before Publishing</h2>
+      <p>Never register a freshly built EE directly into production RHAAP without testing it locally first — exactly the same discipline as testing a Job Template against one host before trusting it against the full fleet (Project 1, Project 7).</p>
+      <div class="codeblock">
+        <div class="head"><span class="fname">Local smoke test</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre><code class="language-bash"># Confirm the image runs and reports the expected Ansible/collection versions
+podman run --rm linux-ops-ee:1.0.0 ansible --version
+podman run --rm linux-ops-ee:1.0.0 ansible-galaxy collection list
+
+# Run an actual playbook against a local test target using ansible-navigator,
+# which is purpose-built for testing playbooks against a specific EE image
+ansible-navigator run playbooks/service-health-check.yml \
+  --execution-environment-image linux-ops-ee:1.0.0 \
+  --mode stdout \
+  -i test-inventory.ini</code></pre>
+      </div>
+      <div class="callout warn">
+        <div class="icon">▲</div>
+        <p><strong>"It built successfully" is not the same as "it works."</strong> A clean <code>ansible-builder build</code> only confirms the image assembled without error — it says nothing about whether the collections inside actually support the specific modules your playbooks call. The <code>ansible-navigator</code> smoke test above is what actually validates that.</p>
+      </div>
+    </section>
+
+    <section class="section" id="push-registry">
+      <div class="eyebrow">Build</div>
+      <h2>Versioning &amp; Pushing to a Registry</h2>
+      <div class="callout danger">
+        <div class="icon">■</div>
+        <p><strong>Never tag or reference an EE image as <code>latest</code> in production.</strong> <code>latest</code> is a mutable pointer — a Job Template referencing it could silently start running a completely different image the next time someone pushes an update, with zero visibility into what changed. Every EE image gets an explicit, semantic version tag, exactly like the Git tag discipline from Project 4's production Project pinning.</p>
+      </div>
+      <div class="codeblock">
+        <div class="head"><span class="fname">Tag and push</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre><code class="language-bash">podman tag linux-ops-ee:1.0.0 \
+  registry.abcbank.internal/platform-team/linux-ops-ee:1.0.0
+
+podman push registry.abcbank.internal/platform-team/linux-ops-ee:1.0.0
+
+# Optional but recommended: scan before pushing
+trivy image linux-ops-ee:1.0.0</code></pre>
+      </div>
+      <div class="callout tip">
+        <div class="icon">◆</div>
+        <p><strong>A vulnerability scan (e.g. Trivy, Grype) as a standard pre-push step</strong> is worth adopting now, ahead of the full CI/CD pipeline built in Project 43 — catching a known-vulnerable base package before the image ever reaches RHAAP is far cheaper than discovering it after the fact.</p>
+      </div>
+    </section>
+
+    <section class="section" id="register-rhaap">
+      <div class="eyebrow">Build</div>
+      <h2>Registering It in RHAAP</h2>
+      <h3><span class="badge ui">UI</span></h3>
+      <ol class="steps">
+        <li>First, create a <b>Container Registry</b> Credential pointing at <code>registry.abcbank.internal</code>, if the registry requires authentication.</li>
+        <li><b>Automation Execution → Execution Environments → Create Execution Environment.</b></li>
+        <li><b>Name:</b> <code>Linux Ops EE v1.0.0</code></li>
+        <li><b>Image:</b> <code>registry.abcbank.internal/platform-team/linux-ops-ee:1.0.0</code> — the explicit tag, never <code>latest</code>.</li>
+        <li><b>Pull:</b> <code>Only pull image if not present</code> (avoids re-pulling on every job once cached, while still fetching automatically the first time or after a version bump).</li>
+        <li><b>Credential:</b> the Container Registry credential from step 1.</li>
+        <li>Save, then update the <code>Linux — Restart Service</code>, <code>Linux — Patch Compliance Check</code>, and other Linux Operations Job Templates to use this EE instead of "Default execution environment."</li>
+      </ol>
+      <h3><span class="badge ans">ANSIBLE</span></h3>
+      <div class="codeblock">
+        <div class="head"><span class="fname">register_ee.yml</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre><code class="language-yaml">- name: Register the container registry credential
+  awx.awx.credential:
+    name: "ABC Bank Internal Registry"
+    organization: "Banking Automation"
+    credential_type: "Container Registry"
+    inputs:
+      host: "registry.abcbank.internal"
+      username: "{{ lookup('env', 'REGISTRY_USER') }}"
+      password: "{{ lookup('env', 'REGISTRY_PASSWORD') }}"
+    controller_host: "{{ controller_host }}"
+    controller_oauthtoken: "{{ controller_oauthtoken }}"
+    state: present
+  no_log: true
+
+- name: Register the Linux Ops execution environment
+  awx.awx.execution_environment:
+    name: "Linux Ops EE v1.0.0"
+    image: "registry.abcbank.internal/platform-team/linux-ops-ee:1.0.0"
+    pull: missing
+    credential: "ABC Bank Internal Registry"
+    organization: "Banking Automation"
+    controller_host: "{{ controller_host }}"
+    controller_oauthtoken: "{{ controller_oauthtoken }}"
+    state: present
+
+- name: Point every Linux Operations job template at the new EE
+  awx.awx.job_template:
+    name: "{{ item }}"
+    execution_environment: "Linux Ops EE v1.0.0"
+    controller_host: "{{ controller_host }}"
+    controller_oauthtoken: "{{ controller_oauthtoken }}"
+    state: present
+  loop:
+    - "Linux — Restart Service"
+    - "Linux — Patch Compliance Check"
+    - "Linux — Service Health Pre-Check"
+    - "Linux — Service Rollback Notify"
+    - "Linux — Escalate Incident"</code></pre>
+      </div>
+    </section>
+
+    <section class="section" id="security">
+      <div class="eyebrow">Run It</div>
+      <h2>Security Notes For Project 17</h2>
+      <div class="callout danger">
+        <div class="icon">■</div>
+        <p><strong>Pin the base image to a digest, not just a tag, before this is truly production-ready.</strong> Even <code>ubi9/ubi-minimal:latest</code> is mutable upstream — a <code>sha256:</code> digest reference guarantees byte-for-byte reproducibility of the base layer itself, closing the exact gap Priya originally raised about Red Hat's default image changing underneath the team.</p>
+      </div>
+      <div class="callout warn">
+        <div class="icon">▲</div>
+        <p><strong>Every pinned collection and package version is now a maintenance responsibility.</strong> Pinning trades "silently drifting behavior" for "a known set of versions someone must deliberately update and re-test" — a real trade, worth making, but not a free one. Track EE versions and their contents in the CHANGELOG, exactly like any other governed artifact in this course.</p>
+      </div>
+      <div class="callout tip">
+        <div class="icon">◆</div>
+        <p><strong>The registry pull credential is a real Credential object</strong> and deserves the same RBAC discipline as any other from Project 6 — scope it to read/pull access only, never anything capable of pushing or deleting images from the registry.</p>
+      </div>
+    </section>
+
+    <section class="section" id="troubleshoot">
+      <div class="eyebrow">Run It — Production Incident</div>
+      <h2>Incident: A Module Went Missing After Switching EEs</h2>
+      <div class="story">
+        <div class="who">Sara Khan, the day after the cutover</div>
+        <p>"The patch compliance check is failing now — something about <code>dnf</code> module not being found. It worked fine yesterday."</p>
+      </div>
+      <div class="tbl-wrap">
+        <table>
+          <tr><th>Stage</th><th>What you do</th></tr>
+          <tr><td><b>OBSERVE</b></td><td>The failure started exactly when the Job Templates were switched to the new EE — a strong, specific signal pointing at the EE change itself as the cause.</td></tr>
+          <tr><td><b>COLLECT EVIDENCE</b></td><td>Job output shows: <code>couldn't resolve module/action 'ansible.builtin.dnf'</code> — a module the compliance-check playbook (Project 7) depends on directly.</td></tr>
+          <tr><td><b>ISOLATE FAILURE</b></td><td>Check what collections the new <code>linux-ops-ee:1.0.0</code> actually contains via <code>podman run --rm linux-ops-ee:1.0.0 ansible-galaxy collection list</code> — <code>ansible.builtin</code> modules should always be present (they ship with ansible-core itself), so this points at something more specific: possibly an ansible-core version mismatch, or the module simply requiring a package not present in this minimal base image.</td></tr>
+          <tr><td><b>CHECK DEPENDENCIES</b></td><td>You discover the <code>dnf</code> Python bindings package (a system-level dependency the <code>dnf</code> module needs to actually interact with the package manager) was never added to <code>bindep.txt</code> — the default/original EE happened to include it; this new, deliberately minimal EE does not, by design.</td></tr>
+          <tr><td><b>IDENTIFY ROOT CAUSE</b></td><td>Building a genuinely minimal EE (as Project 17 deliberately chose) means dependencies that were previously "just there" in a fuller default image now have to be explicitly identified and added — this is the direct cost of the minimal-base decision, surfacing for the first time on a module the original EE definition didn't anticipate.</td></tr>
+          <tr><td><b>FIX</b></td><td>Add the missing system package to <code>bindep.txt</code>, rebuild the image as <code>linux-ops-ee:1.0.1</code> (a new version, never overwriting <code>1.0.0</code>), re-test locally with <code>ansible-navigator</code> against the compliance-check playbook specifically, then re-tag the Job Templates to the new version.</td></tr>
+          <tr><td><b>VALIDATE</b></td><td>Re-run the compliance check against the full production inventory and confirm successful completion.</td></tr>
+          <tr><td><b>PREVENT RECURRENCE</b></td><td>Before any future EE cutover, run every existing Job Template's playbook through the <code>ansible-navigator</code> local smoke test against the candidate EE — not just a generic <code>ansible --version</code> check — so a missing dependency surfaces during testing, not the day after a production switch.</td></tr>
+        </table>
+      </div>
+      <div class="callout tip">
+        <div class="icon">◆</div>
+        <p><strong>This incident is the direct, lived cost of choosing a minimal base image over a "batteries included" one.</strong> It's not an argument against the minimal choice — it's the reason the Testing section above insists on running actual playbooks against a candidate EE, not just checking that it builds and reports a version number.</p>
+      </div>
+    </section>
+
+    <section class="section" id="production-day">
+      <div class="eyebrow">Run It</div>
+      <h2>A Day On The Platform Team</h2>
+      <ul class="checklist">
+        <li><b>Ticket received:</b> "Build a dedicated, versioned Execution Environment for Linux Operations" — a foundational platform investment, not tied to a single incident</li>
+        <li><b>Information collected:</b> the exact set of modules every existing Linux Operations playbook actually uses, to size the collection and dependency list correctly rather than guessing</li>
+        <li><b>Code developed:</b> the full EE definition (execution-environment.yml, requirements.yml/.txt, bindep.txt) in its own dedicated Git repository</li>
+        <li><b>Testing:</b> built and locally smoke-tested the image with <code>ansible-navigator</code> against representative playbooks before ever registering it in RHAAP</li>
+        <li><b>Documentation:</b> a CHANGELOG entry for v1.0.0 explaining exactly what's included and why, ahead of the very first cutover</li>
+        <li><b>Ticket closed:</b> with the missing-<code>dnf</code>-dependency incident (found the day after cutover, not caught by the initial smoke test since it happened to only test the health-check playbook) prompting an expanded, playbook-by-playbook testing requirement for all future EE version bumps</li>
+      </ul>
+    </section>
+
+    <section class="section" id="interview">
+      <div class="eyebrow">Practice</div>
+      <h2>Interview Preparation</h2>
+      <div class="qa">
+        <div class="q"><span class="qn">Q1.</span> Walk through the structure of an execution-environment.yml file.</div>
+        <div class="a">A <code>version</code> field for the schema itself, an <code>images.base_image</code> defining the starting container layer, a <code>dependencies</code> section pointing at separate files for Galaxy collections, Python packages, and system packages, and an optional <code>additional_build_steps</code> escape hatch for anything the structured sections don't cover.</div>
+      </div>
+      <div class="qa">
+        <div class="q"><span class="qn">Q2.</span> Why choose a minimal base image over a fuller, "batteries included" one?</div>
+        <div class="a">Smaller attack surface and full, explicit control over exactly what's present — every dependency is deliberately declared rather than inherited implicitly. The trade-off is that dependencies which "just worked" under a fuller default image now have to be explicitly identified and added, which can surface as a missing-module failure if something is overlooked.</div>
+      </div>
+      <div class="qa">
+        <div class="q"><span class="qn">Q3.</span> Why should an EE image never be tagged or referenced as <code>latest</code> in production?</div>
+        <div class="a"><code>latest</code> is a mutable pointer — a Job Template referencing it could start running an entirely different image after any push to that tag, with no visibility into what changed. Explicit semantic version tags make every EE reference deterministic and auditable.</div>
+      </div>
+      <div class="qa">
+        <div class="q"><span class="qn">Q4.</span> How do you validate a newly built EE before trusting it in production?</div>
+        <div class="a">Beyond confirming the build itself succeeds, run actual representative playbooks against the candidate image using a tool like <code>ansible-navigator</code> — a clean build only proves the image assembled correctly, not that every module a real playbook depends on is actually present and functional.</div>
+      </div>
+      <div class="qa">
+        <div class="q"><span class="qn">Q5.</span> A playbook that worked fine suddenly fails with a "module not found" error right after an EE version change. What's your diagnosis path?</div>
+        <div class="a">Confirm the timing correlation with the EE change first, then inspect the new EE's actual installed collections and system packages directly (e.g. via <code>ansible-galaxy collection list</code> inside the container) to identify what's missing compared to the previous EE, rather than assuming it's a playbook-side regression.</div>
+      </div>
+    </section>
+
+    <section class="section" id="challenges">
+      <div class="eyebrow">Practice</div>
+      <h2>Coding Challenges</h2>
+      <div class="challenge">
+        <div class="num">Challenge 1</div>
+        <p><strong>Fix this project's incident yourself:</strong> add the missing <code>dnf</code> Python bindings dependency to <code>bindep.txt</code>, rebuild the image as version 1.0.1, and write the <code>ansible-navigator</code> smoke test command you'd run to confirm the compliance-check playbook now succeeds against it.</p>
+      </div>
+      <div class="challenge">
+        <div class="num">Challenge 2</div>
+        <p><strong>Pin the base image to a specific digest</strong> instead of a tag — look up (or describe how you would look up) the current <code>sha256</code> digest for a UBI-minimal image, and rewrite the <code>images.base_image</code> section accordingly.</p>
+      </div>
+      <div class="challenge">
+        <div class="num">Challenge 3</div>
+        <p><strong>Design a pre-cutover validation checklist</strong> (in the spirit of Project 9's governance checklist) that every new EE version must pass — listing every existing Job Template that would use it, and requiring a successful <code>ansible-navigator</code> run of each one's playbook — directly preventing this project's incident from recurring on a future version bump.</p>
+      </div>
+    </section>
+
+    <section class="section" id="resume">
+      <div class="eyebrow">Practice</div>
+      <h2>Resume Points</h2>
+      <ul class="resume-list">
+        <li>Designed and built a custom, minimal-footprint Ansible Execution Environment using ansible-builder, replacing a platform-default runtime with an explicitly versioned, team-owned image</li>
+        <li>Established dependency-pinning discipline across Python packages, system packages, and Ansible Collections to eliminate silent runtime drift</li>
+        <li>Implemented a local pre-publish testing workflow using ansible-navigator to validate execution environments against real playbooks before production rollout</li>
+        <li>Published a versioned execution environment to an internal container registry with scoped, read-only pull credentials</li>
+        <li>Diagnosed and resolved a missing-dependency failure surfaced by a minimal-base-image execution environment cutover</li>
+      </ul>
+    </section>
+
+    <section class="section" id="assignment">
+      <div class="eyebrow">Practice</div>
+      <h2>Practice Assignment</h2>
+      <div class="callout prod">
+        <div class="icon">◆</div>
+        <p><strong>Lab vs. Enterprise Production:</strong> building and testing an EE locally requires <code>ansible-builder</code>, Podman or Docker, and (ideally) <code>ansible-navigator</code> — all installable on a personal machine or lab VM with no RHAAP dependency at all. Pushing to a real private registry requires at least a local/throwaway registry (e.g. a local Podman-hosted registry container) if you don't have access to an enterprise one.</p>
+      </div>
+      <ol class="steps">
+        <li>Install <code>ansible-builder</code>, <code>ansible-navigator</code>, and Podman (or Docker) locally.</li>
+        <li>Write your own <code>execution-environment.yml</code>, <code>requirements.yml</code>, <code>requirements.txt</code>, and <code>bindep.txt</code> for one of the playbooks from earlier in this course (e.g. the restart-service playbook).</li>
+        <li>Build the image and confirm it succeeds; then run <code>ansible-galaxy collection list</code> inside it to verify the expected collections are present.</li>
+        <li>Use <code>ansible-navigator</code> to run the actual playbook against a local test target using your new image.</li>
+        <li>Deliberately omit a dependency you know the playbook needs, rebuild, and reproduce this project's incident — observe the specific failure, then fix it and confirm resolution.</li>
+        <li>Tag your final image with an explicit semantic version and push it to a local or lab registry.</li>
+      </ol>
+    </section>
+
+  </main>
+</div>
+
+<div class="footer-nav">
+  <div class="small">Project 17 / 40 — Development Track</div>
+  <div class="next-card">
+    <div class="lbl">Say "Next Project" when ready</div>
+    <b>Project 18 — Private Automation Hub Integration</b>
+  </div>
+</div>
+
+<script>
+hljs.highlightAll();
+const tickerItems = [
+  "PROJECT 17: EXECUTION ENVIRONMENT DEVELOPMENT",
+  "ABC BANK — AUTOMATION PLATFORM TEAM",
+  "NEVER TAG AN EE 'LATEST' — VERSION IT LIKE ANY OTHER PRODUCTION ARTIFACT",
+  "NEXT: PROJECT 18 — PRIVATE AUTOMATION HUB INTEGRATION",
+];
+const track = document.getElementById('tickerTrack');
+const html = tickerItems.map(t => `<span><b>●</b> ${t}</span>`).join('');
+track.innerHTML = html + html;
+
+const links = document.querySelectorAll('.toc-link');
+const sections = Array.from(links).map(l => document.querySelector(l.getAttribute('href')));
+const progressFill = document.getElementById('progressFill');
+function onScroll(){
+  const scrollPos = window.scrollY + 140;
+  let activeIdx = 0;
+  sections.forEach((sec, i) => { if(sec && sec.offsetTop <= scrollPos) activeIdx = i; });
+  links.forEach((l,i)=> l.classList.toggle('active', i === activeIdx));
+  const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+  const pct = docHeight > 0 ? (window.scrollY / docHeight) * 100 : 0;
+  progressFill.style.width = Math.min(100, Math.max(0,pct)) + '%';
+}
+window.addEventListener('scroll', onScroll);
+onScroll();
+
+function copyCode(btn){
+  const block = btn.closest('.codeblock').querySelector('code');
+  navigator.clipboard.writeText(block.innerText).then(()=>{
+    btn.textContent = 'Copied';
+    btn.classList.add('copied');
+    setTimeout(()=>{ btn.textContent='Copy'; btn.classList.remove('copied'); }, 1600);
+  });
+}
+</script>
+</body>
+</html>

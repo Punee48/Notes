@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Project 24 — IIS Website Deployment | PowerShell Masterclass</title>
+<style>
+  :root{
+    --primary:#A78BFA; --secondary:#C4B5FD; --surface:#1A1530; --surface2:#221B3D;
+    --bg:#0F0B1E; --text:#EDE9FE; --muted:#9CA3AF; --border:#332B57;
+    --success:#4ADE80; --warn:#FBBF24; --danger:#F87171;
+    --code-bg:#0A0716; --code-text:#E9E4FF;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0; font-family:"Segoe UI",Calibri,Roboto,Arial,sans-serif; background:var(--bg); color:var(--text); line-height:1.65;}
+  a{color:var(--secondary);}
+  .layout{display:flex; max-width:1400px; margin:0 auto;}
+  nav.sidebar{width:270px; flex-shrink:0; position:sticky; top:0; height:100vh; overflow-y:auto; background:var(--surface); border-right:1px solid var(--border); padding:22px 16px;}
+  nav.sidebar h3{color:var(--secondary); font-size:13px; text-transform:uppercase; letter-spacing:.06em; margin:18px 0 8px;}
+  nav.sidebar a{display:block; padding:7px 10px; border-radius:8px; color:var(--text); text-decoration:none; font-size:14px; margin-bottom:2px;}
+  nav.sidebar a:hover{background:var(--surface2); color:var(--secondary);}
+  #progressWrap{background:var(--surface2); border-radius:10px; padding:10px; margin-bottom:8px;}
+  #progressBar{height:8px; background:var(--border); border-radius:6px; overflow:hidden;}
+  #progressFill{height:100%; width:0%; background:linear-gradient(90deg,var(--primary),var(--secondary)); transition:width .2s;}
+  #progressLabel{font-size:12px; color:var(--muted); margin-top:6px;}
+  main{flex:1; min-width:0; padding:0;}
+  .cover{background:linear-gradient(135deg,#3B2A6B,#5B3FA0); color:#fff; padding:60px 48px; position:relative; overflow:hidden; border-bottom:1px solid var(--border);}
+  .cover::after{content:"";position:absolute;right:-80px;top:-80px;width:300px;height:300px;border-radius:50%;background:rgba(255,255,255,.06);}
+  .badge{display:inline-block; background:rgba(255,255,255,.14); padding:5px 14px; border-radius:20px; font-size:12px; letter-spacing:.05em; margin-right:8px; margin-bottom:14px;}
+  .cover h1{font-size:34px; margin:6px 0 10px; max-width:760px;}
+  .cover p.sub{font-size:16px; opacity:.92; max-width:640px;}
+  .cover-meta{display:flex; gap:28px; margin-top:26px; flex-wrap:wrap;}
+  .cover-meta div{background:rgba(255,255,255,.10); padding:12px 18px; border-radius:10px; min-width:140px;}
+  .cover-meta span{display:block; font-size:12px; opacity:.85;}
+  .cover-meta strong{font-size:16px;}
+  section{padding:34px 48px; border-bottom:1px solid var(--border);}
+  section h2{color:var(--secondary); font-size:24px; border-left:5px solid var(--primary); padding-left:14px; margin-top:0;}
+  section h3{color:var(--primary); font-size:18px; margin-top:26px;}
+  .story{background:var(--surface); border-left:5px solid var(--primary); padding:20px 24px; border-radius:0 10px 10px 0; font-size:15px;}
+  .story b{color:var(--secondary);}
+  .callout{border-radius:10px; padding:16px 18px; margin:16px 0; font-size:14.5px; border:1px solid var(--border);}
+  .callout.tip{background:#132A1E; border-left:5px solid var(--success);}
+  .callout.note{background:var(--surface); border-left:5px solid var(--secondary);}
+  .callout.warn{background:#2E2410; border-left:5px solid var(--warn);}
+  .callout.security{background:#2E1616; border-left:5px solid var(--danger);}
+  .callout .lbl{font-weight:700; display:block; margin-bottom:4px;}
+  table{width:100%; border-collapse:collapse; margin:16px 0; font-size:14px;}
+  th,td{border:1px solid var(--border); padding:9px 12px; text-align:left; vertical-align:top;}
+  th{background:var(--surface2); color:var(--secondary);}
+  tr:nth-child(even){background:var(--surface);}
+  .codewrap{position:relative; margin:16px 0;}
+  pre{background:var(--code-bg); color:var(--code-text); padding:18px 16px; border-radius:10px; overflow-x:auto; font-family:Consolas,"Cascadia Code",Menlo,monospace; font-size:13.5px; line-height:1.7; border:1px solid var(--border);}
+  pre code{white-space:pre;}
+  .copybtn{position:absolute; top:10px; right:10px; background:var(--primary); color:#1A1530; border:none; padding:6px 12px; border-radius:6px; font-size:12px; cursor:pointer; font-weight:600;}
+  .copybtn:hover{background:var(--secondary);}
+  .explain-list{list-style:none; padding:0; margin:14px 0;}
+  .explain-list li{background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:10px 14px; margin-bottom:6px; font-size:14.5px;}
+  .explain-list code{background:var(--surface2); padding:2px 6px; border-radius:5px; color:var(--secondary); font-weight:600;}
+  details{background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:12px 16px; margin:10px 0;}
+  details summary{cursor:pointer; font-weight:600; color:var(--secondary);}
+  .diagram{background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:20px; margin:16px 0; overflow-x:auto;}
+  .flow{display:flex; flex-wrap:wrap; align-items:center; gap:10px; font-size:13.5px;}
+  .flow .box{background:var(--surface2); border:2px solid var(--secondary); border-radius:8px; padding:8px 14px; font-weight:600; color:var(--secondary);}
+  .flow .arrow{color:var(--primary); font-size:18px;}
+  .steps{counter-reset:step;}
+  .steps .step{position:relative; padding-left:44px; margin-bottom:18px;}
+  .steps .step::before{counter-increment:step; content:counter(step); position:absolute; left:0; top:0; background:var(--primary); color:#1A1530; width:30px; height:30px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:700;}
+  .grid2{display:grid; grid-template-columns:1fr 1fr; gap:16px;}
+  @media(max-width:900px){.grid2{grid-template-columns:1fr;} nav.sidebar{display:none;} section{padding:26px 20px;} .cover{padding:36px 22px;}}
+  footer{padding:30px 48px; background:var(--surface); color:var(--muted); font-size:13px;}
+  code{color:var(--secondary);}
+</style>
+</head>
+<body>
+
+<div class="layout">
+  <nav class="sidebar">
+    <div id="progressWrap">
+      <div id="progressLabel">Reading progress</div>
+      <div id="progressBar"><div id="progressFill"></div></div>
+    </div>
+    <h3>Project 24</h3>
+    <a href="#cover">Cover</a>
+    <a href="#recap1">Recap: Projects 1–23</a>
+    <a href="#story">The Story</a>
+    <a href="#concepts">Concepts First</a>
+    <a href="#lab">Hands-On Lab</a>
+    <a href="#script">Full Script</a>
+    <a href="#linebyline">Line-by-Line</a>
+    <a href="#architecture">Architecture</a>
+    <a href="#incident">Production Incident</a>
+    <a href="#troubleshoot">Troubleshooting</a>
+    <a href="#security">Security Notes</a>
+    <a href="#recap">Key Learnings</a>
+    <a href="#interview">Interview Prep</a>
+    <a href="#challenges">Coding Challenges</a>
+    <a href="#resume">Resume Points</a>
+    <a href="#assignment">Practice Assignment</a>
+    <a href="#next">Next Project</a>
+  </nav>
+
+  <main id="top">
+    <div class="cover" id="cover">
+      <span class="badge">PROJECT 24</span><span class="badge">INTERMEDIATE</span><span class="badge">BFSI TRACK</span>
+      <h1>IIS Website Deployment</h1>
+      <p class="sub">Deploy a complete new website end-to-end — app pool, site, and certificate binding — from one config file, pulling together the entire Certificate/IIS track so far.</p>
+      <div class="cover-meta">
+        <div><span>Difficulty</span><strong>Intermediate</strong></div>
+        <div><span>Estimated Lab Time</span><strong>85–100 min</strong></div>
+        <div><span>Concepts</span><strong>8 core concepts</strong></div>
+        <div><span>Track</span><strong>24 of 40</strong></div>
+      </div>
+    </div>
+
+    <section id="recap1">
+      <h2>Quick Recap of Projects 1–23</h2>
+      <p>We've bound certificates to existing sites (Project 22) and recovered application pools (Project 23). This
+      project goes one step further back in the lifecycle: creating a <b>brand-new site from scratch</b> — its own
+      application pool, the site itself, folder structure, and HTTPS binding — all from one config file, following
+      Project 9's config-driven philosophy applied to a full deployment instead of a health check.</p>
+    </section>
+
+    <section id="story">
+      <h2>The Story — Why We're Building This</h2>
+      <div class="story">
+        ABC Bank is launching a new internal reporting portal. Historically, standing up a new IIS site meant a
+        checklist: create the folder, create an app pool, create the site, set the binding, attach a certificate —
+        five manual steps, each a chance for a typo or a skipped step. Our manager wants one script that reads a
+        simple deployment config and performs all five steps consistently, idempotently, every time — whether it's
+        this new portal or the next dozen sites after it.
+      </div>
+    </section>
+
+    <section id="concepts">
+      <h2>Concepts First — Before We Touch Code</h2>
+
+      <h3>1. The Five Steps of Standing Up a Site</h3>
+      <div class="diagram">
+        <div class="flow">
+          <div class="box">1. Folder</div><div class="arrow">→</div>
+          <div class="box">2. App Pool</div><div class="arrow">→</div>
+          <div class="box">3. Site</div><div class="arrow">→</div>
+          <div class="box">4. HTTPS Binding</div><div class="arrow">→</div>
+          <div class="box">5. Certificate</div>
+        </div>
+      </div>
+      <p>Each step depends on the one before it — you can't bind a site that doesn't exist yet, and a site needs an
+      app pool to run in. This ordering isn't arbitrary; it reflects real dependencies, and our script's structure
+      follows it directly.</p>
+
+      <h3>2. New-WebAppPool and New-Website</h3>
+      <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code>New-WebAppPool -Name "ReportingPortalPool"
+New-Website -Name "ReportingPortal" -PhysicalPath "C:\inetpub\ReportingPortal" -ApplicationPool "ReportingPortalPool" -Port 8443 -Ssl</code></pre></div>
+      <ul class="explain-list">
+        <li><code>New-WebAppPool</code> — creates a new, empty application pool with default settings.</li>
+        <li><code>New-Website</code> — creates the site itself, immediately associating it with the app pool and
+        setting up an initial binding in one call.</li>
+      </ul>
+
+      <h3>3. Idempotency Across FIVE Different Resource Types</h3>
+      <div class="callout warn"><span class="lbl">More moving parts than any project so far</span>Unlike Project
+      10's single service or Project 21's single certificate type, this script must independently check "does this
+      already exist" for a folder, an app pool, a site, AND a binding — each with its own existence-check cmdlet.
+      Getting any one of these wrong could mean either an error on a re-run, or worse, a duplicate/conflicting
+      resource.</div>
+
+      <h3>4. Combining Everything Learned in This Mini-Track</h3>
+      <p>This project deliberately doesn't introduce much brand-new syntax — it's primarily an exercise in
+      <b>composition</b>: taking Project 9's config-driven approach, Project 22's binding+certificate logic, and
+      Project 23's WebAdministration familiarity, and combining them into one coherent deployment workflow.</p>
+
+      <h3>5. Why Order of Operations Matters for ShouldProcess Previews</h3>
+      <p>With five dependent steps, a <code>-WhatIf</code> preview needs to clearly show <i>what would happen at
+      each step</i>, including steps that depend on an earlier step's (previewed, not real) outcome — worth being
+      thoughtful about how preview output reads when steps build on each other.</p>
+    </section>
+
+    <section id="lab">
+      <h2>Hands-On Lab — Build It Yourself</h2>
+      <div class="steps">
+        <div class="step"><b>Create the project structure:</b>
+          <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code>New-Item -ItemType Directory -Path "C:\PS-Masterclass\Project24\config" -Force
+New-Item -ItemType Directory -Path "C:\PS-Masterclass\Project24\logs" -Force
+Set-Location "C:\PS-Masterclass\Project24"
+
+$TestCert = New-SelfSignedCertificate -Subject "CN=reportingportal.local" -CertStoreLocation "Cert:\LocalMachine\My"
+Write-Host "Test certificate thumbprint: $($TestCert.Thumbprint)"</code></pre></div>
+        </div>
+        <div class="step"><b>Create <code>config\site-deployment.psd1</code>:</b>
+          <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code>@{
+    SiteName       = "ReportingPortal"
+    AppPoolName    = "ReportingPortalPool"
+    PhysicalPath   = "C:\inetpub\ReportingPortal"
+    Port           = 8443
+    CertThumbprint = "PUT_YOUR_TEST_CERT_THUMBPRINT_HERE"
+}</code></pre></div>
+        </div>
+        <div class="step"><b>Create <code>Deploy-IisWebsite.ps1</code></b> (as Administrator) and paste the full
+        script below.</div>
+        <div class="step"><b>Preview first:</b>
+          <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code>.\Deploy-IisWebsite.ps1</code></pre></div>
+        </div>
+        <div class="step"><b>Deploy for real:</b>
+          <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code>.\Deploy-IisWebsite.ps1 -WhatIf:$false</code></pre></div>
+        </div>
+        <div class="step"><b>Validate:</b> confirm the new site appears in IIS Manager, fully bound with your
+        certificate. Run the script a second time and confirm every step reports "already exists" instead of
+        erroring or duplicating anything.</div>
+      </div>
+    </section>
+
+    <section id="script">
+      <h2>Full Script — Deploy-IisWebsite.ps1</h2>
+      <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code># =====================================================================
+# Deploy-IisWebsite.ps1
+# ABC Bank - Windows Infrastructure Automation Team
+# Purpose: End-to-end, idempotent IIS site deployment from config
+# =====================================================================
+
+[CmdletBinding(SupportsShouldProcess)]
+param(
+    [switch]$WhatIf = $true
+)
+
+Import-Module WebAdministration -ErrorAction Stop
+$Config = Import-PowerShellDataFile -Path ".\config\site-deployment.psd1"   # Project 9's config pattern, reused
+
+$LogPath = ".\logs\Deployment.log"
+function Write-Log {
+    param([string]$Message, [string]$Status = "INFO")
+    $Line = "{0} | {1} | {2}" -f (Get-Date -Format "yyyy-MM-dd HH:mm:ss"), $Status, $Message
+    Add-Content -Path $LogPath -Value $Line
+}
+
+Write-Host "`n=== DEPLOYING SITE: $($Config.SiteName) ===" -ForegroundColor Magenta
+
+# ---------------------------------------------------------------
+# STEP 1: Physical folder
+# ---------------------------------------------------------------
+if (-not (Test-Path $Config.PhysicalPath)) {
+    if ($PSCmdlet.ShouldProcess($Config.PhysicalPath, "Create Folder")) {
+        New-Item -ItemType Directory -Path $Config.PhysicalPath -Force | Out-Null
+        Write-Log -Status "INFO" -Message "Created folder $($Config.PhysicalPath)"
+        Write-Host "[1/5] Folder created." -ForegroundColor Green
+    }
+    else { Write-Host "[1/5] PREVIEW: Would create folder $($Config.PhysicalPath)" -ForegroundColor Yellow }
+}
+else { Write-Host "[1/5] Folder already exists." -ForegroundColor Green }
+
+# ---------------------------------------------------------------
+# STEP 2: Application pool
+# ---------------------------------------------------------------
+if (-not (Test-Path "IIS:\AppPools\$($Config.AppPoolName)")) {
+    if ($PSCmdlet.ShouldProcess($Config.AppPoolName, "Create Application Pool")) {
+        New-WebAppPool -Name $Config.AppPoolName | Out-Null
+        Write-Log -Status "INFO" -Message "Created app pool $($Config.AppPoolName)"
+        Write-Host "[2/5] Application pool created." -ForegroundColor Green
+    }
+    else { Write-Host "[2/5] PREVIEW: Would create app pool $($Config.AppPoolName)" -ForegroundColor Yellow }
+}
+else { Write-Host "[2/5] Application pool already exists." -ForegroundColor Green }
+
+# ---------------------------------------------------------------
+# STEP 3: The site itself
+# ---------------------------------------------------------------
+if (-not (Test-Path "IIS:\Sites\$($Config.SiteName)")) {
+    if ($PSCmdlet.ShouldProcess($Config.SiteName, "Create Website")) {
+        New-Website -Name $Config.SiteName `
+                     -PhysicalPath $Config.PhysicalPath `
+                     -ApplicationPool $Config.AppPoolName `
+                     -Port $Config.Port -Ssl | Out-Null                # -Ssl marks the initial binding as HTTPS
+        Write-Log -Status "INFO" -Message "Created site $($Config.SiteName) on port $($Config.Port)"
+        Write-Host "[3/5] Site created." -ForegroundColor Green
+    }
+    else { Write-Host "[3/5] PREVIEW: Would create site $($Config.SiteName)" -ForegroundColor Yellow }
+}
+else { Write-Host "[3/5] Site already exists." -ForegroundColor Green }
+
+# ---------------------------------------------------------------
+# STEP 4 & 5: Certificate binding (Project 22's exact logic, reused)
+# ---------------------------------------------------------------
+$ExistingBinding = Get-WebBinding -Name $Config.SiteName -Protocol "https" -Port $Config.Port -ErrorAction SilentlyContinue
+$CurrentThumbprint = if ($ExistingBinding.CertificateHash) { $ExistingBinding.CertificateHash } else { $null }
+
+if ($CurrentThumbprint -eq $Config.CertThumbprint) {
+    Write-Host "[4-5/5] Certificate already correctly bound." -ForegroundColor Green
+    Write-Log -Status "INFO" -Message "Binding already correct - no change made"
+}
+else {
+    if ($PSCmdlet.ShouldProcess("$($Config.SiteName):$($Config.Port)", "Bind Certificate")) {
+        $BindingPath = "IIS:\SslBindings\0.0.0.0!$($Config.Port)"
+        if (Test-Path $BindingPath) { Remove-Item -Path $BindingPath -Force }
+        Get-Item "Cert:\LocalMachine\My\$($Config.CertThumbprint)" | New-Item -Path $BindingPath | Out-Null
+        Write-Log -Status "SUCCESS" -Message "Bound certificate $($Config.CertThumbprint) to $($Config.SiteName):$($Config.Port)"
+        Write-Host "[4-5/5] Certificate bound." -ForegroundColor Green
+    }
+    else { Write-Host "[4-5/5] PREVIEW: Would bind certificate $($Config.CertThumbprint)" -ForegroundColor Yellow }
+}
+
+Write-Host "`nDeployment sequence complete. Audit log: $LogPath" -ForegroundColor Cyan
+</code></pre></div>
+      </div>
+    </section>
+
+    <section id="linebyline">
+      <h2>Line-by-Line Explanation</h2>
+
+      <h3><code>if (-not (Test-Path "IIS:\AppPools\$($Config.AppPoolName)")) { ... }</code></h3>
+      <ul class="explain-list">
+        <li>Reusing <code>Test-Path</code> once again — this time against the <code>IIS:</code> drive's
+        <code>AppPools</code> path — proving yet again that the provider model means the exact same existence-check
+        idiom from files (Project 6) and the registry (Project 13) works unchanged here too.</li>
+      </ul>
+
+      <h3><code>New-Website -Name ... -Port $Config.Port -Ssl</code></h3>
+      <ul class="explain-list">
+        <li><code>-Ssl</code> — tells <code>New-Website</code> to create its initial binding as HTTPS rather than
+        the default HTTP, saving a separate <code>New-WebBinding</code> call for the common case of a site that
+        should be HTTPS-only from the start.</li>
+      </ul>
+
+      <h3>Steps 4-5 being one combined block</h3>
+      <ul class="explain-list">
+        <li>Notice the certificate binding logic is copied nearly verbatim from Project 22 — this is intentional
+        reuse (the same philosophy as Project 23's reuse of Project 10), not an accident. Once binding logic is
+        proven correct, copying it into a new orchestration script is safer than rewriting a similar-but-different
+        version from scratch.</li>
+      </ul>
+
+      <h3>Five independent <code>if (-not (Test-Path ...))</code> blocks in sequence</h3>
+      <ul class="explain-list">
+        <li>Each step's idempotency check is completely self-contained — Step 3 doesn't need to know whether Step 2
+        actually ran a change or found an existing pool, it just needs the pool to exist by the time it runs. This
+        loose coupling between steps means each one can be reasoned about independently, and a script re-run partway
+        through a previous failure will correctly pick up wherever it left off.</li>
+      </ul>
+    </section>
+
+    <section id="architecture">
+      <h2>Architecture &amp; Deployment Flow</h2>
+      <div class="diagram">
+        <div class="flow">
+          <div class="box">site-deployment.psd1</div><div class="arrow">→</div>
+          <div class="box">Import-PowerShellDataFile</div><div class="arrow">→</div>
+          <div class="box">$Config</div>
+        </div>
+        <div class="flow" style="margin-top:12px;">
+          <div class="box">Folder</div><div class="arrow">→</div>
+          <div class="box">App Pool</div><div class="arrow">→</div>
+          <div class="box">Site</div><div class="arrow">→</div>
+          <div class="box">Binding</div><div class="arrow">→</div>
+          <div class="box">Certificate</div>
+        </div>
+      </div>
+      <p>Each arrow in the second row represents both a dependency (you need the thing on the left before the thing
+      on the right makes sense) and an independent idempotency checkpoint. This "ordered chain of independently-safe
+      steps" shape is exactly how real infrastructure-as-code and deployment automation tools are structured under
+      the hood — you're building the same mental model those tools are built on, just with plain PowerShell.</p>
+    </section>
+
+    <section id="incident">
+      <h2>Production Incident Walkthrough</h2>
+      <div class="story">
+        Halfway through deploying the reporting portal on a real server, the script fails at Step 4 due to an
+        unrelated, transient network hiccup reading the certificate store. Because each step independently checks
+        "does this already exist" before acting, simply re-running the exact same script picks up right where it
+        left off — the folder, app pool, and site (already created in Steps 1-3) are correctly detected as already
+        present and skipped, and only the failed binding step actually runs again.
+      </div>
+      <ul class="explain-list">
+        <li><b>Why does idempotency matter even more here than in a single-resource script like Project 21?</b>
+        With five dependent steps, a partial failure is much more likely than with one action — without per-step
+        idempotency, recovering from a partial failure would require manually figuring out exactly which steps
+        already succeeded before re-running, which defeats much of the point of automating the deployment in the
+        first place.</li>
+      </ul>
+    </section>
+
+    <section id="troubleshoot">
+      <h2>Troubleshooting Cheat Sheet</h2>
+      <table>
+        <tr><th>Symptom</th><th>Likely Root Cause</th><th>Fix</th></tr>
+        <tr><td>Script fails at Step 3 (site creation)</td><td>The port is already in use by another site's binding</td><td>Choose a different port in the config, or check existing bindings with Get-WebBinding across all sites</td></tr>
+        <tr><td>Site created but shows a 503 error when browsed</td><td>The app pool exists but isn't started, or the physical folder has no content</td><td>Check app pool state (Project 23's technique) and confirm at least a placeholder index.html exists in the folder</td></tr>
+        <tr><td>Re-running the script still tries to recreate an existing resource</td><td>A Test-Path check is targeting the wrong IIS: path format</td><td>Confirm exact paths with Get-ChildItem "IIS:\Sites" / "IIS:\AppPools" to compare against what the script checks</td></tr>
+        <tr><td>Certificate binding step fails even though Steps 1-3 succeeded</td><td>Wrong thumbprint in the config, or the certificate doesn't exist in LocalMachine\My</td><td>Confirm with Get-ChildItem "Cert:\LocalMachine\My" that the thumbprint in site-deployment.psd1 is exactly correct</td></tr>
+      </table>
+    </section>
+
+    <section id="security">
+      <h2>Security &amp; Best Practices</h2>
+      <div class="callout tip"><span class="lbl">Best practice reinforced here</span>Keeping each step's
+      idempotency check completely self-contained (rather than tracking overall progress in one shared variable)
+      makes the script naturally resumable after a partial failure — a resilience property worth designing in
+      deliberately, not something that happens by accident.</div>
+      <div class="callout security"><span class="lbl">Config still holds no secrets</span>Like Project 9's config
+      files, <code>site-deployment.psd1</code> contains only non-sensitive deployment parameters — no credentials.
+      Real enterprise deployment configs handling secrets would need the SecretManagement approach previewed back in
+      earlier security notes, covered formally in the Advanced stage.</div>
+    </section>
+
+    <section id="recap">
+      <h2>Key Learnings &amp; Recap</h2>
+      <div class="grid2">
+        <div>
+          <h3>Commands/Syntax Learned</h3>
+          <ul class="explain-list">
+            <li><code>New-WebAppPool</code> / <code>New-Website</code></li>
+            <li><code>Test-Path</code> against multiple different <code>IIS:</code> sub-paths</li>
+          </ul>
+        </div>
+        <div>
+          <h3>Concepts Learned</h3>
+          <ul class="explain-list">
+            <li>Ordered, dependent deployment steps, each independently idempotent</li>
+            <li>Composition — combining several already-learned patterns into one larger workflow</li>
+            <li>Why self-contained per-step checks make a multi-step script naturally resumable</li>
+            <li>The conceptual link between this pattern and real infrastructure-as-code tools</li>
+          </ul>
+        </div>
+      </div>
+      <h3>Common Mistakes to Avoid</h3>
+      <ul class="explain-list">
+        <li>Tracking overall deployment progress in one variable instead of checking each resource's existence independently.</li>
+        <li>Not handling the case where a script is re-run after a partial failure.</li>
+        <li>Rewriting binding/certificate logic from scratch instead of reusing Project 22's proven version.</li>
+      </ul>
+    </section>
+
+    <section id="interview">
+      <h2>Interview Preparation</h2>
+      <details><summary>Q1. Why does each of the five deployment steps have its own independent idempotency check, instead of one overall "has this deployment run before" flag?</summary>
+        <p><b>Answer:</b> A single overall flag can't handle partial failures correctly — if the script died after
+        Step 2, an overall flag would either incorrectly skip everything on re-run (if set too early) or incorrectly
+        redo everything including the already-successful steps (if not set until the end). Independent per-step
+        checks mean the script always does exactly the remaining necessary work, regardless of where a previous run
+        stopped.</p>
+        <p><b>Follow-up:</b> "How does this relate to how tools like Terraform or Ansible work?" — Answer: those
+        tools are built around exactly this idea at a much larger scale — they compare desired state against actual
+        state for every resource independently and only change what's different, which is precisely what this
+        project does by hand for five specific IIS resources.</p>
+      </details>
+      <details><summary>Q2. Why is the certificate binding logic copied from Project 22 rather than rewritten for this script?</summary>
+        <p><b>Answer:</b> That logic was already carefully reasoned through — including the specific
+        "clear-then-attach" sequence needed to avoid the silent-failure incident described in Project 22. Reusing it
+        directly avoids reintroducing a bug that's already been solved once.</p>
+        <p><b>Follow-up:</b> "What would you do differently if you were building this for a real production codebase rather than a learning project?"
+        — Answer: extract the shared binding logic into its own reusable function (or eventually a module function,
+        foreshadowing the Module Development stage), called from both Project 22's standalone script and this
+        deployment script, rather than maintaining two separate copies of the same logic.</p>
+      </details>
+      <details><summary>Q3. What real infrastructure risk does this script's ordering (folder → pool → site → binding → certificate) protect against?</summary>
+        <p><b>Answer:</b> Each step depends on the previous one succeeding — creating a site before its app pool
+        exists, for example, either fails outright or silently falls back to a default pool that wasn't intended.
+        Following the true dependency order prevents these kinds of partial, inconsistent deployments.</p>
+        <p><b>Follow-up:</b> "Is there ever a reason to change this order?" — Answer: generally no for this specific
+        set of resources, since the dependencies are fixed by how IIS itself works — but in deployments with more
+        resource types, understanding true dependencies (rather than an arbitrary convenient order) is essential to
+        getting a multi-step deployment right.</p>
+      </details>
+    </section>
+
+    <section id="challenges">
+      <h2>Coding Challenges</h2>
+      <details><summary>Challenge 1: Add a placeholder index.html to the physical folder if it's empty, right after Step 1</summary>
+        <details><summary>Show answer</summary>
+        <pre><code>if ((Get-ChildItem $Config.PhysicalPath -ErrorAction SilentlyContinue).Count -eq 0) {
+    "<html><body><h1>Reporting Portal - Coming Soon</h1></body></html>" | Out-File "$($Config.PhysicalPath)\index.html"
+}</code></pre>
+        </details>
+      </details>
+      <details><summary>Challenge 2: Support deploying MULTIPLE sites by reading an array of site configs instead of just one</summary>
+        <details><summary>Show answer</summary>
+        <pre><code># Change site-deployment.psd1 to hold an array under a Sites key, then:
+$AllConfigs = (Import-PowerShellDataFile ".\config\site-deployment.psd1").Sites
+foreach ($Config in $AllConfigs) {
+    # ...the entire existing 5-step block, now inside this loop...
+}</code></pre>
+        </details>
+      </details>
+      <details><summary>Challenge 3: Add a -TearDown switch that removes everything the script would create, in reverse order</summary>
+        <details><summary>Show answer</summary>
+        <pre><code>if ($TearDown) {
+    if ($PSCmdlet.ShouldProcess($Config.SiteName, "Remove Site")) { Remove-Website -Name $Config.SiteName }
+    if ($PSCmdlet.ShouldProcess($Config.AppPoolName, "Remove App Pool")) { Remove-WebAppPool -Name $Config.AppPoolName }
+    # Folder and certificate intentionally left alone - safer to clean those up manually
+}</code></pre>
+        </details>
+      </details>
+    </section>
+
+    <section id="resume">
+      <h2>Resume Points</h2>
+      <ul class="explain-list">
+        <li>Built an end-to-end, config-driven, idempotent PowerShell IIS site deployment script covering app pool, site, and certificate binding creation.</li>
+        <li>Designed a five-step, independently-resumable deployment sequence resilient to partial failures.</li>
+        <li>Composed previously-built, proven automation logic (Projects 9, 22) into a larger orchestrated workflow rather than duplicating effort.</li>
+      </ul>
+    </section>
+
+    <section id="assignment">
+      <h2>Practice Assignment</h2>
+      <div class="callout note">
+        Change the <code>Port</code> value in <code>site-deployment.psd1</code> to a new number and re-run the
+        script. Confirm it correctly creates a brand-new binding on the new port (Steps 4-5) while Steps 1-3 report
+        the folder, pool, and site as already existing — showing the script correctly distinguishes "the site
+        exists" from "this specific binding exists."
+      </div>
+    </section>
+
+    <section id="next">
+      <h2>Next Project Prerequisites</h2>
+      <p>Project 25 (IIS Configuration Backup and Restore) closes out this mini-track by protecting everything
+      we've built — backing up IIS configuration before changes, and restoring it if something goes wrong. When
+      ready, say <b>"Next Project."</b></p>
+    </section>
+
+    <footer>
+      PowerShell Masterclass — ABC Bank Automation Track · Project 24 of 40 · Generated for offline, self-contained use.
+    </footer>
+  </main>
+</div>
+
+<script>
+function copyCode(btn){
+  const code = btn.parentElement.querySelector('pre').innerText;
+  navigator.clipboard.writeText(code).then(()=>{
+    const old = btn.innerText; btn.innerText = "Copied!";
+    setTimeout(()=>btn.innerText = old, 1200);
+  });
+}
+window.addEventListener('scroll', ()=>{
+  const h = document.documentElement;
+  const pct = (h.scrollTop) / (h.scrollHeight - h.clientHeight) * 100;
+  document.getElementById('progressFill').style.width = pct + '%';
+  document.getElementById('progressLabel').innerText = 'Reading progress: ' + Math.round(pct) + '%';
+});
+</script>
+</body>
+</html>

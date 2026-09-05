@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Project 20 — OpenShift Security Context Constraints (SCC) Deep Dive</title>
+<style>
+:root{
+  --blue:#5b9dff; --blue-bg:#132038;
+  --purple:#b58aff; --purple-bg:#221a3a;
+  --green:#3ed67f; --green-bg:#11301f;
+  --orange:#ffb15c; --orange-bg:#3a2712;
+  --red:#ff6b6b; --red-bg:#3a1616;
+  --teal:#4fd8e0; --teal-bg:#0f2f31;
+  --ink:#e7ecf5; --sub:#9aa7bd; --line:#2a3345; --bg:#0d1117; --card:#141b26;
+  --code-bg:#0a0e14; --code-ink:#dfe7f5;
+}
+*{box-sizing:border-box;}
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--ink);line-height:1.65;}
+a{color:var(--blue);}
+.progress{position:fixed;top:0;left:0;height:4px;background:linear-gradient(90deg,var(--blue),var(--teal));z-index:999;width:0%;transition:width .1s;}
+header.cover{background:linear-gradient(135deg,#101a30 0%,#241a3d 100%);color:#fff;padding:56px 24px 40px;text-align:center;border-bottom:1px solid var(--line);}
+header.cover .badge{display:inline-block;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);padding:6px 14px;border-radius:20px;font-size:13px;letter-spacing:.5px;margin-bottom:14px;}
+header.cover h1{margin:8px auto;max-width:900px;font-size:32px;}
+header.cover p.sub{max-width:750px;margin:10px auto 0;opacity:.85;font-size:16px;}
+.meta-grid{display:flex;flex-wrap:wrap;gap:12px;justify-content:center;margin-top:26px;}
+.meta-chip{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.18);padding:8px 16px;border-radius:8px;font-size:13px;}
+nav.toc{position:sticky;top:0;background:#0f151f;border-bottom:1px solid var(--line);z-index:100;padding:10px 16px;overflow-x:auto;white-space:nowrap;}
+nav.toc a{color:var(--sub);text-decoration:none;font-size:13px;margin-right:18px;padding:6px 10px;border-radius:6px;}
+nav.toc a:hover{background:var(--blue-bg);color:var(--blue);}
+main{max-width:980px;margin:0 auto;padding:30px 20px 80px;}
+section{margin-bottom:46px;}
+h2{font-size:24px;border-left:5px solid var(--blue);padding-left:12px;margin-top:10px;color:#fff;}
+h3{font-size:19px;color:var(--purple);margin-top:28px;}
+h4{font-size:16px;color:#fff;margin-top:20px;}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:20px 22px;margin:16px 0;}
+.box{border-radius:10px;padding:16px 18px;margin:14px 0;border-left:5px solid;}
+.box.concept{background:var(--blue-bg);border-color:var(--blue);}
+.box.arch{background:var(--purple-bg);border-color:var(--purple);}
+.box.success{background:var(--green-bg);border-color:var(--green);}
+.box.warning{background:var(--orange-bg);border-color:var(--orange);}
+.box.fail{background:var(--red-bg);border-color:var(--red);}
+.box.best{background:var(--teal-bg);border-color:var(--teal);}
+.box strong.tag{display:block;font-size:12px;text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px;opacity:.85;}
+details{background:var(--card);border:1px solid var(--line);border-radius:10px;margin:12px 0;padding:4px 16px;}
+details summary{cursor:pointer;font-weight:600;padding:12px 0;color:var(--blue);}
+table{width:100%;border-collapse:collapse;margin:14px 0;font-size:14px;}
+th,td{border:1px solid var(--line);padding:9px 12px;text-align:left;vertical-align:top;}
+th{background:var(--blue-bg);color:var(--blue);}
+tr:nth-child(even){background:#101623;}
+.codewrap{position:relative;margin:14px 0;}
+pre{background:var(--code-bg);color:var(--code-ink);padding:18px;border-radius:10px;overflow-x:auto;font-size:13px;line-height:1.6;font-family:"SF Mono",Menlo,Consolas,monospace;border:1px solid var(--line);}
+pre .c{color:#6fd18a;}
+.copy-btn{position:absolute;top:10px;right:10px;background:#22304a;color:#fff;border:1px solid var(--line);padding:6px 12px;border-radius:6px;font-size:12px;cursor:pointer;}
+.copy-btn:hover{background:#2c3d5e;}
+.cmd-label{font-size:12px;color:var(--sub);text-transform:uppercase;letter-spacing:.5px;margin:14px 0 4px;}
+.flow{background:var(--purple-bg);border:1px dashed var(--purple);border-radius:10px;padding:16px;font-family:monospace;white-space:pre;font-size:13px;overflow-x:auto;color:var(--ink);}
+.qa{margin:14px 0;padding:14px 16px;background:var(--card);border:1px solid var(--line);border-radius:8px;}
+.qa .q{font-weight:600;color:var(--purple);}
+.badge-diff{display:inline-block;padding:3px 10px;border-radius:12px;font-size:12px;font-weight:600;}
+.badge-diff.mid{background:var(--orange-bg);color:var(--orange);}
+.steps{counter-reset:step;}
+.step{position:relative;padding:14px 16px 14px 52px;margin:10px 0;background:var(--card);border:1px solid var(--line);border-radius:10px;}
+.step::before{counter-increment:step;content:counter(step);position:absolute;left:14px;top:14px;width:26px;height:26px;background:var(--blue);color:#0d1117;font-weight:700;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;}
+footer{text-align:center;padding:30px;color:var(--sub);font-size:13px;}
+</style>
+</head>
+<body>
+<div class="progress" id="progressBar"></div>
+
+<header class="cover">
+  <div class="badge">OPENSHIFT + ANSIBLE MASTERCLASS · PROJECT 20 OF ~28</div>
+  <h1>OpenShift Security Context Constraints (SCC) Deep Dive</h1>
+  <p class="sub">Understanding how SCCs actually gate Pod admission, automating a correctly-scoped custom SCC for a legacy image that needs a fixed UID, and resolving a "container needs to run as root" incident the right way.</p>
+  <div class="meta-grid">
+    <div class="meta-chip">Difficulty: <span class="badge-diff mid">Advanced</span></div>
+    <div class="meta-chip">Domain: Telecom / Platform Engineering / Security</div>
+    <div class="meta-chip">OpenShift: 4.14+</div>
+    <div class="meta-chip">Ansible Core: 2.16 · kubernetes.core 3.x</div>
+    <div class="meta-chip">Lab Time: ~3 hrs</div>
+    <div class="meta-chip">Infra Cost: $0 (CRC / existing cluster)</div>
+  </div>
+</header>
+
+<nav class="toc">
+  <a href="#story">Story</a>
+  <a href="#device">Run On Your Device</a>
+  <a href="#architecture">Architecture</a>
+  <a href="#playbooks">Playbooks</a>
+  <a href="#run">Execution</a>
+  <a href="#incident">Incident</a>
+  <a href="#breakfix">Break-Fix</a>
+  <a href="#security">Security</a>
+  <a href="#interview">Interview</a>
+  <a href="#resume">Resume</a>
+  <a href="#cheatsheet">Cheat Sheet</a>
+  <a href="#summary">Key Learnings</a>
+</nav>
+
+<main>
+
+<section id="story">
+<h2>1. The Production Story</h2>
+<div class="box concept">
+<strong class="tag">Scenario</strong>
+An internal reporting team wants to deploy a legacy vendor image onto payment-api's namespace to generate compliance reports from the database. The image's Dockerfile hardcodes <code>USER root</code> and expects to run as UID 0. Their pod immediately fails to start.
+</div>
+<div class="box warning">
+<strong class="tag">Business Problem</strong>
+The fastest "fix" — granting the <code>anyuid</code> or worse, <code>privileged</code>, SCC to the namespace's default ServiceAccount — would undo every least-privilege control built since Project 1 and 2, cluster-wide within that namespace, for every pod, not just this one image.
+</div>
+<div class="box best">
+<strong class="tag">Our Mandate</strong>
+Understand SCC admission well enough to grant the legacy image exactly what it needs — nothing more — scoped to only its own ServiceAccount, and automate that scoping correctly with Ansible.
+</div>
+</section>
+
+<section id="device">
+<h2>2. Run This On Your Device</h2>
+<div class="steps">
+<div class="step"><strong>List the default SCCs and their relative permissiveness.</strong>
+<div class="codewrap"><pre>oc get scc
+oc describe scc restricted-v2   <span class="c"># the default, most-used SCC on modern OpenShift</span></pre></div>
+</div>
+<div class="step"><strong>Try deploying a root-requiring image and observe the failure.</strong>
+<div class="codewrap"><pre>oc run legacy-report --image=quay.io/example/legacy-report:1.0 -n payment-api-dev</pre></div>
+</div>
+<div class="step"><strong>Add the SCC role files from Section 4 to your repo.</strong>
+<div class="codewrap"><pre>mkdir -p payment-stack/roles/legacy_workload_scc/tasks</pre></div>
+</div>
+<div class="step"><strong>Apply the scoped SCC + dedicated ServiceAccount.</strong>
+<div class="codewrap"><pre>ansible-playbook playbooks/legacy_scc.yml -e app_name=payment-api -e environment=dev</pre></div>
+</div>
+<div class="step"><strong>Re-deploy the workload using the new ServiceAccount and confirm it starts.</strong>
+<div class="codewrap"><pre>oc get pod legacy-report -n payment-api-dev</pre></div>
+</div>
+</div>
+</section>
+
+<section id="architecture">
+<h2>3. Architecture</h2>
+<div class="box arch"><strong class="tag">Concept</strong>SCCs don't attach to Pods directly — they're evaluated at admission time against the identity (ServiceAccount) creating the Pod. The API server tries every SCC the caller's ServiceAccount has access to, in priority order, and admits the Pod using the first SCC whose constraints the Pod spec satisfies. This is why "the pod is failing because of SCC" almost always traces back to WHICH ServiceAccount it's using, not a property of the image itself.</div>
+<div class="flow">Pod creation request (as ServiceAccount X)
+   │
+   ▼
+API server collects all SCCs ServiceAccount X can use
+   (via RBAC: 'use' verb on the SCC resource)
+   │
+   ▼
+Sorted by priority (custom SCCs can out-rank defaults)
+   │
+   ▼
+First SCC whose constraints the Pod spec satisfies → Pod ADMITTED
+   using that SCC's UID range / capabilities / volume types
+   │
+   ▼
+If NO SCC in the list satisfies the Pod spec → Pod REJECTED
+   ("unable to validate against any security context constraint")</div>
+<table>
+<tr><th>SCC (built-in)</th><th>Key constraint</th></tr>
+<tr><td>restricted-v2</td><td>Default for most workloads; random UID from namespace range, no privilege escalation, drops ALL capabilities</td></tr>
+<tr><td>nonroot-v2</td><td>Any non-zero UID the container specifies, but not root</td></tr>
+<tr><td>anyuid</td><td>Allows the container to run as ANY UID including root — broad, avoid unless truly required</td></tr>
+<tr><td>privileged</td><td>Essentially unrestricted — host access, all capabilities — reserved for infrastructure components only</td></tr>
+</table>
+</section>
+
+<section id="playbooks">
+<h2>4. The Playbooks — Fully Commented</h2>
+
+<h3>4.1 roles/legacy_workload_scc/tasks/main.yml</h3>
+<div class="cmd-label">roles/legacy_workload_scc/tasks/main.yml</div>
+<div class="codewrap"><pre><span class="c">---
+# Grants root-equivalent UID access ONLY to a dedicated
+# ServiceAccount for this one legacy workload -- never to the
+# namespace's default ServiceAccount, and never anyuid/privileged
+# cluster-wide.</span>
+
+- name: Create a DEDICATED ServiceAccount for the legacy workload             <span class="c"># isolation is the whole point -- never reuse the default SA</span>
+  kubernetes.core.k8s:
+    state: present                                                             <span class="c"># idempotent create-or-update</span>
+    definition:
+      apiVersion: v1
+      kind: ServiceAccount
+      metadata:
+        name: "{{ app_name }}-legacy-report-sa"                                 <span class="c"># purpose-specific name, not generic</span>
+        namespace: "{{ app_name }}-{{ environment }}"
+  register: sa_result                                                            <span class="c"># capture for assert</span>
+
+- name: Assert ServiceAccount creation succeeded
+  ansible.builtin.assert:
+    that: [sa_result is succeeded]
+    fail_msg: "Failed to create legacy-report ServiceAccount"
+
+- name: Create a MINIMAL custom SCC allowing only what this image needs         <span class="c"># narrower than anyuid -- pinned to the EXACT UID the image needs, not any UID</span>
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: security.openshift.io/v1                                       <span class="c"># SCC's own API group</span>
+      kind: SecurityContextConstraints
+      metadata:
+        name: "{{ app_name }}-legacy-report-scc"                                   <span class="c"># descriptive, purpose-specific name</span>
+      allowPrivilegedContainer: false                                               <span class="c"># explicitly NOT privileged -- this is the critical difference from the tempting shortcut</span>
+      allowPrivilegeEscalation: false                                               <span class="c"># blocks setuid-style escalation even within the container</span>
+      runAsUser:
+        type: MustRunAs                                                              <span class="c"># pins to an EXACT uid, not MustRunAsRange (any) or RunAsAny (unrestricted)</span>
+        uid: 0                                                                        <span class="c"># the specific UID this legacy image requires -- root, but ONLY this exact identity, not a free-for-all</span>
+      seLinuxContext:
+        type: MustRunAs                                                               <span class="c"># still enforce SELinux confinement -- narrowing UID doesn't mean abandoning other controls</span>
+      fsGroup:
+        type: MustRunAs                                                                <span class="c"># still constrain filesystem group ownership</span>
+      supplementalGroups:
+        type: MustRunAs
+      volumes: ["configMap", "secret", "emptyDir", "persistentVolumeClaim"]              <span class="c"># explicit allow-list -- no hostPath, no other risky volume types</span>
+      users: []                                                                          <span class="c"># users field left empty -- access is granted via RBAC 'use' verb below, not listed here directly</span>
+  register: scc_result
+
+- name: Assert custom SCC creation succeeded
+  ansible.builtin.assert:
+    that: [scc_result is succeeded]
+    fail_msg: "Failed to create legacy-report SCC"
+
+- name: Grant ONLY the dedicated ServiceAccount permission to 'use' this SCC        <span class="c"># the actual narrow grant -- this is what limits blast radius</span>
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: rbac.authorization.k8s.io/v1                                        <span class="c"># standard RBAC API, same pattern as Project 2</span>
+      kind: RoleBinding                                                                <span class="c"># namespace-scoped, not ClusterRoleBinding</span>
+      metadata:
+        name: "{{ app_name }}-legacy-report-scc-binding"
+        namespace: "{{ app_name }}-{{ environment }}"
+      subjects:
+        - kind: ServiceAccount                                                          <span class="c"># subject is the SPECIFIC ServiceAccount, not a human group</span>
+          name: "{{ app_name }}-legacy-report-sa"                                         <span class="c"># must match the SA created above exactly</span>
+          namespace: "{{ app_name }}-{{ environment }}"
+      roleRef:
+        kind: ClusterRole                                                                 <span class="c"># SCC 'use' access is granted via a ClusterRole that wraps the SCC resource</span>
+        name: "system:openshift:scc:{{ app_name }}-legacy-report-scc"                       <span class="c"># OpenShift auto-generates this ClusterRole name per SCC</span>
+        apiGroup: rbac.authorization.k8s.io
+  register: binding_result
+
+- name: Assert SCC RoleBinding succeeded                                                    <span class="c"># fail loudly rather than leaving the SA unable to use its own SCC</span>
+  ansible.builtin.assert:
+    that: [binding_result is succeeded]
+    fail_msg: "Failed to bind {{ app_name }}-legacy-report-sa to its SCC"</pre></div>
+</section>
+
+<section id="run">
+<h2>5. Execution &amp; Idempotency</h2>
+<div class="codewrap"><pre>ansible-playbook playbooks/legacy_scc.yml -e app_name=payment-api -e environment=dev</pre></div>
+<div class="box success"><strong class="tag">First run</strong><pre style="background:#0f2b1c;border-color:#1a4a2c;">PLAY RECAP *** ok=4 changed=3 failed=0</pre></div>
+<div class="box success"><strong class="tag">Second run</strong><pre style="background:#0f2b1c;border-color:#1a4a2c;">PLAY RECAP *** ok=4 changed=0 failed=0</pre></div>
+</section>
+
+<section id="incident">
+<h2>6. Live Incident — "Pod Failing Because It Expects to Run as Root"</h2>
+<div class="box fail"><strong class="tag">Report</strong>The reporting team's pod is stuck in <code>CreateContainerConfigError</code>.</div>
+
+<div class="cmd-label">Step 1 — check the actual admission error</div>
+<div class="codewrap"><pre>oc describe pod legacy-report -n payment-api-dev
+Events:
+  Warning  FailedCreate  unable to validate against any security context
+    constraint: [provider "restricted-v2": .spec.securityContext.runAsUser:
+    Invalid value: 0: must be in the ranges: [1000660000, 1000669999]]</pre></div>
+<div class="box fail"><strong class="tag">Root cause</strong>The pod is running under the namespace's DEFAULT ServiceAccount, which only has access to <code>restricted-v2</code> — and that SCC enforces a random non-root UID range. This confirms it's an SCC/identity problem, not an image problem per se.</div>
+
+<div class="cmd-label">Step 2 — the tempting-but-wrong fix (shown for contrast, NOT what we do)</div>
+<div class="box warning"><strong class="tag">Anti-pattern</strong><code>oc adm policy add-scc-to-user anyuid -z default -n payment-api-dev</code> would "fix" this instantly — and also silently grant every OTHER pod using the default ServiceAccount in this namespace the ability to run as root, undoing Project 1's baseline for the entire namespace, not just this one workload.</div>
+
+<div class="cmd-label">Step 3 — the correct fix: apply this project's scoped role, then redeploy using the dedicated SA</div>
+<div class="codewrap"><pre>ansible-playbook playbooks/legacy_scc.yml -e app_name=payment-api -e environment=dev
+
+oc delete pod legacy-report -n payment-api-dev
+oc run legacy-report --image=quay.io/example/legacy-report:1.0 -n payment-api-dev \
+  --overrides='{"spec":{"serviceAccountName":"payment-api-legacy-report-sa"}}'   <span class="c"># explicitly uses the scoped SA, not default</span></pre></div>
+
+<div class="cmd-label">Step 4 — validate</div>
+<div class="codewrap"><pre>oc get pod legacy-report -n payment-api-dev
+NAME            READY   STATUS    RESTARTS
+legacy-report   1/1     Running   0
+
+oc get pod legacy-report -n payment-api-dev -o jsonpath='{.spec.securityContext.runAsUser}'
+0   <span class="c"># running as root, but ONLY this pod, ONLY via its own dedicated SA and SCC</span></pre></div>
+
+<div class="cmd-label">Step 5 — confirm the blast radius is actually contained</div>
+<div class="codewrap"><pre>oc auth can-i use scc/payment-api-legacy-report-scc --as=system:serviceaccount:payment-api-dev:default
+no   <span class="c"># confirmed -- the default ServiceAccount still cannot use this SCC</span></pre></div>
+<div class="box success"><strong class="tag">Resolved</strong>The legacy workload runs as required, and every other pod in the namespace remains under <code>restricted-v2</code> exactly as Project 1 intended.</div>
+
+<h3>RCA Summary</h3>
+<table>
+<tr><th>Field</th><th>Detail</th></tr>
+<tr><td>Impact</td><td>One workload blocked from starting; no security impact avoided by NOT taking the shortcut</td></tr>
+<tr><td>Root cause</td><td>Legacy image requires root UID, default SCC (<code>restricted-v2</code>) forbids it for the ServiceAccount in use</td></tr>
+<tr><td>Fix</td><td>Dedicated ServiceAccount + minimally-scoped custom SCC + narrow RoleBinding, applied only to that one identity</td></tr>
+<tr><td>Preventive action</td><td>Document this pattern as the standard response to "needs root" requests, replacing the anyuid/privileged shortcut in team runbooks</td></tr>
+</table>
+</section>
+
+<section id="breakfix">
+<h2>7. Additional Break-Fix Labs</h2>
+<details><summary>Break-Fix — custom SCC created but pod still rejected</summary>
+<div class="codewrap"><pre>Events: unable to validate against any security context constraint</pre></div>
+<p><strong>Root cause:</strong> the RoleBinding referenced the wrong auto-generated ClusterRole name (a typo in <code>system:openshift:scc:&lt;name&gt;</code>). <strong>Fix:</strong> confirm the exact SCC name matches character-for-character between the SCC object and the RoleBinding's <code>roleRef.name</code> — this naming convention is exact and case-sensitive.</p>
+</details>
+<details><summary>Break-Fix — SCC works in DEV but fails in PROD</summary>
+<p><strong>Symptom:</strong> the same playbook run against PROD still fails admission.</p>
+<p><strong>Root cause:</strong> PROD's namespace UID range (set at namespace creation) differs from DEV's, and the custom SCC's <code>uid: 0</code> pin doesn't depend on that — but double check the Pod spec explicitly sets <code>securityContext.runAsUser: 0</code> too; SCC permits it, but the Pod spec must still request it explicitly in some OpenShift versions.</p>
+</details>
+</section>
+
+<section id="security">
+<h2>8. Security Review</h2>
+<table>
+<tr><th>Control</th><th>Detail</th></tr>
+<tr><td>Dedicated ServiceAccount</td><td>Blast radius limited to exactly one workload, never the namespace default</td></tr>
+<tr><td>Exact UID pin, not anyuid</td><td><code>MustRunAs: uid 0</code> is still narrower than <code>RunAsAny</code> — permits only the specific identity needed</td></tr>
+<tr><td>No privilege escalation</td><td><code>allowPrivilegeEscalation: false</code> even while permitting root UID</td></tr>
+<tr><td>Explicit volume allow-list</td><td>No <code>hostPath</code> or other high-risk volume types permitted</td></tr>
+<tr><td>Verified narrow grant</td><td><code>oc auth can-i use scc/...</code> confirms no other identity gained access</td></tr>
+</table>
+</section>
+
+<section id="interview">
+<h2>9. Interview Preparation</h2>
+<div class="qa"><div class="q">Interviewer: "A pod needs to run as root — how do you handle that in OpenShift?"</div>
+<p><strong>Answer:</strong> I never grant <code>anyuid</code> or <code>privileged</code> broadly to solve a single workload's requirement — that affects every pod under whatever ServiceAccount receives it. Instead I create a dedicated ServiceAccount just for that workload, a custom SCC pinned to the exact UID it needs with every other constraint left as restrictive as possible, and a RoleBinding granting 'use' access to only that ServiceAccount. The blast radius stays limited to exactly the one workload that actually needs the exception.</p></div>
+<div class="qa"><div class="q">Interviewer: "How does OpenShift decide which SCC a pod actually gets?"</div>
+<p><strong>Answer:</strong> It's evaluated per the ServiceAccount creating the pod, not the pod spec alone — the API server collects every SCC that ServiceAccount has 'use' access to via RBAC, sorts them by priority, and admits using the first one whose constraints the pod spec satisfies. That's why the same pod spec can succeed or fail purely based on which ServiceAccount it's submitted under — which is also why troubleshooting SCC issues starts with identifying the ServiceAccount, not the image.</p></div>
+</section>
+
+<section id="resume">
+<h2>10. Resume Points</h2>
+<div class="box best"><ul>
+<li>Designed and automated a minimally-scoped custom SecurityContextConstraints pattern for legacy root-requiring workloads, limiting elevated access to a single dedicated ServiceAccount instead of broad anyuid/privileged grants.</li>
+<li>Resolved a "container needs root" incident while preserving least-privilege posture for every other workload in the namespace, replacing an anti-pattern shortcut with a documented, reusable approach.</li>
+</ul></div>
+</section>
+
+<section id="cheatsheet">
+<h2>11. Troubleshooting Cheat Sheet</h2>
+<table>
+<tr><th>Symptom</th><th>Check</th></tr>
+<tr><td>"unable to validate against any SCC"</td><td>Which ServiceAccount is the pod using, and which SCCs can it 'use'?</td></tr>
+<tr><td>Custom SCC exists but pod still rejected</td><td>RoleBinding's <code>roleRef.name</code> matches the exact auto-generated <code>system:openshift:scc:&lt;name&gt;</code> string</td></tr>
+<tr><td>Works in DEV, fails in PROD</td><td>Confirm pod spec explicitly requests the UID, don't assume SCC alone is sufficient</td></tr>
+<tr><td>Tempted to grant anyuid</td><td>Stop — scope a dedicated SA + custom SCC instead (Section 4)</td></tr>
+</table>
+</section>
+
+<section id="summary">
+<h2>12. Key Learnings</h2>
+<div class="card">
+<h4>OpenShift concepts</h4><p>SCC admission is ServiceAccount-driven, not pod-spec-driven in isolation; SCC priority/ordering; the difference between <code>MustRunAs</code>, <code>MustRunAsRange</code>, and <code>RunAsAny</code>; why anyuid/privileged are namespace/cluster-wide risks, not single-pod fixes.</p>
+<h4>Ansible concepts</h4><p>Modeling a three-object security pattern (ServiceAccount + SCC + RoleBinding) as one cohesive, idempotent role; verifying a security grant's actual scope with a follow-up <code>can-i</code>-style check rather than assuming the RBAC was correct.</p>
+<h4>Commands learned</h4><p><code>oc get scc</code>, <code>oc describe scc</code>, <code>oc auth can-i use scc/...</code>, reading SCC-related Pod admission failure events.</p>
+<h4>Common mistakes</h4><p>Granting <code>anyuid</code>/<code>privileged</code> to a shared ServiceAccount instead of scoping a dedicated one; typos in the auto-generated SCC ClusterRole name; forgetting to also constrain volumes/capabilities while relaxing the UID requirement.</p>
+<h4>Next project prerequisites</h4><p>Keep this repo — Project 21 covers OpenShift networking deep-dive: OVN-Kubernetes internals, egress control, and multi-tenant NetworkPolicy design beyond the default-deny baseline from Project 1.</p>
+</div>
+</section>
+
+</main>
+<footer>OpenShift + Ansible Masterclass — Project 20 of ~28.</footer>
+<script>
+window.addEventListener('scroll', function(){
+  var h = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+  var p = h ? (window.scrollY / h) * 100 : 0;
+  document.getElementById('progressBar').style.width = p + '%';
+});
+document.querySelectorAll('pre').forEach(function(pre){
+  if(pre.parentElement.classList.contains('codewrap')){
+    var btn = document.createElement('button');
+    btn.className = 'copy-btn'; btn.textContent = 'Copy';
+    btn.onclick = function(){
+      navigator.clipboard.writeText(pre.innerText);
+      btn.textContent = 'Copied!';
+      setTimeout(function(){ btn.textContent = 'Copy'; }, 1500);
+    };
+    pre.parentElement.appendChild(btn);
+  }
+});
+</script>
+</body>
+</html>

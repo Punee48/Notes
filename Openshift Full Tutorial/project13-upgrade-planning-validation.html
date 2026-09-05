@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Project 13 — OpenShift Upgrade Planning &amp; Pre/Post-Upgrade Validation Automation</title>
+<style>
+:root{
+  --blue:#5b9dff; --blue-bg:#132038;
+  --purple:#b58aff; --purple-bg:#221a3a;
+  --green:#3ed67f; --green-bg:#11301f;
+  --orange:#ffb15c; --orange-bg:#3a2712;
+  --red:#ff6b6b; --red-bg:#3a1616;
+  --teal:#4fd8e0; --teal-bg:#0f2f31;
+  --ink:#e7ecf5; --sub:#9aa7bd; --line:#2a3345; --bg:#0d1117; --card:#141b26;
+  --code-bg:#0a0e14; --code-ink:#dfe7f5;
+}
+*{box-sizing:border-box;}
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--ink);line-height:1.65;}
+a{color:var(--blue);}
+.progress{position:fixed;top:0;left:0;height:4px;background:linear-gradient(90deg,var(--blue),var(--teal));z-index:999;width:0%;transition:width .1s;}
+header.cover{background:linear-gradient(135deg,#101a30 0%,#241a3d 100%);color:#fff;padding:56px 24px 40px;text-align:center;border-bottom:1px solid var(--line);}
+header.cover .badge{display:inline-block;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);padding:6px 14px;border-radius:20px;font-size:13px;letter-spacing:.5px;margin-bottom:14px;}
+header.cover h1{margin:8px auto;max-width:900px;font-size:32px;}
+header.cover p.sub{max-width:750px;margin:10px auto 0;opacity:.85;font-size:16px;}
+.meta-grid{display:flex;flex-wrap:wrap;gap:12px;justify-content:center;margin-top:26px;}
+.meta-chip{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.18);padding:8px 16px;border-radius:8px;font-size:13px;}
+nav.toc{position:sticky;top:0;background:#0f151f;border-bottom:1px solid var(--line);z-index:100;padding:10px 16px;overflow-x:auto;white-space:nowrap;}
+nav.toc a{color:var(--sub);text-decoration:none;font-size:13px;margin-right:18px;padding:6px 10px;border-radius:6px;}
+nav.toc a:hover{background:var(--blue-bg);color:var(--blue);}
+main{max-width:980px;margin:0 auto;padding:30px 20px 80px;}
+section{margin-bottom:46px;}
+h2{font-size:24px;border-left:5px solid var(--blue);padding-left:12px;margin-top:10px;color:#fff;}
+h3{font-size:19px;color:var(--purple);margin-top:28px;}
+h4{font-size:16px;color:#fff;margin-top:20px;}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:20px 22px;margin:16px 0;}
+.box{border-radius:10px;padding:16px 18px;margin:14px 0;border-left:5px solid;}
+.box.concept{background:var(--blue-bg);border-color:var(--blue);}
+.box.arch{background:var(--purple-bg);border-color:var(--purple);}
+.box.success{background:var(--green-bg);border-color:var(--green);}
+.box.warning{background:var(--orange-bg);border-color:var(--orange);}
+.box.fail{background:var(--red-bg);border-color:var(--red);}
+.box.best{background:var(--teal-bg);border-color:var(--teal);}
+.box strong.tag{display:block;font-size:12px;text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px;opacity:.85;}
+details{background:var(--card);border:1px solid var(--line);border-radius:10px;margin:12px 0;padding:4px 16px;}
+details summary{cursor:pointer;font-weight:600;padding:12px 0;color:var(--blue);}
+table{width:100%;border-collapse:collapse;margin:14px 0;font-size:14px;}
+th,td{border:1px solid var(--line);padding:9px 12px;text-align:left;vertical-align:top;}
+th{background:var(--blue-bg);color:var(--blue);}
+tr:nth-child(even){background:#101623;}
+.codewrap{position:relative;margin:14px 0;}
+pre{background:var(--code-bg);color:var(--code-ink);padding:18px;border-radius:10px;overflow-x:auto;font-size:13px;line-height:1.6;font-family:"SF Mono",Menlo,Consolas,monospace;border:1px solid var(--line);}
+pre .c{color:#6fd18a;}
+.copy-btn{position:absolute;top:10px;right:10px;background:#22304a;color:#fff;border:1px solid var(--line);padding:6px 12px;border-radius:6px;font-size:12px;cursor:pointer;}
+.copy-btn:hover{background:#2c3d5e;}
+.cmd-label{font-size:12px;color:var(--sub);text-transform:uppercase;letter-spacing:.5px;margin:14px 0 4px;}
+.flow{background:var(--purple-bg);border:1px dashed var(--purple);border-radius:10px;padding:16px;font-family:monospace;white-space:pre;font-size:13px;overflow-x:auto;color:var(--ink);}
+.qa{margin:14px 0;padding:14px 16px;background:var(--card);border:1px solid var(--line);border-radius:8px;}
+.qa .q{font-weight:600;color:var(--purple);}
+.badge-diff{display:inline-block;padding:3px 10px;border-radius:12px;font-size:12px;font-weight:600;}
+.badge-diff.mid{background:var(--orange-bg);color:var(--orange);}
+.steps{counter-reset:step;}
+.step{position:relative;padding:14px 16px 14px 52px;margin:10px 0;background:var(--card);border:1px solid var(--line);border-radius:10px;}
+.step::before{counter-increment:step;content:counter(step);position:absolute;left:14px;top:14px;width:26px;height:26px;background:var(--blue);color:#0d1117;font-weight:700;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;}
+footer{text-align:center;padding:30px;color:var(--sub);font-size:13px;}
+</style>
+</head>
+<body>
+<div class="progress" id="progressBar"></div>
+
+<header class="cover">
+  <div class="badge">OPENSHIFT + ANSIBLE MASTERCLASS · PROJECT 13 OF ~28</div>
+  <h1>OpenShift Upgrade Planning &amp; Pre/Post-Upgrade Validation Automation</h1>
+  <p class="sub">Building Ansible-driven pre-upgrade gating and post-upgrade validation around a minor-version OpenShift upgrade, and resolving a live "upgrade stuck at 80%" incident using everything built in Projects 11-12.</p>
+  <div class="meta-grid">
+    <div class="meta-chip">Difficulty: <span class="badge-diff mid">Advanced</span></div>
+    <div class="meta-chip">Domain: Telecom / Platform Engineering</div>
+    <div class="meta-chip">OpenShift: 4.14 → 4.15</div>
+    <div class="meta-chip">Ansible Core: 2.16 · kubernetes.core 3.x</div>
+    <div class="meta-chip">Lab Time: ~3.5 hrs</div>
+    <div class="meta-chip">Infra Cost: $0 (validation playbooks are read-only; the actual upgrade itself should not be tested casually on shared clusters)</div>
+  </div>
+</header>
+
+<nav class="toc">
+  <a href="#story">Story</a>
+  <a href="#device">Run On Your Device</a>
+  <a href="#architecture">Architecture</a>
+  <a href="#playbooks">Playbooks</a>
+  <a href="#run">Execution</a>
+  <a href="#incident">Incident</a>
+  <a href="#breakfix">Break-Fix</a>
+  <a href="#security">Security</a>
+  <a href="#interview">Interview</a>
+  <a href="#resume">Resume</a>
+  <a href="#cheatsheet">Cheat Sheet</a>
+  <a href="#summary">Key Learnings</a>
+</nav>
+
+<main>
+
+<section id="story">
+<h2>1. The Production Story</h2>
+<div class="box concept">
+<strong class="tag">Scenario</strong>
+It's time for the quarterly OpenShift minor version upgrade (4.14 → 4.15). Last quarter's upgrade caused a two-hour outage because nobody checked that a ClusterOperator was already Degraded before starting, and nobody validated the payment-api stack afterward — an app-level regression went unnoticed for a day.
+</div>
+<div class="box warning">
+<strong class="tag">Business Problem</strong>
+Upgrades have been "point-and-click in the console and hope," with no consistent pre-flight check and no consistent post-upgrade validation of application health.
+</div>
+<div class="box best">
+<strong class="tag">Our Mandate</strong>
+Build an Ansible pre-upgrade gate (reusing Project 11's health triage) that blocks the upgrade from being greenlit if the cluster isn't already healthy, and a post-upgrade validation playbook that confirms both the platform and payment-api are fully healthy before declaring success.
+</div>
+</section>
+
+<section id="device">
+<h2>2. Run This On Your Device</h2>
+<div class="box warning"><strong class="tag">Important</strong>Do not practice a real cluster upgrade on a shared/production cluster casually. On CRC you can review the workflow and pre/post-checks safely; the actual <code>oc adm upgrade</code> trigger is shown for completeness but should only be run against a cluster you're authorized to upgrade.</div>
+<div class="steps">
+<div class="step"><strong>Reuse the cluster health playbook from Project 11.</strong>
+<div class="codewrap"><pre>ls payment-stack/playbooks/cluster_health.yml</pre></div>
+</div>
+<div class="step"><strong>Add the upgrade playbooks from Section 4 to your repo.</strong>
+<div class="codewrap"><pre>mkdir -p payment-stack/playbooks</pre></div>
+</div>
+<div class="step"><strong>Run the pre-upgrade gate.</strong>
+<div class="codewrap"><pre>ansible-playbook playbooks/pre_upgrade_check.yml</pre></div>
+</div>
+<div class="step"><strong>Check available update channels/versions.</strong>
+<div class="codewrap"><pre>oc adm upgrade</pre></div>
+</div>
+<div class="step"><strong>(Only on an authorized cluster) Trigger the upgrade.</strong>
+<div class="codewrap"><pre>oc adm upgrade --to=4.15.9</pre></div>
+</div>
+<div class="step"><strong>After the upgrade completes, run post-upgrade validation.</strong>
+<div class="codewrap"><pre>ansible-playbook playbooks/post_upgrade_validate.yml -e app_name=payment-api -e environment=prod</pre></div>
+</div>
+</div>
+</section>
+
+<section id="architecture">
+<h2>3. Architecture</h2>
+<div class="flow">Pre-Upgrade Gate (Ansible, reuses Project 11's checks)
+   │  fails the play if cluster isn't already healthy
+   ▼
+Maintenance Window Communicated
+   │
+   ▼
+oc adm upgrade --to=X.Y.Z          (OpenShift-native trigger --
+                                     NOT reimplemented in Ansible)
+   │
+   ▼
+Cluster Version Operator drives the upgrade:
+   MachineConfigPools roll node-by-node (Project 12's mechanism)
+   ClusterOperators update one at a time
+   │
+   ▼
+Post-Upgrade Validation (Ansible):
+   1. ClusterVersion reports desired version reached
+   2. All ClusterOperators Available, not Degraded
+   3. payment-api pods healthy, Route reachable, HPA has metrics</div>
+<div class="box arch"><strong class="tag">Why the upgrade trigger itself isn't in Ansible</strong>This masterclass has consistently used <code>kubernetes.core.k8s</code> for declarative object management, but triggering an upgrade is a one-time imperative action best driven through OpenShift's own tooling (<code>oc adm upgrade</code> or the console) — Ansible's value here is in the surrounding pre-flight and validation discipline, not reimplementing the upgrade orchestration itself.</div>
+</section>
+
+<section id="playbooks">
+<h2>4. The Playbooks — Fully Commented</h2>
+
+<h3>4.1 playbooks/pre_upgrade_check.yml</h3>
+<div class="cmd-label">playbooks/pre_upgrade_check.yml</div>
+<div class="codewrap"><pre><span class="c">---
+# Pre-upgrade GATE -- fails loudly if the cluster is not already
+# fully healthy. An upgrade should never be started on top of an
+# existing, unresolved problem.</span>
+- name: Pre-upgrade health gate
+  hosts: localhost
+  connection: local
+  gather_facts: true
+
+  tasks:
+    - name: Reuse Project 11's cluster health checks                       <span class="c"># avoids duplicating the Node/ClusterOperator/ClusterVersion logic</span>
+      ansible.builtin.import_tasks: cluster_health_checks.yml                <span class="c"># extracted shared tasks file, see note below</span>
+      <span class="c"># NOTE: refactor Project 11's inline tasks into
+      # playbooks/cluster_health_checks.yml (same content, just
+      # extracted) so both playbooks import the same source of truth.</span>
+
+    - name: Check for any in-progress MachineConfigPool rollout             <span class="c"># starting an upgrade mid-rollout compounds risk</span>
+      kubernetes.core.k8s_info:
+        kind: MachineConfigPool                                              <span class="c"># tracks node config rollout state</span>
+        api_version: machineconfiguration.openshift.io/v1
+      register: mcps                                                          <span class="c"># holds all pools (worker, master, custom)</span>
+
+    - name: Assert no MachineConfigPool is mid-update                         <span class="c"># hard stop if true</span>
+      ansible.builtin.assert:
+        that:
+          - item.status.conditions | selectattr('type','equalto','Updating')
+              | map(attribute='status') | first == "False"                    <span class="c"># Updating condition must be False on every pool</span>
+        fail_msg: "MachineConfigPool {{ item.metadata.name }} is mid-rollout -- wait before upgrading"
+      loop: "{{ mcps.resources }}"                                             <span class="c"># check every pool, not just 'worker'</span>
+      loop_control: {label: "{{ item.metadata.name }}"}                        <span class="c"># cleaner loop output -- just the pool name</span>
+
+    - name: Assert no NotReady nodes and no Degraded operators                 <span class="c"># the actual gate condition, using facts from the imported tasks</span>
+      ansible.builtin.assert:
+        that:
+          - not_ready_nodes | length == 0
+          - degraded_operators | length == 0
+        fail_msg: "Cluster is NOT healthy -- resolve issues before starting the upgrade (see cluster-health-report.txt)"
+
+    - name: Gate passed                                                        <span class="c"># clear positive confirmation, not just absence of failure</span>
+      ansible.builtin.debug:
+        msg: "Pre-upgrade gate PASSED -- cluster is healthy and stable, safe to proceed"</pre></div>
+
+<h3>4.2 playbooks/post_upgrade_validate.yml</h3>
+<div class="cmd-label">playbooks/post_upgrade_validate.yml</div>
+<div class="codewrap"><pre><span class="c">---
+# Post-upgrade validation -- confirms BOTH platform health AND
+# application health before the upgrade is declared successful.</span>
+- name: Post-upgrade validation
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  tasks:
+    - name: Confirm ClusterVersion reached the desired version                 <span class="c"># platform-level confirmation</span>
+      kubernetes.core.k8s_info:
+        kind: ClusterVersion
+        api_version: config.openshift.io/v1
+        name: version
+      register: cv                                                              <span class="c"># holds .status.history and .status.desired</span>
+
+    - name: Assert the latest history entry is Completed                        <span class="c"># not just 'desired matches' -- confirms it finished cleanly</span>
+      ansible.builtin.assert:
+        that:
+          - cv.resources[0].status.history[0].state == "Completed"               <span class="c"># most recent entry, index 0, must show Completed</span>
+        fail_msg: "ClusterVersion history shows the upgrade did not complete cleanly"
+
+    - name: Re-run the platform health checks (same as pre-upgrade)              <span class="c"># confirms nothing broke DURING the upgrade</span>
+      ansible.builtin.import_tasks: cluster_health_checks.yml                     <span class="c"># same shared tasks file as the pre-upgrade gate</span>
+
+    - name: Assert platform is still fully healthy post-upgrade                   <span class="c"># same bar as the pre-upgrade gate, now checked again</span>
+      ansible.builtin.assert:
+        that:
+          - not_ready_nodes | length == 0
+          - degraded_operators | length == 0
+        fail_msg: "Platform health regressed after upgrade -- see cluster-health-report.txt"
+
+    - name: Confirm payment-api backend pods are Running and Ready               <span class="c"># application-level confirmation, not just platform</span>
+      kubernetes.core.k8s_info:
+        kind: Pod
+        namespace: "{{ app_name }}-{{ environment }}"
+        label_selectors: ["app={{ app_name }}-backend"]                            <span class="c"># same label convention used since Project 1</span>
+      register: app_pods                                                            <span class="c"># holds live pod list post-upgrade</span>
+
+    - name: Assert every backend pod is Ready                                        <span class="c"># catches the "app-level regression" gap from last quarter's incident</span>
+      ansible.builtin.assert:
+        that:
+          - item.status.containerStatuses[0].ready == true                           <span class="c"># each pod's container must report ready</span>
+        fail_msg: "Pod {{ item.metadata.name }} is not Ready after upgrade"
+      loop: "{{ app_pods.resources }}"
+      loop_control: {label: "{{ item.metadata.name }}"}
+
+    - name: Confirm the frontend Route responds successfully                          <span class="c"># end-to-end check, closest to what a real user experiences</span>
+      ansible.builtin.uri:                                                             <span class="c"># makes an actual HTTP request</span>
+        url: "https://{{ route_host }}/health-check-payment"                             <span class="c"># the app's own health endpoint, reached externally</span>
+        status_code: 200                                                                <span class="c"># must return OK</span
+        >
+        validate_certs: true                                                            <span class="c"># confirms TLS is also still valid post-upgrade</span>
+      register: route_check
+      retries: 5                                                                        <span class="c"># brief retry -- allow a few seconds for post-upgrade router reload</span>
+      delay: 10
+
+    - name: Validation passed                                                            <span class="c"># clear success confirmation</span>
+      ansible.builtin.debug:
+        msg: "Post-upgrade validation PASSED -- platform and payment-api both healthy"</pre></div>
+</section>
+
+<section id="run">
+<h2>5. Execution</h2>
+<div class="codewrap"><pre>ansible-playbook playbooks/pre_upgrade_check.yml</pre></div>
+<div class="box success"><strong class="tag">Gate passed</strong><pre style="background:#0f2b1c;border-color:#1a4a2c;">PLAY RECAP *** ok=6 changed=0 failed=0</pre></div>
+<div class="box fail"><strong class="tag">Gate blocked (example)</strong><pre style="background:#3a1616;border-color:#5a2020;">TASK [Assert no NotReady nodes...] ***
+fatal: [localhost]: FAILED! =&gt; {"msg": "Cluster is NOT healthy -- resolve issues before starting the upgrade"}</pre></div>
+<p>After the platform-triggered upgrade completes:</p>
+<div class="codewrap"><pre>ansible-playbook playbooks/post_upgrade_validate.yml -e app_name=payment-api -e environment=prod \
+  -e route_host=payment-api-prod.apps.cluster.example.com</pre></div>
+<div class="box success"><strong class="tag">Validation passed</strong><pre style="background:#0f2b1c;border-color:#1a4a2c;">PLAY RECAP *** ok=8 changed=0 failed=0</pre></div>
+</section>
+
+<section id="incident">
+<h2>6. Live Incident — Upgrade Stuck at 80%</h2>
+<div class="box fail"><strong class="tag">Report</strong>Two hours into the upgrade window, <code>oc adm upgrade</code> still shows progress stalled around 80%, past the expected completion time.</div>
+
+<div class="cmd-label">Step 1 — check ClusterVersion for the specific blocker</div>
+<div class="codewrap"><pre>oc get clusterversion
+NAME      VERSION   AVAILABLE   PROGRESSING
+version   4.14.18   True        True
+
+oc describe clusterversion
+Message: Unable to apply 4.15.9: wait has exceeded 40 minutes for these
+  operators: monitoring</pre></div>
+
+<div class="cmd-label">Step 2 — check the specific blocking operator (reusing Project 11's method)</div>
+<div class="codewrap"><pre>oc describe clusteroperator monitoring
+Message: Degraded: reconciling Prometheus StatefulSet: 0/2 replicas ready --
+  PersistentVolumeClaim prometheus-k8s-db-prometheus-k8s-1 pending</pre></div>
+
+<div class="cmd-label">Step 3 — check the actual PVC</div>
+<div class="codewrap"><pre>oc describe pvc prometheus-k8s-db-prometheus-k8s-1 -n openshift-monitoring
+Events: waiting for first consumer to be created before binding
+<span class="c"># WaitForFirstConsumer mode PVC combined with a zone the new node's
+# CSI driver can't currently reach -- a transient capacity issue in
+# one specific availability zone during the mid-upgrade node churn</span></pre></div>
+<div class="box fail"><strong class="tag">Root cause</strong>A monitoring-stack PVC couldn't bind because of transient zone capacity during the upgrade's node churn, blocking one Prometheus replica, which blocked the <code>monitoring</code> ClusterOperator, which blocked the whole upgrade from progressing past it — using exactly the layered troubleshooting approach from Project 11 (Node → ClusterOperator → underlying resource).</div>
+
+<div class="cmd-label">Step 4 — mitigate: this resolves once zone capacity frees up; confirm and wait rather than force anything</div>
+<div class="codewrap"><pre>oc get pvc prometheus-k8s-db-prometheus-k8s-1 -n openshift-monitoring -w
+<span class="c"># eventually transitions to Bound as capacity becomes available</span></pre></div>
+
+<div class="cmd-label">Step 5 — once resolved, confirm the upgrade resumes and completes</div>
+<div class="codewrap"><pre>oc get clusterversion
+NAME      VERSION   AVAILABLE   PROGRESSING
+version   4.15.9    True        False</pre></div>
+
+<div class="cmd-label">Step 6 — run post-upgrade validation as normal</div>
+<div class="codewrap"><pre>ansible-playbook playbooks/post_upgrade_validate.yml -e app_name=payment-api -e environment=prod</pre></div>
+<div class="box success"><strong class="tag">Resolved</strong>Upgrade completed to 4.15.9; both platform and payment-api validated healthy.</div>
+
+<h3>RCA Summary</h3>
+<table>
+<tr><th>Field</th><th>Detail</th></tr>
+<tr><td>Impact</td><td>Upgrade window extended ~90 minutes beyond plan; no customer-facing impact (payment-api itself stayed healthy throughout)</td></tr>
+<tr><td>Root cause</td><td>Transient zone capacity issue blocked a monitoring PVC, cascading into a Degraded ClusterOperator that gated the ClusterVersion Operator's progression</td></tr>
+<tr><td>Fix</td><td>Waited for zone capacity to recover; no forced intervention needed once root cause was understood</td></tr>
+<tr><td>Preventive action</td><td>Add a pre-upgrade check for available zone capacity headroom alongside the existing health gate</td></tr>
+</table>
+</section>
+
+<section id="breakfix">
+<h2>7. Additional Break-Fix Labs</h2>
+<details><summary>Break-Fix — pre-upgrade gate blocks on a stale MCP rollout</summary>
+<div class="codewrap"><pre>TASK [Assert no MachineConfigPool is mid-update] ***
+fatal: [localhost]: FAILED! =&gt; {"msg": "MachineConfigPool worker is mid-rollout -- wait before upgrading"}</pre></div>
+<p><strong>Root cause:</strong> Project 12's MachineConfig change was still rolling out from earlier that day. <strong>Fix:</strong> this is the gate working correctly — wait for <code>oc get mcp</code> to show <code>UPDATED=True</code> before proceeding, exactly as designed.</p>
+</details>
+<details><summary>Break-Fix — post-upgrade Route check fails, everything else passes</summary>
+<div class="codewrap"><pre>TASK [Confirm the frontend Route responds successfully] ***
+fatal: [localhost]: FAILED! =&gt; {"msg": "Status code was 503"}</pre></div>
+<p><strong>Root cause:</strong> platform and pods are healthy, but this maps straight back to Project 4's troubleshooting method — check Route admission, then Service endpoints, then pod readiness specifically, since a new OpenShift router version occasionally needs a Route re-admission after upgrade.</p>
+</details>
+</section>
+
+<section id="security">
+<h2>8. Security Review</h2>
+<table>
+<tr><th>Control</th><th>Detail</th></tr>
+<tr><td>Fail-closed gating</td><td>Pre-upgrade gate refuses to green-light on any unresolved cluster issue</td></tr>
+<tr><td>End-to-end validation</td><td>Post-upgrade check verifies real user-facing behavior (HTTPS Route + health endpoint), not just object status</td></tr>
+<tr><td>No imperative reinvention</td><td>Ansible doesn't attempt to drive the upgrade itself — reduces risk of fighting the Cluster Version Operator's own safety logic</td></tr>
+</table>
+</section>
+
+<section id="interview">
+<h2>9. Interview Preparation</h2>
+<div class="qa"><div class="q">Interviewer: "How do you approach planning an OpenShift cluster upgrade?"</div>
+<p><strong>Answer:</strong> I never start an upgrade on top of an unhealthy cluster — a pre-upgrade gate checks for NotReady nodes, Degraded ClusterOperators, and any in-progress MachineConfigPool rollout, and refuses to proceed if anything's outstanding. The actual upgrade trigger I leave to OpenShift's own tooling — <code>oc adm upgrade</code> — since the Cluster Version Operator already has sophisticated sequencing logic I don't want to fight. After it completes, I validate both platform health and application health, including an actual HTTP check against the app's real endpoint, not just checking that pods say Ready.</p></div>
+<div class="qa"><div class="q">Interviewer: "An upgrade is stuck partway through — how do you debug it?"</div>
+<p><strong>Answer:</strong> <code>oc describe clusterversion</code> almost always names the specific blocking operator. From there it's the same layered approach as any ClusterOperator investigation — <code>oc describe clusteroperator &lt;name&gt;</code>, then follow its Message field down to the actual underlying resource, which in one case was a PVC blocked by transient zone capacity.</p></div>
+</section>
+
+<section id="resume">
+<h2>10. Resume Points</h2>
+<div class="box best"><ul>
+<li>Built Ansible pre-upgrade and post-upgrade validation gates for OpenShift cluster upgrades, covering platform health, MachineConfigPool state, and application-level end-to-end checks.</li>
+<li>Diagnosed a stalled upgrade by tracing ClusterVersion → ClusterOperator → PVC, confirming a transient capacity issue rather than a configuration fault.</li>
+</ul></div>
+</section>
+
+<section id="cheatsheet">
+<h2>11. Troubleshooting Cheat Sheet</h2>
+<table>
+<tr><th>Symptom</th><th>Check</th></tr>
+<tr><td>Upgrade stalled</td><td><code>oc describe clusterversion</code> — names the blocking operator</td></tr>
+<tr><td>Operator blocking upgrade</td><td><code>oc describe clusteroperator &lt;name&gt;</code> — trace to the underlying resource</td></tr>
+<tr><td>Pre-upgrade gate fails</td><td>Resolve the specific NotReady node / Degraded operator / mid-rollout MCP first — don't bypass it</td></tr>
+<tr><td>App Route fails post-upgrade</td><td>Reapply Project 4's Route troubleshooting method</td></tr>
+</table>
+</section>
+
+<section id="summary">
+<h2>12. Key Learnings</h2>
+<div class="card">
+<h4>OpenShift concepts</h4><p>ClusterVersion upgrade history/state, upgrade gating by ClusterOperator health, why upgrades pause rather than force through a Degraded operator.</p>
+<h4>Ansible concepts</h4><p><code>import_tasks</code> to share logic between playbooks (pre/post checks reusing the same source of truth), combining object-status assertions with a real <code>uri</code> HTTP check for true end-to-end validation.</p>
+<h4>Commands learned</h4><p><code>oc adm upgrade</code>, <code>oc describe clusterversion</code>, reading upgrade history entries.</p>
+<h4>Next project prerequisites</h4><p>Keep this repo — Project 14 covers backup and disaster recovery: etcd backup concepts, application data backup, and a full restore-testing runbook.</p>
+</div>
+</section>
+
+</main>
+<footer>OpenShift + Ansible Masterclass — Project 13 of ~28.</footer>
+<script>
+window.addEventListener('scroll', function(){
+  var h = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+  var p = h ? (window.scrollY / h) * 100 : 0;
+  document.getElementById('progressBar').style.width = p + '%';
+});
+document.querySelectorAll('pre').forEach(function(pre){
+  if(pre.parentElement.classList.contains('codewrap')){
+    var btn = document.createElement('button');
+    btn.className = 'copy-btn'; btn.textContent = 'Copy';
+    btn.onclick = function(){
+      navigator.clipboard.writeText(pre.innerText);
+      btn.textContent = 'Copied!';
+      setTimeout(function(){ btn.textContent = 'Copy'; }, 1500);
+    };
+    pre.parentElement.appendChild(btn);
+  }
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Project 2 — Enterprise OpenShift RBAC Automation &amp; Access-Denied Incident Troubleshooting</title>
+<style>
+:root{
+  --blue:#5b9dff; --blue-bg:#132038;
+  --purple:#b58aff; --purple-bg:#221a3a;
+  --green:#3ed67f; --green-bg:#11301f;
+  --orange:#ffb15c; --orange-bg:#3a2712;
+  --red:#ff6b6b; --red-bg:#3a1616;
+  --teal:#4fd8e0; --teal-bg:#0f2f31;
+  --ink:#e7ecf5; --sub:#9aa7bd; --line:#2a3345; --bg:#0d1117; --card:#141b26;
+  --code-bg:#0a0e14; --code-ink:#dfe7f5; --code-accent:#7fb0ff;
+}
+*{box-sizing:border-box;}
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--ink);line-height:1.65;}
+a{color:var(--blue);}
+.progress{position:fixed;top:0;left:0;height:4px;background:linear-gradient(90deg,var(--blue),var(--teal));z-index:999;width:0%;transition:width .1s;}
+header.cover{background:linear-gradient(135deg,#101a30 0%,#241a3d 100%);color:#fff;padding:56px 24px 40px;text-align:center;border-bottom:1px solid var(--line);}
+header.cover .badge{display:inline-block;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);padding:6px 14px;border-radius:20px;font-size:13px;letter-spacing:.5px;margin-bottom:14px;}
+header.cover h1{margin:8px auto;max-width:900px;font-size:32px;}
+header.cover p.sub{max-width:750px;margin:10px auto 0;opacity:.85;font-size:16px;}
+.meta-grid{display:flex;flex-wrap:wrap;gap:12px;justify-content:center;margin-top:26px;}
+.meta-chip{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.18);padding:8px 16px;border-radius:8px;font-size:13px;}
+nav.toc{position:sticky;top:0;background:#0f151f;border-bottom:1px solid var(--line);z-index:100;padding:10px 16px;overflow-x:auto;white-space:nowrap;}
+nav.toc a{color:var(--sub);text-decoration:none;font-size:13px;margin-right:18px;padding:6px 10px;border-radius:6px;}
+nav.toc a:hover{background:var(--blue-bg);color:var(--blue);}
+main{max-width:980px;margin:0 auto;padding:30px 20px 80px;}
+section{margin-bottom:46px;}
+h2{font-size:24px;border-left:5px solid var(--blue);padding-left:12px;margin-top:10px;color:#fff;}
+h3{font-size:19px;color:var(--purple);margin-top:28px;}
+h4{font-size:16px;color:#fff;margin-top:20px;}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:20px 22px;margin:16px 0;}
+.box{border-radius:10px;padding:16px 18px;margin:14px 0;border-left:5px solid;}
+.box.concept{background:var(--blue-bg);border-color:var(--blue);}
+.box.arch{background:var(--purple-bg);border-color:var(--purple);}
+.box.success{background:var(--green-bg);border-color:var(--green);}
+.box.warning{background:var(--orange-bg);border-color:var(--orange);}
+.box.fail{background:var(--red-bg);border-color:var(--red);}
+.box.best{background:var(--teal-bg);border-color:var(--teal);}
+.box strong.tag{display:block;font-size:12px;text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px;opacity:.85;}
+details{background:var(--card);border:1px solid var(--line);border-radius:10px;margin:12px 0;padding:4px 16px;}
+details summary{cursor:pointer;font-weight:600;padding:12px 0;color:var(--blue);}
+table{width:100%;border-collapse:collapse;margin:14px 0;font-size:14px;}
+th,td{border:1px solid var(--line);padding:9px 12px;text-align:left;vertical-align:top;}
+th{background:var(--blue-bg);color:var(--blue);}
+tr:nth-child(even){background:#101623;}
+.codewrap{position:relative;margin:14px 0;}
+pre{background:var(--code-bg);color:var(--code-ink);padding:18px;border-radius:10px;overflow-x:auto;font-size:13px;line-height:1.6;font-family:"SF Mono",Menlo,Consolas,monospace;border:1px solid var(--line);}
+pre .c{color:#6fd18a;}
+.copy-btn{position:absolute;top:10px;right:10px;background:#22304a;color:#fff;border:1px solid var(--line);padding:6px 12px;border-radius:6px;font-size:12px;cursor:pointer;}
+.copy-btn:hover{background:#2c3d5e;}
+.cmd-label{font-size:12px;color:var(--sub);text-transform:uppercase;letter-spacing:.5px;margin:14px 0 4px;}
+.flow{background:var(--purple-bg);border:1px dashed var(--purple);border-radius:10px;padding:16px;font-family:monospace;white-space:pre;font-size:13px;overflow-x:auto;color:var(--ink);}
+.qa{margin:14px 0;padding:14px 16px;background:var(--card);border:1px solid var(--line);border-radius:8px;}
+.qa .q{font-weight:600;color:var(--purple);}
+.badge-diff{display:inline-block;padding:3px 10px;border-radius:12px;font-size:12px;font-weight:600;}
+.badge-diff.mid{background:var(--orange-bg);color:var(--orange);}
+.steps{counter-reset:step;}
+.step{position:relative;padding:14px 16px 14px 52px;margin:10px 0;background:var(--card);border:1px solid var(--line);border-radius:10px;}
+.step::before{counter-increment:step;content:counter(step);position:absolute;left:14px;top:14px;width:26px;height:26px;background:var(--blue);color:#0d1117;font-weight:700;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;}
+footer{text-align:center;padding:30px;color:var(--sub);font-size:13px;}
+.svgbox{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px;}
+</style>
+</head>
+<body>
+<div class="progress" id="progressBar"></div>
+
+<header class="cover">
+  <div class="badge">OPENSHIFT + ANSIBLE MASTERCLASS · PROJECT 2 OF ~28</div>
+  <h1>Enterprise OpenShift RBAC Automation &amp; Access-Denied Incident Troubleshooting</h1>
+  <p class="sub">Platform Engineering · Telecom Enterprise · Automating Users, Groups, Roles, and RoleBindings with Ansible, and resolving a real "developer can't deploy" production incident end-to-end.</p>
+  <div class="meta-grid">
+    <div class="meta-chip">Difficulty: <span class="badge-diff mid">Intermediate</span></div>
+    <div class="meta-chip">Domain: Telecom / Platform Engineering</div>
+    <div class="meta-chip">OpenShift: 4.14+</div>
+    <div class="meta-chip">Ansible Core: 2.16 · kubernetes.core 3.x</div>
+    <div class="meta-chip">Lab Time: ~3 hrs</div>
+    <div class="meta-chip">Infra Cost: $0 (CRC / existing cluster)</div>
+  </div>
+</header>
+
+<nav class="toc">
+  <a href="#story">Story</a>
+  <a href="#device">Run On Your Device</a>
+  <a href="#architecture">Architecture</a>
+  <a href="#repo">Repo</a>
+  <a href="#playbooks">Playbooks</a>
+  <a href="#run">Execution</a>
+  <a href="#incident">Incident</a>
+  <a href="#breakfix">Break-Fix</a>
+  <a href="#security">Security</a>
+  <a href="#interview">Interview</a>
+  <a href="#resume">Resume</a>
+  <a href="#cheatsheet">Cheat Sheet</a>
+  <a href="#summary">Key Learnings</a>
+</nav>
+
+<main>
+
+<section id="story">
+<h2>1. The Production Story</h2>
+<div class="box concept">
+<strong class="tag">Scenario</strong>
+We're still on the Platform Engineering team, building on the namespace baseline from Project 1. Now the security team has flagged that RBAC across the cluster is inconsistent: some namespaces bind the wrong ClusterRole, some Groups don't match the identity provider's actual group names, and nobody can quickly answer "who can deploy to payments-prod?" We're asked to formalize RBAC as versioned, automated, auditable code — and be ready to troubleshoot access incidents fast when they happen.
+</div>
+<div class="box warning">
+<strong class="tag">Business Problem</strong>
+This morning, a developer, Priya, reports she can no longer deploy the <code>payment-api</code> application into the <code>payment-api-prod</code> namespace. Deploys are blocked. This is now a live incident, not just a cleanup task.
+</div>
+<div class="box best">
+<strong class="tag">Our Mandate</strong>
+Build reusable Ansible roles that manage Users, Groups, Roles, and RoleBindings declaratively — then use that same mental model to diagnose and fix Priya's incident live.
+</div>
+</section>
+
+<section id="device">
+<h2>2. Run This On Your Device — Step by Step</h2>
+<div class="box concept"><strong class="tag">What you need</strong>An OpenShift cluster to point at. If you don't have access to a company cluster, use a free local one-node cluster (CRC) — every command below works the same against a real cluster, just change the login target.</div>
+
+<h3>2.1 Prerequisites</h3>
+<table>
+<tr><th>Tool</th><th>Why</th><th>Check installed</th></tr>
+<tr><td>Python 3.10+</td><td>Ansible runs on Python</td><td><code>python3 --version</code></td></tr>
+<tr><td>Ansible Core 2.16+</td><td>Runs the playbooks</td><td><code>ansible --version</code></td></tr>
+<tr><td>oc CLI</td><td>Direct OpenShift login/verification</td><td><code>oc version</code></td></tr>
+<tr><td>kubernetes.core collection</td><td>Provides the <code>k8s</code> Ansible module</td><td><code>ansible-galaxy collection list</code></td></tr>
+<tr><td>Access to an OpenShift cluster</td><td>Something for Ansible to actually configure</td><td><code>oc whoami</code></td></tr>
+</table>
+
+<h3>2.2 Installation Steps</h3>
+<div class="steps">
+<div class="step"><strong>Install Python and pip</strong> (skip if already present).
+<div class="codewrap"><pre><span class="c"># macOS</span>
+brew install python3
+<span class="c"># Ubuntu/RHEL-based Linux</span>
+sudo dnf install -y python3 python3-pip   <span class="c"># or apt install on Ubuntu</span></pre></div>
+</div>
+
+<div class="step"><strong>Install Ansible and the OpenShift/Kubernetes collection.</strong>
+<div class="codewrap"><pre>python3 -m pip install --user ansible
+ansible-galaxy collection install kubernetes.core
+python3 -m pip install --user kubernetes openshift   <span class="c"># Python libs the k8s module needs</span></pre></div>
+</div>
+
+<div class="step"><strong>Install the <code>oc</code> CLI.</strong>
+<div class="codewrap"><pre><span class="c"># macOS</span>
+brew install openshift-cli
+<span class="c"># Linux — download from your cluster's console (Help &gt; Command Line Tools)
+# or from mirror.openshift.com, then:</span>
+tar xvf openshift-client-linux.tar.gz
+sudo mv oc kubectl /usr/local/bin/</pre></div>
+</div>
+
+<div class="step"><strong>(Optional) Spin up a free local cluster with CRC if you don't have one.</strong>
+<div class="codewrap"><pre><span class="c"># Download CodeReady Containers from developers.redhat.com (free Red Hat account)</span>
+crc setup
+crc start   <span class="c"># first run takes 15-20 min, needs ~9GB RAM free</span>
+crc console --credentials   <span class="c"># prints kubeadmin password</span></pre></div>
+</div>
+
+<div class="step"><strong>Log in to your cluster.</strong>
+<div class="codewrap"><pre>oc login --server=https://api.crc.testing:6443 -u kubeadmin -p &lt;password&gt;
+<span class="c"># or, for a real company cluster:</span>
+oc login --server=https://api.&lt;your-cluster-domain&gt;:6443 --token=&lt;your-token&gt;
+
+oc whoami        <span class="c"># confirms who Ansible will act as</span></pre></div>
+</div>
+
+<div class="step"><strong>Clone/create the project folder and add the files from Section 4/5 below.</strong>
+<div class="codewrap"><pre>mkdir -p openshift-rbac/{roles/openshift_rbac/tasks,playbooks,group_vars}
+cd openshift-rbac
+<span class="c"># paste each file from this page into the matching path</span></pre></div>
+</div>
+
+<div class="step"><strong>Run it.</strong>
+<div class="codewrap"><pre>ansible-playbook playbooks/site.yml \
+  -e app_name=payment-api -e environment=prod \
+  -e team=payments -e owner=platform-team</pre></div>
+</div>
+
+<div class="step"><strong>Verify against the real cluster.</strong>
+<div class="codewrap"><pre>oc get rolebinding -n payment-api-prod
+oc auth can-i create deployments -n payment-api-prod --as=priya@company.com</pre></div>
+</div>
+</div>
+<div class="box warning"><strong class="tag">Note</strong>Ansible needs a user/token with permission to manage RBAC (typically <code>cluster-admin</code> or a scoped admin role) in whatever namespaces you target — a plain developer token will get "Forbidden" errors from the <code>k8s</code> module itself.</div>
+</section>
+
+<section id="architecture">
+<h2>3. Architecture</h2>
+<h3>3.1 RBAC Object Model</h3>
+<div class="box arch">
+<strong class="tag">Concept</strong>
+OpenShift RBAC is a chain: a human User belongs to a Group (usually synced from your SSO/IdP). A RoleBinding (or ClusterRoleBinding) connects that Group to a Role or ClusterRole. The Role/ClusterRole defines the actual verbs (get, list, create, update, delete) on resource types. Access is only granted if every link in that chain is correct.
+</div>
+<div class="flow">User (priya@company.com)
+   │  is member of
+   ▼
+Group (payments-developers)
+   │  referenced as 'subject' in
+   ▼
+RoleBinding (payments-edit-binding, namespace-scoped)
+   │  references
+   ▼
+ClusterRole (edit)
+   │  defines
+   ▼
+Allowed verbs on resources (create/update/delete Deployments, Pods, etc.)</div>
+
+<h3>3.2 Troubleshooting Decision Tree</h3>
+<div class="svgbox">
+<svg viewBox="0 0 780 260" xmlns="http://www.w3.org/2000/svg" width="100%">
+<style>.b{font:12px sans-serif;fill:#e7ecf5;} .box{fill:#132038;stroke:#5b9dff;stroke-width:1.4;} .fbox{fill:#3a1616;stroke:#ff6b6b;stroke-width:1.4;} .arr{stroke:#9aa7bd;stroke-width:1.4;marker-end:url(#a2);}</style>
+<defs><marker id="a2" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="#9aa7bd"/></marker></defs>
+<rect class="box" x="300" y="0" width="180" height="34" rx="6"/><text class="b" x="315" y="21">oc auth can-i ... --as=user</text>
+<line class="arr" x1="390" y1="34" x2="390" y2="60"/>
+<rect class="fbox" x="300" y="60" width="180" height="34" rx="6"/><text class="b" x="345" y="81">"no"</text>
+<line class="arr" x1="390" y1="94" x2="390" y2="120"/>
+<rect class="box" x="290" y="120" width="200" height="34" rx="6"/><text class="b" x="300" y="141">Check group membership</text>
+<line class="arr" x1="390" y1="154" x2="390" y2="180"/>
+<rect class="box" x="270" y="180" width="240" height="34" rx="6"/><text class="b" x="285" y="201">Check RoleBinding subject/roleRef</text>
+<line class="arr" x1="390" y1="214" x2="390" y2="240"/>
+<rect class="box" x="270" y="226" width="240" height="30" rx="6"/><text class="b" x="290" y="245">Check ClusterRole verbs</text>
+</svg>
+</div>
+</section>
+
+<section id="repo">
+<h2>4. Repository Structure</h2>
+<div class="codewrap"><pre>openshift-rbac/
+├── group_vars/
+│   └── all.yml                    <span class="c"># team -&gt; IdP group name mapping</span>
+├── roles/
+│   └── openshift_rbac/
+│       └── tasks/main.yml
+├── playbooks/
+│   ├── site.yml
+│   └── audit_rbac.yml             <span class="c"># read-only drift report</span>
+└── ansible.cfg</pre></div>
+</section>
+
+<section id="playbooks">
+<h2>5. The Playbooks — Fully Commented</h2>
+<div class="box concept"><strong class="tag">Comment policy for this project</strong>Every non-trivial line below has its own inline <code>#</code> comment explaining what it does — not just the task as a whole.</div>
+
+<h3>5.1 group_vars/all.yml</h3>
+<div class="cmd-label">group_vars/all.yml</div>
+<div class="codewrap"><pre><span class="c"># ---------------------------------------------------------------
+# Central mapping: OpenShift/IdP group name for each team.
+# Keeping this in ONE place prevents the typo bug we hit in the
+# incident below (team var vs actual synced group name mismatch).
+# ---------------------------------------------------------------</span>
+team_group_map:                     <span class="c"># dictionary: team key -&gt; real IdP group name</span>
+  payments: payments-developers     <span class="c"># must exactly match the group synced from SSO/LDAP</span>
+  billing: billing-developers       <span class="c"># same pattern for the billing team</span>
+  platform: platform-admins         <span class="c"># platform team gets a separate, higher-trust group</span>
+
+rbac_role_for_teams: edit           <span class="c"># ClusterRole app teams get -- NEVER 'admin' or 'cluster-admin'</span>
+rbac_role_for_platform: admin       <span class="c"># platform team gets 'admin' (still namespace-scoped, not cluster-admin)</span></pre></div>
+
+<h3>5.2 roles/openshift_rbac/tasks/main.yml</h3>
+<div class="cmd-label">roles/openshift_rbac/tasks/main.yml</div>
+<div class="codewrap"><pre><span class="c">---
+# =================================================================
+# Role: openshift_rbac
+# Purpose: create the ServiceAccount for the app's pods, and bind
+#          the correct human Group to the correct ClusterRole,
+#          scoped to exactly one namespace.
+# =================================================================</span>
+
+- name: Look up the real IdP group name for this team          <span class="c"># human-readable task name shown in play output</span>
+  ansible.builtin.set_fact:                                     <span class="c"># set_fact creates a variable usable by later tasks</span>
+    resolved_group: "{{ team_group_map[team] }}"                 <span class="c"># dictionary lookup: team='payments' -&gt; 'payments-developers'</span>
+  <span class="c"># If 'team' isn't a valid key in team_group_map, this task fails</span>
+  <span class="c"># immediately with a clear KeyError instead of silently binding</span>
+  <span class="c"># a wrong/empty group -- this is what prevents typo incidents.</span>
+
+- name: Create application ServiceAccount                        <span class="c"># identity that PODS (not humans) run as</span>
+  kubernetes.core.k8s:                                            <span class="c"># module that talks to the OpenShift/K8s API</span>
+    state: present                                                <span class="c"># declarative: create if missing, leave alone if it matches</span>
+    definition:                                                   <span class="c"># the actual object manifest, inline</span>
+      apiVersion: v1                                              <span class="c"># core K8s API group for ServiceAccount</span>
+      kind: ServiceAccount                                        <span class="c"># object type</span>
+      metadata:
+        name: "{{ app_name }}-sa"                                  <span class="c"># e.g. payment-api-sa</span>
+        namespace: "{{ app_name }}-{{ environment }}"               <span class="c"># scoped to this app's namespace only</span
+        >
+  register: sa_result                                             <span class="c"># capture result so we can assert on it below</span>
+
+- name: Assert ServiceAccount creation succeeded                  <span class="c"># fail fast, don't continue with a broken identity</span>
+  ansible.builtin.assert:                                         <span class="c"># built-in assertion module</span>
+    that:
+      - sa_result is succeeded                                    <span class="c"># true only if the API call didn't error</span>
+    fail_msg: "Failed to create ServiceAccount for {{ app_name }}"  <span class="c"># shown to the engineer on failure</span>
+
+- name: Bind resolved group to the correct ClusterRole in this namespace  <span class="c"># the actual access grant</span>
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: rbac.authorization.k8s.io/v1                     <span class="c"># RBAC API group</span>
+      kind: RoleBinding                                            <span class="c"># namespace-scoped binding (NOT ClusterRoleBinding)</span>
+      metadata:
+        name: "{{ team }}-{{ rbac_role_for_teams }}-binding"          <span class="c"># e.g. payments-edit-binding</span>
+        namespace: "{{ app_name }}-{{ environment }}"                 <span class="c"># scope: this namespace only</span>
+        labels:
+          managed-by: ansible                                       <span class="c"># marks this object as automation-owned, for drift audits</span>
+      subjects:                                                      <span class="c"># WHO is being granted access</span>
+        - kind: Group                                                <span class="c"># subject type: an SSO/IdP group, not an individual user</span>
+          name: "{{ resolved_group }}"                                <span class="c"># the looked-up, correct group name -- NOT the raw team var</span>
+          apiGroup: rbac.authorization.k8s.io                         <span class="c"># required apiGroup for Group subjects</span>
+      roleRef:                                                       <span class="c"># WHAT they are being granted</span>
+        kind: ClusterRole                                            <span class="c"># built-in role definition (edit/view/admin)</span>
+        name: "{{ rbac_role_for_teams }}"                              <span class="c"># 'edit' for app teams -- least privilege</span>
+        apiGroup: rbac.authorization.k8s.io                           <span class="c"># required apiGroup for the roleRef</span>
+  register: rb_result                                               <span class="c"># capture for validation</span>
+
+- name: Assert RoleBinding succeeded                                <span class="c"># confirm the grant actually landed</span>
+  ansible.builtin.assert:
+    that:
+      - rb_result is succeeded
+    fail_msg: "Failed to bind {{ resolved_group }} in {{ app_name }}-{{ environment }}"</pre></div>
+
+<h3>5.3 playbooks/site.yml</h3>
+<div class="cmd-label">playbooks/site.yml</div>
+<div class="codewrap"><pre><span class="c">---
+# Master playbook -- runs locally (Ansible drives the OpenShift API
+# remotely over HTTPS, so no SSH/remote host is needed here).</span>
+- name: Configure RBAC for application namespace                    <span class="c"># play name, shown in output</span>
+  hosts: localhost                                                   <span class="c"># run on the control node itself</span>
+  connection: local                                                  <span class="c"># no SSH -- talk to OpenShift API directly</span>
+  gather_facts: false                                                <span class="c"># skip host fact-gathering, irrelevant to API calls, saves time</span>
+
+  vars_files:
+    - ../group_vars/all.yml                                          <span class="c"># load the team -&gt; group mapping</span>
+
+  roles:
+    - openshift_rbac                                                 <span class="c"># the only role this playbook runs</span></pre></div>
+
+<h3>5.4 playbooks/audit_rbac.yml — read-only drift check</h3>
+<div class="cmd-label">playbooks/audit_rbac.yml</div>
+<div class="codewrap"><pre><span class="c">---
+# Read-only playbook: lists every RoleBinding across app namespaces
+# and flags any that reference 'admin' or 'cluster-admin' -- these
+# should never appear on an application team's namespace.</span>
+- name: Audit RBAC for privilege drift
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  tasks:
+    - name: Fetch all RoleBindings labeled as Ansible-managed        <span class="c"># only audit objects we own</span>
+      kubernetes.core.k8s_info:                                      <span class="c"># READ-ONLY module -- never mutates state</span>
+        kind: RoleBinding                                            <span class="c"># object type to query</span
+        >
+        label_selectors:
+          - "managed-by=ansible"                                     <span class="c"># matches the label we set in Section 5.2</span>
+      register: bindings                                              <span class="c"># store the query result</span>
+
+    - name: Flag any binding to admin or cluster-admin                <span class="c"># the actual policy check</span>
+      ansible.builtin.debug:                                          <span class="c"># prints to console, no cluster change</span>
+        msg: "DRIFT: {{ item.metadata.name }} in {{ item.metadata.namespace }} binds {{ item.roleRef.name }}"
+      loop: "{{ bindings.resources }}"                                 <span class="c"># iterate every RoleBinding found</span>
+      when: item.roleRef.name in ['admin', 'cluster-admin']            <span class="c"># only print the risky ones</span></pre></div>
+</section>
+
+<section id="run">
+<h2>6. Execution &amp; Idempotency</h2>
+<div class="cmd-label">Run</div>
+<div class="codewrap"><pre>ansible-playbook playbooks/site.yml \
+  -e app_name=payment-api -e environment=prod \
+  -e team=payments -e owner=platform-team</pre></div>
+<div class="box success"><strong class="tag">First run</strong><pre style="background:#0f2b1c;border-color:#1a4a2c;">PLAY RECAP ***
+localhost : ok=4  changed=3  unreachable=0  failed=0  skipped=0</pre></div>
+<div class="box success"><strong class="tag">Second run (idempotency proof)</strong><pre style="background:#0f2b1c;border-color:#1a4a2c;">PLAY RECAP ***
+localhost : ok=4  changed=0  unreachable=0  failed=0  skipped=0</pre></div>
+</section>
+
+<section id="incident">
+<h2>7. Live Incident — Priya Can't Deploy</h2>
+<div class="box fail"><strong class="tag">10:14 AM — Report</strong>"I can't deploy payment-api to prod. Getting a permissions error in the pipeline."</div>
+
+<div class="cmd-label">Step 1 — isolate: is this RBAC at all?</div>
+<div class="codewrap"><pre>oc auth can-i create deployments -n payment-api-prod --as=priya@company.com
+&gt; no</pre></div>
+
+<div class="cmd-label">Step 2 — check her group membership</div>
+<div class="codewrap"><pre>oc get identity | grep priya
+oc describe group payments-developers</pre></div>
+<p>Priya <em>is</em> listed as a member of <code>payments-developers</code>. Membership is correct — the problem is downstream.</p>
+
+<div class="cmd-label">Step 3 — inspect the RoleBinding actually applied in the namespace</div>
+<div class="codewrap"><pre>oc get rolebinding -n payment-api-prod -o yaml</pre></div>
+<div class="codewrap"><pre>subjects:
+  - kind: Group
+    name: payment-developers        <span class="c"># &lt;-- singular "payment", not "payments"</span>
+roleRef:
+  kind: ClusterRole
+  name: edit</pre></div>
+<div class="box fail"><strong class="tag">Root cause</strong>The RoleBinding subject says <code>payment-developers</code> (singular) but the real synced IdP group is <code>payments-developers</code> (plural). Someone edited this RoleBinding manually last week outside of Ansible, introducing drift and breaking the lookup table this project enforces.</div>
+
+<div class="cmd-label">Step 4 — fix via Ansible, not a manual oc edit</div>
+<div class="codewrap"><pre>ansible-playbook playbooks/site.yml \
+  -e app_name=payment-api -e environment=prod \
+  -e team=payments -e owner=platform-team</pre></div>
+<p>Because the role always sets <code>name: "{{ resolved_group }}"</code> from the central <code>team_group_map</code>, re-running it overwrites the drifted value with the correct one — this is <code>changed=1</code> on this run specifically, which is expected and desired.</p>
+
+<div class="cmd-label">Step 5 — validate</div>
+<div class="codewrap"><pre>oc auth can-i create deployments -n payment-api-prod --as=priya@company.com
+&gt; yes</pre></div>
+<div class="box success"><strong class="tag">10:41 AM — Resolved</strong>Priya confirms her pipeline deploy succeeds.</div>
+
+<h3>RCA Summary</h3>
+<table>
+<tr><th>Field</th><th>Detail</th></tr>
+<tr><td>Impact</td><td>One team blocked from deploying to prod for ~27 minutes</td></tr>
+<tr><td>Root cause</td><td>Manual <code>oc edit</code> on a RoleBinding introduced a group-name typo, bypassing the Ansible source of truth</td></tr>
+<tr><td>Fix</td><td>Re-ran the idempotent Ansible playbook, which restored the correct group name</td></tr>
+<tr><td>Preventive action</td><td>Run <code>audit_rbac.yml</code> on a schedule; consider OpenShift admission policy to block manual edits to Ansible-labeled RoleBindings</td></tr>
+</table>
+</section>
+
+<section id="breakfix">
+<h2>8. Additional Break-Fix Labs</h2>
+<details>
+<summary>Break-Fix — invalid team variable</summary>
+<div class="box fail"><strong class="tag">Break</strong>Run with <code>-e team=shipping</code> (not in <code>team_group_map</code>).</div>
+<div class="codewrap"><pre>fatal: [localhost]: FAILED! =&gt; {"msg": "'shipping' is undefined"}</pre></div>
+<p><strong>Root cause:</strong> dictionary lookup fails when the key doesn't exist. <strong>Fix:</strong> add the team to <code>group_vars/all.yml</code>, or add an explicit <code>assert</code> before the lookup with a clearer message.</p>
+</details>
+<details>
+<summary>Break-Fix — ServiceAccount permission denied</summary>
+<div class="box fail"><strong class="tag">Break</strong>Run Ansible as a token that only has <code>view</code> on the cluster.</div>
+<div class="codewrap"><pre>fatal: [localhost]: FAILED! =&gt; {"msg": "Failed to create object: 
+serviceaccounts is forbidden: User cannot create resource"}</pre></div>
+<p><strong>Root cause:</strong> the identity Ansible is logged in as lacks write RBAC. <strong>Fix:</strong> use a service account/token with admin rights scoped to the namespaces being managed, ideally via Ansible Automation Platform credentials, not a personal token.</p>
+</details>
+</section>
+
+<section id="security">
+<h2>9. Security Review</h2>
+<table>
+<tr><th>Control</th><th>How enforced</th></tr>
+<tr><td>Single source of truth for group names</td><td><code>team_group_map</code> prevents drift-by-typo</td></tr>
+<tr><td>Least privilege</td><td><code>edit</code> for app teams; only platform team gets namespace-scoped <code>admin</code></td></tr>
+<tr><td>Drift detection</td><td><code>audit_rbac.yml</code> flags any binding to admin/cluster-admin</td></tr>
+<tr><td>Traceability</td><td><code>managed-by: ansible</code> label distinguishes automation-owned objects from manual changes</td></tr>
+</table>
+</section>
+
+<section id="interview">
+<h2>10. Interview Preparation</h2>
+<div class="qa"><div class="q">Interviewer: "Walk me through troubleshooting a developer who suddenly can't deploy."</div>
+<p><strong>Answer:</strong> First I confirm it's actually RBAC with <code>oc auth can-i ... --as=</code> rather than assuming. Then I walk the chain: is the user in the right group, does the RoleBinding subject match that group exactly, does the roleRef point to a ClusterRole with the right verbs. In this incident the break was a silent manual edit that drifted from what our Ansible source of truth expected — so the real fix was re-applying automation, not hand-patching the RoleBinding again.</p></div>
+<div class="qa"><div class="q">Interviewer: "How do you prevent RBAC drift from manual changes?"</div>
+<p><strong>Answer:</strong> Label everything automation manages, run a scheduled read-only audit playbook that flags unexpected values, and where possible use an admission policy or GitOps controller to reject changes that don't come through the pipeline.</p></div>
+<div class="qa"><div class="q">Manager round: "How long did resolution take and what would you change?"</div>
+<p><strong>Answer:</strong> ~27 minutes from report to validated fix. I'd add the scheduled audit job so this class of drift is caught before a developer is blocked, not after.</p></div>
+</section>
+
+<section id="resume">
+<h2>11. Resume Points</h2>
+<div class="box best"><ul>
+<li>Automated OpenShift RBAC (Users, Groups, RoleBindings) with Ansible using a centralized team-to-group mapping to eliminate configuration drift.</li>
+<li>Diagnosed and resolved a production RBAC incident by tracing the User → Group → RoleBinding → ClusterRole chain, restoring access via idempotent automation rather than manual edits.</li>
+<li>Built a read-only Ansible audit playbook to detect privilege-escalation drift across application namespaces.</li>
+</ul></div>
+<div class="box concept"><strong class="tag">How to explain this in an interview</strong>"I built the RBAC layer of our namespace automation so that group bindings come from one central, versioned mapping instead of being typed by hand per namespace. When a real incident hit — a developer blocked from deploying — I used <code>oc auth can-i</code> to confirm it was RBAC, traced the chain to find a manually-edited RoleBinding with a typo'd group name, and fixed it by re-running the Ansible playbook instead of patching around the drift."</div>
+</section>
+
+<section id="cheatsheet">
+<h2>12. Troubleshooting Cheat Sheet</h2>
+<table>
+<tr><th>Symptom</th><th>Check</th></tr>
+<tr><td>"Forbidden" deploying</td><td><code>oc auth can-i &lt;verb&gt; &lt;resource&gt; -n &lt;ns&gt; --as=&lt;user&gt;</code></td></tr>
+<tr><td>User can-i = no</td><td><code>oc describe group &lt;group&gt;</code> — is user actually a member?</td></tr>
+<tr><td>Member but still no</td><td><code>oc get rolebinding -n &lt;ns&gt; -o yaml</code> — subject name exact match?</td></tr>
+<tr><td>Subject matches but still no</td><td>roleRef ClusterRole — does it actually have the verb needed?</td></tr>
+<tr><td>Ansible fails creating RBAC objects</td><td>Ansible's own login identity lacks write permission — check its token/role</td></tr>
+</table>
+</section>
+
+<section id="summary">
+<h2>13. Key Learnings</h2>
+<div class="card">
+<h4>OpenShift concepts</h4><p>User/Group/Role/RoleBinding/ClusterRole chain, <code>oc auth can-i --as=</code>, drift between declared and actual RBAC state.</p>
+<h4>Ansible concepts</h4><p><code>set_fact</code> for dictionary lookups, <code>assert</code> for fail-fast validation, <code>k8s_info</code> for read-only audits, labeling automation-owned objects.</p>
+<h4>Commands learned</h4><p><code>oc auth can-i</code>, <code>oc describe group</code>, <code>oc get rolebinding -o yaml</code>, <code>ansible-galaxy collection install</code>.</p>
+<h4>Troubleshooting method learned</h4><p>Isolate with <code>can-i</code> before investigating further; walk the RBAC chain link by link; prefer re-running automation over one-off manual fixes.</p>
+<h4>Common mistakes</h4><p>Manual <code>oc edit</code> on automation-managed objects; group name typos; granting <code>admin</code>/<code>cluster-admin</code> instead of <code>edit</code>.</p>
+<h4>Practice tasks</h4><ul>
+<li>Schedule <code>audit_rbac.yml</code> via cron or Automation Controller and alert on any DRIFT lines.</li>
+<li>Add a Molecule test that asserts the RoleBinding subject always equals the resolved group.</li>
+</ul>
+<h4>Next project prerequisites</h4><p>Keep this repository — Project 3 builds a multi-tier application deployment on top of the namespace + RBAC baseline from Projects 1 and 2.</p>
+</div>
+</section>
+
+</main>
+
+<footer>OpenShift + Ansible Masterclass — Project 2 of ~28. Say "Next Project" to continue.</footer>
+
+<script>
+window.addEventListener('scroll', function(){
+  var h = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+  var p = h ? (window.scrollY / h) * 100 : 0;
+  document.getElementById('progressBar').style.width = p + '%';
+});
+document.querySelectorAll('pre').forEach(function(pre){
+  if(pre.parentElement.classList.contains('codewrap')){
+    var btn = document.createElement('button');
+    btn.className = 'copy-btn'; btn.textContent = 'Copy';
+    btn.onclick = function(){
+      navigator.clipboard.writeText(pre.innerText);
+      btn.textContent = 'Copied!';
+      setTimeout(function(){ btn.textContent = 'Copy'; }, 1500);
+    };
+    pre.parentElement.appendChild(btn);
+  }
+});
+</script>
+</body>
+</html>

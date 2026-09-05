@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Project 10 — OpenShift Scaling Automation: HPA &amp; Cluster Autoscaling</title>
+<style>
+:root{
+  --blue:#5b9dff; --blue-bg:#132038;
+  --purple:#b58aff; --purple-bg:#221a3a;
+  --green:#3ed67f; --green-bg:#11301f;
+  --orange:#ffb15c; --orange-bg:#3a2712;
+  --red:#ff6b6b; --red-bg:#3a1616;
+  --teal:#4fd8e0; --teal-bg:#0f2f31;
+  --ink:#e7ecf5; --sub:#9aa7bd; --line:#2a3345; --bg:#0d1117; --card:#141b26;
+  --code-bg:#0a0e14; --code-ink:#dfe7f5;
+}
+*{box-sizing:border-box;}
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--ink);line-height:1.65;}
+a{color:var(--blue);}
+.progress{position:fixed;top:0;left:0;height:4px;background:linear-gradient(90deg,var(--blue),var(--teal));z-index:999;width:0%;transition:width .1s;}
+header.cover{background:linear-gradient(135deg,#101a30 0%,#241a3d 100%);color:#fff;padding:56px 24px 40px;text-align:center;border-bottom:1px solid var(--line);}
+header.cover .badge{display:inline-block;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);padding:6px 14px;border-radius:20px;font-size:13px;letter-spacing:.5px;margin-bottom:14px;}
+header.cover h1{margin:8px auto;max-width:900px;font-size:32px;}
+header.cover p.sub{max-width:750px;margin:10px auto 0;opacity:.85;font-size:16px;}
+.meta-grid{display:flex;flex-wrap:wrap;gap:12px;justify-content:center;margin-top:26px;}
+.meta-chip{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.18);padding:8px 16px;border-radius:8px;font-size:13px;}
+nav.toc{position:sticky;top:0;background:#0f151f;border-bottom:1px solid var(--line);z-index:100;padding:10px 16px;overflow-x:auto;white-space:nowrap;}
+nav.toc a{color:var(--sub);text-decoration:none;font-size:13px;margin-right:18px;padding:6px 10px;border-radius:6px;}
+nav.toc a:hover{background:var(--blue-bg);color:var(--blue);}
+main{max-width:980px;margin:0 auto;padding:30px 20px 80px;}
+section{margin-bottom:46px;}
+h2{font-size:24px;border-left:5px solid var(--blue);padding-left:12px;margin-top:10px;color:#fff;}
+h3{font-size:19px;color:var(--purple);margin-top:28px;}
+h4{font-size:16px;color:#fff;margin-top:20px;}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:20px 22px;margin:16px 0;}
+.box{border-radius:10px;padding:16px 18px;margin:14px 0;border-left:5px solid;}
+.box.concept{background:var(--blue-bg);border-color:var(--blue);}
+.box.arch{background:var(--purple-bg);border-color:var(--purple);}
+.box.success{background:var(--green-bg);border-color:var(--green);}
+.box.warning{background:var(--orange-bg);border-color:var(--orange);}
+.box.fail{background:var(--red-bg);border-color:var(--red);}
+.box.best{background:var(--teal-bg);border-color:var(--teal);}
+.box strong.tag{display:block;font-size:12px;text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px;opacity:.85;}
+details{background:var(--card);border:1px solid var(--line);border-radius:10px;margin:12px 0;padding:4px 16px;}
+details summary{cursor:pointer;font-weight:600;padding:12px 0;color:var(--blue);}
+table{width:100%;border-collapse:collapse;margin:14px 0;font-size:14px;}
+th,td{border:1px solid var(--line);padding:9px 12px;text-align:left;vertical-align:top;}
+th{background:var(--blue-bg);color:var(--blue);}
+tr:nth-child(even){background:#101623;}
+.codewrap{position:relative;margin:14px 0;}
+pre{background:var(--code-bg);color:var(--code-ink);padding:18px;border-radius:10px;overflow-x:auto;font-size:13px;line-height:1.6;font-family:"SF Mono",Menlo,Consolas,monospace;border:1px solid var(--line);}
+pre .c{color:#6fd18a;}
+.copy-btn{position:absolute;top:10px;right:10px;background:#22304a;color:#fff;border:1px solid var(--line);padding:6px 12px;border-radius:6px;font-size:12px;cursor:pointer;}
+.copy-btn:hover{background:#2c3d5e;}
+.cmd-label{font-size:12px;color:var(--sub);text-transform:uppercase;letter-spacing:.5px;margin:14px 0 4px;}
+.flow{background:var(--purple-bg);border:1px dashed var(--purple);border-radius:10px;padding:16px;font-family:monospace;white-space:pre;font-size:13px;overflow-x:auto;color:var(--ink);}
+.qa{margin:14px 0;padding:14px 16px;background:var(--card);border:1px solid var(--line);border-radius:8px;}
+.qa .q{font-weight:600;color:var(--purple);}
+.badge-diff{display:inline-block;padding:3px 10px;border-radius:12px;font-size:12px;font-weight:600;}
+.badge-diff.mid{background:var(--orange-bg);color:var(--orange);}
+.steps{counter-reset:step;}
+.step{position:relative;padding:14px 16px 14px 52px;margin:10px 0;background:var(--card);border:1px solid var(--line);border-radius:10px;}
+.step::before{counter-increment:step;content:counter(step);position:absolute;left:14px;top:14px;width:26px;height:26px;background:var(--blue);color:#0d1117;font-weight:700;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;}
+footer{text-align:center;padding:30px;color:var(--sub);font-size:13px;}
+</style>
+</head>
+<body>
+<div class="progress" id="progressBar"></div>
+
+<header class="cover">
+  <div class="badge">OPENSHIFT + ANSIBLE MASTERCLASS · PROJECT 10 OF ~28</div>
+  <h1>OpenShift Scaling Automation: HPA &amp; Cluster Autoscaling</h1>
+  <p class="sub">Automating HorizontalPodAutoscalers backed by the metrics from Project 8, capacity-planning MachineAutoscaler settings, and resolving a live "traffic spiked and pods didn't scale" incident.</p>
+  <div class="meta-grid">
+    <div class="meta-chip">Difficulty: <span class="badge-diff mid">Intermediate-Advanced</span></div>
+    <div class="meta-chip">Domain: Telecom / Platform Engineering</div>
+    <div class="meta-chip">OpenShift: 4.14+</div>
+    <div class="meta-chip">Ansible Core: 2.16 · kubernetes.core 3.x</div>
+    <div class="meta-chip">Lab Time: ~3 hrs</div>
+    <div class="meta-chip">Infra Cost: $0 (CRC / existing cluster; cloud MachineAutoscaler needs a real IPI cluster)</div>
+  </div>
+</header>
+
+<nav class="toc">
+  <a href="#story">Story</a>
+  <a href="#device">Run On Your Device</a>
+  <a href="#architecture">Architecture</a>
+  <a href="#playbooks">Playbooks</a>
+  <a href="#run">Execution</a>
+  <a href="#incident">Incident</a>
+  <a href="#breakfix">Break-Fix</a>
+  <a href="#security">Security</a>
+  <a href="#interview">Interview</a>
+  <a href="#resume">Resume</a>
+  <a href="#cheatsheet">Cheat Sheet</a>
+  <a href="#summary">Key Learnings</a>
+</nav>
+
+<main>
+
+<section id="story">
+<h2>1. The Production Story</h2>
+<div class="box concept">
+<strong class="tag">Scenario</strong>
+payment-api has been running at a fixed 3 replicas since Project 3. A marketing promotion goes live and traffic triples in 10 minutes. The fixed replica count can't absorb it, and there's no cluster capacity headroom either — worker nodes are already near full.
+</div>
+<div class="box warning">
+<strong class="tag">Business Problem</strong>
+Nobody configured autoscaling for payment-api or the cluster's worker MachineSets, so scaling has always meant a manual, reactive <code>oc scale</code> command — too slow for a traffic spike that happens in minutes.
+</div>
+<div class="box best">
+<strong class="tag">Our Mandate</strong>
+Automate a HorizontalPodAutoscaler for the backend, tuned against the CPU/memory metrics already flowing from Project 8, and a MachineAutoscaler so the cluster itself can grow when pod scaling alone isn't enough.
+</div>
+</section>
+
+<section id="device">
+<h2>2. Run This On Your Device</h2>
+<div class="box warning"><strong class="tag">Note</strong>MachineAutoscaler only works on IPI-provisioned clusters (AWS/GCP/Azure/vSphere with machine-api). On CRC or a UPI/bare-metal cluster, skip Section 4.2 and focus on the HPA portion — it works everywhere.</div>
+<div class="steps">
+<div class="step"><strong>Confirm the metrics-server / Prometheus adapter path HPA needs is present.</strong>
+<div class="codewrap"><pre>oc get apiservice v1beta1.metrics.k8s.io</pre></div>
+</div>
+<div class="step"><strong>Add the scaling role files from Section 4 to your repo.</strong>
+<div class="codewrap"><pre>mkdir -p payment-stack/roles/{app_hpa,cluster_autoscale}/tasks</pre></div>
+</div>
+<div class="step"><strong>Apply the HPA.</strong>
+<div class="codewrap"><pre>ansible-playbook playbooks/scaling.yml -e app_name=payment-api -e environment=dev</pre></div>
+</div>
+<div class="step"><strong>Generate synthetic load to watch it scale (lab only).</strong>
+<div class="codewrap"><pre>oc run load-gen --image=busybox -n payment-api-dev --restart=Never -- \
+  /bin/sh -c "while true; do wget -q -O- http://payment-api-backend:8080/; done"</pre></div>
+</div>
+<div class="step"><strong>Watch the HPA react.</strong>
+<div class="codewrap"><pre>oc get hpa payment-api-backend-hpa -n payment-api-dev -w</pre></div>
+</div>
+</div>
+</section>
+
+<section id="architecture">
+<h2>3. Architecture</h2>
+<div class="flow">Metrics (from Project 8's monitoring pipeline)
+   │
+   ▼
+HorizontalPodAutoscaler — watches CPU/memory vs target utilization
+   │  scales
+   ▼
+Deployment replica count adjusts up/down within min/max bounds
+   │
+   ▼
+If nodes lack capacity for new pods → Pending
+   │
+   ▼
+Cluster Autoscaler notices Pending + unschedulable → triggers
+MachineAutoscaler to add a new worker node (IPI clusters only)</div>
+<table>
+<tr><th>Concept</th><th>Detail</th></tr>
+<tr><td>HPA</td><td>Adjusts Deployment/StatefulSet replica count based on observed metrics vs target</td></tr>
+<tr><td>Resource requests</td><td>HPA's CPU/memory percentage targets are relative to the pod's <em>requests</em>, not limits — sizing these correctly (Project 1/3) directly affects scaling behavior</td></tr>
+<tr><td>MachineAutoscaler</td><td>Per-MachineSet min/max node count; only adds nodes when something is actually Pending and unschedulable</td></tr>
+<tr><td>Cluster Autoscaler</td><td>The cluster-wide controller that watches for unschedulable pods and drives MachineAutoscaler decisions</td></tr>
+</table>
+</section>
+
+<section id="playbooks">
+<h2>4. The Playbooks — Fully Commented</h2>
+
+<h3>4.1 roles/app_hpa/tasks/main.yml</h3>
+<div class="cmd-label">roles/app_hpa/tasks/main.yml</div>
+<div class="codewrap"><pre><span class="c">---
+# Creates a HorizontalPodAutoscaler for the backend Deployment,
+# targeting CPU utilization relative to its resource REQUESTS.</span>
+
+- name: Confirm the backend Deployment has resource requests set          <span class="c"># HPA math is meaningless without this -- fail loudly instead of silently misbehaving</span>
+  kubernetes.core.k8s_info:                                                <span class="c"># read-only lookup</span>
+    kind: Deployment
+    api_version: apps/v1
+    name: "{{ app_name }}-backend"
+    namespace: "{{ app_name }}-{{ environment }}"
+  register: backend_deploy                                                  <span class="c"># holds the live Deployment spec</span>
+
+- name: Assert CPU requests are defined on the backend container            <span class="c"># prerequisite check before creating the HPA</span>
+  ansible.builtin.assert:
+    that:
+      - backend_deploy.resources[0].spec.template.spec.containers[0]
+          .resources.requests.cpu is defined                                 <span class="c"># dig into the nested container spec</span>
+    fail_msg: "Backend Deployment has no CPU request set -- HPA cannot compute utilization"
+
+- name: Create HorizontalPodAutoscaler for the backend                       <span class="c"># the actual autoscaling policy</span>
+  kubernetes.core.k8s:
+    state: present                                                           <span class="c"># idempotent apply</span
+    >
+    definition:
+      apiVersion: autoscaling/v2                                              <span class="c"># v2 supports multiple metrics and behavior tuning</span>
+      kind: HorizontalPodAutoscaler
+      metadata:
+        name: "{{ app_name }}-backend-hpa"
+        namespace: "{{ app_name }}-{{ environment }}"
+      spec:
+        scaleTargetRef:                                                        <span class="c"># which object this HPA controls</span>
+          apiVersion: apps/v1
+          kind: Deployment
+          name: "{{ app_name }}-backend"                                        <span class="c"># must match the existing Deployment name exactly</span>
+        minReplicas: "{{ hpa_min | default(2) }}"                                <span class="c"># never scale below 2 -- keeps basic HA even at idle</span>
+        maxReplicas: "{{ hpa_max | default(10) }}"                               <span class="c"># hard ceiling -- protects downstream DB connections from being overwhelmed</span>
+        metrics:
+          - type: Resource                                                       <span class="c"># built-in resource metric type (vs external/custom)</span>
+            resource:
+              name: cpu                                                          <span class="c"># scale on CPU utilization</span>
+              target:
+                type: Utilization                                                 <span class="c"># percentage of the REQUEST, not the limit</span>
+                averageUtilization: "{{ hpa_cpu_target | default(70) }}"           <span class="c"># scale up once average CPU crosses 70% of requested</span>
+        behavior:
+          scaleDown:
+            stabilizationWindowSeconds: 300                                        <span class="c"># wait 5 min of sustained low usage before scaling down -- avoids flapping</span>
+          scaleUp:
+            stabilizationWindowSeconds: 0                                          <span class="c"># scale up immediately -- no reason to delay absorbing a spike</span>
+            policies:
+              - type: Pods
+                value: 2                                                            <span class="c"># add at most 2 pods per scaling step</span>
+                periodSeconds: 60                                                    <span class="c"># ...per 60 seconds, preventing a runaway scale-up loop</span>
+  register: hpa_result                                                                <span class="c"># capture for assert</span>
+
+- name: Assert HPA apply succeeded                                                     <span class="c"># fail fast on API rejection</span>
+  ansible.builtin.assert:
+    that: [hpa_result is succeeded]
+    fail_msg: "Failed to create HPA for {{ app_name }}-backend"</pre></div>
+
+<h3>4.2 roles/cluster_autoscale/tasks/main.yml</h3>
+<div class="cmd-label">roles/cluster_autoscale/tasks/main.yml</div>
+<div class="codewrap"><pre><span class="c">---
+# Cluster-level autoscaling -- IPI clusters only (needs machine-api).
+# Ensures HPA has somewhere to actually schedule new pods when
+# existing nodes are full.</span>
+
+- name: Create the cluster-wide ClusterAutoscaler singleton                 <span class="c"># only ONE of these can exist per cluster, name is always 'default'</span>
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: autoscaling.openshift.io/v1                                 <span class="c"># OpenShift-specific autoscaling API</span>
+      kind: ClusterAutoscaler
+      metadata:
+        name: default                                                          <span class="c"># fixed required name -- cluster-scoped singleton</span>
+      spec:
+        resourceLimits:
+          maxNodesTotal: "{{ cluster_max_nodes | default(12) }}"                 <span class="c"># hard ceiling on total nodes -- cost control</span>
+        scaleDown:
+          enabled: true                                                          <span class="c"># allow shrinking back down when load drops</span>
+          delayAfterAdd: 10m                                                     <span class="c"># wait 10 min after a scale-up before considering scale-down -- avoids thrashing</span>
+  register: ca_result
+
+- name: Assert ClusterAutoscaler apply succeeded
+  ansible.builtin.assert:
+    that: [ca_result is succeeded]
+    fail_msg: "Failed to create ClusterAutoscaler"
+
+- name: Create MachineAutoscaler for the worker MachineSet                    <span class="c"># per-MachineSet min/max bounds the cluster autoscaler respects</span>
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: autoscaling.openshift.io/v1beta1                             <span class="c"># MachineAutoscaler API version</span>
+      kind: MachineAutoscaler
+      metadata:
+        name: "{{ worker_machineset_name }}-autoscaler"                          <span class="c"># conventional naming tied to the target MachineSet</span>
+        namespace: openshift-machine-api                                          <span class="c"># required namespace for machine-api objects</span>
+      spec:
+        minReplicas: "{{ worker_min | default(3) }}"                              <span class="c"># never scale this MachineSet below 3 nodes</span>
+        maxReplicas: "{{ worker_max | default(6) }}"                              <span class="c"># cap growth -- matches cost/capacity planning</span>
+        scaleTargetRef:
+          apiVersion: machine.openshift.io/v1beta1
+          kind: MachineSet
+          name: "{{ worker_machineset_name }}"                                     <span class="c"># must match an existing MachineSet exactly</span>
+  register: ma_result
+  when: worker_machineset_name is defined                                            <span class="c"># skip entirely on non-IPI clusters where this variable is never set</span>
+
+- name: Assert MachineAutoscaler apply succeeded
+  ansible.builtin.assert:
+    that: [ma_result is succeeded]
+    fail_msg: "Failed to create MachineAutoscaler for {{ worker_machineset_name }}"
+  when: worker_machineset_name is defined</pre></div>
+</section>
+
+<section id="run">
+<h2>5. Execution &amp; Idempotency</h2>
+<div class="codewrap"><pre>ansible-playbook playbooks/scaling.yml -e app_name=payment-api -e environment=dev</pre></div>
+<div class="box success"><strong class="tag">First run</strong><pre style="background:#0f2b1c;border-color:#1a4a2c;">PLAY RECAP *** ok=4 changed=1 failed=0</pre></div>
+<div class="box success"><strong class="tag">Second run</strong><pre style="background:#0f2b1c;border-color:#1a4a2c;">PLAY RECAP *** ok=4 changed=0 failed=0</pre></div>
+</section>
+
+<section id="incident">
+<h2>6. Live Incident — Traffic Tripled, Pods Didn't Scale</h2>
+<div class="box fail"><strong class="tag">Report</strong>Marketing promo drove a traffic spike; response times climbed and some requests started timing out.</div>
+
+<div class="cmd-label">Step 1 — check the HPA's actual status</div>
+<div class="codewrap"><pre>oc get hpa payment-api-backend-hpa -n payment-api-prod
+NAME                       TARGETS         MINPODS   MAXPODS   REPLICAS
+payment-api-backend-hpa    &lt;unknown&gt;/70%   2         10        2</pre></div>
+<div class="box fail"><strong class="tag">Root cause candidate</strong><code>TARGETS</code> shows <code>&lt;unknown&gt;</code> instead of an actual percentage — the HPA has no metrics to act on at all, so it never scales regardless of real load.</div>
+
+<div class="cmd-label">Step 2 — describe the HPA for the specific error</div>
+<div class="codewrap"><pre>oc describe hpa payment-api-backend-hpa -n payment-api-prod
+Warning  FailedGetResourceMetric  unable to get metrics for resource cpu:
+  no metrics returned from resource metrics API</pre></div>
+
+<div class="cmd-label">Step 3 — check if the backend Deployment actually has CPU requests set in PROD specifically</div>
+<div class="codewrap"><pre>oc get deployment payment-api-backend -n payment-api-prod -o jsonpath='{.spec.template.spec.containers[0].resources}'
+{"limits":{"cpu":"500m","memory":"512Mi"}}
+<span class="c"># 'requests' key is completely absent in PROD -- only limits were set</span></pre></div>
+<div class="box fail"><strong class="tag">Root cause</strong>PROD's Deployment was hand-edited at some point and lost its <code>requests.cpu</code> field (limits alone remained) — without a CPU request, the resource-utilization percentage the HPA needs is mathematically undefined, so it can never compute a scaling decision.</div>
+
+<div class="cmd-label">Step 4 — fix via Ansible (restores requests, since our role always sets both)</div>
+<div class="codewrap"><pre>ansible-playbook playbooks/site.yml -e app_name=payment-api -e environment=prod</pre></div>
+
+<div class="cmd-label">Step 5 — validate the HPA now sees real metrics</div>
+<div class="codewrap"><pre>oc get hpa payment-api-backend-hpa -n payment-api-prod
+NAME                       TARGETS      MINPODS   MAXPODS   REPLICAS
+payment-api-backend-hpa    83%/70%      2         10        4</pre></div>
+<div class="box success"><strong class="tag">Resolved</strong>HPA immediately scaled from 2 to 4 replicas once it had real data; response times recovered within two minutes.</div>
+
+<h3>RCA Summary</h3>
+<table>
+<tr><th>Field</th><th>Detail</th></tr>
+<tr><td>Impact</td><td>Elevated latency/timeouts during a traffic spike, HPA effectively inert</td></tr>
+<tr><td>Root cause</td><td>Manual edit removed <code>resources.requests.cpu</code> from the PROD Deployment, making HPA's utilization metric undefined</td></tr>
+<tr><td>Fix</td><td>Re-applied the Ansible-managed Deployment spec, restoring requests</td></tr>
+<tr><td>Preventive action</td><td>Add the Section 4.1 pre-check as a standing scheduled Ansible audit (like Project 2's RBAC drift audit) that alerts if any app Deployment loses its resource requests</td></tr>
+</table>
+</section>
+
+<section id="breakfix">
+<h2>7. Additional Break-Fix Labs</h2>
+<details><summary>Break-Fix — HPA maxReplicas too low, still can't absorb spike</summary>
+<div class="codewrap"><pre>oc get hpa payment-api-backend-hpa -n payment-api-prod
+TARGETS      REPLICAS
+95%/70%      10          <span class="c"># pinned at maxReplicas, still over target</span></pre></div>
+<p><strong>Root cause:</strong> the ceiling itself is too conservative for this traffic level. <strong>Fix:</strong> deliberately raise <code>hpa_max</code> via Ansible (a reviewed, auditable change) rather than editing it by hand mid-incident, then confirm downstream DB connection limits (Project 3/7) can actually support the higher pod count.</p>
+</details>
+<details><summary>Break-Fix — pods Pending, cluster out of capacity</summary>
+<div class="codewrap"><pre>oc get pods -n payment-api-prod
+payment-api-backend-9f-z9   0/1   Pending
+
+oc describe pod payment-api-backend-9f-z9 -n payment-api-prod
+Warning  FailedScheduling  0/6 nodes are available: 6 Insufficient cpu</pre></div>
+<p><strong>Root cause:</strong> HPA wants more pods but no node has room. <strong>Fix:</strong> this is exactly what MachineAutoscaler (Section 4.2) exists to solve on IPI clusters — confirm it's configured with headroom in <code>maxReplicas</code>, or manually add capacity on non-IPI clusters.</p>
+</details>
+</section>
+
+<section id="security">
+<h2>8. Security Review</h2>
+<table>
+<tr><th>Control</th><th>Detail</th></tr>
+<tr><td>Cost ceiling</td><td><code>maxReplicas</code> and <code>maxNodesTotal</code> both hard-capped — autoscaling can't runaway unbounded spend</td></tr>
+<tr><td>Availability floor</td><td><code>minReplicas: 2</code> keeps basic HA even at idle</td></tr>
+<tr><td>Anti-flapping</td><td>Scale-down stabilization window and scale-up step limits prevent thrashing</td></tr>
+</table>
+</section>
+
+<section id="interview">
+<h2>9. Interview Preparation</h2>
+<div class="qa"><div class="q">Interviewer: "Traffic spiked and pods weren't scaling — how do you debug that?"</div>
+<p><strong>Answer:</strong> <code>oc get hpa</code> first — if TARGETS shows <code>&lt;unknown&gt;</code>, the HPA has no metrics to act on, which is a different problem than "it saw the load and chose not to scale." <code>oc describe hpa</code> usually names the exact failure. In one case it turned out a manual edit had stripped the CPU request off the Deployment, and utilization percentage is mathematically undefined without a request to compare against.</p></div>
+<div class="qa"><div class="q">Interviewer: "What's the relationship between HPA and the Cluster Autoscaler?"</div>
+<p><strong>Answer:</strong> HPA scales pod count within the capacity that already exists. If there isn't enough node capacity for the new pods, they go Pending, and the Cluster Autoscaler notices unschedulable pods and asks a MachineAutoscaler to add nodes. They're two layers of the same scaling problem — pod-level and node-level — and both need sensible min/max bounds to avoid runaway cost.</p></div>
+</section>
+
+<section id="resume">
+<h2>10. Resume Points</h2>
+<div class="box best"><ul>
+<li>Automated HorizontalPodAutoscaler and cluster-level MachineAutoscaler configuration with Ansible, including a pre-flight check preventing HPA misconfiguration from missing resource requests.</li>
+<li>Diagnosed and resolved a traffic-spike incident where autoscaling was silently inert due to a manually-edited Deployment losing its CPU request field.</li>
+</ul></div>
+</section>
+
+<section id="cheatsheet">
+<h2>11. Troubleshooting Cheat Sheet</h2>
+<table>
+<tr><th>Symptom</th><th>Check</th></tr>
+<tr><td>HPA TARGETS shows &lt;unknown&gt;</td><td><code>oc describe hpa</code> — usually a metrics-pipeline or missing-requests issue</td></tr>
+<tr><td>HPA pinned at maxReplicas, still overloaded</td><td>Ceiling too low for actual demand — raise deliberately via Ansible</td></tr>
+<tr><td>New pods stuck Pending during scale-up</td><td>Node capacity — check ClusterAutoscaler/MachineAutoscaler config</td></tr>
+<tr><td>Scaling flaps up/down rapidly</td><td>Tune <code>behavior.scaleDown.stabilizationWindowSeconds</code></td></tr>
+</table>
+</section>
+
+<section id="summary">
+<h2>12. Key Learnings</h2>
+<div class="card">
+<h4>OpenShift concepts</h4><p>HPA v2 metrics/behavior fields, resource requests vs limits in autoscaling math, ClusterAutoscaler/MachineAutoscaler relationship.</p>
+<h4>Ansible concepts</h4><p>Pre-flight assert on nested resource fields before creating a dependent object, conditional role execution for environment-specific infrastructure (IPI-only tasks).</p>
+<h4>Commands learned</h4><p><code>oc get hpa</code>, <code>oc describe hpa</code>, reading <code>FailedScheduling</code>/<code>FailedGetResourceMetric</code> events.</p>
+<h4>Next project prerequisites</h4><p>Keep this repo — Project 11 moves into node and cluster-level troubleshooting (NotReady nodes, disk/memory pressure, degraded ClusterOperators).</p>
+</div>
+</section>
+
+</main>
+<footer>OpenShift + Ansible Masterclass — Project 10 of ~28.</footer>
+<script>
+window.addEventListener('scroll', function(){
+  var h = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+  var p = h ? (window.scrollY / h) * 100 : 0;
+  document.getElementById('progressBar').style.width = p + '%';
+});
+document.querySelectorAll('pre').forEach(function(pre){
+  if(pre.parentElement.classList.contains('codewrap')){
+    var btn = document.createElement('button');
+    btn.className = 'copy-btn'; btn.textContent = 'Copy';
+    btn.onclick = function(){
+      navigator.clipboard.writeText(pre.innerText);
+      btn.textContent = 'Copied!';
+      setTimeout(function(){ btn.textContent = 'Copy'; }, 1500);
+    };
+    pre.parentElement.appendChild(btn);
+  }
+});
+</script>
+</body>
+</html>

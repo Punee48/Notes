@@ -1,0 +1,808 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Use Case 6: Application Configuration Management Using ConfigMaps | ShopNow Retail</title>
+<style>
+  :root{
+    --bg:#0b0f14; --panel:#111823; --panel2:#0e1420; --border:#1f2b3a;
+    --text:#dbe6f0; --muted:#8aa0b4; --accent:#3fb6a8; --accent2:#e8a33d;
+    --code-bg:#0a0e14; --good:#5ec98f; --bad:#e35d5d;
+  }
+  *{box-sizing:border-box}
+  body{background:var(--bg);color:var(--text);font-family:'Segoe UI',Roboto,Helvetica,Arial,sans-serif;line-height:1.65;margin:0;padding:0}
+  .wrap{max-width:980px;margin:0 auto;padding:32px 24px 120px}
+  h1{font-size:2rem;color:#fff;border-bottom:3px solid var(--accent);padding-bottom:12px;margin-top:0}
+  h2{color:var(--accent);font-size:1.5rem;margin-top:56px;border-left:5px solid var(--accent);padding-left:14px}
+  h3{color:var(--accent2);font-size:1.2rem;margin-top:32px}
+  h4{color:#fff;font-size:1.02rem;margin-top:22px;background:var(--panel2);padding:6px 10px;border-radius:4px;border-left:3px solid var(--muted)}
+  p{color:#c6d3df}
+  .story{background:linear-gradient(135deg,#132030,#0e1622);border:1px solid var(--border);border-radius:10px;padding:18px 22px;margin:18px 0;font-style:italic;color:#b9c9d8}
+  .story b{color:var(--accent2);font-style:normal}
+  .callout{background:#152a24;border:1px solid #235c4c;border-radius:8px;padding:14px 18px;margin:16px 0}
+  .callout.warn{background:#2a1f14;border-color:#6b4a1d}
+  .callout.why{background:#101b2c;border-color:#254268}
+  .step{background:var(--panel);border:1px solid var(--border);border-left:4px solid var(--accent);border-radius:6px;padding:12px 18px;margin:14px 0}
+  .step b.n{display:inline-block;background:var(--accent);color:#04120f;border-radius:50%;width:24px;height:24px;text-align:center;line-height:24px;font-size:.8rem;margin-right:10px}
+  pre{background:var(--code-bg);border:1px solid var(--border);border-radius:8px;padding:16px;overflow-x:auto;font-size:.85rem}
+  code{font-family:'Fira Code',Consolas,monospace;color:#c9d9e3}
+  .cmt{color:#5c7a8a}
+  .k{color:#e8a33d} .s{color:#7fd1a7} .v{color:#5aa9e6}
+  table{width:100%;border-collapse:collapse;margin:16px 0}
+  th,td{border:1px solid var(--border);padding:8px 12px;text-align:left;font-size:.9rem}
+  th{background:var(--panel2);color:var(--accent2)}
+  .toc{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:20px 26px}
+  .toc a{color:var(--accent);text-decoration:none}
+  .toc li{margin:6px 0}
+  .divider{border:none;border-top:1px solid var(--border);margin:40px 0}
+  .env-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin:16px 0}
+  .env-card{border-radius:8px;padding:14px;border:1px solid var(--border)}
+  .env-card.dev-c{background:#0f2233}
+  .env-card.qa-c{background:#2b2110}
+  .env-card.uat-c{background:#28152e}
+  .env-card.prod-c{background:#2b1414}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>Use Case 6: Application Configuration Management Using ConfigMaps</h1>
+<p><b>Company:</b> ShopNow Retail Pvt Ltd (fictional mid-size e-commerce company) &nbsp;|&nbsp; <b>Your role:</b> DevOps/Cloud Engineer &nbsp;|&nbsp; <b>Level:</b> 4+ years, resume-ready production project</p>
+
+<div class="toc">
+<b>What this document covers, start to finish:</b>
+<ol>
+<li><a href="#scenario">The Business Scenario</a></li>
+<li><a href="#concept">The Core Idea — What a ConfigMap Actually Solves</a></li>
+<li><a href="#folders">Project Folder Structure</a></li>
+<li><a href="#apparch">Application Architecture</a></li>
+<li><a href="#awsarch">AWS Architecture</a></li>
+<li><a href="#eks">EKS Cluster Design</a></li>
+<li><a href="#vpc">VPC and Networking</a></li>
+<li><a href="#iam">IAM Roles and IRSA</a></li>
+<li><a href="#configmaps">ConfigMaps — All Four Environments, Explained Line by Line</a></li>
+<li><a href="#secrets">Secrets — What Never Goes in a ConfigMap</a></li>
+<li><a href="#consuming">Consuming Config — envFrom vs env vs Volume Mounts</a></li>
+<li><a href="#kustomize">Kustomize Overlays — One Base, Four Environments</a></li>
+<li><a href="#manifests">Deployment and Service</a></li>
+<li><a href="#reload">Updating Config Without Rebuilding — Restart and Hot-Reload</a></li>
+<li><a href="#ingress">Ingress with AWS Load Balancer Controller</a></li>
+<li><a href="#hpa">HPA and Autoscaling</a></li>
+<li><a href="#pdb">PodDisruptionBudget</a></li>
+<li><a href="#netpol">NetworkPolicies</a></li>
+<li><a href="#ecr">ECR Integration</a></li>
+<li><a href="#pipeline">Jenkins and GitHub Actions Pipelines</a></li>
+<li><a href="#argocd">Argo CD GitOps</a></li>
+<li><a href="#monitoring">Prometheus and Grafana</a></li>
+<li><a href="#cloudwatch">CloudWatch Logging</a></li>
+<li><a href="#workflow">Running the Code — Full End-to-End Workflow</a></li>
+<li><a href="#failure">Failure Testing</a></li>
+<li><a href="#rollback">Rollback Strategy</a></li>
+<li><a href="#troubleshoot">Troubleshooting Scenarios</a></li>
+<li><a href="#ansible">Ansible Automation</a></li>
+<li><a href="#report">HTML Deployment/Job Report</a></li>
+<li><a href="#email">Email Notification</a></li>
+<li><a href="#resume">How to Present This on Your Resume</a></li>
+</ol>
+</div>
+
+<h2 id="scenario">1. The Business Scenario — Why This Project Exists</h2>
+<div class="story">
+ShopNow Retail's Frontend Service had a rough week. Marketing wanted a small feature flag flipped — turn off the "Buy Now Pay Later" banner for QA testing while a partnership issue got sorted out — and the only way the on-call engineer knew how to do it was to change a hard-coded constant in the React code, rebuild the Docker image, push to ECR, and run the full deploy pipeline. What should have been a thirty-second change took forty-five minutes, required a full CI run, and — because the change was baked into the image itself — the exact same slow process had to be repeated separately for Dev, QA, UAT, and Prod, four times, for one boolean flag.
+</div>
+<p>Ramesh's ask: <i>"Application URLs, log levels, feature flags, API endpoints — none of that should ever require rebuilding a Docker image. I want us to be able to change a config value and just restart the pods, in seconds, per environment, without touching the image at all."</i></p>
+<p>This is exactly the problem <b>ConfigMaps</b> exist to solve, and it's one of the most fundamental — and most asked-about in interviews — Kubernetes concepts precisely because almost every engineer has lived through the "why did we bake config into the image" pain at least once.</p>
+
+<h2 id="concept">2. The Core Idea — What a ConfigMap Actually Solves</h2>
+<div class="callout why">
+<b>The rule this whole use case is built around:</b> a Docker image should be <i>environment-agnostic</i> — the exact same image, byte for byte, should be deployable to Dev, QA, UAT, and Prod. Anything that differs between those environments — a URL, a log level, a flag, an endpoint — does not belong baked into the image. It belongs in a ConfigMap, injected into the container at pod-start time.
+</div>
+<p>This single rule is what makes "build once, deploy many times" — the foundation of every CI/CD pipeline in this whole document series — actually true. Without it, you'd need a separate image build per environment, which defeats the entire point of a build pipeline and, worse, means the exact artifact you tested in QA is not byte-for-byte the same one you eventually ship to Prod.</p>
+<table>
+<tr><th>Belongs in the Docker image</th><th>Belongs in a ConfigMap (or Secret)</th></tr>
+<tr><td>Application code, compiled binaries</td><td>Application URLs (dev.shopnow.com vs shopnow.com)</td></tr>
+<tr><td>Language runtime, OS packages</td><td>Log level (debug in Dev, warn in Prod)</td></tr>
+<tr><td>Static assets bundled at build time</td><td>Feature flags (enable new checkout: true/false)</td></tr>
+<tr><td>Fixed business logic</td><td>External API endpoints (sandbox vs live payment gateway)</td></tr>
+<tr><td>&nbsp;</td><td>Any other environment variable that differs by environment</td></tr>
+</table>
+
+<h2 id="folders">3. Project Folder Structure</h2>
+<p>Before any YAML, here is exactly how this project is laid out in the GitOps repository — this structure is what makes "one base, four environments" a physical reality on disk, and it's the same layout referenced throughout every section below.</p>
+<pre><code>shopnow-gitops-repo/
+├── services/
+│   └── frontend-service/
+│       ├── base/
+│       │   ├── deployment.yaml
+│       │   ├── service.yaml
+│       │   ├── hpa.yaml
+│       │   ├── pdb.yaml
+│       │   ├── networkpolicy.yaml
+│       │   ├── ingress.yaml
+│       │   └── kustomization.yaml
+│       │
+│       └── overlays/
+│           ├── dev/
+│           │   ├── configmap.yaml          <span class="cmt"># LOG_LEVEL=debug, feature flags mostly ON</span>
+│           │   ├── external-secret.yaml
+│           │   ├── kustomization.yaml
+│           │   └── patch-replicas.yaml
+│           │
+│           ├── qa/
+│           │   ├── configmap.yaml
+│           │   ├── external-secret.yaml
+│           │   ├── kustomization.yaml
+│           │   └── patch-replicas.yaml
+│           │
+│           ├── uat/
+│           │   ├── configmap.yaml
+│           │   ├── external-secret.yaml
+│           │   ├── kustomization.yaml
+│           │   └── patch-replicas.yaml
+│           │
+│           └── prod/
+│               ├── configmap.yaml          <span class="cmt"># LOG_LEVEL=warn, feature flags mostly OFF until ready</span>
+│               ├── external-secret.yaml
+│               ├── kustomization.yaml
+│               └── patch-replicas.yaml
+│
+├── argocd-apps/
+│   ├── frontend-service-dev.yaml
+│   ├── frontend-service-qa.yaml
+│   ├── frontend-service-uat.yaml
+│   └── frontend-service-prod.yaml
+│
+├── ansible/
+│   ├── playbook.yml
+│   ├── roles/
+│   │   └── configmap-bootstrap/
+│   │       ├── tasks/main.yml
+│   │       └── templates/configmap.yaml.j2
+│   └── inventory/hosts.ini
+│
+├── pipeline-scripts/
+│   ├── generate_report.py
+│   └── send_email.py
+│
+├── Jenkinsfile
+└── .github/
+    └── workflows/
+        └── deploy.yml
+</code></pre>
+<p>The rule that keeps this structure honest: <b>nothing under <code>base/</code> ever mentions an environment name, a specific URL, or a specific flag value.</b> Every one of those lives only under <code>overlays/&lt;env&gt;/configmap.yaml</code>. If you ever find yourself wanting to write <code>if dev then...</code> inside a file under <code>base/</code>, that's the signal the value belongs in an overlay's ConfigMap instead.</p>
+
+<h2 id="apparch">4. Application Architecture</h2>
+<pre><code><span class="cmt">                  Customer / QA Tester Browser
+                             |
+                   ALB (Ingress, per environment)
+                             |
+                  Frontend Service Pods (React + Nginx)
+                             |
+              reads config from environment variables,
+              injected at pod start from a ConfigMap +
+              an ExternalSecret — NEVER from the image
+                             |
+                    Backend API (Order/Catalog/etc.)
+</span></code></pre>
+<p>The service used for this use case is ShopNow's <b>Frontend Service</b> — chosen deliberately because it's the service with the most environment-specific values: API base URLs, feature flags for A/B-tested UI elements, and the log verbosity a frontend team wants cranked up in Dev but silent in Prod.</p>
+
+<h2 id="awsarch">5. AWS Architecture</h2>
+<table>
+<tr><th>AWS Service</th><th>Role in this project</th></tr>
+<tr><td>EKS</td><td>Runs the Frontend Service in four namespaces, each with its own ConfigMap</td></tr>
+<tr><td>ECR</td><td>Stores exactly one image per release — the same image is promoted from Dev through to Prod unchanged</td></tr>
+<tr><td>Secrets Manager</td><td>Holds the values that must never sit in a ConfigMap (API keys, any credential) — see section 10</td></tr>
+<tr><td>ALB</td><td>Routes to each environment's host (dev.shopnow.com, qa.shopnow.com, etc.)</td></tr>
+<tr><td>CloudWatch</td><td>Log verbosity in each environment is itself controlled by a ConfigMap value, so CloudWatch cost and noise scale appropriately per environment</td></tr>
+</table>
+
+<h2 id="eks">6. EKS Cluster Design</h2>
+<pre><code><span class="k">apiVersion</span>: eksctl.io/v1alpha5
+<span class="k">kind</span>: ClusterConfig
+<span class="k">metadata</span>:
+  <span class="k">name</span>: shopnow-cluster
+  <span class="k">region</span>: ap-south-1
+  <span class="k">version</span>: <span class="s">"1.29"</span>
+<span class="k">managedNodeGroups</span>:
+  <span class="k">- name</span>: ng-general
+    <span class="k">instanceType</span>: m5.large
+    <span class="k">desiredCapacity</span>: 3
+    <span class="k">minSize</span>: 3
+    <span class="k">maxSize</span>: 8
+</code></pre>
+<p>Nothing special is needed at the cluster level for ConfigMap management — like Zero-Downtime Deployment in Use Case 3, this is a workload-level and GitOps-repo-level concern, not an infrastructure one, which is part of why it's such an accessible, high-value skill to demonstrate.</p>
+
+<h2 id="vpc">7. VPC and Networking</h2>
+<p>Standard VPC layout, unchanged from earlier use cases — public subnets for the ALB, private subnets for worker nodes, no networking changes needed specifically for configuration management.</p>
+
+<h2 id="iam">8. IAM Roles and IRSA</h2>
+<pre><code><span class="cmt"># Only needed for pulling SECRETS (see section 10) — plain ConfigMaps need no AWS
+# IAM permission at all, since they are native Kubernetes objects with no AWS backing</span>
+eksctl create iamserviceaccount --cluster shopnow-cluster --namespace prod \
+  --name frontend-service-sa \
+  --attach-policy-arn arn:aws:iam::111122223333:policy/frontend-service-secrets-policy --approve
+</code></pre>
+<div class="callout why"><b>Worth stating explicitly in an interview:</b> ConfigMaps are pure Kubernetes objects — they need zero AWS IAM permissions to read, because kubelet mounts them directly from the Kubernetes API server. IRSA only enters this use case because of the Secrets half (section 10), not the ConfigMap half. Conflating the two is a common mistake to avoid saying out loud on a call.</div>
+
+<h2 id="configmaps">9. ConfigMaps — All Four Environments, Explained Line by Line</h2>
+<pre><code><span class="cmt"># overlays/dev/configmap.yaml</span>
+<span class="k">apiVersion</span>: v1
+<span class="k">kind</span>: ConfigMap
+<span class="k">metadata</span>:
+  <span class="k">name</span>: frontend-service-config
+  <span class="k">namespace</span>: dev
+<span class="k">data</span>:
+  <span class="k">APP_URL</span>: <span class="s">"https://dev.shopnow.com"</span>
+  <span class="k">API_BASE_URL</span>: <span class="s">"https://dev.shopnow.com/api"</span>
+  <span class="k">LOG_LEVEL</span>: <span class="s">"debug"</span>
+  <span class="k">FEATURE_NEW_CHECKOUT</span>: <span class="s">"true"</span>
+  <span class="k">FEATURE_BNPL_BANNER</span>: <span class="s">"true"</span>
+  <span class="k">FEATURE_DARK_MODE</span>: <span class="s">"true"</span>
+  <span class="k">PAYMENT_GATEWAY_ENDPOINT</span>: <span class="s">"https://sandbox.paygateway.com"</span>
+</code></pre>
+<pre><code><span class="cmt"># overlays/qa/configmap.yaml</span>
+<span class="k">apiVersion</span>: v1
+<span class="k">kind</span>: ConfigMap
+<span class="k">metadata</span>: { name: frontend-service-config, namespace: qa }
+<span class="k">data</span>:
+  <span class="k">APP_URL</span>: <span class="s">"https://qa.shopnow.com"</span>
+  <span class="k">API_BASE_URL</span>: <span class="s">"https://qa.shopnow.com/api"</span>
+  <span class="k">LOG_LEVEL</span>: <span class="s">"info"</span>
+  <span class="k">FEATURE_NEW_CHECKOUT</span>: <span class="s">"true"</span>
+  <span class="k">FEATURE_BNPL_BANNER</span>: <span class="s">"false"</span>   <span class="cmt"># <- the exact flag from section 1's story, flipped in seconds</span>
+  <span class="k">FEATURE_DARK_MODE</span>: <span class="s">"true"</span>
+  <span class="k">PAYMENT_GATEWAY_ENDPOINT</span>: <span class="s">"https://sandbox.paygateway.com"</span>
+</code></pre>
+<pre><code><span class="cmt"># overlays/uat/configmap.yaml</span>
+<span class="k">apiVersion</span>: v1
+<span class="k">kind</span>: ConfigMap
+<span class="k">metadata</span>: { name: frontend-service-config, namespace: uat }
+<span class="k">data</span>:
+  <span class="k">APP_URL</span>: <span class="s">"https://uat.shopnow.com"</span>
+  <span class="k">API_BASE_URL</span>: <span class="s">"https://uat.shopnow.com/api"</span>
+  <span class="k">LOG_LEVEL</span>: <span class="s">"info"</span>
+  <span class="k">FEATURE_NEW_CHECKOUT</span>: <span class="s">"true"</span>
+  <span class="k">FEATURE_BNPL_BANNER</span>: <span class="s">"true"</span>
+  <span class="k">FEATURE_DARK_MODE</span>: <span class="s">"false"</span>
+  <span class="k">PAYMENT_GATEWAY_ENDPOINT</span>: <span class="s">"https://staging.paygateway.com"</span>
+</code></pre>
+<pre><code><span class="cmt"># overlays/prod/configmap.yaml</span>
+<span class="k">apiVersion</span>: v1
+<span class="k">kind</span>: ConfigMap
+<span class="k">metadata</span>: { name: frontend-service-config, namespace: prod }
+<span class="k">data</span>:
+  <span class="k">APP_URL</span>: <span class="s">"https://shopnow.com"</span>
+  <span class="k">API_BASE_URL</span>: <span class="s">"https://shopnow.com/api"</span>
+  <span class="k">LOG_LEVEL</span>: <span class="s">"warn"</span>
+  <span class="k">FEATURE_NEW_CHECKOUT</span>: <span class="s">"false"</span>   <span class="cmt"># not yet enabled for real customers — still soaking in UAT</span>
+  <span class="k">FEATURE_BNPL_BANNER</span>: <span class="s">"true"</span>
+  <span class="k">FEATURE_DARK_MODE</span>: <span class="s">"false"</span>
+  <span class="k">PAYMENT_GATEWAY_ENDPOINT</span>: <span class="s">"https://live.paygateway.com"</span>
+</code></pre>
+<p>Notice all four ConfigMaps have exactly the same <b>keys</b>, only the <b>values</b> differ — this consistency is deliberate and important: the application code reads a fixed, known set of environment variable names (<code>APP_URL</code>, <code>LOG_LEVEL</code>, and so on) regardless of which environment it's running in, and never needs to know or care which environment that actually is.</p>
+<div class="step"><b class="n">1</b><b>Same key set across environments</b> means the same Deployment manifest (from the shared <code>base/</code> folder) works unmodified everywhere — only the ConfigMap referenced changes per overlay.</div>
+<div class="step"><b class="n">2</b><b>Feature flags as plain strings ("true"/"false")</b>, not native YAML booleans — this is intentional. Kubernetes ConfigMap <code>data</code> values are always strings; the application code is responsible for parsing <code>"true"</code> into an actual boolean. Forgetting this and writing <code>FEATURE_X: true</code> (unquoted) is a very common real-world mistake worth mentioning if asked about ConfigMap gotchas.</div>
+<div class="step"><b class="n">3</b><b>PAYMENT_GATEWAY_ENDPOINT differs by environment</b> — this is a non-sensitive URL (not a credential), so it correctly belongs in the ConfigMap; the actual API key used to authenticate against that endpoint belongs in a Secret instead, covered next.</div>
+
+<h2 id="secrets">10. Secrets — What Never Goes in a ConfigMap</h2>
+<pre><code><span class="cmt"># overlays/prod/external-secret.yaml</span>
+<span class="k">apiVersion</span>: external-secrets.io/v1beta1
+<span class="k">kind</span>: ExternalSecret
+<span class="k">metadata</span>: { name: frontend-service-secret, namespace: prod }
+<span class="k">spec</span>:
+  <span class="k">refreshInterval</span>: 1h
+  <span class="k">secretStoreRef</span>: { name: aws-secrets-manager, kind: ClusterSecretStore }
+  <span class="k">target</span>: { name: frontend-service-secret }
+  <span class="k">data</span>:
+    <span class="k">- secretKey</span>: PAYMENT_GATEWAY_API_KEY
+      <span class="k">remoteRef</span>: { key: shopnow/prod/payment-gateway-key }
+    <span class="k">- secretKey</span>: ANALYTICS_WRITE_KEY
+      <span class="k">remoteRef</span>: { key: shopnow/prod/analytics-write-key }
+</code></pre>
+<div class="callout warn"><b>The line that separates a ConfigMap value from a Secret value:</b> "would I be comfortable with this value showing up in a <code>git log</code> that every engineer on the team can read?" A log level, a feature flag, a public API URL — yes. An API key, a database password, any credential — no, ever. ConfigMaps are stored in plaintext in both Git and the Kubernetes API (etcd); they were never designed for confidentiality, only for configuration.</div>
+
+<h2 id="consuming">11. Consuming Config — envFrom vs env vs Volume Mounts</h2>
+<p>There are three different ways a pod can actually receive ConfigMap data, and knowing when to use which is a real interview differentiator:</p>
+<pre><code><span class="cmt"># Method 1: envFrom — inject EVERY key in the ConfigMap as an environment variable.
+# Simplest, used when the app just wants all config values available as env vars.</span>
+      <span class="k">containers</span>:
+        <span class="k">- name</span>: frontend-service
+          <span class="k">envFrom</span>:
+            <span class="k">- configMapRef</span>: { name: frontend-service-config }
+            <span class="k">- secretRef</span>:    { name: frontend-service-secret }
+</code></pre>
+<pre><code><span class="cmt"># Method 2: env with valueFrom — pick individual keys, optionally rename them.
+# Used when you only need a couple of specific values, or need a different env var name.</span>
+      <span class="k">containers</span>:
+        <span class="k">- name</span>: frontend-service
+          <span class="k">env</span>:
+            <span class="k">- name</span>: LOG_LEVEL
+              <span class="k">valueFrom</span>:
+                <span class="k">configMapKeyRef</span>: { name: frontend-service-config, key: LOG_LEVEL }
+            <span class="k">- name</span>: STRIPE_STYLE_GATEWAY_KEY   <span class="cmt"># renamed on the way in</span>
+              <span class="k">valueFrom</span>:
+                <span class="k">secretKeyRef</span>: { name: frontend-service-secret, key: PAYMENT_GATEWAY_API_KEY }
+</code></pre>
+<pre><code><span class="cmt"># Method 3: Volume mount — mount the ConfigMap as FILES inside the container.
+# Used for config that isn't a simple key=value (a full nginx.conf, a JSON feature-flag file).</span>
+      <span class="k">containers</span>:
+        <span class="k">- name</span>: frontend-service
+          <span class="k">volumeMounts</span>:
+            <span class="k">- name</span>: nginx-config
+              <span class="k">mountPath</span>: /etc/nginx/conf.d
+      <span class="k">volumes</span>:
+        <span class="k">- name</span>: nginx-config
+          <span class="k">configMap</span>: { name: frontend-nginx-config }
+</code></pre>
+<table>
+<tr><th>Method</th><th>Best for</th><th>Key behavior difference</th></tr>
+<tr><td><b>envFrom</b></td><td>Simple flat config, most of this use case</td><td>Requires a pod restart to pick up any change — env vars are only read once, at container start</td></tr>
+<tr><td><b>env + valueFrom</b></td><td>Selective values, renaming</td><td>Same restart requirement as envFrom, but explicit and self-documenting per variable</td></tr>
+<tr><td><b>Volume mount</b></td><td>Whole config files, structured JSON/YAML config</td><td>Kubernetes automatically updates the mounted file's contents in-place within about a minute of a ConfigMap change — <b>no pod restart needed</b>, if the app watches the file for changes</td></tr>
+</table>
+<p>This last row is the most important nuance in the entire use case, and it directly connects to section 14's "update without rebuilding" requirement — the mechanism (restart vs auto-refresh) depends entirely on <i>which</i> of these three methods you chose.</p>
+
+<h2 id="kustomize">12. Kustomize Overlays — One Base, Four Environments</h2>
+<pre><code><span class="cmt"># base/kustomization.yaml</span>
+<span class="k">resources</span>:
+  <span class="k">- deployment.yaml</span>
+  <span class="k">- service.yaml</span>
+  <span class="k">- hpa.yaml</span>
+  <span class="k">- pdb.yaml</span>
+  <span class="k">- networkpolicy.yaml</span>
+  <span class="k">- ingress.yaml</span>
+</code></pre>
+<pre><code><span class="cmt"># overlays/prod/kustomization.yaml</span>
+<span class="k">resources</span>:
+  <span class="k">- ../../base</span>
+  <span class="k">- configmap.yaml</span>
+  <span class="k">- external-secret.yaml</span>
+<span class="k">namespace</span>: prod
+<span class="k">patches</span>:
+  <span class="k">- path</span>: patch-replicas.yaml
+    <span class="k">target</span>: { kind: Deployment, name: frontend-service }
+</code></pre>
+<pre><code><span class="cmt"># overlays/prod/patch-replicas.yaml</span>
+<span class="k">- op</span>: replace
+  <span class="k">path</span>: /spec/replicas
+  <span class="k">value</span>: 6
+</code></pre>
+<p>This is Kustomize doing exactly what the folder structure in section 3 promises: <code>kubectl kustomize overlays/prod</code> combines the shared <code>base/</code> manifests with <code>prod</code>'s own ConfigMap, Secret reference, and replica-count patch into one final, environment-specific set of objects — without a single copy-pasted Deployment file anywhere in the repo.</p>
+
+<h2 id="manifests">13. Deployment and Service</h2>
+<pre><code><span class="cmt"># base/deployment.yaml — references the ConfigMap/Secret by NAME only,
+# never by environment — the actual object each name resolves to depends
+# entirely on which overlay/namespace this gets applied into</span>
+<span class="k">apiVersion</span>: apps/v1
+<span class="k">kind</span>: Deployment
+<span class="k">metadata</span>:
+  <span class="k">name</span>: frontend-service
+  <span class="k">labels</span>: { app: frontend-service }
+<span class="k">spec</span>:
+  <span class="k">replicas</span>: 2
+  <span class="k">selector</span>: { matchLabels: { app: frontend-service } }
+  <span class="k">template</span>:
+    <span class="k">metadata</span>:
+      <span class="k">labels</span>: { app: frontend-service }
+      <span class="k">annotations</span>:
+        <span class="k">configHash</span>: <span class="s">"PLACEHOLDER"</span>   <span class="cmt"># see section 14 — Kustomize replaces this automatically</span>
+    <span class="k">spec</span>:
+      <span class="k">serviceAccountName</span>: frontend-service-sa
+      <span class="k">containers</span>:
+        <span class="k">- name</span>: frontend-service
+          <span class="k">image</span>: 111122223333.dkr.ecr.ap-south-1.amazonaws.com/frontend-service:v2.3.0
+          <span class="k">ports</span>: [{ containerPort: 80 }]
+          <span class="k">envFrom</span>:
+            <span class="k">- configMapRef</span>: { name: frontend-service-config }
+            <span class="k">- secretRef</span>: { name: frontend-service-secret }
+          <span class="k">resources</span>:
+            <span class="k">requests</span>: { cpu: <span class="s">"100m"</span>, memory: <span class="s">"128Mi"</span> }
+            <span class="k">limits</span>:   { cpu: <span class="s">"300m"</span>, memory: <span class="s">"256Mi"</span> }
+          <span class="k">readinessProbe</span>: { httpGet: { path: /health, port: 80 }, initialDelaySeconds: 5, periodSeconds: 10 }
+---
+<span class="k">apiVersion</span>: v1
+<span class="k">kind</span>: Service
+<span class="k">metadata</span>: { name: frontend-service-svc }
+<span class="k">spec</span>:
+  <span class="k">selector</span>: { app: frontend-service }
+  <span class="k">ports</span>: [{ port: 80, targetPort: 80 }]
+</code></pre>
+<p>Note the image tag <code>v2.3.0</code> stays fixed across every environment overlay — that is the entire point being proven here: the same tested, promoted artifact runs everywhere, and only its surrounding ConfigMap changes.</p>
+
+<h2 id="reload">14. Updating Config Without Rebuilding — Restart and Hot-Reload</h2>
+<p>Here is exactly how "update configurations without rebuilding the application image" actually happens, both the simple way and the smarter way.</p>
+<h3>The simple way — edit and restart</h3>
+<pre><code><span class="cmt"># Change the value directly</span>
+kubectl edit configmap frontend-service-config -n qa
+<span class="cmt"># or, GitOps-correct way: edit overlays/qa/configmap.yaml, commit, push</span>
+
+<span class="cmt"># Pods do NOT automatically pick up envFrom/env changes — they must restart</span>
+kubectl rollout restart deployment/frontend-service -n qa
+kubectl rollout status deployment/frontend-service -n qa
+</code></pre>
+<p>This restart is itself a normal RollingUpdate (same mechanism as Use Case 3) — so even "just restart the pods to pick up new config" is zero-downtime by default, as long as the Deployment still has its <code>RollingUpdate</code> strategy, readiness probes, and PDB in place from that earlier use case.</p>
+<h3>The smarter way — automatic restart triggered by the config change itself</h3>
+<pre><code><span class="cmt"># overlays/qa/kustomization.yaml — Kustomize's configMapGenerator with a hash suffix</span>
+<span class="k">configMapGenerator</span>:
+  <span class="k">- name</span>: frontend-service-config
+    <span class="k">literals</span>:
+      <span class="k">- APP_URL=https://qa.shopnow.com</span>
+      <span class="k">- LOG_LEVEL=info</span>
+      <span class="k">- FEATURE_BNPL_BANNER=false</span>
+<span class="k">generatorOptions</span>:
+  <span class="k">disableNameSuffixHash</span>: false
+</code></pre>
+<div class="callout why"><b>What this does, in plain words:</b> instead of a ConfigMap always named <code>frontend-service-config</code>, Kustomize generates a name like <code>frontend-service-config-8f2c4d6b</code>, where that suffix is a hash of the actual content. Change one value, the hash changes, the ConfigMap gets a brand-new name — and because the Deployment references that generated name, Kubernetes sees the Deployment spec itself as changed and <b>automatically triggers a rolling restart</b>, with zero need for the manual <code>kubectl rollout restart</code> command above. This is the single most useful Kustomize feature for this exact use case, and it directly prevents a real, common bug: forgetting to restart pods after a ConfigMap edit and wondering why the change "didn't take effect."</div>
+<h3>The volume-mount way — true zero-restart hot reload</h3>
+<p>Referring back to section 11's Method 3: if <code>FEATURE_DARK_MODE</code> and similar flags were instead delivered as a mounted JSON file (<code>/etc/config/feature-flags.json</code>) and the application code watches that file with a filesystem watcher, Kubernetes updates the file contents in place roughly once a minute — the running application process picks up the new flag value <b>without restarting at all</b>. This is the technique real feature-flag-heavy frontends use for flags that need to change instantly without any deploy event whatsoever.</p>
+
+<h2 id="ingress">15. Ingress with AWS Load Balancer Controller</h2>
+<pre><code><span class="cmt"># base/ingress.yaml — host is parameterized per overlay via a Kustomize patch</span>
+<span class="k">apiVersion</span>: networking.k8s.io/v1
+<span class="k">kind</span>: Ingress
+<span class="k">metadata</span>:
+  <span class="k">name</span>: frontend-service-ingress
+  <span class="k">annotations</span>:
+    <span class="k">kubernetes.io/ingress.class</span>: alb
+    <span class="k">alb.ingress.kubernetes.io/scheme</span>: internet-facing
+    <span class="k">alb.ingress.kubernetes.io/target-type</span>: ip
+<span class="k">spec</span>:
+  <span class="k">rules</span>:
+    <span class="k">- host</span>: PLACEHOLDER_HOST
+      <span class="k">http</span>:
+        <span class="k">paths</span>:
+          <span class="k">- path</span>: /
+            <span class="k">pathType</span>: Prefix
+            <span class="k">backend</span>: { service: { name: frontend-service-svc, port: { number: 80 } } }
+</code></pre>
+<pre><code><span class="cmt"># overlays/qa/patch-ingress-host.yaml</span>
+<span class="k">- op</span>: replace
+  <span class="k">path</span>: /spec/rules/0/host
+  <span class="k">value</span>: qa.shopnow.com
+</code></pre>
+
+<h2 id="hpa">16. HPA and Autoscaling</h2>
+<pre><code><span class="k">apiVersion</span>: autoscaling/v2
+<span class="k">kind</span>: HorizontalPodAutoscaler
+<span class="k">metadata</span>: { name: frontend-service-hpa }
+<span class="k">spec</span>:
+  <span class="k">scaleTargetRef</span>: { apiVersion: apps/v1, kind: Deployment, name: frontend-service }
+  <span class="k">minReplicas</span>: 2
+  <span class="k">maxReplicas</span>: 10
+  <span class="k">metrics</span>: [{ type: Resource, resource: { name: cpu, target: { type: Utilization, averageUtilization: 70 } } }]
+</code></pre>
+<p>Prod overlay patches <code>minReplicas</code> up to 6 and <code>maxReplicas</code> up to 20 — the same "same base, different overlay values" pattern applies to autoscaling limits exactly as it does to ConfigMap values.</p>
+
+<h2 id="pdb">17. PodDisruptionBudget</h2>
+<pre><code><span class="k">apiVersion</span>: policy/v1
+<span class="k">kind</span>: PodDisruptionBudget
+<span class="k">metadata</span>: { name: frontend-service-pdb }
+<span class="k">spec</span>:
+  <span class="k">minAvailable</span>: 1
+  <span class="k">selector</span>: { matchLabels: { app: frontend-service } }
+</code></pre>
+
+<h2 id="netpol">18. NetworkPolicies</h2>
+<pre><code><span class="k">apiVersion</span>: networking.k8s.io/v1
+<span class="k">kind</span>: NetworkPolicy
+<span class="k">metadata</span>: { name: allow-alb-to-frontend }
+<span class="k">spec</span>:
+  <span class="k">podSelector</span>: { matchLabels: { app: frontend-service } }
+  <span class="k">policyTypes</span>: [Ingress]
+  <span class="k">ingress</span>: [{ from: [], ports: [{ protocol: TCP, port: 80 }] }]
+</code></pre>
+
+<h2 id="ecr">19. ECR Integration</h2>
+<pre><code>aws ecr create-repository --repository-name frontend-service --region ap-south-1
+
+<span class="cmt"># Built exactly ONCE per release — the whole point of this use case is that this
+# same tag is reused across dev/qa/uat/prod, never rebuilt per environment</span>
+docker build -t frontend-service:$TAG .
+docker tag frontend-service:$TAG 111122223333.dkr.ecr.ap-south-1.amazonaws.com/frontend-service:$TAG
+docker push 111122223333.dkr.ecr.ap-south-1.amazonaws.com/frontend-service:$TAG
+</code></pre>
+
+<h2 id="pipeline">20. CI/CD Pipeline — Jenkins and GitHub Actions</h2>
+<pre><code><span class="cmt">// Jenkinsfile — notice there is NO per-environment build stage; only one build,
+// then four different "apply the right overlay" deploy stages</span>
+pipeline {
+  agent any
+  environment { ECR_REPO = <span class="s">"111122223333.dkr.ecr.ap-south-1.amazonaws.com/frontend-service"</span> }
+  stages {
+    stage(<span class="s">'Test'</span>) { steps { sh <span class="s">'npm ci && npm test'</span> } }
+    stage(<span class="s">'Build ONE Image'</span>) {
+      steps {
+        sh <span class="s">'''
+          docker build -t $ECR_REPO:${GIT_COMMIT} .
+          aws ecr get-login-password | docker login --username AWS --password-stdin $ECR_REPO
+          docker push $ECR_REPO:${GIT_COMMIT}
+        '''</span>
+      }
+    }
+    stage(<span class="s">'Deploy to Dev'</span>) { steps { sh <span class="s">'kubectl apply -k gitops-repo/services/frontend-service/overlays/dev'</span> } }
+    stage(<span class="s">'Deploy to QA'</span>)  { steps { sh <span class="s">'kubectl apply -k gitops-repo/services/frontend-service/overlays/qa'</span> } }
+    stage(<span class="s">'Approve UAT'</span>)   { steps { input message: <span class="s">'Promote same image to UAT?'</span> } }
+    stage(<span class="s">'Deploy to UAT'</span>) { steps { sh <span class="s">'kubectl apply -k gitops-repo/services/frontend-service/overlays/uat'</span> } }
+    stage(<span class="s">'Approve Prod'</span>)  { steps { input message: <span class="s">'Promote same image to Prod?'</span>, submitter: <span class="s">'release-managers'</span> } }
+    stage(<span class="s">'Deploy to Prod'</span>) { steps { sh <span class="s">'kubectl apply -k gitops-repo/services/frontend-service/overlays/prod'</span> } }
+    stage(<span class="s">'Report & Notify'</span>) {
+      steps {
+        sh <span class="s">'python3 pipeline-scripts/generate_report.py --status success --build ${BUILD_NUMBER}'</span>
+        sh <span class="s">'python3 pipeline-scripts/send_email.py --report report.html'</span>
+      }
+    }
+  }
+}
+</code></pre>
+<pre><code><span class="cmt"># .github/workflows/deploy.yml</span>
+<span class="k">name</span>: Frontend Service Config-Aware Deploy
+<span class="k">on</span>: { workflow_dispatch: { inputs: { environment: { type: choice, options: [dev, qa, uat, prod] } } } }
+<span class="k">jobs</span>:
+  <span class="k">deploy</span>:
+    <span class="k">runs-on</span>: ubuntu-latest
+    <span class="k">environment</span>: ${{ github.event.inputs.environment }}
+    <span class="k">steps</span>:
+      <span class="k">- uses</span>: actions/checkout@v4
+      <span class="k">- uses</span>: aws-actions/configure-aws-credentials@v4
+        <span class="k">with</span>: { role-to-assume: arn:aws:iam::111122223333:role/gha-eks-deploy, aws-region: ap-south-1 }
+      <span class="k">- name</span>: Update kubeconfig
+        <span class="k">run</span>: aws eks update-kubeconfig --name shopnow-cluster --region ap-south-1
+      <span class="k">- name</span>: Apply the correct overlay ONLY — image tag never changes here
+        <span class="k">run</span>: kubectl apply -k gitops-repo/services/frontend-service/overlays/${{ github.event.inputs.environment }}
+</code></pre>
+
+<h2 id="argocd">21. Argo CD GitOps</h2>
+<pre><code><span class="cmt"># argocd-apps/frontend-service-prod.yaml</span>
+<span class="k">apiVersion</span>: argoproj.io/v1alpha1
+<span class="k">kind</span>: Application
+<span class="k">metadata</span>: { name: frontend-service-prod, namespace: argocd }
+<span class="k">spec</span>:
+  <span class="k">project</span>: default
+  <span class="k">source</span>:
+    <span class="k">repoURL</span>: https://github.com/shopnow/gitops-repo.git
+    <span class="k">targetRevision</span>: main
+    <span class="k">path</span>: services/frontend-service/overlays/prod
+  <span class="k">destination</span>: { server: https://kubernetes.default.svc, namespace: prod }
+  <span class="k">syncPolicy</span>: { automated: { prune: true, selfHeal: true } }
+</code></pre>
+<p>Because the configMapGenerator hash from section 14 means every config change produces a genuinely new Git commit (the generated ConfigMap name changes), Argo CD's own Git history becomes a complete, browsable audit trail of every configuration change ever made to Prod — <i>"who changed the BNPL banner flag and when"</i> is answered by <code>git log</code> on one file, with zero extra auditing tooling required.</p>
+
+<h2 id="monitoring">22. Prometheus and Grafana</h2>
+<pre><code><span class="k">apiVersion</span>: monitoring.coreos.com/v1
+<span class="k">kind</span>: ServiceMonitor
+<span class="k">metadata</span>: { name: frontend-service-monitor }
+<span class="k">spec</span>:
+  <span class="k">selector</span>: { matchLabels: { app: frontend-service } }
+  <span class="k">endpoints</span>: [{ port: metrics, path: /metrics, interval: 30s }]
+</code></pre>
+<p>One Grafana panel worth building specifically for this use case: a table querying <code>kube_pod_annotations</code> or the Deployment's <code>configHash</code> annotation across all four namespaces side by side, so you can see at a glance whether Dev, QA, UAT, and Prod are currently running the config version you expect — catching, for example, an overlay that got out of sync after a hotfix.</p>
+
+<h2 id="cloudwatch">23. CloudWatch Logging</h2>
+<pre><code><span class="k">apiVersion</span>: v1
+<span class="k">kind</span>: ConfigMap
+<span class="k">metadata</span>: { name: fluent-bit-config, namespace: amazon-cloudwatch }
+<span class="k">data</span>:
+  <span class="k">output.conf</span>: |
+    [OUTPUT]
+        Name                cloudwatch_logs
+        Match               kube.*
+        region              ap-south-1
+        log_group_name      /eks/shopnow/frontend-service/${kubernetes['namespace_name']}
+        log_stream_prefix   ${kubernetes['pod_name']}-
+        auto_create_group   true
+</code></pre>
+<p>Because <code>LOG_LEVEL</code> itself is a ConfigMap-controlled value, Dev's CloudWatch log group fills up with verbose debug lines while Prod's stays lean — this is a direct, visible payoff of the whole use case: one config change (<code>LOG_LEVEL: debug</code> in an overlay) measurably changes real operating cost and log noise, entirely without touching code.</p>
+
+<h2 id="workflow">24. Running the Code — Full End-to-End Workflow</h2>
+
+<h3>Step 1 — Preview what an overlay actually produces, before applying anything</h3>
+<pre><code>kubectl kustomize gitops-repo/services/frontend-service/overlays/qa
+<span class="cmt"># Prints the fully-rendered YAML — base + qa's ConfigMap + qa's patches — so you
+# can review the exact final objects before they ever touch the cluster</span>
+</code></pre>
+
+<h3>Step 2 — Apply to Dev first</h3>
+<pre><code>kubectl apply -k gitops-repo/services/frontend-service/overlays/dev
+kubectl get configmap -n dev
+kubectl get pods -n dev -l app=frontend-service
+
+<span class="cmt"># Confirm the actual values landed inside a running pod</span>
+kubectl exec -n dev deploy/frontend-service -- printenv | grep -E "APP_URL|LOG_LEVEL|FEATURE_"
+</code></pre>
+
+<h3>Step 3 — Make a real config change (the exact BNPL banner scenario from section 1)</h3>
+<pre><code><span class="cmt"># Edit the file directly</span>
+sed -i <span class="s">'s/FEATURE_BNPL_BANNER=.*/FEATURE_BNPL_BANNER=false/'</span> \
+  gitops-repo/services/frontend-service/overlays/qa/kustomization.yaml
+
+git add gitops-repo/services/frontend-service/overlays/qa/kustomization.yaml
+git commit -m <span class="s">"qa: disable BNPL banner for partnership issue"</span>
+git push
+</code></pre>
+
+<h3>Step 4 — Watch it take effect, with zero image rebuild</h3>
+<pre><code><span class="cmt"># If using Argo CD, it auto-syncs within its poll interval; to force it immediately:</span>
+argocd app sync frontend-service-qa
+
+<span class="cmt"># If applying directly with kubectl:</span>
+kubectl apply -k gitops-repo/services/frontend-service/overlays/qa
+
+<span class="cmt"># Confirm a NEW ConfigMap name was generated (the content-hash suffix changed)</span>
+kubectl get configmap -n qa
+<span class="cmt"># frontend-service-config-8f2c4d6b   ->   frontend-service-config-a91e02f1</span>
+
+<span class="cmt"># Confirm the Deployment automatically picked it up and rolled pods</span>
+kubectl get deployment frontend-service -n qa -o jsonpath=<span class="s">'{.spec.template.spec.containers[0].envFrom}'</span>
+kubectl rollout status deployment/frontend-service -n qa
+kubectl get pods -n qa -l app=frontend-service -w
+</code></pre>
+
+<h3>Step 5 — Verify the running application actually reflects the new value</h3>
+<pre><code>kubectl exec -n qa deploy/frontend-service -- printenv | grep FEATURE_BNPL_BANNER
+<span class="cmt"># Expect: FEATURE_BNPL_BANNER=false</span>
+
+curl -s https://qa.shopnow.com/api/config/feature-flags | grep bnpl_banner
+<span class="cmt"># Expect: the frontend's own runtime config endpoint reflects the change too</span>
+</code></pre>
+
+<h3>Step 6 — Promote the SAME image, with each environment's OWN config, all the way to Prod</h3>
+<pre><code>kubectl apply -k gitops-repo/services/frontend-service/overlays/uat
+kubectl apply -k gitops-repo/services/frontend-service/overlays/prod
+
+<span class="cmt"># Confirm across all four namespaces the image tag is identical but config differs</span>
+<span class="k">for</span> ns <span class="k">in</span> dev qa uat prod; <span class="k">do</span>
+  echo <span class="s">"--- $ns ---"</span>
+  kubectl get deployment frontend-service -n $ns -o jsonpath=<span class="s">'{.spec.template.spec.containers[0].image}{"\n"}'</span>
+  kubectl get configmap -n $ns -l app=frontend-service -o jsonpath=<span class="s">'{.items[0].data.LOG_LEVEL}{"\n"}'</span>
+<span class="k">done</span>
+</code></pre>
+
+<h2 id="failure">25. Failure Testing</h2>
+<pre><code><span class="cmt"># Test 1: Reference a ConfigMap key that doesn't exist and confirm the pod fails clearly</span>
+kubectl patch deployment frontend-service -n dev --type=json \
+  -p='[{"op":"add","path":"/spec/template/spec/containers/0/env/-","value":{"name":"MISSING_VAR","valueFrom":{"configMapKeyRef":{"name":"frontend-service-config","key":"DOES_NOT_EXIST"}}}}]'
+kubectl describe pod -n dev -l app=frontend-service
+<span class="cmt"># Expected: pod stuck in CreateContainerConfigError, with a clear event message
+# naming the missing key — this is the exact failure mode to recognize instantly</span>
+
+<span class="cmt"># Test 2: Confirm a ConfigMap-only edit (no Deployment spec change) does NOT auto-restart
+# pods, proving why the configMapGenerator hash trick in section 14 actually matters</span>
+kubectl edit configmap frontend-service-config -n dev   <span class="cmt"># change LOG_LEVEL by hand, bypassing Kustomize</span>
+kubectl exec -n dev deploy/frontend-service -- printenv | grep LOG_LEVEL
+<span class="cmt"># Expected: still shows the OLD value — proving env vars really are frozen at pod start</span>
+</code></pre>
+
+<h2 id="rollback">26. Rollback Strategy</h2>
+<pre><code><span class="cmt"># Because every config change is a Git commit, rollback is a Git revert, same as code:</span>
+cd gitops-repo/services/frontend-service/overlays/qa
+git log --oneline -5
+git revert &lt;bad-config-commit-sha&gt;
+git push
+<span class="cmt"># Argo CD (or the next pipeline run) re-applies, generates a new hash, rolls pods back</span>
+
+<span class="cmt"># Emergency direct rollback without waiting for Git/Argo CD:</span>
+kubectl apply -f gitops-repo/services/frontend-service/overlays/qa/configmap.yaml.bak
+kubectl rollout restart deployment/frontend-service -n qa
+</code></pre>
+
+<h2 id="troubleshoot">27. Troubleshooting Scenarios</h2>
+<table>
+<tr><th>Symptom</th><th>Likely Cause</th><th>Diagnostic Commands</th></tr>
+<tr><td>Changed the ConfigMap but the app still shows old values</td><td>Used envFrom/env (not a volume mount) and forgot to restart pods</td><td><code>kubectl rollout restart deployment/&lt;name&gt; -n &lt;ns&gt;</code></td></tr>
+<tr><td>Pod stuck CreateContainerConfigError</td><td>ConfigMap or Secret key referenced in the Deployment doesn't exist</td><td><code>kubectl describe pod &lt;pod&gt; -n &lt;ns&gt;</code> — Events section names the missing key</td></tr>
+<tr><td>Feature flag evaluates as truthy even when set to "false"</td><td>App code checking <code>if os.environ.get("FLAG")</code> instead of comparing the string value — any non-empty string is truthy</td><td>Review the app's flag-parsing logic; compare against <code>"true"</code> explicitly</td></tr>
+<tr><td>Kustomize overlay applies but nothing changes</td><td>Forgot <code>-k</code> flag, ran plain <code>kubectl apply -f</code> on a single file instead</td><td>Re-run with <code>kubectl apply -k &lt;overlay-dir&gt;</code></td></tr>
+<tr><td>Config differs between what's in Git and what's live in the cluster</td><td>Someone ran <code>kubectl edit</code> directly, bypassing GitOps</td><td><code>argocd app diff frontend-service-prod</code></td></tr>
+</table>
+
+<h2 id="ansible">28. Ansible Automation</h2>
+<pre><code><span class="cmt"># roles/configmap-bootstrap/tasks/main.yml — scaffolds config for a brand-new environment</span>
+<span class="k">- name</span>: Render environment-specific ConfigMap
+  <span class="k">template</span>:
+    <span class="k">src</span>: configmap.yaml.j2
+    <span class="k">dest</span>: <span class="s">"gitops-repo/services/{{ service_name }}/overlays/{{ env_name }}/configmap.yaml"</span>
+  <span class="k">vars</span>:
+    <span class="k">app_url</span>: <span class="s">"https://{{ env_name }}.shopnow.com"</span>
+    <span class="k">log_level</span>: <span class="s">"{{ 'debug' if env_name in ['dev','qa'] else 'warn' }}"</span>
+
+<span class="k">- name</span>: Apply the overlay to the cluster
+  <span class="k">kubernetes.core.k8s</span>:
+    <span class="k">state</span>: present
+    <span class="k">src</span>: <span class="s">"gitops-repo/services/{{ service_name }}/overlays/{{ env_name }}"</span>
+</code></pre>
+<pre><code>ansible-playbook playbook.yml -e <span class="s">"service_name=frontend-service env_name=staging"</span>
+</code></pre>
+
+<h2 id="report">29. HTML Deployment/Job Report</h2>
+<pre><code><span class="cmt"># generate_report.py — shows config diffs across environments in one view</span>
+<span class="k">import</span> argparse, subprocess, json, datetime
+
+<span class="k">ENVS</span> = [<span class="s">"dev"</span>, <span class="s">"qa"</span>, <span class="s">"uat"</span>, <span class="s">"prod"</span>]
+
+<span class="k">def</span> get_config(ns):
+    out = subprocess.run(
+        [<span class="s">"kubectl"</span>, <span class="s">"get"</span>, <span class="s">"configmap"</span>, <span class="s">"-n"</span>, ns, <span class="s">"-l"</span>, <span class="s">"app=frontend-service"</span>, <span class="s">"-o"</span>, <span class="s">"json"</span>],
+        capture_output=<span class="k">True</span>, text=<span class="k">True</span>
+    )
+    items = json.loads(out.stdout)[<span class="s">"items"</span>]
+    <span class="k">return</span> items[0][<span class="s">"data"</span>] <span class="k">if</span> items <span class="k">else</span> {}
+
+<span class="k">def</span> build_report(build_no, status):
+    all_config = {env: get_config(env) <span class="k">for</span> env <span class="k">in</span> ENVS}
+    keys = sorted({k <span class="k">for</span> cfg <span class="k">in</span> all_config.values() <span class="k">for</span> k <span class="k">in</span> cfg})
+    rows = <span class="s">""</span>
+    <span class="k">for</span> key <span class="k">in</span> keys:
+        cells = <span class="s">""</span>.join(f<span class="s">"&lt;td&gt;{all_config[e].get(key,'-')}&lt;/td&gt;"</span> <span class="k">for</span> e <span class="k">in</span> ENVS)
+        rows += f<span class="s">"&lt;tr&gt;&lt;td&gt;{key}&lt;/td&gt;{cells}&lt;/tr&gt;"</span>
+    color = <span class="s">"#5ec98f"</span> <span class="k">if</span> status == <span class="s">"success"</span> <span class="k">else</span> <span class="s">"#e35d5d"</span>
+    html = f<span class="s">"""&lt;html&gt;&lt;body style="font-family:Arial;background:#0b0f14;color:#dbe6f0;padding:24px"&gt;
+    &lt;h2 style="color:{color}"&gt;ShopNow Frontend Config Report — Build #{build_no}&lt;/h2&gt;
+    &lt;p&gt;Time: {datetime.datetime.now()} | Status: {status.upper()}&lt;/p&gt;
+    &lt;table border="1" cellpadding="8" style="border-collapse:collapse"&gt;
+      &lt;tr&gt;&lt;th&gt;Key&lt;/th&gt;&lt;th&gt;Dev&lt;/th&gt;&lt;th&gt;QA&lt;/th&gt;&lt;th&gt;UAT&lt;/th&gt;&lt;th&gt;Prod&lt;/th&gt;&lt;/tr&gt;
+      {rows}
+    &lt;/table&gt;&lt;/body&gt;&lt;/html&gt;"""</span>
+    <span class="k">with</span> open(<span class="s">"report.html"</span>, <span class="s">"w"</span>) <span class="k">as</span> f:
+        f.write(html)
+
+<span class="k">if</span> __name__ == <span class="s">"__main__"</span>:
+    parser = argparse.ArgumentParser()
+    parser.add_argument(<span class="s">"--status"</span>, default=<span class="s">"success"</span>)
+    parser.add_argument(<span class="s">"--build"</span>, required=<span class="k">True</span>)
+    args = parser.parse_args()
+    build_report(args.build, args.status)
+</code></pre>
+<p>This report is genuinely useful beyond just this pipeline run — it's a live cross-environment config diff, letting a release manager instantly spot, for example, a feature flag that's accidentally still <code>true</code> in Prod when it should have been turned off after a campaign ended.</p>
+
+<h2 id="email">30. Email Notification</h2>
+<pre><code><span class="cmt"># send_email.py</span>
+<span class="k">import</span> argparse, smtplib, os
+<span class="k">from</span> email.mime.multipart <span class="k">import</span> MIMEMultipart
+<span class="k">from</span> email.mime.text <span class="k">import</span> MIMEText
+<span class="k">from</span> email.mime.application <span class="k">import</span> MIMEApplication
+
+<span class="k">def</span> send(status, build_no, report_path=<span class="s">"report.html"</span>):
+    msg = MIMEMultipart()
+    msg[<span class="s">"Subject"</span>] = f<span class="s">"[ShopNow] frontend-service config report - Build #{build_no} - {status.upper()}"</span>
+    msg[<span class="s">"From"</span>] = <span class="s">"devops-bot@shopnow.com"</span>
+    msg[<span class="s">"To"</span>] = <span class="s">"release-managers@shopnow.com, frontend-team@shopnow.com"</span>
+    msg.attach(MIMEText(f<span class="s">"Build: #{build_no}\nStatus: {status}\n\nSee attached cross-environment config diff."</span>, <span class="s">"plain"</span>))
+    <span class="k">if</span> os.path.exists(report_path):
+        <span class="k">with</span> open(report_path, <span class="s">"rb"</span>) <span class="k">as</span> f:
+            part = MIMEApplication(f.read(), Name=<span class="s">"report.html"</span>)
+        part[<span class="s">"Content-Disposition"</span>] = <span class="s">'attachment; filename="report.html"'</span>
+        msg.attach(part)
+    <span class="k">with</span> smtplib.SMTP(<span class="s">"email-smtp.ap-south-1.amazonaws.com"</span>, 587) <span class="k">as</span> server:
+        server.starttls()
+        server.login(os.environ[<span class="s">"SES_USER"</span>], os.environ[<span class="s">"SES_PASS"</span>])
+        server.send_message(msg)
+
+<span class="k">if</span> __name__ == <span class="s">"__main__"</span>:
+    parser = argparse.ArgumentParser()
+    parser.add_argument(<span class="s">"--status"</span>, default=<span class="s">"success"</span>)
+    parser.add_argument(<span class="s">"--build"</span>, required=<span class="k">True</span>)
+    parser.add_argument(<span class="s">"--report"</span>, default=<span class="s">"report.html"</span>)
+    args = parser.parse_args()
+    send(args.status, args.build, args.report)
+</code></pre>
+
+<hr class="divider">
+<h2 id="resume">31. How to Present This on Your Resume</h2>
+<div class="callout why">
+<b>Resume bullet (use as-is or adapt):</b><br>
+"Designed environment-specific configuration management for a production frontend service on Amazon EKS using Kubernetes ConfigMaps and Kustomize overlays (Dev/QA/UAT/Prod), enabling application URLs, log levels, feature flags, and API endpoints to be updated without rebuilding the Docker image; implemented Kustomize's configMapGenerator hash-suffix pattern to trigger automatic zero-downtime rolling restarts on config change; separated sensitive values into AWS Secrets Manager via External Secrets Operator; built a cross-environment configuration audit report surfaced via automated email notification."
+</div>
+<table>
+<tr><th>Likely question</th><th>Section to re-read before the call</th></tr>
+<tr><td>"What's the difference between a ConfigMap and a Secret?"</td><td>Section 10</td></tr>
+<tr><td>"Does a pod pick up a ConfigMap change automatically?"</td><td>Section 11, Section 14</td></tr>
+<tr><td>"How do you manage the same app across four environments without four sets of manifests?"</td><td>Section 3, Section 12</td></tr>
+<tr><td>"What's a real gotcha you've hit with ConfigMaps?"</td><td>Section 9 step 2, Section 25 Test 2</td></tr>
+<tr><td>"How do you roll back a bad config change?"</td><td>Section 26</td></tr>
+</table>
+
+<div class="story" style="margin-top:40px">The next time Marketing needs the BNPL banner flipped for QA, the on-call engineer edits one line in <code>overlays/qa/kustomization.yaml</code>, pushes, and watches Argo CD roll the change out in under sixty seconds — no image build, no full pipeline run, no forty-five-minute wait. That thirty-second fix from section 1's story is now, genuinely, a thirty-second fix.</div>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,871 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Use Case 11: Database and External Dependency Validation | ShopNow Retail</title>
+<style>
+  :root{
+    --bg:#0b0f14; --panel:#111823; --panel2:#0e1420; --border:#1f2b3a;
+    --text:#dbe6f0; --muted:#8aa0b4; --accent:#3fb6a8; --accent2:#e8a33d;
+    --code-bg:#0a0e14; --good:#5ec98f; --bad:#e35d5d;
+  }
+  *{box-sizing:border-box}
+  body{background:var(--bg);color:var(--text);font-family:'Segoe UI',Roboto,Helvetica,Arial,sans-serif;line-height:1.65;margin:0;padding:0}
+  .wrap{max-width:980px;margin:0 auto;padding:32px 24px 120px}
+  h1{font-size:2rem;color:#fff;border-bottom:3px solid var(--accent);padding-bottom:12px;margin-top:0}
+  h2{color:var(--accent);font-size:1.5rem;margin-top:56px;border-left:5px solid var(--accent);padding-left:14px}
+  h3{color:var(--accent2);font-size:1.2rem;margin-top:32px}
+  h4{color:#fff;font-size:1.02rem;margin-top:22px;background:var(--panel2);padding:6px 10px;border-radius:4px;border-left:3px solid var(--muted)}
+  p{color:#c6d3df}
+  .story{background:linear-gradient(135deg,#132030,#0e1622);border:1px solid var(--border);border-radius:10px;padding:18px 22px;margin:18px 0;font-style:italic;color:#b9c9d8}
+  .story b{color:var(--accent2);font-style:normal}
+  .callout{background:#152a24;border:1px solid #235c4c;border-radius:8px;padding:14px 18px;margin:16px 0}
+  .callout.warn{background:#2a1f14;border-color:#6b4a1d}
+  .callout.why{background:#101b2c;border-color:#254268}
+  .step{background:var(--panel);border:1px solid var(--border);border-left:4px solid var(--accent);border-radius:6px;padding:12px 18px;margin:14px 0}
+  .step b.n{display:inline-block;background:var(--accent);color:#04120f;border-radius:50%;width:24px;height:24px;text-align:center;line-height:24px;font-size:.8rem;margin-right:10px}
+  pre{background:var(--code-bg);border:1px solid var(--border);border-radius:8px;padding:16px;overflow-x:auto;font-size:.85rem}
+  code{font-family:'Fira Code',Consolas,monospace;color:#c9d9e3}
+  .cmt{color:#5c7a8a}
+  .k{color:#e8a33d} .s{color:#7fd1a7} .v{color:#5aa9e6}
+  table{width:100%;border-collapse:collapse;margin:16px 0}
+  th,td{border:1px solid var(--border);padding:8px 12px;text-align:left;font-size:.9rem}
+  th{background:var(--panel2);color:var(--accent2)}
+  .toc{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:20px 26px}
+  .toc a{color:var(--accent);text-decoration:none}
+  .toc li{margin:6px 0}
+  .divider{border:none;border-top:1px solid var(--border);margin:40px 0}
+  .flow{display:flex;flex-wrap:wrap;gap:10px;margin:16px 0;align-items:center}
+  .flow div{background:var(--panel2);border:1px solid var(--border);border-radius:6px;padding:8px 14px;font-size:.85rem}
+  .dep-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin:16px 0}
+  .dep-card{border-radius:8px;padding:12px;border:1px solid var(--border);background:var(--panel2);text-align:center;font-size:.85rem}
+  .gate-pass{color:var(--good);font-weight:700}
+  .gate-fail{color:var(--bad);font-weight:700}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>Use Case 11: Database and External Dependency Validation Before Deployment</h1>
+<p><b>Company:</b> ShopNow Retail Pvt Ltd (fictional mid-size e-commerce company) &nbsp;|&nbsp; <b>Your role:</b> DevOps/Cloud Engineer &nbsp;|&nbsp; <b>Level:</b> 4+ years, resume-ready production project</p>
+
+<div class="toc">
+<b>What this document covers, start to finish:</b>
+<ol>
+<li><a href="#scenario">The Business Scenario</a></li>
+<li><a href="#concept">The Core Idea — A Deployment Gate, Not a Runtime Check</a></li>
+<li><a href="#folders">Project Folder Structure</a></li>
+<li><a href="#apparch">Application Architecture</a></li>
+<li><a href="#awsarch">AWS Architecture</a></li>
+<li><a href="#eks">EKS Cluster Design</a></li>
+<li><a href="#vpc">VPC and Networking</a></li>
+<li><a href="#iam">IAM Roles and IRSA</a></li>
+<li><a href="#validator">Building the Dependency Validator</a></li>
+<li><a href="#rds">Validating RDS</a></li>
+<li><a href="#dynamodb">Validating DynamoDB</a></li>
+<li><a href="#redis">Validating Redis</a></li>
+<li><a href="#kafka">Validating Kafka</a></li>
+<li><a href="#externalapi">Validating External APIs</a></li>
+<li><a href="#internalsvc">Validating Internal Microservices</a></li>
+<li><a href="#gate">The Init Container Gate — Stopping a Bad Deploy Before It Starts</a></li>
+<li><a href="#manifests">Deployment and Service</a></li>
+<li><a href="#config">ConfigMaps and Secrets</a></li>
+<li><a href="#ingress">Ingress with AWS Load Balancer Controller</a></li>
+<li><a href="#hpa">HPA and Autoscaling</a></li>
+<li><a href="#pdb">PodDisruptionBudget</a></li>
+<li><a href="#netpol">NetworkPolicies</a></li>
+<li><a href="#ecr">ECR Integration</a></li>
+<li><a href="#pipeline">Jenkins and GitHub Actions Pipelines — the Pre-Deploy Gate</a></li>
+<li><a href="#argocd">Argo CD GitOps</a></li>
+<li><a href="#monitoring">Prometheus and Grafana</a></li>
+<li><a href="#cloudwatch">CloudWatch Logging</a></li>
+<li><a href="#workflow">Running the Code — Full End-to-End Workflow</a></li>
+<li><a href="#failure">Failure Testing — Proving the Gate Actually Blocks</a></li>
+<li><a href="#rollback">Rollback Strategy</a></li>
+<li><a href="#troubleshoot">Troubleshooting Scenarios</a></li>
+<li><a href="#ansible">Ansible Automation</a></li>
+<li><a href="#report">HTML Deployment/Job Report</a></li>
+<li><a href="#email">Email Notification</a></li>
+<li><a href="#resume">How to Present This on Your Resume</a></li>
+</ol>
+</div>
+
+<h2 id="scenario">1. The Business Scenario — Why This Project Exists</h2>
+<div class="story">
+Three weeks ago, ShopNow Retail's platform team rotated the RDS security group as part of a routine network hardening pass. The change was correct for every service except one: Order Service's new release, sitting in the deploy pipeline that same afternoon, had never actually been tested against the updated security group. The pipeline built the image, ran unit tests (which mocked the database entirely), pushed to ECR, and rolled the new pods out to production — where every single pod immediately started `CrashLoopBackOff`, unable to reach the database at all. The old, working pods had already been terminated by the rolling update before anyone noticed. Customers hit a fully broken Order Service for eleven minutes before a manual rollback restored the previous version.
+</div>
+<p>Ramesh's ask, direct and specific: <i>"Before a single new pod ever takes real traffic, I want the pipeline to actually prove it can reach every single thing it depends on — the database, the cache, the queue, the third-party APIs, the other microservices it calls. If even one of those checks fails, stop right there. Don't roll anything out. Don't touch what's already running."</i></p>
+<p>This use case builds exactly that: a <b>pre-deployment dependency validation gate</b> that checks connectivity to RDS, DynamoDB, Redis, Kafka, external APIs, and internal microservices — and is wired into the CI/CD pipeline so that a failure at this gate stops the deployment cold, before any existing healthy pod is ever touched.</p>
+
+<h2 id="concept">2. The Core Idea — A Deployment Gate, Not a Runtime Check</h2>
+<div class="callout why"><b>This use case is deliberately NOT the same thing as Use Case 10's health checks, even though both involve "checking dependencies."</b> Readiness probes (Use Case 10) run continuously, after a pod is already running, deciding whether it should receive traffic <i>right now</i>. Dependency validation, here, runs <b>once, before any new pod is even created</b>, as a hard gate in the deployment pipeline itself. The distinction matters: a readiness probe failing pulls one pod out of rotation while others keep serving; a dependency validation failure should stop the <i>entire rollout</i> from starting, because it means the new version fundamentally cannot work in this environment at all — continuing anyway would just fail the same way, pod after pod, exactly as it did in section 1's incident.</div>
+<div class="flow">
+<div>New image built &amp; pushed</div><div>&rarr;</div>
+<div style="border-color:var(--accent2)"><b>Dependency Validation Gate</b></div><div>&rarr;</div>
+<div class="gate-pass">PASS</div><div>&rarr;</div>
+<div>Proceed to rollout (Use Cases 3-5's strategies)</div>
+</div>
+<div class="flow">
+<div>New image built &amp; pushed</div><div>&rarr;</div>
+<div style="border-color:var(--accent2)"><b>Dependency Validation Gate</b></div><div>&rarr;</div>
+<div class="gate-fail">FAIL</div><div>&rarr;</div>
+<div>Pipeline stops here. Existing pods: untouched. Alert fires.</div>
+</div>
+<table>
+<tr><th>Dependency</th><th>What "validation" actually means here</th></tr>
+<tr><td>Amazon RDS</td><td>Open a real connection, run <code>SELECT 1</code>, confirm the schema migration version matches what this release expects</td></tr>
+<tr><td>DynamoDB</td><td>Call <code>DescribeTable</code> on the exact table this release reads/writes, confirm it exists and is <code>ACTIVE</code></td></tr>
+<tr><td>Redis</td><td>Open a connection, run <code>PING</code>, confirm a write+read round-trip actually works, not just that the port is open</td></tr>
+<tr><td>Kafka</td><td>Connect to the broker, confirm the specific topic this release consumes/produces exists with the expected partition count</td></tr>
+<tr><td>External APIs</td><td>Call the third-party API's own health/status endpoint (or a lightweight authenticated call) and confirm a real 200, not just DNS resolution</td></tr>
+<tr><td>Internal microservices</td><td>Call the specific internal service's own <code>/health/ready</code> endpoint (from Use Case 10) — reusing that exact contract rather than inventing a new one</td></tr>
+</table>
+
+<h2 id="folders">3. Project Folder Structure</h2>
+<pre><code>shopnow-gitops-repo/
+├── services/
+│   └── order-service/
+│       ├── base/
+│       │   ├── deployment.yaml
+│       │   ├── service.yaml
+│       │   ├── ingress.yaml
+│       │   ├── hpa.yaml
+│       │   ├── pdb.yaml
+│       │   ├── networkpolicy.yaml
+│       │   └── kustomization.yaml
+│       └── overlays/
+│           └── prod/
+│               ├── configmap.yaml
+│               ├── external-secret.yaml
+│               └── kustomization.yaml
+│
+├── dependency-validator/
+│   ├── validator/
+│   │   ├── check_rds.py
+│   │   ├── check_dynamodb.py
+│   │   ├── check_redis.py
+│   │   ├── check_kafka.py
+│   │   ├── check_external_api.py
+│   │   ├── check_internal_service.py
+│   │   └── run_all.py                    <span class="cmt"># orchestrates all six, returns one pass/fail exit code</span>
+│   ├── config/
+│   │   └── order-service-dependencies.yaml   <span class="cmt"># WHICH dependencies this service declares</span>
+│   ├── Dockerfile                         <span class="cmt"># tiny image, used as an init container AND a CI step</span>
+│   └── requirements.txt
+│
+├── argocd-apps/
+│   └── order-service-prod.yaml
+│
+├── ansible/
+│   ├── playbook.yml
+│   └── roles/dependency-gate-bootstrap/
+│       ├── tasks/main.yml
+│       └── templates/dependencies.yaml.j2
+│
+├── pipeline-scripts/
+│   ├── generate_report.py
+│   └── send_email.py
+│
+├── Jenkinsfile
+└── .github/workflows/deploy.yml
+</code></pre>
+<p>The <code>dependency-validator/</code> tool is deliberately built as its <b>own small, standalone, reusable component</b> — not code embedded inside Order Service itself — because the same six checks apply to every service in ShopNow's fleet. It's built once, containerized once, and every service's pipeline and Deployment reference the same image, configured only by that service's own <code>order-service-dependencies.yaml</code> declaration.</p>
+
+<h2 id="apparch">4. Application Architecture</h2>
+<pre><code><span class="cmt">                CI/CD Pipeline reaches the deploy stage
+                              |
+              Dependency Validator runs (as a CI step,
+              AND again as a Kubernetes Init Container)
+                    /      |      |      |      |      \
+                  RDS  DynamoDB Redis  Kafka  Ext.API  Order-Service-internal-calls
+                (order-db) (idempotency- (session- (order- (payment    (Catalog Service,
+                            table)      cache)    events)  gateway)     Payment Service)
+                              |
+                    ALL PASS?  ---- NO ----&gt; STOP, alert, existing pods untouched
+                              |
+                             YES
+                              |
+                    Proceed with the rollout strategy
+                    (RollingUpdate / Blue-Green / Canary)
+</span></code></pre>
+<p>The service used for this use case is, once again, ShopNow's <b>Order Service</b> — the exact service from section 1's incident, and the service with the richest dependency footprint in the whole system (RDS, DynamoDB for idempotency keys, Redis for session cache, Kafka for order events, an external payment gateway API, and calls to both Catalog Service and Payment Service internally) — making it the natural home for demonstrating every one of the six validation types in one place.</p>
+
+<h2 id="awsarch">5. AWS Architecture</h2>
+<table>
+<tr><th>AWS Service</th><th>Role in this project</th></tr>
+<tr><td>RDS PostgreSQL</td><td>The primary datastore validated before every deploy</td></tr>
+<tr><td>DynamoDB</td><td>Stores idempotency keys for order submission — validated for table existence and active status</td></tr>
+<tr><td>ElastiCache (Redis)</td><td>Session cache — validated with a real write/read round-trip</td></tr>
+<tr><td>MSK (Managed Kafka)</td><td>Order events topic — validated for broker reachability and topic existence</td></tr>
+<tr><td>Secrets Manager</td><td>Holds every credential the validator itself needs, via the same IRSA pattern from Use Case 7</td></tr>
+<tr><td>CloudWatch</td><td>Every validation run's pass/fail result and timing is logged here for audit and alerting</td></tr>
+</table>
+
+<h2 id="eks">6. EKS Cluster Design</h2>
+<pre><code><span class="k">apiVersion</span>: eksctl.io/v1alpha5
+<span class="k">kind</span>: ClusterConfig
+<span class="k">metadata</span>:
+  <span class="k">name</span>: shopnow-cluster
+  <span class="k">region</span>: ap-south-1
+  <span class="k">version</span>: <span class="s">"1.29"</span>
+<span class="k">managedNodeGroups</span>:
+  <span class="k">- name</span>: ng-general
+    <span class="k">instanceType</span>: m5.large
+    <span class="k">desiredCapacity</span>: 3
+    <span class="k">minSize</span>: 3
+    <span class="k">maxSize</span>: 8
+</code></pre>
+<p>No special cluster configuration is needed — this use case is entirely about pipeline logic and a lightweight init container, not cluster infrastructure.</p>
+
+<h2 id="vpc">7. VPC and Networking</h2>
+<p>Standard VPC layout. One requirement specific to this use case: the CI/CD runner (Jenkins agent or GitHub Actions runner) that executes the <b>pipeline-stage</b> version of the validator must itself sit inside the VPC, or connect via a VPN/peering link, since RDS, ElastiCache, and MSK are all in private subnets with no public endpoint — this is a common real-world gotcha worth naming: a validator that works fine as an in-cluster init container can fail entirely as a CI step if the CI runner has no network path to the same private resources.</p>
+
+<h2 id="iam">8. IAM Roles and IRSA</h2>
+<pre><code><span class="cmt"># The validator, running as an init container, uses the SAME IRSA identity as the
+# main application container it's protecting — it should only ever be able to
+# reach what the app itself is allowed to reach, nothing more</span>
+eksctl create iamserviceaccount --cluster shopnow-cluster --namespace prod \
+  --name order-service-sa \
+  --attach-policy-arn arn:aws:iam::111122223333:policy/order-service-policy --approve
+
+<span class="cmt"># The CI/CD pipeline's OWN role needs equivalent read/describe permissions to run
+# the same checks as a pre-deploy pipeline stage, before anything is even applied to the cluster</span>
+</code></pre>
+<pre><code><span class="cmt"># order-service-policy.json — DescribeTable and connection-level permissions only,
+# no write access needed just to VALIDATE connectivity</span>
+{
+  <span class="k">"Version"</span>: <span class="s">"2012-10-17"</span>,
+  <span class="k">"Statement"</span>: [
+    { <span class="k">"Effect"</span>: <span class="s">"Allow"</span>, <span class="k">"Action"</span>: [<span class="s">"dynamodb:DescribeTable"</span>],
+      <span class="k">"Resource"</span>: <span class="s">"arn:aws:dynamodb:ap-south-1:111122223333:table/order-idempotency-keys"</span> },
+    { <span class="k">"Effect"</span>: <span class="s">"Allow"</span>, <span class="k">"Action"</span>: [<span class="s">"kafka-cluster:Connect"</span>, <span class="s">"kafka-cluster:DescribeTopic"</span>],
+      <span class="k">"Resource"</span>: <span class="s">"arn:aws:kafka:ap-south-1:111122223333:topic/shopnow-msk/order-events"</span> },
+    { <span class="k">"Effect"</span>: <span class="s">"Allow"</span>, <span class="k">"Action"</span>: [<span class="s">"secretsmanager:GetSecretValue"</span>],
+      <span class="k">"Resource"</span>: <span class="s">"arn:aws:secretsmanager:ap-south-1:111122223333:secret:shopnow/prod/order-service/*"</span> }
+  ]
+}
+</code></pre>
+
+<h2 id="validator">9. Building the Dependency Validator</h2>
+<pre><code><span class="cmt"># dependency-validator/config/order-service-dependencies.yaml — declares WHICH
+# checks apply to this service, so run_all.py doesn't hard-code any service's specifics</span>
+<span class="k">service_name</span>: order-service
+<span class="k">dependencies</span>:
+  <span class="k">- type</span>: rds
+    <span class="k">name</span>: order-db
+    <span class="k">expected_migration_version</span>: <span class="s">"20260810_089"</span>
+  <span class="k">- type</span>: dynamodb
+    <span class="k">name</span>: order-idempotency-keys
+  <span class="k">- type</span>: redis
+    <span class="k">name</span>: session-cache
+  <span class="k">- type</span>: kafka
+    <span class="k">name</span>: order-events
+    <span class="k">expected_partitions</span>: 6
+  <span class="k">- type</span>: external_api
+    <span class="k">name</span>: payment-gateway
+    <span class="k">url</span>: https://live.paygateway.com/v1/status
+  <span class="k">- type</span>: internal_service
+    <span class="k">name</span>: catalog-service
+    <span class="k">url</span>: http://catalog-service-svc.prod.svc.cluster.local/health/ready
+  <span class="k">- type</span>: internal_service
+    <span class="k">name</span>: payment-service
+    <span class="k">url</span>: http://payment-service-svc.prod.svc.cluster.local/health/ready
+</code></pre>
+<pre><code><span class="cmt"># dependency-validator/validator/run_all.py — the orchestrator</span>
+<span class="k">import</span> yaml, sys, importlib, time
+
+<span class="k">CHECK_MODULES</span> = {
+    <span class="s">"rds"</span>: <span class="s">"check_rds"</span>, <span class="s">"dynamodb"</span>: <span class="s">"check_dynamodb"</span>, <span class="s">"redis"</span>: <span class="s">"check_redis"</span>,
+    <span class="s">"kafka"</span>: <span class="s">"check_kafka"</span>, <span class="s">"external_api"</span>: <span class="s">"check_external_api"</span>, <span class="s">"internal_service"</span>: <span class="s">"check_internal_service"</span>,
+}
+
+<span class="k">def</span> main(config_path):
+    <span class="k">with</span> open(config_path) <span class="k">as</span> f:
+        config = yaml.safe_load(f)
+
+    results = []
+    <span class="k">for</span> dep <span class="k">in</span> config[<span class="s">"dependencies"</span>]:
+        module = importlib.import_module(CHECK_MODULES[dep[<span class="s">"type"</span>]])
+        start = time.time()
+        <span class="k">try</span>:
+            module.check(dep)
+            results.append((dep[<span class="s">"name"</span>], dep[<span class="s">"type"</span>], <span class="s">"PASS"</span>, time.time() - start, <span class="k">None</span>))
+        <span class="k">except</span> Exception <span class="k">as</span> e:
+            results.append((dep[<span class="s">"name"</span>], dep[<span class="s">"type"</span>], <span class="s">"FAIL"</span>, time.time() - start, <span class="k">str</span>(e)))
+
+    <span class="k">print</span>(f<span class="s">"\n{'DEPENDENCY':&lt;25}{'TYPE':&lt;18}{'RESULT':&lt;8}{'TIME':&lt;8}DETAIL"</span>)
+    <span class="k">for</span> name, dtype, result, elapsed, detail <span class="k">in</span> results:
+        <span class="k">print</span>(f<span class="s">"{name:&lt;25}{dtype:&lt;18}{result:&lt;8}{elapsed:.2f}s   {detail or ''}"</span>)
+
+    failed = [r <span class="k">for</span> r <span class="k">in</span> results <span class="k">if</span> r[2] == <span class="s">"FAIL"</span>]
+    <span class="k">if</span> failed:
+        <span class="k">print</span>(f<span class="s">"\n{len(failed)} DEPENDENCY CHECK(S) FAILED — DEPLOYMENT BLOCKED"</span>)
+        sys.exit(1)
+    <span class="k">print</span>(<span class="s">"\nALL DEPENDENCY CHECKS PASSED — SAFE TO PROCEED"</span>)
+    sys.exit(0)
+
+<span class="k">if</span> __name__ == <span class="s">"__main__"</span>:
+    main(sys.argv[1] <span class="k">if</span> len(sys.argv) &gt; 1 <span class="k">else</span> <span class="s">"config/order-service-dependencies.yaml"</span>)
+</code></pre>
+<p>This single orchestrator, driven entirely by the declarative YAML file, is what makes the validator reusable across ShopNow's whole fleet — onboarding a new service's dependency checks is a config change, never a code change.</p>
+
+<h2 id="rds">10. Validating RDS</h2>
+<pre><code><span class="cmt"># dependency-validator/validator/check_rds.py</span>
+<span class="k">import</span> sqlalchemy, os
+
+<span class="k">def</span> check(dep):
+    engine = sqlalchemy.create_engine(os.environ[<span class="s">"DB_URL"</span>], connect_args={<span class="s">"connect_timeout"</span>: 5})
+    <span class="k">with</span> engine.connect() <span class="k">as</span> conn:
+        <span class="cmt"># 1. Can we even connect and run a trivial query?</span>
+        conn.execute(<span class="s">"SELECT 1"</span>)
+        <span class="cmt"># 2. Is the schema at the version THIS release expects — catches the
+        # class of incident where a deploy assumes a migration that hasn't run yet</span>
+        result = conn.execute(<span class="s">"SELECT version FROM schema_migrations ORDER BY version DESC LIMIT 1"</span>)
+        actual_version = result.scalar()
+        <span class="k">if</span> actual_version != dep[<span class="s">"expected_migration_version"</span>]:
+            <span class="k">raise</span> Exception(f<span class="s">"schema version mismatch: expected {dep['expected_migration_version']}, found {actual_version}"</span>)
+</code></pre>
+<div class="callout why"><b>Checking the migration version is what turns this from a generic "is the network open" check into a real, release-specific validation.</b> A security-group change (section 1's actual root cause) and a missing migration are both real, common causes of a broken deploy, and this single check catches both categories.</div>
+
+<h2 id="dynamodb">11. Validating DynamoDB</h2>
+<pre><code><span class="cmt"># dependency-validator/validator/check_dynamodb.py</span>
+<span class="k">import</span> boto3
+
+<span class="k">def</span> check(dep):
+    client = boto3.client(<span class="s">"dynamodb"</span>, region_name=<span class="s">"ap-south-1"</span>)
+    resp = client.describe_table(TableName=dep[<span class="s">"name"</span>])
+    status = resp[<span class="s">"Table"</span>][<span class="s">"TableStatus"</span>]
+    <span class="k">if</span> status != <span class="s">"ACTIVE"</span>:
+        <span class="k">raise</span> Exception(f<span class="s">"table {dep['name']} is not ACTIVE (status: {status})"</span>)
+</code></pre>
+<p>No item-level read/write is attempted here deliberately — <code>DescribeTable</code> is enough to confirm both IAM permission and table existence/health without needing to write test data into a production table, keeping the check side-effect-free.</p>
+
+<h2 id="redis">12. Validating Redis</h2>
+<pre><code><span class="cmt"># dependency-validator/validator/check_redis.py</span>
+<span class="k">import</span> redis, os, uuid
+
+<span class="k">def</span> check(dep):
+    client = redis.Redis(host=os.environ[<span class="s">"REDIS_HOST"</span>], socket_timeout=5)
+    <span class="k">if</span> <span class="k">not</span> client.ping():
+        <span class="k">raise</span> Exception(<span class="s">"PING failed"</span>)
+    <span class="cmt"># A real write+read round-trip, using a throwaway key with a short TTL —
+    # PING alone can succeed even if the underlying storage layer is degraded</span>
+    test_key = f<span class="s">"depcheck:{uuid.uuid4()}"</span>
+    client.set(test_key, <span class="s">"ok"</span>, ex=10)
+    <span class="k">if</span> client.get(test_key) != <span class="k">b</span><span class="s">"ok"</span>:
+        <span class="k">raise</span> Exception(<span class="s">"write/read round-trip failed"</span>)
+    client.delete(test_key)
+</code></pre>
+
+<h2 id="kafka">13. Validating Kafka</h2>
+<pre><code><span class="cmt"># dependency-validator/validator/check_kafka.py</span>
+<span class="k">from</span> kafka <span class="k">import</span> KafkaAdminClient
+<span class="k">import</span> os
+
+<span class="k">def</span> check(dep):
+    admin = KafkaAdminClient(bootstrap_servers=os.environ[<span class="s">"KAFKA_BROKERS"</span>], request_timeout_ms=5000)
+    topics = admin.describe_topics([dep[<span class="s">"name"</span>]])
+    <span class="k">if</span> <span class="k">not</span> topics:
+        <span class="k">raise</span> Exception(f<span class="s">"topic {dep['name']} not found"</span>)
+    partition_count = len(topics[0][<span class="s">"partitions"</span>])
+    <span class="k">if</span> partition_count != dep[<span class="s">"expected_partitions"</span>]:
+        <span class="k">raise</span> Exception(f<span class="s">"expected {dep['expected_partitions']} partitions, found {partition_count}"</span>)
+</code></pre>
+<div class="callout why"><b>Checking partition count specifically catches a subtle, real-world class of bug:</b> a consumer group's partition-assignment logic can behave very differently if the topic's partition count changed since the code was written (say, someone repartitioned <code>order-events</code> from 3 to 6 partitions for throughput) — this check surfaces that mismatch before deploy, rather than as a mysterious consumer-lag issue discovered hours later.</div>
+
+<h2 id="externalapi">14. Validating External APIs</h2>
+<pre><code><span class="cmt"># dependency-validator/validator/check_external_api.py</span>
+<span class="k">import</span> requests
+
+<span class="k">def</span> check(dep):
+    resp = requests.get(dep[<span class="s">"url"</span>], timeout=5)
+    <span class="k">if</span> resp.status_code != 200:
+        <span class="k">raise</span> Exception(f<span class="s">"{dep['name']} returned HTTP {resp.status_code}"</span>)
+</code></pre>
+<div class="callout warn"><b>Deliberately a lightweight status check, never a real transaction.</b> Validating the Payment Gateway means confirming its <code>/v1/status</code> endpoint is reachable and healthy — it must never mean submitting a real or even sandboxed payment as part of a deployment gate. The check proves network and basic API health; it says nothing about business-logic correctness, which is what integration tests exist for separately.</div>
+
+<h2 id="internalsvc">15. Validating Internal Microservices</h2>
+<pre><code><span class="cmt"># dependency-validator/validator/check_internal_service.py</span>
+<span class="k">import</span> requests
+
+<span class="k">def</span> check(dep):
+    resp = requests.get(dep[<span class="s">"url"</span>], timeout=3)
+    <span class="k">if</span> resp.status_code != 200:
+        <span class="k">raise</span> Exception(f<span class="s">"{dep['name']} readiness check returned HTTP {resp.status_code}"</span>)
+</code></pre>
+<div class="callout why"><b>This check deliberately reuses Use Case 10's <code>/health/ready</code> endpoint contract rather than inventing a separate one.</b> Catalog Service and Payment Service already expose a well-defined, dependency-aware readiness endpoint — asking Order Service's deploy gate to hit that same endpoint means the two use cases in this series reinforce each other: a bad Catalog Service deploy that's failing its OWN readiness check is automatically also caught here, before Order Service is deployed on top of an already-degraded dependency.</div>
+
+<h2 id="gate">16. The Init Container Gate — Stopping a Bad Deploy Before It Starts</h2>
+<pre><code><span class="cmt"># base/deployment.yaml (relevant excerpt) — the validator runs as an initContainer,
+# BEFORE the main application container is even started</span>
+<span class="k">spec</span>:
+  <span class="k">template</span>:
+    <span class="k">spec</span>:
+      <span class="k">serviceAccountName</span>: order-service-sa
+      <span class="k">initContainers</span>:
+        <span class="k">- name</span>: dependency-validator
+          <span class="k">image</span>: 111122223333.dkr.ecr.ap-south-1.amazonaws.com/dependency-validator:v1.2.0
+          <span class="k">args</span>: [<span class="s">"config/order-service-dependencies.yaml"</span>]
+          <span class="k">envFrom</span>:
+            <span class="k">- configMapRef</span>: { name: order-service-config }
+            <span class="k">- secretRef</span>: { name: order-service-secret }
+          <span class="k">resources</span>:
+            <span class="k">requests</span>: { cpu: <span class="s">"100m"</span>, memory: <span class="s">"128Mi"</span> }
+            <span class="k">limits</span>:   { cpu: <span class="s">"250m"</span>, memory: <span class="s">"256Mi"</span> }
+      <span class="k">containers</span>:
+        <span class="k">- name</span>: order-service
+          <span class="k">image</span>: 111122223333.dkr.ecr.ap-south-1.amazonaws.com/order-service:prod-v3.5.0
+          <span class="k">ports</span>: [{ containerPort: 8080 }]
+          <span class="k">envFrom</span>:
+            <span class="k">- configMapRef</span>: { name: order-service-config }
+            <span class="k">- secretRef</span>: { name: order-service-secret }
+          <span class="k">startupProbe</span>: { httpGet: { path: /health/startup, port: 8080 }, failureThreshold: 30, periodSeconds: 10 }
+          <span class="k">livenessProbe</span>:  { httpGet: { path: /health/live, port: 8080 }, periodSeconds: 15, failureThreshold: 3 }
+          <span class="k">readinessProbe</span>: { httpGet: { path: /health/ready, port: 8080 }, periodSeconds: 10, failureThreshold: 2 }
+</code></pre>
+<div class="step"><b class="n">1</b>An <b>init container</b> runs to completion <i>before</i> any regular container in the same pod starts. If <code>dependency-validator</code> exits non-zero (any check failed), the main <code>order-service</code> container <b>never starts at all</b> — the pod sits in <code>Init:Error</code> / <code>Init:CrashLoopBackOff</code>, and critically, it never becomes Ready, so it's never added to the Service's Endpoints and never receives traffic.</div>
+<div class="step"><b class="n">2</b>Because this happens per-pod during a rolling update, a failed validation on the very first new pod means the RollingUpdate's <code>maxUnavailable: 0</code> guarantee (from Use Case 3) naturally does the rest of the work: since the new pod never becomes Ready, Kubernetes never proceeds to touch a second old pod. The old, working ReplicaSet keeps serving 100% of traffic indefinitely, exactly matching Ramesh's ask that "existing pods stay untouched."</div>
+<div class="step"><b class="n">3</b>This init-container gate is the <b>in-cluster, last-line-of-defense</b> version of validation — section 23's CI/CD pipeline stage is the <b>earlier, faster-feedback</b> version of the exact same checks, run before the image is even deployed at all. Having both is deliberate defense in depth: the CI stage catches most problems in seconds without ever touching the cluster; the init container catches anything that's true specifically in this cluster/environment at this moment (like a security group change that happened after the CI run passed).</div>
+
+<h2 id="manifests">17. Deployment and Service</h2>
+<p>The full Deployment is shown combined in section 16 above — Service is standard:</p>
+<pre><code><span class="k">apiVersion</span>: v1
+<span class="k">kind</span>: Service
+<span class="k">metadata</span>: { name: order-service-svc }
+<span class="k">spec</span>:
+  <span class="k">selector</span>: { app: order-service }
+  <span class="k">ports</span>: [{ port: 80, targetPort: 8080 }]
+</code></pre>
+
+<h2 id="config">18. ConfigMaps and Secrets</h2>
+<pre><code><span class="k">apiVersion</span>: v1
+<span class="k">kind</span>: ConfigMap
+<span class="k">metadata</span>: { name: order-service-config }
+<span class="k">data</span>:
+  <span class="k">DB_HOST</span>: <span class="s">"shopnow-order-prod.abcxyz.ap-south-1.rds.amazonaws.com"</span>
+  <span class="k">REDIS_HOST</span>: <span class="s">"session-cache.prod.svc.cluster.local"</span>
+  <span class="k">KAFKA_BROKERS</span>: <span class="s">"b-1.shopnow-msk.abcxyz.kafka.ap-south-1.amazonaws.com:9092"</span>
+</code></pre>
+<p>The validator and the main application container deliberately share the exact same ConfigMap and Secret — the validator must check connectivity using the literal same configuration values the application will actually use, or the check proves nothing about the real deployment.</p>
+
+<h2 id="ingress">19. Ingress with AWS Load Balancer Controller</h2>
+<pre><code><span class="k">apiVersion</span>: networking.k8s.io/v1
+<span class="k">kind</span>: Ingress
+<span class="k">metadata</span>:
+  <span class="k">name</span>: order-service-ingress
+  <span class="k">annotations</span>:
+    <span class="k">kubernetes.io/ingress.class</span>: alb
+    <span class="k">alb.ingress.kubernetes.io/scheme</span>: internet-facing
+    <span class="k">alb.ingress.kubernetes.io/target-type</span>: ip
+    <span class="k">alb.ingress.kubernetes.io/group.name</span>: shopnow-shared-alb
+    <span class="k">alb.ingress.kubernetes.io/healthcheck-path</span>: /health/ready
+<span class="k">spec</span>:
+  <span class="k">rules</span>:
+    <span class="k">- host</span>: shopnow.com
+      <span class="k">http</span>:
+        <span class="k">paths</span>: [{ path: /api/orders, pathType: Prefix, backend: { service: { name: order-service-svc, port: { number: 80 } } } }]
+</code></pre>
+
+<h2 id="hpa">20. HPA and Autoscaling</h2>
+<pre><code><span class="k">apiVersion</span>: autoscaling/v2
+<span class="k">kind</span>: HorizontalPodAutoscaler
+<span class="k">metadata</span>: { name: order-service-hpa }
+<span class="k">spec</span>:
+  <span class="k">scaleTargetRef</span>: { apiVersion: apps/v1, kind: Deployment, name: order-service }
+  <span class="k">minReplicas</span>: 6
+  <span class="k">maxReplicas</span>: 15
+  <span class="k">metrics</span>: [{ type: Resource, resource: { name: cpu, target: { type: Utilization, averageUtilization: 70 } } }]
+</code></pre>
+<div class="callout warn"><b>Init containers run on EVERY new pod, including ones the HPA creates during a scale-up event — not just during a deploy.</b> This means a transient dependency blip during a traffic spike could theoretically delay HPA's ability to add capacity exactly when it's needed most. ShopNow's validator is deliberately fast (each check has a short timeout, typically completing in well under 5 seconds total) specifically to keep this overhead negligible relative to the value of the safety check.</div>
+
+<h2 id="pdb">21. PodDisruptionBudget</h2>
+<pre><code><span class="k">apiVersion</span>: policy/v1
+<span class="k">kind</span>: PodDisruptionBudget
+<span class="k">metadata</span>: { name: order-service-pdb }
+<span class="k">spec</span>:
+  <span class="k">minAvailable</span>: 4
+  <span class="k">selector</span>: { matchLabels: { app: order-service } }
+</code></pre>
+
+<h2 id="netpol">22. NetworkPolicies</h2>
+<pre><code><span class="k">apiVersion</span>: networking.k8s.io/v1
+<span class="k">kind</span>: NetworkPolicy
+<span class="k">metadata</span>: { name: allow-alb-to-order }
+<span class="k">spec</span>:
+  <span class="k">podSelector</span>: { matchLabels: { app: order-service } }
+  <span class="k">policyTypes</span>: [Ingress]
+  <span class="k">ingress</span>: [{ from: [], ports: [{ protocol: TCP, port: 8080 }] }]
+</code></pre>
+<p>No special policy is needed for the init container specifically — it runs inside the same pod and inherits the same NetworkPolicy scope as the main container, since NetworkPolicies apply at the pod level, not per-container.</p>
+
+<h2 id="ecr">23. CI/CD Pipeline — Jenkins and GitHub Actions — the Pre-Deploy Gate</h2>
+<pre><code>docker build -t dependency-validator:$TAG dependency-validator/
+docker tag dependency-validator:$TAG 111122223333.dkr.ecr.ap-south-1.amazonaws.com/dependency-validator:$TAG
+docker push 111122223333.dkr.ecr.ap-south-1.amazonaws.com/dependency-validator:$TAG
+
+docker build -t order-service:$TAG .
+docker tag order-service:$TAG 111122223333.dkr.ecr.ap-south-1.amazonaws.com/order-service:prod-$TAG
+docker push 111122223333.dkr.ecr.ap-south-1.amazonaws.com/order-service:prod-$TAG
+</code></pre>
+<pre><code><span class="cmt">// Jenkinsfile — the validation stage runs BEFORE deploy, as a standalone container run,
+// completely separate from the in-cluster init container gate in section 16</span>
+pipeline {
+  agent any
+  environment { ECR_REPO = <span class="s">"111122223333.dkr.ecr.ap-south-1.amazonaws.com/order-service"</span> }
+  stages {
+    stage(<span class="s">'Test'</span>) { steps { sh <span class="s">'./gradlew test'</span> } }
+    stage(<span class="s">'Build & Push'</span>) {
+      steps {
+        sh <span class="s">'''
+          docker build -t $ECR_REPO:${GIT_COMMIT} .
+          aws ecr get-login-password | docker login --username AWS --password-stdin $ECR_REPO
+          docker push $ECR_REPO:${GIT_COMMIT}
+        '''</span>
+      }
+    }
+
+    stage(<span class="s">'Validate Dependencies (PRE-DEPLOY GATE)'</span>) {
+      steps {
+        sh <span class="s">'''
+          docker run --rm \\
+            --env-file prod.env \\
+            111122223333.dkr.ecr.ap-south-1.amazonaws.com/dependency-validator:latest \\
+            config/order-service-dependencies.yaml
+        '''</span>
+      }
+      <span class="cmt">// If this stage fails, Jenkins stops the pipeline HERE — the deploy stage
+      // below never even runs. No kubectl command touches the cluster.</span>
+    }
+
+    stage(<span class="s">'Deploy'</span>) {
+      steps {
+        sh <span class="s">'''
+          kubectl apply -k gitops-repo/services/order-service/overlays/prod
+          kubectl rollout status deployment/order-service -n prod --timeout=180s
+        '''</span>
+      }
+    }
+
+    stage(<span class="s">'Report & Notify'</span>) {
+      steps {
+        sh <span class="s">'python3 pipeline-scripts/generate_report.py --status success --build ${BUILD_NUMBER}'</span>
+        sh <span class="s">'python3 pipeline-scripts/send_email.py --report report.html'</span>
+      }
+    }
+  }
+  post {
+    failure {
+      sh <span class="s">'python3 pipeline-scripts/generate_report.py --status failed --build ${BUILD_NUMBER}'</span>
+      sh <span class="s">'python3 pipeline-scripts/send_email.py --status FAILED --report report.html'</span>
+    }
+  }
+}
+</code></pre>
+<pre><code><span class="cmt"># .github/workflows/deploy.yml</span>
+<span class="k">name</span>: Order Service Deploy with Dependency Gate
+<span class="k">on</span>: { push: { branches: [<span class="s">"main"</span>] } }
+<span class="k">jobs</span>:
+  <span class="k">build</span>:
+    <span class="k">runs-on</span>: ubuntu-latest
+    <span class="k">steps</span>:
+      <span class="k">- uses</span>: actions/checkout@v4
+      <span class="k">- name</span>: Build and push
+        <span class="k">run</span>: |
+          docker build -t $ECR_REGISTRY/order-service:prod-${{ github.sha }} .
+          docker push $ECR_REGISTRY/order-service:prod-${{ github.sha }}
+
+  <span class="k">validate-dependencies</span>:
+    <span class="k">needs</span>: build
+    <span class="k">runs-on</span>: [self-hosted, vpc-connected]   <span class="cmt"># MUST run inside the VPC, per section 7</span>
+    <span class="k">steps</span>:
+      <span class="k">- name</span>: Run dependency validation gate
+        <span class="k">run</span>: |
+          docker run --rm --env-file prod.env \
+            $ECR_REGISTRY/dependency-validator:latest \
+            config/order-service-dependencies.yaml
+
+  <span class="k">deploy</span>:
+    <span class="k">needs</span>: validate-dependencies   <span class="cmt"># this job NEVER starts if the previous job failed</span>
+    <span class="k">runs-on</span>: ubuntu-latest
+    <span class="k">environment</span>: production
+    <span class="k">steps</span>:
+      <span class="k">- uses</span>: aws-actions/configure-aws-credentials@v4
+        <span class="k">with</span>: { role-to-assume: arn:aws:iam::111122223333:role/gha-eks-deploy, aws-region: ap-south-1 }
+      <span class="k">- name</span>: Deploy
+        <span class="k">run</span>: |
+          aws eks update-kubeconfig --name shopnow-cluster --region ap-south-1
+          kubectl apply -k gitops-repo/services/order-service/overlays/prod
+</code></pre>
+<div class="callout why"><b>The GitHub Actions <code>needs:</code> dependency chain is the exact mechanism enforcing "stop the deployment" from the original ask.</b> The <code>deploy</code> job's <code>needs: validate-dependencies</code> line means GitHub Actions will not run it at all if the prior job exits non-zero — this is a structural guarantee, not a convention someone has to remember to check.</div>
+
+<h2 id="argocd">24. Argo CD GitOps</h2>
+<pre><code><span class="k">apiVersion</span>: argoproj.io/v1alpha1
+<span class="k">kind</span>: Application
+<span class="k">metadata</span>: { name: order-service-prod, namespace: argocd }
+<span class="k">spec</span>:
+  <span class="k">project</span>: default
+  <span class="k">source</span>: { repoURL: https://github.com/shopnow/gitops-repo.git, targetRevision: main, path: services/order-service/overlays/prod }
+  <span class="k">destination</span>: { server: https://kubernetes.default.svc, namespace: prod }
+  <span class="k">syncPolicy</span>: { automated: { prune: true, selfHeal: true } }
+</code></pre>
+<div class="callout why"><b>Argo CD's own health assessment naturally reflects an init-container failure too.</b> A pod stuck in <code>Init:Error</code> shows the Argo CD Application as "Degraded," not "Healthy" — this is the section 16 in-cluster gate becoming visible in the exact same GitOps dashboard used across this whole series, with no extra tooling required to surface it.</div>
+
+<h2 id="monitoring">25. Prometheus and Grafana</h2>
+<pre><code><span class="cmt"># The validator exposes its own result as a Prometheus metric on each run,
+# scraped via a Pushgateway since init containers are short-lived and can't be scraped directly</span>
+<span class="k">apiVersion</span>: v1
+<span class="k">kind</span>: ConfigMap
+<span class="k">metadata</span>: { name: pushgateway-config, namespace: monitoring }
+<span class="k">data</span>:
+  <span class="k">note.txt</span>: <span class="s">"dependency-validator pushes dependency_check_result{service, dependency, type} to Pushgateway on every run"</span>
+</code></pre>
+<pre><code><span class="cmt"># PrometheusRule — alert if a dependency check has been failing repeatedly</span>
+<span class="k">apiVersion</span>: monitoring.coreos.com/v1
+<span class="k">kind</span>: PrometheusRule
+<span class="k">metadata</span>: { name: dependency-validator-alerts }
+<span class="k">spec</span>:
+  <span class="k">groups</span>:
+    <span class="k">- name</span>: dependency-validator.rules
+      <span class="k">rules</span>:
+        <span class="k">- alert</span>: DeploymentBlockedByDependencyCheck
+          <span class="k">expr</span>: dependency_check_result{result="fail"} == 1
+          <span class="k">for</span>: 1m
+          <span class="k">labels</span>: { severity: critical }
+          <span class="k">annotations</span>: { summary: <span class="s">"A deployment is blocked because a dependency check failed — see which dependency in the label"</span> }
+</code></pre>
+<p>A Grafana panel showing pass/fail history per dependency, over time, quickly reveals patterns — for example, if the payment gateway's external API check fails specifically between 2-3 AM repeatedly, that's a signal about the third party's own maintenance window, useful information for scheduling ShopNow's own deploys around it.</p>
+
+<h2 id="cloudwatch">26. CloudWatch Logging</h2>
+<pre><code><span class="k">apiVersion</span>: v1
+<span class="k">kind</span>: ConfigMap
+<span class="k">metadata</span>: { name: fluent-bit-config, namespace: amazon-cloudwatch }
+<span class="k">data</span>:
+  <span class="k">output.conf</span>: |
+    [OUTPUT]
+        Name                cloudwatch_logs
+        Match               kube.*
+        region              ap-south-1
+        log_group_name      /eks/shopnow/order-service/dependency-validator
+        auto_create_group   true
+</code></pre>
+<p>A dedicated log group specifically for validator output (rather than mixing it into the main application's log group) makes it trivial to build a CloudWatch Logs Insights query answering "show me every blocked deployment in the last 30 days and why" in one query, without filtering out unrelated application log noise.</p>
+
+<h2 id="workflow">27. Running the Code — Full End-to-End Workflow</h2>
+
+<h3>Step 1 — Build and run the validator standalone, before touching the pipeline</h3>
+<pre><code>cd dependency-validator
+docker build -t dependency-validator:local .
+
+docker run --rm \
+  -e DB_URL=<span class="s">"postgresql://order_svc:pass@shopnow-order-prod.abcxyz.rds.amazonaws.com:5432/orders"</span> \
+  -e REDIS_HOST=<span class="s">"session-cache.prod.svc.cluster.local"</span> \
+  -e KAFKA_BROKERS=<span class="s">"b-1.shopnow-msk.abcxyz.kafka.ap-south-1.amazonaws.com:9092"</span> \
+  dependency-validator:local config/order-service-dependencies.yaml
+</code></pre>
+<p>Expected output on a healthy environment:</p>
+<pre><code>DEPENDENCY               TYPE              RESULT  TIME    DETAIL
+order-db                 rds               PASS    0.42s
+order-idempotency-keys   dynamodb          PASS    0.18s
+session-cache            redis             PASS    0.09s
+order-events              kafka             PASS    0.61s
+payment-gateway          external_api      PASS    0.33s
+catalog-service          internal_service  PASS    0.05s
+payment-service          internal_service  PASS    0.05s
+
+ALL DEPENDENCY CHECKS PASSED — SAFE TO PROCEED
+</code></pre>
+
+<h3>Step 2 — Wire it into the pipeline and confirm it runs before deploy</h3>
+<pre><code>git push origin main
+<span class="cmt"># Watch the GitHub Actions run — confirm the job order in the UI:
+# build -> validate-dependencies -> deploy, with deploy visibly "queued/blocked"
+# until validate-dependencies shows green</span>
+</code></pre>
+
+<h3>Step 3 — Confirm the init container gate in the cluster directly</h3>
+<pre><code>kubectl apply -k gitops-repo/services/order-service/overlays/prod
+
+kubectl get pods -n prod -l app=order-service -w
+<span class="cmt"># Watch a new pod: PodInitializing -> the init container's logs appear -> then
+# either the main container starts (Running, 1/1) or the pod stays in Init:Error</span>
+
+kubectl logs -n prod &lt;new-pod-name&gt; -c dependency-validator
+<span class="cmt"># Shows the exact same PASS/FAIL table from Step 1, now running against the
+# REAL in-cluster network path and REAL mounted Secret values</span>
+</code></pre>
+
+<h3>Step 4 — Deliberately break one dependency and watch the gate catch it</h3>
+<pre><code><span class="cmt"># Simulate section 1's exact incident — revoke DB access temporarily</span>
+aws ec2 revoke-security-group-ingress --group-id sg-orderdb \
+  --protocol tcp --port 5432 --source-group sg-eks-nodes
+
+<span class="cmt"># Trigger a new rollout</span>
+kubectl rollout restart deployment/order-service -n prod
+kubectl get pods -n prod -l app=order-service -w
+<span class="cmt"># Expect: new pod stuck in Init:Error; OLD pods remain Running and Ready throughout</span>
+
+kubectl get endpoints order-service-svc -n prod
+<span class="cmt"># Expect: only the OLD pods' IPs are listed — the broken new pod never joined</span>
+
+curl -s https://shopnow.com/api/orders/health
+<span class="cmt"># Expect: still 200 OK — customers see ZERO impact, unlike section 1's 11-minute outage</span>
+
+<span class="cmt"># Restore and confirm recovery</span>
+aws ec2 authorize-security-group-ingress --group-id sg-orderdb \
+  --protocol tcp --port 5432 --source-group sg-eks-nodes
+kubectl rollout restart deployment/order-service -n prod
+kubectl rollout status deployment/order-service -n prod
+</code></pre>
+
+<h2 id="failure">28. Failure Testing — Proving the Gate Actually Blocks</h2>
+<pre><code><span class="cmt"># Test 1: Break Redis specifically, confirm only Redis is reported as the failure</span>
+kubectl scale deployment session-cache -n prod --replicas=0
+docker run --rm --env-file prod.env dependency-validator:local config/order-service-dependencies.yaml
+<span class="cmt"># Expect: session-cache reports FAIL, every other dependency still reports PASS —
+# proving each check is genuinely independent, not one big pass/fail blob</span>
+kubectl scale deployment session-cache -n prod --replicas=1   <span class="cmt"># restore</span>
+
+<span class="cmt"># Test 2: Confirm the CI pipeline job chain genuinely stops on failure</span>
+<span class="cmt"># (temporarily point the validator at a wrong Kafka topic name to force a failure)</span>
+git push origin test-branch-with-broken-config
+<span class="cmt"># Confirm in the GitHub Actions UI: the "deploy" job shows as SKIPPED, not FAILED —
+# proving needs: correctly prevented it from ever attempting to run</span>
+
+<span class="cmt"># Test 3: Confirm existing pods are NEVER touched during a blocked deploy</span>
+kubectl get pods -n prod -l app=order-service -o jsonpath='{.items[*].metadata.creationTimestamp}'
+<span class="cmt"># Before and after a deliberately-failed rollout attempt, the OLD pods' creation
+# timestamps must be identical — proof nothing about them changed</span>
+</code></pre>
+
+<h2 id="rollback">29. Rollback Strategy</h2>
+<pre><code><span class="cmt"># In the common case, there IS no rollback needed — the gate prevents the bad
+# version from ever displacing the good one, which is the entire point.
+
+# If a dependency check itself was WRONG (a false positive blocking a genuinely
+# good deploy — e.g. an overly strict migration version check), fix the check:</span>
+cd dependency-validator
+git revert &lt;bad-check-commit-sha&gt; &amp;&amp; git push
+
+<span class="cmt"># If a bad version somehow DID get deployed despite the gate (e.g. the gate
+# itself had a bug), standard GitOps revert applies as in every earlier use case:</span>
+cd gitops-repo/services/order-service/overlays/prod
+git revert &lt;bad-commit-sha&gt; &amp;&amp; git push
+</code></pre>
+
+<h2 id="troubleshoot">30. Troubleshooting Scenarios</h2>
+<table>
+<tr><th>Symptom</th><th>Likely Cause</th><th>Diagnostic Commands</th></tr>
+<tr><td>Pod stuck in <code>Init:CrashLoopBackOff</code></td><td>A genuine dependency failure — check the init container's logs for which specific check failed</td><td><code>kubectl logs &lt;pod&gt; -c dependency-validator -n prod</code></td></tr>
+<tr><td>Validator passes in CI but fails as an init container</td><td>CI runner has network access the in-cluster pod doesn't (or vice versa) — a real environment-parity gap</td><td>Compare security groups/NetworkPolicies between the CI runner's network path and the pod's</td></tr>
+<tr><td>Validator times out on every check</td><td>IRSA role/ServiceAccount misconfigured for the init container specifically</td><td><code>kubectl describe pod &lt;pod&gt; -n prod</code>, confirm <code>serviceAccountName</code> is set correctly</td></tr>
+<tr><td>Deploy proceeds even though a dependency was actually down</td><td>A check silently swallowing an exception instead of raising it — a bug in the check module itself</td><td>Review each <code>check_*.py</code> for a bare <code>except: pass</code> or similar anti-pattern</td></tr>
+<tr><td>GitHub Actions <code>deploy</code> job runs even though <code>validate-dependencies</code> failed</td><td>Missing or misspelled <code>needs:</code> key in the workflow YAML</td><td>Review the workflow file's job dependency graph in the Actions UI</td></tr>
+</table>
+
+<h2 id="ansible">31. Ansible Automation</h2>
+<pre><code><span class="cmt"># roles/dependency-gate-bootstrap/tasks/main.yml — onboards the validation gate
+# for a new service</span>
+<span class="k">- name</span>: Render this service's dependency declaration file
+  <span class="k">template</span>: { src: dependencies.yaml.j2, dest: <span class="s">"dependency-validator/config/{{ service_name }}-dependencies.yaml"</span> }
+  <span class="k">vars</span>: { dependencies: <span class="s">"{{ service_dependencies }}"</span> }
+
+<span class="k">- name</span>: Add the init container block to the service's base Deployment
+  <span class="k">kubernetes.core.k8s_json_patch</span>:
+    <span class="k">kind</span>: Deployment
+    <span class="k">name</span>: <span class="s">"{{ service_name }}"</span>
+    <span class="k">namespace</span>: prod
+    <span class="k">patch</span>:
+      <span class="k">- op</span>: add
+        <span class="k">path</span>: /spec/template/spec/initContainers
+        <span class="k">value</span>:
+          <span class="k">- name</span>: dependency-validator
+            <span class="k">image</span>: 111122223333.dkr.ecr.ap-south-1.amazonaws.com/dependency-validator:latest
+            <span class="k">args</span>: [<span class="s">"config/{{ service_name }}-dependencies.yaml"</span>]
+</code></pre>
+<pre><code>ansible-playbook playbook.yml -e <span class="s">"service_name=notification-service"</span> \
+  -e <span class="s">'service_dependencies=[{"type":"redis","name":"notification-queue"},{"type":"external_api","name":"sms-gateway","url":"https://sms.provider.com/status"}]'</span>
+</code></pre>
+
+<h2 id="report">32. HTML Deployment/Job Report</h2>
+<pre><code><span class="cmt"># generate_report.py</span>
+<span class="k">import</span> argparse, datetime, json, os
+
+<span class="k">def</span> build_report(build_no, status, results_json=<span class="s">"validator_results.json"</span>):
+    results = json.load(open(results_json)) <span class="k">if</span> os.path.exists(results_json) <span class="k">else</span> []
+    rows = <span class="s">""</span>.join(
+        f<span class="s">"&lt;tr&gt;&lt;td&gt;{r['name']}&lt;/td&gt;&lt;td&gt;{r['type']}&lt;/td&gt;&lt;td style='color:{'#5ec98f' if r['result']=='PASS' else '#e35d5d'}'&gt;{r['result']}&lt;/td&gt;&lt;td&gt;{r.get('detail','')}&lt;/td&gt;&lt;/tr&gt;"</span>
+        <span class="k">for</span> r <span class="k">in</span> results
+    )
+    color = <span class="s">"#5ec98f"</span> <span class="k">if</span> status == <span class="s">"success"</span> <span class="k">else</span> <span class="s">"#e35d5d"</span>
+    html = f<span class="s">"""&lt;html&gt;&lt;body style="font-family:Arial;background:#0b0f14;color:#dbe6f0;padding:24px"&gt;
+    &lt;h2 style="color:{color}"&gt;ShopNow Dependency Validation Report — order-service (Build #{build_no})&lt;/h2&gt;
+    &lt;p&gt;Time: {datetime.datetime.now()} | Status: {status.upper()}&lt;/p&gt;
+    &lt;table border="1" cellpadding="8" style="border-collapse:collapse"&gt;
+      &lt;tr&gt;&lt;th&gt;Dependency&lt;/th&gt;&lt;th&gt;Type&lt;/th&gt;&lt;th&gt;Result&lt;/th&gt;&lt;th&gt;Detail&lt;/th&gt;&lt;/tr&gt;{rows}
+    &lt;/table&gt;&lt;/body&gt;&lt;/html&gt;"""</span>
+    <span class="k">with</span> open(<span class="s">"report.html"</span>, <span class="s">"w"</span>) <span class="k">as</span> f:
+        f.write(html)
+
+<span class="k">if</span> __name__ == <span class="s">"__main__"</span>:
+    parser = argparse.ArgumentParser()
+    parser.add_argument(<span class="s">"--status"</span>, default=<span class="s">"success"</span>)
+    parser.add_argument(<span class="s">"--build"</span>, required=<span class="k">True</span>)
+    args = parser.parse_args()
+    build_report(args.build, args.status)
+</code></pre>
+
+<h2 id="email">33. Email Notification</h2>
+<pre><code><span class="cmt"># send_email.py</span>
+<span class="k">import</span> argparse, smtplib, os
+<span class="k">from</span> email.mime.multipart <span class="k">import</span> MIMEMultipart
+<span class="k">from</span> email.mime.text <span class="k">import</span> MIMEText
+<span class="k">from</span> email.mime.application <span class="k">import</span> MIMEApplication
+
+<span class="k">def</span> send(status, build_no, report_path=<span class="s">"report.html"</span>):
+    msg = MIMEMultipart()
+    msg[<span class="s">"Subject"</span>] = f<span class="s">"[ShopNow] order-service dependency validation - Build #{build_no} - {status.upper()}"</span>
+    msg[<span class="s">"From"</span>] = <span class="s">"devops-bot@shopnow.com"</span>
+    msg[<span class="s">"To"</span>] = <span class="s">"release-managers@shopnow.com, sre-team@shopnow.com"</span>
+    body = f<span class="s">"Build: #{build_no}\nStatus: {status}\n\n"</span>
+    <span class="k">if</span> status != <span class="s">"success"</span>:
+        body += <span class="s">"DEPLOYMENT WAS BLOCKED — one or more dependency checks failed. Existing production pods were NOT affected. See attached report for which dependency failed.\n"</span>
+    msg.attach(MIMEText(body, <span class="s">"plain"</span>))
+    <span class="k">if</span> os.path.exists(report_path):
+        <span class="k">with</span> open(report_path, <span class="s">"rb"</span>) <span class="k">as</span> f:
+            part = MIMEApplication(f.read(), Name=<span class="s">"report.html"</span>)
+        part[<span class="s">"Content-Disposition"</span>] = <span class="s">'attachment; filename="report.html"'</span>
+        msg.attach(part)
+    <span class="k">with</span> smtplib.SMTP(<span class="s">"email-smtp.ap-south-1.amazonaws.com"</span>, 587) <span class="k">as</span> server:
+        server.starttls()
+        server.login(os.environ[<span class="s">"SES_USER"</span>], os.environ[<span class="s">"SES_PASS"</span>])
+        server.send_message(msg)
+
+<span class="k">if</span> __name__ == <span class="s">"__main__"</span>:
+    parser = argparse.ArgumentParser()
+    parser.add_argument(<span class="s">"--status"</span>, default=<span class="s">"success"</span>)
+    parser.add_argument(<span class="s">"--build"</span>, required=<span class="k">True</span>)
+    parser.add_argument(<span class="s">"--report"</span>, default=<span class="s">"report.html"</span>)
+    args = parser.parse_args()
+    send(args.status, args.build, args.report)
+</code></pre>
+
+<hr class="divider">
+<h2 id="resume">34. How to Present This on Your Resume</h2>
+<div class="callout why">
+<b>Resume bullet (use as-is or adapt):</b><br>
+"Built a reusable pre-deployment dependency validation gate for Amazon EKS services, verifying live connectivity to RDS, DynamoDB, Redis, Kafka, external third-party APIs, and internal microservices before any new pod could receive traffic; implemented the gate as both a CI/CD pipeline stage (fast feedback, blocks the deploy job via explicit job dependencies) and a Kubernetes init container (final in-cluster safety net), ensuring a broken dependency stops a rollout entirely while leaving existing production pods completely untouched; eliminated an entire class of deployment-time outage previously caused by untested infrastructure changes."
+</div>
+<table>
+<tr><th>Likely question</th><th>Section to re-read before the call</th></tr>
+<tr><td>"How is this different from a readiness probe?"</td><td>Section 2</td></tr>
+<tr><td>"Why validate in BOTH the pipeline and as an init container?"</td><td>Section 16 step 3</td></tr>
+<tr><td>"How do you stop a bad deploy from ever touching healthy pods?"</td><td>Section 16 step 2, Section 27 Step 4</td></tr>
+<tr><td>"How would you validate an external payment API safely?"</td><td>Section 14 callout</td></tr>
+<tr><td>"What's a real production incident this design prevents?"</td><td>Section 1, Section 27 Step 4</td></tr>
+</table>
+
+<div class="story" style="margin-top:40px">Six months later, ShopNow's platform team rotates another security group — this time for the Redis cluster. The Order Service deploy running that same afternoon hits the init container gate within four seconds, reports <code>session-cache: FAIL</code> clearly in the pod logs, and the rollout simply stops there. The existing pods keep serving customers without a single dropped request. The platform team gets a Slack alert, fixes the security group rule in eleven minutes, and the exact same pipeline run — no code change needed — succeeds cleanly once retried. No customer ever saw an error page, and no 2 AM page went out. That's section 1's incident, this time caught before it could become one.</div>
+
+</div>
+</body>
+</html>

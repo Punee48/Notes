@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Project 17 — Windows Patch Readiness | PowerShell Masterclass</title>
+<style>
+  :root{
+    --primary:#6D28D9; --secondary:#7C3AED; --light-purple:#EDE9FE; --xlight-purple:#F5F3FF;
+    --bg:#FFFFFF; --text:#1F2937; --muted:#6B7280; --border:#E5E1F5;
+    --success:#15803D; --warn:#B45309; --danger:#B91C1C;
+    --code-bg:#1E1B2E; --code-text:#E9E4FF;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0; font-family:"Segoe UI",Calibri,Roboto,Arial,sans-serif; background:var(--bg); color:var(--text); line-height:1.65;}
+  a{color:var(--primary);}
+  .layout{display:flex; max-width:1400px; margin:0 auto;}
+  nav.sidebar{width:270px; flex-shrink:0; position:sticky; top:0; height:100vh; overflow-y:auto; background:var(--xlight-purple); border-right:1px solid var(--border); padding:22px 16px;}
+  nav.sidebar h3{color:var(--primary); font-size:13px; text-transform:uppercase; letter-spacing:.06em; margin:18px 0 8px;}
+  nav.sidebar a{display:block; padding:7px 10px; border-radius:8px; color:var(--text); text-decoration:none; font-size:14px; margin-bottom:2px;}
+  nav.sidebar a:hover{background:var(--light-purple); color:var(--primary);}
+  #progressWrap{background:var(--light-purple); border-radius:10px; padding:10px; margin-bottom:8px;}
+  #progressBar{height:8px; background:var(--border); border-radius:6px; overflow:hidden;}
+  #progressFill{height:100%; width:0%; background:linear-gradient(90deg,var(--primary),var(--secondary)); transition:width .2s;}
+  #progressLabel{font-size:12px; color:var(--muted); margin-top:6px;}
+  main{flex:1; min-width:0; padding:0;}
+  .cover{background:linear-gradient(135deg,var(--primary),var(--secondary)); color:#fff; padding:60px 48px; position:relative; overflow:hidden;}
+  .cover::after{content:"";position:absolute;right:-80px;top:-80px;width:300px;height:300px;border-radius:50%;background:rgba(255,255,255,.08);}
+  .badge{display:inline-block; background:rgba(255,255,255,.18); padding:5px 14px; border-radius:20px; font-size:12px; letter-spacing:.05em; margin-right:8px; margin-bottom:14px;}
+  .cover h1{font-size:34px; margin:6px 0 10px; max-width:760px;}
+  .cover p.sub{font-size:16px; opacity:.92; max-width:640px;}
+  .cover-meta{display:flex; gap:28px; margin-top:26px; flex-wrap:wrap;}
+  .cover-meta div{background:rgba(255,255,255,.12); padding:12px 18px; border-radius:10px; min-width:140px;}
+  .cover-meta span{display:block; font-size:12px; opacity:.85;}
+  .cover-meta strong{font-size:16px;}
+  section{padding:34px 48px; border-bottom:1px solid var(--border);}
+  section h2{color:var(--primary); font-size:24px; border-left:5px solid var(--primary); padding-left:14px; margin-top:0;}
+  section h3{color:var(--secondary); font-size:18px; margin-top:26px;}
+  .story{background:var(--xlight-purple); border-left:5px solid var(--primary); padding:20px 24px; border-radius:0 10px 10px 0; font-size:15px;}
+  .story b{color:var(--primary);}
+  .callout{border-radius:10px; padding:16px 18px; margin:16px 0; font-size:14.5px;}
+  .callout.tip{background:#F0FDF4; border-left:5px solid var(--success);}
+  .callout.note{background:var(--xlight-purple); border-left:5px solid var(--secondary);}
+  .callout.warn{background:#FFFBEB; border-left:5px solid var(--warn);}
+  .callout.security{background:#FEF2F2; border-left:5px solid var(--danger);}
+  .callout .lbl{font-weight:700; display:block; margin-bottom:4px;}
+  table{width:100%; border-collapse:collapse; margin:16px 0; font-size:14px;}
+  th,td{border:1px solid var(--border); padding:9px 12px; text-align:left; vertical-align:top;}
+  th{background:var(--light-purple); color:var(--primary);}
+  tr:nth-child(even){background:var(--xlight-purple);}
+  .codewrap{position:relative; margin:16px 0;}
+  pre{background:var(--code-bg); color:var(--code-text); padding:18px 16px; border-radius:10px; overflow-x:auto; font-family:Consolas,"Cascadia Code",Menlo,monospace; font-size:13.5px; line-height:1.7;}
+  pre code{white-space:pre;}
+  .copybtn{position:absolute; top:10px; right:10px; background:var(--secondary); color:#fff; border:none; padding:6px 12px; border-radius:6px; font-size:12px; cursor:pointer;}
+  .copybtn:hover{background:var(--primary);}
+  .explain-list{list-style:none; padding:0; margin:14px 0;}
+  .explain-list li{background:var(--xlight-purple); border-radius:8px; padding:10px 14px; margin-bottom:6px; font-size:14.5px;}
+  .explain-list code{background:var(--light-purple); padding:2px 6px; border-radius:5px; color:var(--primary); font-weight:600;}
+  details{background:var(--xlight-purple); border-radius:10px; padding:12px 16px; margin:10px 0;}
+  details summary{cursor:pointer; font-weight:600; color:var(--primary);}
+  .diagram{background:var(--xlight-purple); border-radius:12px; padding:20px; margin:16px 0; overflow-x:auto;}
+  .flow{display:flex; flex-wrap:wrap; align-items:center; gap:10px; font-size:13.5px;}
+  .flow .box{background:#fff; border:2px solid var(--secondary); border-radius:8px; padding:8px 14px; font-weight:600; color:var(--primary);}
+  .flow .arrow{color:var(--secondary); font-size:18px;}
+  .steps{counter-reset:step;}
+  .steps .step{position:relative; padding-left:44px; margin-bottom:18px;}
+  .steps .step::before{counter-increment:step; content:counter(step); position:absolute; left:0; top:0; background:var(--primary); color:#fff; width:30px; height:30px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:700;}
+  .grid2{display:grid; grid-template-columns:1fr 1fr; gap:16px;}
+  @media(max-width:900px){.grid2{grid-template-columns:1fr;} nav.sidebar{display:none;} section{padding:26px 20px;} .cover{padding:36px 22px;}}
+  footer{padding:30px 48px; background:var(--xlight-purple); color:var(--muted); font-size:13px;}
+</style>
+</head>
+<body>
+
+<div class="layout">
+  <nav class="sidebar">
+    <div id="progressWrap">
+      <div id="progressLabel">Reading progress</div>
+      <div id="progressBar"><div id="progressFill"></div></div>
+    </div>
+    <h3>Project 17</h3>
+    <a href="#cover">Cover</a>
+    <a href="#recap1">Recap: Projects 1–16</a>
+    <a href="#story">The Story</a>
+    <a href="#concepts">Concepts First</a>
+    <a href="#lab">Hands-On Lab</a>
+    <a href="#script">Full Script</a>
+    <a href="#linebyline">Line-by-Line</a>
+    <a href="#architecture">Architecture</a>
+    <a href="#incident">Production Incident</a>
+    <a href="#troubleshoot">Troubleshooting</a>
+    <a href="#security">Security Notes</a>
+    <a href="#recap">Key Learnings</a>
+    <a href="#interview">Interview Prep</a>
+    <a href="#challenges">Coding Challenges</a>
+    <a href="#resume">Resume Points</a>
+    <a href="#assignment">Practice Assignment</a>
+    <a href="#next">Next Project</a>
+  </nav>
+
+  <main id="top">
+    <div class="cover" id="cover">
+      <span class="badge">PROJECT 17</span><span class="badge">INTERMEDIATE</span><span class="badge">BFSI TRACK</span>
+      <h1>Windows Patch Readiness</h1>
+      <p class="sub">Combine disk space, service health, and a new pending-reboot check into one clear "is this server ready to be patched?" verdict.</p>
+      <div class="cover-meta">
+        <div><span>Difficulty</span><strong>Intermediate</strong></div>
+        <div><span>Estimated Lab Time</span><strong>75–90 min</strong></div>
+        <div><span>Concepts</span><strong>8 core concepts</strong></div>
+        <div><span>Track</span><strong>17 of 40</strong></div>
+      </div>
+    </div>
+
+    <section id="recap1">
+      <h2>Quick Recap of Projects 1–16</h2>
+      <p>This project is a synthesis, much like Project 9's unified health check — but aimed specifically at
+      patching readiness. We reuse disk space logic (Project 2) and service checks (Project 4), and add one
+      genuinely new check: detecting whether a server is already waiting on a <b>pending reboot</b>, which is one of
+      the most common reasons a patching run fails or behaves unexpectedly.</p>
+    </section>
+
+    <section id="story">
+      <h2>The Story — Why We're Building This</h2>
+      <div class="story">
+        Last patch Tuesday, three servers failed their patch installation. Investigation found each had a different
+        root cause: one had almost no free disk space, one already had a reboot pending from a previous, forgotten
+        change, and one had a critical service already unhealthy before patching even started. All three problems
+        were <i>detectable in advance</i> — nobody checked beforehand. Our manager wants a "go/no-go" readiness
+        check that runs <b>before</b> any patching window, catching all three conditions automatically.
+      </div>
+    </section>
+
+    <section id="concepts">
+      <h2>Concepts First — Before We Touch Code</h2>
+
+      <h3>1. What "Pending Reboot" Actually Means</h3>
+      <div class="callout note"><span class="lbl">Why this matters for patching specifically</span>Windows tracks
+      when certain changes (a previous update, a file rename operation, a component servicing operation) require a
+      restart to fully complete. If a server already has a reboot pending and a <i>new</i> patch is installed on top
+      of that unfinished state, the result can be unpredictable — from patches silently not fully applying to the
+      server becoming unstable. Checking for this <i>before</i> patching is a well-known, important precaution.</div>
+
+      <h3>2. The Three Places Windows Records a Pending Reboot</h3>
+      <table>
+        <tr><th>Registry Location</th><th>Set By</th></tr>
+        <tr><td><code>HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Component Based Servicing\RebootPending</code></td><td>Component-Based Servicing (CBS) — deep OS component changes</td></tr>
+        <tr><td><code>HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsUpdate\Auto Update\RebootRequired</code></td><td>Windows Update specifically</td></tr>
+        <tr><td><code>HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\PendingFileRenameOperations</code></td><td>Any operation that needs to rename/delete a file currently in use</td></tr>
+      </table>
+      <div class="callout warn"><span class="lbl">Why check all three instead of just one</span>Different kinds of
+      changes set different indicators — checking only the Windows Update one, for example, would completely miss a
+      pending reboot caused by a file-in-use operation from an application installer. A thorough check needs to look
+      in all three places and treat <i>any</i> of them being present as "reboot is pending."</div>
+
+      <h3>3. Checking for a Key's Existence vs Reading a Value</h3>
+      <p>Some of these indicators are about whether the <i>key itself</i> exists at all (CBS RebootPending), while
+      others are about whether a specific <i>value</i> is set inside an existing key
+      (PendingFileRenameOperations) — reusing <code>Test-Path</code> for the first, and
+      <code>Get-ItemProperty</code> for the second, exactly the registry techniques from Project 13.</p>
+
+      <h3>4. Combining Three Independent Readiness Checks</h3>
+      <p>Same "collect several checks, combine into one verdict" shape as Project 9's unified health check — here
+      specifically producing a single READY / NOT READY decision, since that's what a patching workflow actually
+      needs to act on.</p>
+
+      <h3>5. Why This Is Read-Only, Not Auto-Remediating</h3>
+      <p>Detecting a pending reboot doesn't mean the script should reboot the server itself — that decision belongs
+      to a scheduled maintenance window, not an automated readiness check. This script's job is to inform the
+      go/no-go decision, not make it.</p>
+    </section>
+
+    <section id="lab">
+      <h2>Hands-On Lab — Build It Yourself</h2>
+      <div class="steps">
+        <div class="step"><b>Create the project folder:</b>
+          <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code>New-Item -ItemType Directory -Path "C:\PS-Masterclass\Project17\reports" -Force
+Set-Location "C:\PS-Masterclass\Project17"</code></pre></div>
+        </div>
+        <div class="step"><b>Create <code>Test-PatchReadiness.ps1</code></b> and paste the full script below.</div>
+        <div class="step"><b>Run it:</b>
+          <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code>.\Test-PatchReadiness.ps1</code></pre></div>
+        </div>
+        <div class="step"><b>Validate:</b> confirm you see individual results for disk space, critical services,
+        and pending reboot status, plus one clear overall READY/NOT READY verdict. Most personal machines will show
+        READY unless a Windows Update is actually waiting on a restart.</div>
+        <div class="step"><b>Optional realistic test:</b> if Windows Update has recently installed something on your
+        machine, you may already have a genuine pending reboot — a good opportunity to see the NOT READY path
+        without needing to fake anything.</div>
+      </div>
+    </section>
+
+    <section id="script">
+      <h2>Full Script — Test-PatchReadiness.ps1</h2>
+      <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code># =====================================================================
+# Test-PatchReadiness.ps1
+# ABC Bank - Windows Infrastructure Automation Team
+# Purpose: Pre-patching go/no-go readiness check (disk, services, pending reboot)
+# =====================================================================
+
+$ComputerName       = $env:COMPUTERNAME
+$MinFreeDiskPercent = 15                                    # Below this, patching is considered risky (Project 2's pattern)
+$CriticalServices   = @("Spooler", "BITS")                    # Reused list style from Project 4
+
+$ReadinessChecks = @()   # Will hold one result per individual check
+
+Write-Host "`n=== PATCH READINESS CHECK: $ComputerName ===" -ForegroundColor Magenta
+
+# ---------------------------------------------------------------
+# CHECK 1: Disk space (Project 2's logic, reused)
+# ---------------------------------------------------------------
+$Disks = Get-CimInstance -ClassName Win32_LogicalDisk -Filter "DriveType=3"
+$DiskOk = $true                                                # Assume healthy until proven otherwise
+foreach ($Disk in $Disks) {
+    $FreePercent = [math]::Round(($Disk.FreeSpace / $Disk.Size) * 100, 1)
+    if ($FreePercent -lt $MinFreeDiskPercent) {
+        $DiskOk = $false                                          # Any disk below threshold fails the whole check
+        Write-Host "  Disk $($Disk.DeviceID) low: $FreePercent% free (need $MinFreeDiskPercent%+)" -ForegroundColor Red
+    }
+}
+$ReadinessChecks += [PSCustomObject]@{ CheckName = "Disk Space"; Passed = $DiskOk }
+
+# ---------------------------------------------------------------
+# CHECK 2: Critical services (Project 4's logic, reused)
+# ---------------------------------------------------------------
+$ServicesOk = $true
+foreach ($SvcName in $CriticalServices) {
+    try {
+        $Svc = Get-Service -Name $SvcName -ErrorAction Stop
+        if ($Svc.Status -ne "Running") {
+            $ServicesOk = $false
+            Write-Host "  Service '$SvcName' is $($Svc.Status), expected Running" -ForegroundColor Red
+        }
+    }
+    catch {
+        $ServicesOk = $false
+        Write-Host "  Service '$SvcName' not found" -ForegroundColor Red
+    }
+}
+$ReadinessChecks += [PSCustomObject]@{ CheckName = "Critical Services"; Passed = $ServicesOk }
+
+# ---------------------------------------------------------------
+# CHECK 3: Pending reboot - checked in all three known locations
+# ---------------------------------------------------------------
+$RebootPending = $false                                          # Assume no pending reboot until proven otherwise
+
+# Location A: Component-Based Servicing - existence of the key itself is the signal
+if (Test-Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Component Based Servicing\RebootPending") {
+    $RebootPending = $true
+    Write-Host "  Pending reboot detected: Component-Based Servicing" -ForegroundColor Red
+}
+
+# Location B: Windows Update - existence of this key means an update needs a restart
+if (Test-Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsUpdate\Auto Update\RebootRequired") {
+    $RebootPending = $true
+    Write-Host "  Pending reboot detected: Windows Update" -ForegroundColor Red
+}
+
+# Location C: Pending file rename operations - a specific VALUE inside an existing key
+$PendingRenames = Get-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager" -Name "PendingFileRenameOperations" -ErrorAction SilentlyContinue
+if ($PendingRenames) {
+    $RebootPending = $true
+    Write-Host "  Pending reboot detected: Pending file rename operations" -ForegroundColor Red
+}
+
+$RebootOk = -not $RebootPending                                   # "OK" means NO reboot pending
+$ReadinessChecks += [PSCustomObject]@{ CheckName = "No Pending Reboot"; Passed = $RebootOk }
+
+# ---------------------------------------------------------------
+# STEP 4: Combine into one overall verdict
+# ---------------------------------------------------------------
+$OverallReady = ($ReadinessChecks | Where-Object { -not $_.Passed }).Count -eq 0   # READY only if every check passed
+
+Write-Host "`n=== READINESS SUMMARY ===" -ForegroundColor Magenta
+$ReadinessChecks | ForEach-Object {                                 # Prints each check's pass/fail clearly
+    $Color = if ($_.Passed) { "Green" } else { "Red" }
+    $Symbol = if ($_.Passed) { "PASS" } else { "FAIL" }
+    Write-Host "  [$Symbol] $($_.CheckName)" -ForegroundColor $Color
+}
+
+$VerdictColor = if ($OverallReady) { "Green" } else { "Red" }
+$Verdict = if ($OverallReady) { "READY FOR PATCHING" } else { "NOT READY - resolve issues above first" }
+Write-Host "`nOVERALL: $Verdict" -ForegroundColor $VerdictColor
+
+# ---------------------------------------------------------------
+# STEP 5: Export
+# ---------------------------------------------------------------
+if (-not (Test-Path ".\reports")) { New-Item -ItemType Directory -Path ".\reports" | Out-Null }
+$Timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
+$ReadinessChecks | Export-Csv -Path ".\reports\PatchReadiness_$Timestamp.csv" -NoTypeInformation
+Write-Host "Report saved to .\reports\" -ForegroundColor Cyan
+</code></pre></div>
+      </div>
+    </section>
+
+    <section id="linebyline">
+      <h2>Line-by-Line Explanation</h2>
+
+      <h3><code>if (Test-Path "HKLM:\...\Component Based Servicing\RebootPending") { $RebootPending = $true }</code></h3>
+      <ul class="explain-list">
+        <li>For this indicator, the <i>presence of the key itself</i> is the signal — Windows doesn't put a
+        meaningful value inside it, it just creates the key when a reboot becomes pending and removes it once
+        resolved. This is why <code>Test-Path</code> (existence check) is the right tool here, not
+        <code>Get-ItemProperty</code> (value read).</li>
+      </ul>
+
+      <h3><code>$PendingRenames = Get-ItemProperty -Path "...\Session Manager" -Name "PendingFileRenameOperations" -ErrorAction SilentlyContinue</code></h3>
+      <ul class="explain-list">
+        <li>This is the opposite case — the <code>Session Manager</code> key always exists (it's a core part of
+        Windows), but the specific <code>PendingFileRenameOperations</code> <i>value</i> inside it is only present
+        when there's actually something pending, so we check for that specific value's existence rather than the
+        key's.</li>
+      </ul>
+
+      <h3><code>$RebootOk = -not $RebootPending</code></h3>
+      <ul class="explain-list">
+        <li>A small but important naming/logic detail: every other check in this script is phrased as "is this
+        healthy" ($DiskOk, $ServicesOk), so we deliberately invert $RebootPending into $RebootOk here to keep every
+        check's meaning consistent — "true means good" — right before they're combined, avoiding a mixed-polarity
+        bug where some checks mean "true = good" and others accidentally mean "true = bad."</li>
+      </ul>
+
+      <h3><code>$OverallReady = ($ReadinessChecks | Where-Object { -not $_.Passed }).Count -eq 0</code></h3>
+      <ul class="explain-list">
+        <li>Rather than writing a long <code>-and</code> chain of every individual boolean (which would need editing
+        every time a check is added or removed), this filters the <i>collection</i> of check results for any
+        failures and confirms there are zero — a pattern that scales cleanly as more readiness checks get added over
+        time without ever needing to touch this line again.</li>
+      </ul>
+    </section>
+
+    <section id="architecture">
+      <h2>Architecture &amp; Readiness Flow</h2>
+      <div class="diagram">
+        <div class="flow">
+          <div class="box">Disk Check</div><div class="arrow">+</div>
+          <div class="box">Service Check</div><div class="arrow">+</div>
+          <div class="box">Reboot Check</div><div class="arrow">→</div>
+          <div class="box">$ReadinessChecks Collection</div>
+        </div>
+        <div class="flow" style="margin-top:12px;">
+          <div class="box">$ReadinessChecks</div><div class="arrow">→</div>
+          <div class="box">Any Failures?</div><div class="arrow">→</div>
+          <div class="box">READY / NOT READY Verdict</div>
+        </div>
+      </div>
+      <p>Every check in this script produces the exact same simple shape — a name and a Passed boolean — regardless
+      of how different the underlying logic is (CIM queries, service checks, three separate registry lookups). This
+      consistency is precisely what makes the final "count the failures" step so simple, and it's the same
+      uniform-result-shape discipline from Project 10 applied to read-only checks instead of remediation actions.</p>
+    </section>
+
+    <section id="incident">
+      <h2>Production Incident Walkthrough</h2>
+      <div class="story">
+        With this script now running before every patch window, one server shows "FAIL: No Pending Reboot" a full
+        day before the scheduled patching. Operations reboots it proactively during a quiet period, and by the time
+        the actual patch window arrives, it passes clean — avoiding exactly the kind of stacked-pending-changes
+        problem that caused one of last month's three failures.
+      </div>
+      <ul class="explain-list">
+        <li><b>Why is catching this a day in advance so much better than discovering it during the patch window?</b>
+        A failed readiness check found early gives Operations time to schedule a low-impact remediation (like a
+        planned reboot); the same problem discovered mid-patch-window turns into an unplanned, time-pressured
+        scramble during a window that likely has other servers waiting too.</li>
+      </ul>
+    </section>
+
+    <section id="troubleshoot">
+      <h2>Troubleshooting Cheat Sheet</h2>
+      <table>
+        <tr><th>Symptom</th><th>Likely Root Cause</th><th>Fix</th></tr>
+        <tr><td>Script always reports READY even right after a Windows Update</td><td>The update may not have required a reboot, or already completed one</td><td>Check manually with <code>Get-Item "HKLM:\...\WindowsUpdate\Auto Update\RebootRequired"</code> to confirm current real state</td></tr>
+        <tr><td>"Cannot find path" errors on registry checks</td><td>Typo in one of the three registry paths (they're long and easy to mistype)</td><td>Carefully compare each path character-by-character against the script</td></tr>
+        <tr><td>Disk check fails unexpectedly</td><td>$MinFreeDiskPercent set higher than your actual free space</td><td>Check current free space with the Project 2 script or File Explorer for context</td></tr>
+        <tr><td>Overall verdict shows NOT READY but all three individual checks show PASS</td><td>A logic error in how $OverallReady is calculated, or a check wasn't actually added to $ReadinessChecks</td><td>Print $ReadinessChecks directly with Format-Table to inspect every row's actual Passed value</td></tr>
+      </table>
+    </section>
+
+    <section id="security">
+      <h2>Security &amp; Best Practices</h2>
+      <div class="callout tip"><span class="lbl">Best practice reinforced here</span>Checking all three known
+      pending-reboot indicators, rather than just one, illustrates a broader principle: when a real-world condition
+      can be signaled multiple different ways, a thorough check needs to look everywhere it might appear, not just
+      the most common or most convenient location.</div>
+      <div class="callout security"><span class="lbl">Informing, not deciding</span>This script deliberately stops
+      at reporting a verdict — it never reboots the server or takes any corrective action itself. Whether and when to
+      act on a NOT READY result is an operational scheduling decision that belongs with Operations, not baked into
+      an automated check.</div>
+    </section>
+
+    <section id="recap">
+      <h2>Key Learnings &amp; Recap</h2>
+      <div class="grid2">
+        <div>
+          <h3>Commands/Syntax Learned</h3>
+          <ul class="explain-list">
+            <li>Combining <code>Test-Path</code> (key existence) and <code>Get-ItemProperty</code> (value existence) checks</li>
+            <li>Filtering a results collection to compute an overall pass/fail verdict</li>
+          </ul>
+        </div>
+        <div>
+          <h3>Concepts Learned</h3>
+          <ul class="explain-list">
+            <li>What a pending reboot is and why it matters before patching</li>
+            <li>The three places Windows records pending-reboot state</li>
+            <li>Keeping check result polarity consistent (true always means "good") before combining results</li>
+            <li>A synthesis project reusing three prior projects' logic in one readiness verdict</li>
+          </ul>
+        </div>
+      </div>
+      <h3>Common Mistakes to Avoid</h3>
+      <ul class="explain-list">
+        <li>Checking only one of the three pending-reboot indicators and missing the others.</li>
+        <li>Mixing "true means healthy" and "true means problem" across different checks before combining them.</li>
+        <li>Having the readiness script itself trigger a reboot — that decision belongs to a human-scheduled process.</li>
+      </ul>
+    </section>
+
+    <section id="interview">
+      <h2>Interview Preparation</h2>
+      <details><summary>Q1. Why check three different registry locations for a pending reboot instead of just one?</summary>
+        <p><b>Answer:</b> Different subsystems (Component-Based Servicing, Windows Update, general file-rename
+        operations) record a pending reboot in different places — checking only one would miss reboots triggered by
+        the others, giving a false "all clear" in cases where a reboot is genuinely still needed.</p>
+        <p><b>Follow-up:</b> "Are there other, less common indicators you might also want to check in a fully
+        thorough implementation?" — Answer: SCCM/ConfigMgr-specific pending reboot flags, or a pending computer
+        rename, are additional real-world indicators some organizations also check, depending on what management
+        tools are in use.</p>
+      </details>
+      <details><summary>Q2. Why does this script produce a Passed boolean for each check instead of just printing pass/fail text directly?</summary>
+        <p><b>Answer:</b> Storing a structured boolean per check (rather than only printing text) lets the script
+        programmatically compute an overall verdict by examining the collection afterward, and also produces a
+        clean, structured CSV export — text alone would require re-parsing to determine the overall result.</p>
+        <p><b>Follow-up:</b> "How would you add a fourth check without changing the overall-verdict logic?" — Answer:
+        simply append another <code>[PSCustomObject]@{ CheckName = ...; Passed = ... }</code> to
+        <code>$ReadinessChecks</code> — the verdict calculation automatically accounts for it since it just counts
+        failures across the whole collection.</p>
+      </details>
+      <details><summary>Q3. Why does the script stop at reporting NOT READY instead of automatically rebooting or fixing found issues?</summary>
+        <p><b>Answer:</b> A reboot has operational impact and needs to happen at an approved, scheduled time —
+        automatically triggering one the moment a readiness check runs could interrupt active work or violate
+        change-control expectations. This script's role is to inform a scheduling decision, not to make it.</p>
+        <p><b>Follow-up:</b> "How might you eventually integrate this into an automated patching pipeline while
+        still respecting that boundary?" — Answer: have the readiness check gate entry into a patching workflow (only
+        proceed if READY), but keep any reboot or remediation as a distinct, separately-approved step — a preview of
+        the CI/CD-style pipeline thinking we'll build toward in the DevOps stage.</p>
+      </details>
+    </section>
+
+    <section id="challenges">
+      <h2>Coding Challenges</h2>
+      <details><summary>Challenge 1: Add a fourth check confirming the Windows Update service itself is not disabled</summary>
+        <details><summary>Show answer</summary>
+        <pre><code>$WuSvc = Get-Service -Name "wuauserv" -ErrorAction SilentlyContinue
+$WuOk = $WuSvc -and $WuSvc.StartType -ne "Disabled"
+$ReadinessChecks += [PSCustomObject]@{ CheckName = "Windows Update Service Enabled"; Passed = $WuOk }</code></pre>
+        </details>
+      </details>
+      <details><summary>Challenge 2: Show which SPECIFIC checks failed in the final verdict line, not just READY/NOT READY</summary>
+        <details><summary>Show answer</summary>
+        <pre><code>$FailedNames = ($ReadinessChecks | Where-Object { -not $_.Passed }).CheckName -join ", "
+if (-not $OverallReady) { Write-Host "Failed checks: $FailedNames" -ForegroundColor Red }</code></pre>
+        </details>
+      </details>
+      <details><summary>Challenge 3: Add a LastBootTime check flagging servers that haven't rebooted in over 45 days (separate from pending reboot)</summary>
+        <details><summary>Show answer</summary>
+        <pre><code>$Uptime = (Get-Date) - (Get-CimInstance Win32_OperatingSystem).LastBootUpTime
+$UptimeOk = $Uptime.TotalDays -le 45
+$ReadinessChecks += [PSCustomObject]@{ CheckName = "Uptime Under 45 Days"; Passed = $UptimeOk }</code></pre>
+        </details>
+      </details>
+    </section>
+
+    <section id="resume">
+      <h2>Resume Points</h2>
+      <ul class="explain-list">
+        <li>Built a PowerShell pre-patching readiness check combining disk space, service health, and multi-source pending-reboot detection into one go/no-go verdict.</li>
+        <li>Implemented comprehensive pending-reboot detection across all three standard Windows registry indicators.</li>
+        <li>Designed an extensible readiness-check framework where new checks can be added without modifying the overall verdict logic.</li>
+      </ul>
+    </section>
+
+    <section id="assignment">
+      <h2>Practice Assignment</h2>
+      <div class="callout note">
+        Add your own fourth readiness check (pick anything meaningful — free memory above a threshold, a specific
+        process not running, etc.) following the same <code>[PSCustomObject]@{ CheckName = ...; Passed = ... }</code>
+        pattern, and confirm the overall verdict correctly reflects it without changing the verdict calculation line.
+      </div>
+    </section>
+
+    <section id="next">
+      <h2>Next Project Prerequisites</h2>
+      <p>Project 18 (Windows Post-Patching Validation) is this project's natural counterpart — verifying a server is
+      healthy <i>after</i> patches were applied, reusing much of this readiness-check framework with different
+      individual checks. Be comfortable with the multi-check-to-one-verdict pattern before moving on. When ready,
+      say <b>"Next Project."</b></p>
+    </section>
+
+    <footer>
+      PowerShell Masterclass — ABC Bank Automation Track · Project 17 of 40 · Generated for offline, self-contained use.
+    </footer>
+  </main>
+</div>
+
+<script>
+function copyCode(btn){
+  const code = btn.parentElement.querySelector('pre').innerText;
+  navigator.clipboard.writeText(code).then(()=>{
+    const old = btn.innerText; btn.innerText = "Copied!";
+    setTimeout(()=>btn.innerText = old, 1200);
+  });
+}
+window.addEventListener('scroll', ()=>{
+  const h = document.documentElement;
+  const pct = (h.scrollTop) / (h.scrollHeight - h.clientHeight) * 100;
+  document.getElementById('progressFill').style.width = pct + '%';
+  document.getElementById('progressLabel').innerText = 'Reading progress: ' + Math.round(pct) + '%';
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Project 26 — Monitoring Linux Networking with Prometheus</title>
+<style>
+:root{
+  --blue:#60A5FA; --blue-bg:#132238;
+  --purple:#C4B5FD; --purple-bg:#241B3D;
+  --teal:#5EEAD4; --teal-bg:#0F2C2A;
+  --green:#86EFAC; --green-bg:#132B1C;
+  --orange:#FDBA74; --orange-bg:#3A230F;
+  --red:#FCA5A5; --red-bg:#331515;
+  --bg:#0B1120; --panel:#111827; --text:#E5E7EB; --muted:#9CA3AF;
+  --border:#1F2937; --sidebar-w:280px;
+}
+*{box-sizing:border-box;}
+body{margin:0;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--text);line-height:1.65;}
+a{color:var(--blue);text-decoration:none;}
+a:hover{text-decoration:underline;}
+code{font-family:"SFMono-Regular",Consolas,"Liberation Mono",Menlo,monospace;}
+
+.cover{padding:60px 24px 40px;background:linear-gradient(135deg,#101B33,#1E1533);border-bottom:1px solid var(--border);}
+.cover-inner{max-width:900px;margin:0 auto;}
+.badge-row{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:18px;}
+.badge{font-size:12.5px;font-weight:600;padding:5px 12px;border-radius:20px;letter-spacing:.02em;}
+.badge.blue{background:#1D4ED8;color:#fff;}
+.badge.purple{background:#6D28D9;color:#fff;}
+.badge.teal{background:#0F766E;color:#fff;}
+.badge.orange{background:#C2410C;color:#fff;}
+.cover h1{font-size:2.1rem;margin:0 0 8px;color:#F9FAFB;}
+.cover .subtitle{font-size:1.05rem;color:var(--muted);margin-bottom:26px;}
+.cover-meta{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;}
+.meta-card{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:12px 14px;}
+.meta-card .label{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:700;}
+.meta-card .value{font-size:14.5px;font-weight:600;margin-top:2px;color:#F3F4F6;}
+
+.layout{display:flex;max-width:1400px;margin:0 auto;}
+.sidebar{width:var(--sidebar-w);flex-shrink:0;position:sticky;top:0;align-self:flex-start;height:100vh;overflow-y:auto;border-right:1px solid var(--border);padding:22px 14px;background:var(--bg);}
+.sidebar h4{font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin:18px 0 6px 10px;}
+.sidebar h4:first-child{margin-top:0;}
+.sidebar a{display:block;padding:7px 10px;border-radius:8px;font-size:13.5px;color:#CBD5E1;margin-bottom:1px;}
+.sidebar a:hover{background:var(--blue-bg);text-decoration:none;color:var(--blue);}
+.progress-wrap{margin:10px 10px 4px;}
+.progress-bar{height:6px;background:var(--border);border-radius:4px;overflow:hidden;}
+.progress-fill{height:100%;width:0%;background:linear-gradient(90deg,var(--blue),var(--purple));transition:width .2s;}
+.progress-label{font-size:11px;color:var(--muted);margin-top:4px;}
+
+.content{flex:1;min-width:0;padding:34px 40px 100px;}
+section{margin-bottom:48px;scroll-margin-top:20px;}
+h2.sec-title{font-size:1.5rem;border-bottom:2px solid var(--border);padding-bottom:10px;margin-bottom:18px;display:flex;align-items:center;gap:10px;color:#F9FAFB;}
+h2.sec-title .num{background:#1D4ED8;color:#fff;width:30px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;}
+h3{font-size:1.15rem;margin-top:28px;color:#F3F4F6;}
+
+.box{border-radius:10px;padding:16px 18px;margin:16px 0;border:1px solid transparent;}
+.box .box-title{font-weight:700;font-size:13px;text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px;display:flex;align-items:center;gap:6px;}
+.box.concept{background:var(--blue-bg);border-color:#1E3A5F;}
+.box.concept .box-title{color:var(--blue);}
+.box.architecture{background:var(--purple-bg);border-color:#3B2E63;}
+.box.architecture .box-title{color:var(--purple);}
+.box.success{background:var(--green-bg);border-color:#1E4B2E;}
+.box.success .box-title{color:var(--green);}
+.box.warning{background:var(--orange-bg);border-color:#5A3618;}
+.box.warning .box-title{color:var(--orange);}
+.box.failure{background:var(--red-bg);border-color:#5C2323;}
+.box.failure .box-title{color:var(--red);}
+.box.bestpractice{background:var(--teal-bg);border-color:#134E4A;}
+.box.bestpractice .box-title{color:var(--teal);}
+.box.story{background:#141B2E;border-color:var(--border);border-left:4px solid var(--purple);}
+
+.story p{margin:0 0 10px;color:#D1D5DB;}
+.story .quote{font-style:italic;color:#CBD5E1;border-left:3px solid var(--purple);padding-left:12px;margin:10px 0;}
+
+.term{background:#050810;color:#E2E8F0;border-radius:10px;margin:14px 0;overflow:hidden;border:1px solid #1E293B;}
+.term-header{display:flex;justify-content:space-between;align-items:center;background:#141B2E;padding:8px 14px;font-size:12px;color:#94A3B8;}
+.copy-btn{background:#243049;color:#E2E8F0;border:none;border-radius:6px;padding:4px 10px;font-size:11.5px;cursor:pointer;}
+.copy-btn:hover{background:#334155;}
+.term pre{margin:0;padding:14px 16px;overflow-x:auto;font-size:13.5px;line-height:1.7;}
+.term .cmdno{color:#64748B;margin-right:8px;}
+.term .cmd{color:#93C5FD;}
+.term .out{color:#CBD5E1;}
+.term .out-err{color:#FCA5A5;}
+.term .out-ok{color:#86EFAC;}
+.term .comment{color:#64748B;}
+
+table.breakdown{width:100%;border-collapse:collapse;margin:12px 0 20px;font-size:14px;}
+table.breakdown th{background:#141B2E;text-align:left;padding:8px 10px;font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);}
+table.breakdown td{padding:9px 10px;border-top:1px solid var(--border);vertical-align:top;color:#D1D5DB;}
+table.breakdown td.token{font-family:monospace;color:var(--blue);font-weight:700;white-space:nowrap;}
+
+details.collapse{border:1px solid var(--border);border-radius:10px;margin:14px 0;overflow:hidden;}
+details.collapse summary{cursor:pointer;padding:12px 16px;font-weight:600;background:#141B2E;list-style:none;display:flex;align-items:center;gap:8px;color:#E5E7EB;}
+details.collapse summary::-webkit-details-marker{display:none;}
+details.collapse summary:before{content:"▶";font-size:11px;color:var(--muted);transition:transform .15s;}
+details.collapse[open] summary:before{transform:rotate(90deg);}
+details.collapse .collapse-body{padding:4px 16px 16px;}
+
+.diagram-frame{background:#0D1420;border:1px solid var(--border);border-radius:12px;padding:18px;margin:16px 0;overflow-x:auto;}
+.diagram-caption{font-size:12.5px;color:var(--muted);text-align:center;margin-top:8px;}
+
+table.ref{width:100%;border-collapse:collapse;font-size:14px;margin:14px 0;}
+table.ref th{background:#141B2E;padding:8px 10px;text-align:left;font-size:12.5px;color:#E5E7EB;}
+table.ref td{padding:8px 10px;border-top:1px solid var(--border);color:#D1D5DB;}
+
+.dtree{list-style:none;padding-left:0;font-size:14px;}
+.dtree li{padding:8px 12px;margin-bottom:6px;border-radius:8px;border:1px solid var(--border);position:relative;color:#D1D5DB;}
+.dtree li.q{background:var(--blue-bg);}
+.dtree li.ok{background:var(--green-bg);}
+.dtree li.bad{background:var(--red-bg);}
+.dtree .arrow{text-align:center;color:var(--muted);font-size:12px;margin:2px 0;}
+
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin:16px 0;}
+.card{border:1px solid var(--border);border-radius:10px;padding:14px 16px;background:#0F1626;}
+.card h4{margin:0 0 6px;font-size:14.5px;color:#F3F4F6;}
+.card p{margin:0;font-size:13.5px;color:var(--muted);}
+
+.qa{border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin:12px 0;background:#0F1626;}
+.qa .q{font-weight:700;color:#F3F4F6;margin-bottom:6px;}
+.qa .q .qtag{background:#6D28D9;color:#fff;font-size:10.5px;padding:2px 8px;border-radius:10px;margin-right:8px;text-transform:uppercase;}
+.qa .followup{margin-top:8px;padding-top:8px;border-top:1px dashed var(--border);font-size:13.5px;color:var(--muted);}
+.qa p{color:#D1D5DB;}
+
+.top-link{position:fixed;bottom:22px;right:22px;background:#1D4ED8;color:#fff;width:42px;height:42px;border-radius:50%;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(0,0,0,.4);font-size:18px;}
+.top-link:hover{text-decoration:none;background:#2563EB;}
+
+p{color:#D1D5DB;}
+
+@media (max-width:900px){
+  .sidebar{display:none;}
+  .content{padding:22px 18px 80px;}
+}
+</style>
+</head>
+<body>
+
+<div class="cover">
+  <div class="cover-inner">
+    <div class="badge-row">
+      <span class="badge blue">Project 26 of ~38</span>
+      <span class="badge purple">Linux Networking Masterclass</span>
+      <span class="badge teal">Domain: DevOps / Observability</span>
+      <span class="badge orange">Difficulty: Advanced</span>
+    </div>
+    <h1>Monitoring Linux Networking with Prometheus</h1>
+    <div class="subtitle">Every diagnostic command we've run by hand across 25 projects — ss, nstat, ip -s link, conntrack -L — has a Prometheus metric equivalent, running continuously, 24/7, without anyone typing a command. This project is about turning manual troubleshooting instincts into automated, well-tuned alerts.</div>
+    <div class="cover-meta">
+      <div class="meta-card"><div class="label">Estimated Lab Time</div><div class="value">3 hours</div></div>
+      <div class="meta-card"><div class="label">Prerequisites</div><div class="value">Projects 4, 5, 12, and 24 completed</div></div>
+      <div class="meta-card"><div class="label">Lab Environment</div><div class="value">A minimal Python exporter reading real /proc/net data, exposed in Prometheus format</div></div>
+      <div class="meta-card"><div class="label">Concepts Learned</div><div class="value">Counters vs gauges, rate() and PromQL, alert threshold design, avoiding blind spots</div></div>
+    </div>
+  </div>
+</div>
+
+<div class="layout">
+  <nav class="sidebar" id="sidebar">
+    <div class="progress-wrap">
+      <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+      <div class="progress-label" id="progressLabel">0% through Project 26</div>
+    </div>
+    <h4>Orientation</h4>
+    <a href="#story">1. The Task</a>
+    <a href="#foundation">2. Monitoring Foundation</a>
+    <a href="#architecture">3. Architecture — The Metrics Pipeline</a>
+    <a href="#methodology">4. Alert Design Method</a>
+    <h4>Hands-On Lab</h4>
+    <a href="#labsetup">5. Build a Minimal Network Metrics Exporter</a>
+    <a href="#verify">6. Verify Baseline Metrics</a>
+    <h4>Break / Fix (3 Monitoring Design Mistakes)</h4>
+    <a href="#break1">7. Alerting on a Raw Counter Instead of Its Rate</a>
+    <a href="#break2">8. A Silent Blind Spot — Conntrack Never Monitored</a>
+    <a href="#break3">9. Absolute Error Count Instead of Error Rate</a>
+    <h4>Wrap-Up</h4>
+    <a href="#bestpractices">10. Best Practices</a>
+    <a href="#cheatsheet">11. Cheat Sheet</a>
+    <a href="#interview">12. Interview Prep</a>
+    <a href="#practice">13. Practice Tasks</a>
+    <a href="#resume">14. Resume Points</a>
+    <a href="#next">15. Next Project</a>
+  </nav>
+
+  <main class="content">
+
+  <section id="story">
+    <h2 class="sec-title"><span class="num">1</span>The Task</h2>
+    <div class="box story">
+      <p>After Project 24's NAT port exhaustion incident — the one that was nearly impossible to catch live because it self-resolved within a minute or two — the platform team has one clear ask: make sure the next occurrence triggers an alert automatically, instead of relying on an engineer noticing and investigating in real time.</p>
+      <p class="quote">"We can't keep relying on someone happening to run conntrack -L at exactly the right moment. We need this graphed continuously and alerting automatically — but we also don't want to be that team with 200 alerts a day that everyone starts ignoring."</p>
+      <p>Every manual diagnostic command from this masterclass has a direct, continuously-running equivalent in the Prometheus/node_exporter ecosystem. The real skill in this project isn't learning new commands — it's learning to design alerts that fire exactly when something is actually wrong, not constantly, and not never.</p>
+    </div>
+    <div class="box concept">
+      <div class="box-title">🔵 Why this project matters</div>
+      <p>Poorly designed monitoring is arguably worse than no monitoring — a system with constant false-positive alerts trains engineers to ignore it, and a system with silent blind spots gives false confidence. Understanding the specific, common mistakes in network metric alerting (counter-vs-rate confusion, absolute vs normalized thresholds, missing coverage) is what separates monitoring that actually helps from monitoring that's just noise or theater.</p>
+    </div>
+  </section>
+
+  <section id="foundation">
+    <h2 class="sec-title"><span class="num">2</span>Monitoring Foundation</h2>
+
+    <h3>2.1 Counters vs gauges — the single most important metric-type distinction</h3>
+    <div class="box concept">
+      <div class="box-title">🔵 Concept</div>
+      <p>A <b>counter</b> only ever goes up (or resets to zero on restart) — total bytes transmitted, total retransmitted segments, total errors. A <b>gauge</b> can go up or down freely — current number of established connections, current conntrack table size. Almost every interesting network metric from earlier projects — retransmissions (Project 13), interface errors (Project 12), ListenOverflows (Project 18) — is a COUNTER. You almost never want to alert on a counter's raw value directly; you want its RATE of change over time, which is exactly what PromQL's <code>rate()</code> function computes.</p>
+    </div>
+
+    <h3>2.2 node_exporter — automating what we've done by hand all masterclass</h3>
+    <div class="box concept">
+      <div class="box-title">🔵 Concept</div>
+      <p>node_exporter is the standard Prometheus agent for exposing Linux host metrics, and its network-related metrics are drawn from exactly the same sources we've used manually throughout this series: <code>node_network_receive_errs_total</code> and <code>node_network_transmit_errs_total</code> (from the same source as Project 12's <code>ip -s link</code>), <code>node_netstat_Tcp_RetransSegs</code> (the same counter <code>nstat</code> reads in Project 13), and <code>node_nf_conntrack_entries</code> / <code>node_nf_conntrack_entries_limit</code> (exactly what Project 7 and Project 24 checked manually with <code>conntrack -L</code> and <code>sysctl nf_conntrack_max</code>).</p>
+    </div>
+
+    <h3>2.3 PromQL's rate() — turning a counter into something you can actually alert on</h3>
+    <div class="box concept">
+      <div class="box-title">🔵 Concept</div>
+      <p><code>rate(node_netstat_Tcp_RetransSegs[5m])</code> computes the PER-SECOND average rate of increase of that counter over the trailing 5 minutes — exactly turning a constantly-climbing raw number into a meaningful "how much is this happening RIGHT NOW" value, which is almost always what you actually want to alert on rather than the raw cumulative total.</p>
+    </div>
+
+    <h3>2.4 Alert design: specific, actionable, and rare</h3>
+    <div class="box concept">
+      <div class="box-title">🔵 Concept</div>
+      <p>A well-designed alert should fire rarely, mean something specific and actionable when it does, and be tuned against REAL observed baseline behavior rather than a guessed round number. Every break-fix in this project demonstrates a common way alert design goes wrong despite the underlying metric being completely correct and available.</p>
+    </div>
+  </section>
+
+  <section id="architecture">
+    <h2 class="sec-title"><span class="num">3</span>Architecture — The Metrics Pipeline</h2>
+    <div class="diagram-frame">
+<svg viewBox="0 0 900 200" xmlns="http://www.w3.org/2000/svg" width="100%">
+<style>.lbl{font:600 12px sans-serif;fill:#F3F4F6;} .sub{font:10.5px sans-serif;fill:#9CA3AF;} .box{fill:#132238;stroke:#60A5FA;stroke-width:1.5;rx:8;}</style>
+<rect x="10" y="70" width="180" height="60" class="box"/><text x="100" y="95" text-anchor="middle" class="lbl">/proc/net/*</text><text x="100" y="113" text-anchor="middle" class="sub">same source ss/nstat read</text>
+<rect x="230" y="70" width="180" height="60" class="box"/><text x="320" y="95" text-anchor="middle" class="lbl">node_exporter</text><text x="320" y="113" text-anchor="middle" class="sub">exposes /metrics endpoint</text>
+<rect x="450" y="70" width="180" height="60" class="box"/><text x="540" y="95" text-anchor="middle" class="lbl">Prometheus</text><text x="540" y="113" text-anchor="middle" class="sub">scrapes + stores time series</text>
+<rect x="670" y="70" width="220" height="60" class="box"/><text x="780" y="95" text-anchor="middle" class="lbl">Grafana + Alertmanager</text><text x="780" y="113" text-anchor="middle" class="sub">visualize + fire alerts</text>
+<line x1="190" y1="100" x2="228" y2="100" stroke="#374151" stroke-width="1.6"/>
+<line x1="410" y1="100" x2="448" y2="100" stroke="#374151" stroke-width="1.6"/>
+<line x1="630" y1="100" x2="668" y2="100" stroke="#374151" stroke-width="1.6"/>
+</svg>
+    </div>
+    <div class="diagram-caption">Figure 1 — Every stage reads from the exact same kernel data sources we've used manually all masterclass — this pipeline just automates the collection and adds continuous evaluation.</div>
+  </section>
+
+  <section id="methodology">
+    <h2 class="sec-title"><span class="num">4</span>Alert Design Method</h2>
+    <ul class="dtree">
+      <li class="q">1. Is this metric a counter or a gauge? If a counter, are you alerting on rate(), not the raw value?</li>
+      <div class="arrow">↓</div>
+      <li class="q">2. Is the threshold based on observed real baseline behavior, or a guessed round number?</li>
+      <div class="arrow">↓</div>
+      <li class="q">3. Should this be an absolute count or normalized against traffic volume (a percentage/ratio)?</li>
+      <div class="arrow">↓</div>
+      <li class="q">4. Does every resource that has caused a past incident (Project 24's conntrack/NAT ports, Project 18's socket buffers) have explicit coverage?</li>
+      <div class="arrow">↓</div>
+      <li class="ok">Test the alert against both a known-good period and a reproduced incident (like our lab break-fixes) before trusting it in production</li>
+    </ul>
+    <div class="box warning"><div class="box-title">🟠 Warning</div><p>A metric being COLLECTED is not the same as it being ALERTED ON or even displayed on a dashboard anyone looks at regularly — collection without visibility is a silent blind spot that feels like coverage but isn't.</p></div>
+  </section>
+
+  <section id="labsetup">
+    <h2 class="sec-title"><span class="num">5</span>Build a Minimal Network Metrics Exporter</h2>
+    <p>We'll write a small Python exporter that reads real data from <code>/proc/net</code> — the exact files behind <code>ss</code>, <code>nstat</code>, and <code>ip -s link</code> all masterclass — and exposes it in the same text format node_exporter uses, so the PromQL concepts translate directly to a real deployment.</p>
+    <div class="term">
+      <div class="term-header"><span>bash — run as root/sudo, in ns-checkout or any namespace with active traffic (reuse any earlier lab)</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button></div>
+      <pre><span class="cmdno">1</span><span class="cmd">sudo ip netns add ns-monitored   </span><span class="comment"># a host we'll monitor</span>
+<span class="cmdno">2</span><span class="cmd">sudo ip netns exec ns-monitored ip link set lo up</span>
+<span class="cmdno">3</span><span class="cmd">sudo ip netns exec ns-monitored bash -c "cat > /tmp/mini_exporter.py" &lt;&lt;'EOF'
+import re, time
+from http.server import HTTPServer, BaseHTTPRequestHandler
+
+def read_retrans_segs():
+    # /proc/net/snmp holds the same TCP counters `nstat` reads - we grab
+    # RetransSegs specifically, exactly like Project 13's diagnostic
+    with open('/proc/net/snmp') as f:
+        lines = f.read().splitlines()
+    headers = next(l for l in lines if l.startswith('Tcp:')).split()
+    values = next(l for l in lines if l.startswith('Tcp:') and l != lines[lines.index(next(l for l in lines if l.startswith('Tcp:')))]).split()
+    idx = headers.index('RetransSegs')
+    return int(values[idx])
+
+def read_iface_errors(iface='lo'):
+    # /proc/net/dev holds the same RX/TX error counters Project 12's
+    # `ip -s link` reads
+    with open('/proc/net/dev') as f:
+        for line in f:
+            if iface + ':' in line:
+                fields = line.split(':')[1].split()
+                rx_errs = int(fields[2])   # 3rd field after the interface name is RX errors
+                tx_errs = int(fields[10])  # matching TX errors field
+                return rx_errs, tx_errs
+    return 0, 0
+
+class MetricsHandler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        if self.path != '/metrics':
+            self.send_response(404); self.end_headers(); return
+        retrans = read_retrans_segs()
+        rx_err, tx_err = read_iface_errors('lo')
+        body = (
+            "# HELP node_netstat_Tcp_RetransSegs Total TCP segments retransmitted\n"
+            "# TYPE node_netstat_Tcp_RetransSegs counter\n"
+            f"node_netstat_Tcp_RetransSegs {retrans}\n"
+            "# HELP node_network_receive_errs_total Receive errors\n"
+            "# TYPE node_network_receive_errs_total counter\n"
+            f'node_network_receive_errs_total{{device="lo"}} {rx_err}\n'
+        ).encode()
+        self.send_response(200)
+        self.send_header('Content-Type', 'text/plain')
+        self.end_headers()
+        self.wfile.write(body)
+
+HTTPServer(('127.0.0.1', 9100), MetricsHandler).serve_forever()
+EOF</span>
+<span class="cmdno">4</span><span class="cmd">sudo ip netns exec ns-monitored python3 /tmp/mini_exporter.py &amp;   </span><span class="comment"># start our exporter on the standard node_exporter port, 9100</span></pre>
+    </div>
+    <table class="breakdown">
+      <tr><th>Line</th><th>Meaning</th></tr>
+      <tr><td class="token">open('/proc/net/snmp')</td><td>The exact kernel file <code>nstat</code> parses under the hood — we're reading the same TCP-layer counters Project 13 used to diagnose retransmission behavior, just automated into a continuously-scrapable endpoint.</td></tr>
+      <tr><td class="token"># TYPE ... counter</td><td>Prometheus's text exposition format requires declaring each metric's type explicitly — this is what tells Prometheus (and anyone reading the raw output) that this value only increases, which is the signal to use rate() rather than alerting on it directly.</td></tr>
+    </table>
+  </section>
+
+  <section id="verify">
+    <h2 class="sec-title"><span class="num">6</span>Verify Baseline Metrics</h2>
+    <div class="term">
+      <div class="term-header"><span>bash — scrape our exporter exactly like Prometheus would</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button></div>
+      <pre><span class="cmdno">1</span><span class="cmd">sudo ip netns exec ns-monitored curl -s http://127.0.0.1:9100/metrics</span>
+<span class="out-ok">    node_netstat_Tcp_RetransSegs 0
+    node_network_receive_errs_total{device="lo"} 0</span></pre>
+    </div>
+    <div class="box success"><div class="box-title">🟢 Baseline confirmed</div><p>Our exporter successfully surfaces the exact same underlying kernel counters we've read manually since Projects 12 and 13, in a format any real Prometheus server could scrape on a schedule. In a real deployment, Prometheus would poll this endpoint every 15-30 seconds and store each value as a time series.</p></div>
+  </section>
+
+  <!-- BREAK 1 -->
+  <section id="break1">
+    <h2 class="sec-title"><span class="num">7</span>Break-Fix #1 — Alerting on a Raw Counter Instead of Its Rate</h2>
+    <div class="box failure"><div class="box-title">🔴 The Mistake</div><p>Someone writes an alert rule directly against the raw counter value, without rate():</p></div>
+    <div class="box doc" style="background:#151027;border-color:#3B2E63;border-left:4px solid #C4B5FD;font-family:'SFMono-Regular',Consolas,monospace;font-size:13px;padding:16px 18px;border-radius:10px;">
+ALERT: HighRetransmissions
+  expr: node_netstat_Tcp_RetransSegs &gt; 1000
+  for: 5m
+  # PROBLEM: this is the RAW CUMULATIVE COUNTER, not a rate
+    </div>
+    <h3>Reading the mistake</h3>
+    <div class="box concept"><div class="box-title">🔵 Why this breaks in two different, equally bad ways</div><p>A counter only ever goes up. Once total retransmissions cross 1000 — which will happen eventually on ANY sufficiently long-lived, busy host, even with a perfectly healthy, low retransmission RATE — this alert fires and then NEVER STOPS firing, because the counter never decreases. The team will either mute it permanently (creating a real blind spot for a genuine future spike) or become numb to it exactly like the "200 alerts a day" problem from Section 1's request. Meanwhile, a genuinely dangerous SPIKE in retransmissions — say, jumping from a totally normal baseline to 10x that rate in five minutes — might not even cross the static 1000 threshold at all if the host hasn't been up very long, meaning the alert can simultaneously be too noisy AND blind to a real problem.</p></div>
+    <div class="box failure"><div class="box-title">🔴 Root Cause</div><p>The alert rule was written against a raw, ever-increasing counter value instead of its rate of change, making the threshold meaningless relative to actual current behavior.</p></div>
+    <div class="box doc" style="background:#0F2C2A;border-color:#134E4A;border-left:4px solid #5EEAD4;font-family:'SFMono-Regular',Consolas,monospace;font-size:13px;padding:16px 18px;border-radius:10px;">
+ALERT: HighRetransmissionRate
+  expr: rate(node_netstat_Tcp_RetransSegs[5m]) &gt; 5
+  for: 5m
+  # FIXED: alerts on segments/sec over the trailing 5 minutes,
+  # a value that reflects CURRENT behavior and can rise and
+  # fall with real conditions
+    </div>
+    <div class="box bestpractice"><div class="box-title">🟦 Production Best Practice</div><p>Any alert expression referencing a metric of TYPE counter should almost always wrap it in <code>rate()</code> (or <code>irate()</code> for more responsive, spikier detection) — treat a bare counter reference in an alert rule as an immediate red flag during alert review.</p></div>
+  </section>
+
+  <!-- BREAK 2 -->
+  <section id="break2">
+    <h2 class="sec-title"><span class="num">8</span>Break-Fix #2 — A Silent Blind Spot: Conntrack Never Monitored</h2>
+    <div class="box failure"><div class="box-title">🔴 The Mistake</div><p>The team deploys node_exporter, builds dashboards for interface throughput and error rates, and calls monitoring "done" — but conntrack table usage, the exact resource that caused Project 24's incident, was never added to any dashboard or alert.</p></div>
+    <h3>Reading the mistake</h3>
+    <div class="box concept"><div class="box-title">🔵 Why this is invisible until it's too late</div><p>node_exporter DOES expose <code>node_nf_conntrack_entries</code> and <code>node_nf_conntrack_entries_limit</code> by default — the data was always available. But "the metric exists and is being scraped" is not the same as "someone would notice if it approached its limit." Without an explicit alert (or even a dashboard panel anyone actually looks at), the exact Project 24 incident could recur, get fully collected in Prometheus's historical data, and still go completely unnoticed in real time — the team would only discover it existed by looking at historical data AFTER the fact, exactly the reactive position Section 1's request was trying to move away from.</p></div>
+    <div class="box failure"><div class="box-title">🔴 Root Cause</div><p>A metric that was technically being collected had no corresponding alert or actively-monitored dashboard, creating a coverage gap that felt like monitoring but functioned identically to having no monitoring at all for that specific resource.</p></div>
+    <div class="box doc" style="background:#0F2C2A;border-color:#134E4A;border-left:4px solid #5EEAD4;font-family:'SFMono-Regular',Consolas,monospace;font-size:13px;padding:16px 18px;border-radius:10px;">
+ALERT: ConntrackTableNearLimit
+  expr: (node_nf_conntrack_entries / node_nf_conntrack_entries_limit) &gt; 0.8
+  for: 2m
+  # fires when conntrack usage crosses 80% of its configured
+  # max - exactly the resource that caused the Project 24
+  # incident, now actively watched instead of just collected
+    </div>
+    <div class="box bestpractice"><div class="box-title">🟦 Production Best Practice</div><p>After every real incident, explicitly cross-check: is the resource that caused this now covered by BOTH a dashboard panel someone actually looks at AND an alert with a sensible threshold — not just "is the metric technically available somewhere." Treat this cross-check as a standard, non-optional part of every RCA's follow-up actions (exactly like Project 25's RCA template required).</p></div>
+  </section>
+
+  <!-- BREAK 3 -->
+  <section id="break3">
+    <h2 class="sec-title"><span class="num">9</span>Break-Fix #3 — Absolute Error Count Instead of Error Rate</h2>
+    <div class="box failure"><div class="box-title">🔴 The Mistake</div><p>An alert is written against the absolute number of interface errors, without normalizing against traffic volume:</p></div>
+    <div class="box doc" style="background:#151027;border-color:#3B2E63;border-left:4px solid #C4B5FD;font-family:'SFMono-Regular',Consolas,monospace;font-size:13px;padding:16px 18px;border-radius:10px;">
+ALERT: InterfaceErrors
+  expr: rate(node_network_receive_errs_total[5m]) &gt; 10
+  # PROBLEM: 10 errors/sec sounds meaningful, but has no
+  # relationship to how much traffic is actually flowing
+    </div>
+    <h3>Reading the mistake</h3>
+    <div class="box concept"><div class="box-title">🔵 Why "10 errors per second" means completely different things at different traffic levels</div><p>On a quiet interface handling 50 packets per second, 10 errors/sec is a catastrophic 20% error rate — a genuine, severe problem that this threshold WOULD catch. But on a busy interface handling 500,000 packets per second, that exact same 10 errors/sec is a vanishingly small 0.002% error rate — likely within completely normal, healthy variance — yet the identical alert fires identically in both cases, either crying wolf constantly on the busy interface or (worse) being tuned so high to avoid that noise that it becomes blind on the quiet one.</p></div>
+    <div class="box failure"><div class="box-title">🔴 Root Cause</div><p>The alert threshold was an absolute error count with no relationship to traffic volume, making it simultaneously too sensitive at low traffic and not sensitive enough at high traffic.</p></div>
+    <div class="box doc" style="background:#0F2C2A;border-color:#134E4A;border-left:4px solid #5EEAD4;font-family:'SFMono-Regular',Consolas,monospace;font-size:13px;padding:16px 18px;border-radius:10px;">
+ALERT: InterfaceErrorRate
+  expr: |
+    (
+      rate(node_network_receive_errs_total[5m])
+      /
+      rate(node_network_receive_packets_total[5m])
+    ) &gt; 0.01
+  for: 5m
+  # FIXED: fires when errors exceed 1% of received packets,
+  # a threshold that means the same thing regardless of
+  # current traffic volume
+    </div>
+    <div class="box bestpractice"><div class="box-title">🟦 Production Best Practice</div><p>Whenever an error or failure count could plausibly scale with traffic volume, normalize the alert as a ratio or percentage of total traffic, not an absolute count — this is the network-monitoring equivalent of Project 13's core lesson that a raw percentage-loss number alone doesn't tell you the real impact without context.</p></div>
+  </section>
+
+  <section id="bestpractices">
+    <h2 class="sec-title"><span class="num">10</span>Best Practices</h2>
+    <div class="cards">
+      <div class="card"><h4>🟦 Never alert on a bare counter</h4><p>Always wrap in rate() — a raw counter alert is either permanently stuck firing or effectively meaningless.</p></div>
+      <div class="card"><h4>🟦 "Collected" ≠ "monitored"</h4><p>Cross-check every past incident's root-cause resource against an actual dashboard panel and alert, not just metric availability.</p></div>
+      <div class="card"><h4>🟦 Normalize error counts against traffic volume</h4><p>An absolute threshold means different things at different traffic levels — use a ratio instead.</p></div>
+      <div class="card"><h4>🟦 Tune thresholds against real observed baselines</h4><p>A guessed round number is rarely correct in either direction — validate against actual historical data.</p></div>
+    </div>
+  </section>
+
+  <section id="cheatsheet">
+    <h2 class="sec-title"><span class="num">11</span>Metric Cheat Sheet — Manual Command to Prometheus Equivalent</h2>
+    <table class="ref">
+      <tr><th>Manual Command (Earlier Projects)</th><th>Prometheus/node_exporter Equivalent</th></tr>
+      <tr><td><code>nstat</code> — TCP retransmissions (Project 13)</td><td><code>rate(node_netstat_Tcp_RetransSegs[5m])</code></td></tr>
+      <tr><td><code>ip -s link</code> — interface errors (Project 12)</td><td><code>rate(node_network_receive_errs_total[5m])</code></td></tr>
+      <tr><td><code>conntrack -L</code> vs <code>nf_conntrack_max</code> (Projects 7, 24)</td><td><code>node_nf_conntrack_entries / node_nf_conntrack_entries_limit</code></td></tr>
+      <tr><td><code>ss -tn state time-wait \| wc -l</code> (Project 12)</td><td><code>node_sockstat_TCP_tw</code></td></tr>
+    </table>
+  </section>
+
+  <section id="interview">
+    <h2 class="sec-title"><span class="num">12</span>Interview Preparation</h2>
+
+    <div class="qa"><div class="q"><span class="qtag">Scenario</span>You're asked to write an alert for TCP retransmissions. What would you watch out for?</div>
+    <p>The metric is a counter — it only increases — so I'd never alert on its raw value directly, since it will eventually cross any static threshold on a long-lived host regardless of current health. I'd wrap it in rate() to get a per-second value reflecting current behavior, and tune the threshold against real observed baseline retransmission rates rather than a guessed number.</p>
+    <div class="followup">Interviewer follow-up: "What if the alert needs to account for varying traffic levels?" — Answer: I'd normalize it as a ratio — retransmission rate divided by total segment rate — rather than an absolute value, so the threshold means the same thing whether traffic is low or high, exactly like normalizing interface errors against total packet rate.</div>
+    </div>
+
+    <div class="qa"><div class="q"><span class="qtag">Concept</span>What's the difference between a Prometheus counter and a gauge, and why does it matter for alerting?</div>
+    <p>A counter only ever increases (or resets on restart) — total errors, total retransmissions, total bytes. A gauge can go up or down — current connection count, current conntrack table size. It matters because alerting on a counter's raw value is almost always wrong; you need its rate of change over time using rate(), while a gauge can often be alerted on directly since its current value is already meaningful.</p>
+    </div>
+
+    <div class="qa"><div class="q"><span class="qtag">Production</span>How would you make sure a resource that caused a past incident doesn't cause a silent recurrence?</div>
+    <p>I'd explicitly verify it has both a dashboard panel that's actually part of a regularly-reviewed view, AND a specific alert with a sensible, rate-or-ratio-based threshold — not just confirm the underlying metric is technically being collected. A metric existing in Prometheus's data but never surfaced anywhere functions identically to no monitoring at all when the actual incident happens.</p>
+    </div>
+  </section>
+
+  <section id="practice">
+    <h2 class="sec-title"><span class="num">13</span>Practice Tasks &amp; Break-Fix Challenge</h2>
+    <div class="box warning">
+      <div class="box-title">🟠 Practice Tasks</div>
+      <ol>
+        <li>Extend the mini exporter to also expose conntrack-style data (you can read /proc/sys/net/netfilter/nf_conntrack_count and nf_conntrack_max if available in your environment).</li>
+        <li>Write PromQL alert expressions (on paper/in a text file, no live Prometheus required) for every metric in this project's cheat sheet, applying the counter/rate and normalization lessons throughout.</li>
+        <li>Review one of your own past projects' break-fix scenarios and write the alert rule that would have caught it automatically, before an engineer needed to notice manually.</li>
+      </ol>
+    </div>
+    <div class="box failure">
+      <div class="box-title">🔴 Break-Fix Challenge</div>
+      <p>Have someone else write an intentionally flawed alert expression (missing rate(), un-normalized, or genuinely missing coverage for some resource) without telling you which flaw. Review it cold and identify the specific design mistake before they reveal it.</p>
+    </div>
+  </section>
+
+  <section id="resume">
+    <h2 class="sec-title"><span class="num">14</span>Resume Points &amp; How to Explain This Project</h2>
+    <div class="box bestpractice">
+      <div class="box-title">🟦 Realistic resume bullet points</div>
+      <ul>
+        <li>Built a Prometheus-compatible metrics exporter surfacing Linux kernel network counters (TCP retransmissions, interface errors) directly from /proc/net sources.</li>
+        <li>Identified and corrected three common network-alerting design mistakes: alerting on raw counters instead of rates, an undetected conntrack monitoring blind spot, and un-normalized error-count thresholds.</li>
+        <li>Established a systematic cross-check ensuring every metric implicated in a past production incident has both active dashboard visibility and a correctly-designed alert, not just technical data collection.</li>
+      </ul>
+    </div>
+    <div class="box concept">
+      <div class="box-title">🔵 Natural spoken interview answer</div>
+      <p>"I built a small Prometheus-style metrics exporter reading the exact same kernel counters I'd used manually throughout a broader networking troubleshooting project — TCP retransmissions and interface errors — to understand exactly how monitoring automates what engineers do by hand during an incident. I then reviewed three realistic alert-design mistakes: an alert written against a raw, ever-increasing counter instead of its rate, which would either never stop firing or never fire meaningfully; a genuine blind spot where a resource that had actually caused a past incident was being collected by the exporter but never surfaced on any dashboard or alert; and an error-count threshold that wasn't normalized against traffic volume, meaning the exact same alert was simultaneously too sensitive at low traffic and not sensitive enough at high traffic. The core lesson was that having a metric available is completely different from having it correctly alerted on."</p>
+    </div>
+  </section>
+
+  <section id="next">
+    <h2 class="sec-title"><span class="num">15</span>Next Project Prerequisites</h2>
+    <div class="box architecture">
+      <div class="box-title">🟣 Coming up in Project 27 — AWS EC2 and VPC Networking from a Linux Engineer's Perspective</div>
+      <p>We'll take everything learned about routing, NAT, security groups (Linux iptables' cloud-managed cousin), and VPC peering, and connect it directly to the Linux-level networking concepts underneath every AWS networking abstraction.</p>
+      <p>Say <b>"Next Project"</b> when you're ready to continue.</p>
+    </div>
+  </section>
+
+  </main>
+</div>
+
+<a href="#" class="top-link" title="Back to top">↑</a>
+
+<script>
+function copyBlock(btn){
+  const pre = btn.closest('.term').querySelector('pre');
+  const text = pre.innerText;
+  navigator.clipboard.writeText(text).then(()=>{
+    const old = btn.textContent;
+    btn.textContent = "Copied!";
+    setTimeout(()=>btn.textContent = old, 1400);
+  });
+}
+window.addEventListener('scroll', function(){
+  const sections = document.querySelectorAll('section');
+  const total = document.body.scrollHeight - window.innerHeight;
+  const pct = Math.min(100, Math.round((window.scrollY/total)*100));
+  document.getElementById('progressFill').style.width = pct + '%';
+  document.getElementById('progressLabel').textContent = pct + '% through Project 26';
+
+  let current = '';
+  sections.forEach(sec=>{
+    const rect = sec.getBoundingClientRect();
+    if(rect.top <= 120) current = sec.id;
+  });
+  document.querySelectorAll('.sidebar a').forEach(a=>{
+    a.style.background = '';
+    a.style.color = '';
+    a.style.fontWeight = '';
+    if(a.getAttribute('href') === '#'+current){
+      a.style.background = 'var(--blue-bg)';
+      a.style.color = 'var(--blue)';
+      a.style.fontWeight = '700';
+    }
+  });
+});
+</script>
+</body>
+</html>

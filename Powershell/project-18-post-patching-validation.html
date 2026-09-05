@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Project 18 — Windows Post-Patching Validation | PowerShell Masterclass</title>
+<style>
+  :root{
+    --primary:#A78BFA; --secondary:#C4B5FD; --surface:#1A1530; --surface2:#221B3D;
+    --bg:#0F0B1E; --text:#EDE9FE; --muted:#9CA3AF; --border:#332B57;
+    --success:#4ADE80; --warn:#FBBF24; --danger:#F87171;
+    --code-bg:#0A0716; --code-text:#E9E4FF;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0; font-family:"Segoe UI",Calibri,Roboto,Arial,sans-serif; background:var(--bg); color:var(--text); line-height:1.65;}
+  a{color:var(--secondary);}
+  .layout{display:flex; max-width:1400px; margin:0 auto;}
+  nav.sidebar{width:270px; flex-shrink:0; position:sticky; top:0; height:100vh; overflow-y:auto; background:var(--surface); border-right:1px solid var(--border); padding:22px 16px;}
+  nav.sidebar h3{color:var(--secondary); font-size:13px; text-transform:uppercase; letter-spacing:.06em; margin:18px 0 8px;}
+  nav.sidebar a{display:block; padding:7px 10px; border-radius:8px; color:var(--text); text-decoration:none; font-size:14px; margin-bottom:2px;}
+  nav.sidebar a:hover{background:var(--surface2); color:var(--secondary);}
+  #progressWrap{background:var(--surface2); border-radius:10px; padding:10px; margin-bottom:8px;}
+  #progressBar{height:8px; background:var(--border); border-radius:6px; overflow:hidden;}
+  #progressFill{height:100%; width:0%; background:linear-gradient(90deg,var(--primary),var(--secondary)); transition:width .2s;}
+  #progressLabel{font-size:12px; color:var(--muted); margin-top:6px;}
+  main{flex:1; min-width:0; padding:0;}
+  .cover{background:linear-gradient(135deg,#3B2A6B,#5B3FA0); color:#fff; padding:60px 48px; position:relative; overflow:hidden; border-bottom:1px solid var(--border);}
+  .cover::after{content:"";position:absolute;right:-80px;top:-80px;width:300px;height:300px;border-radius:50%;background:rgba(255,255,255,.06);}
+  .badge{display:inline-block; background:rgba(255,255,255,.14); padding:5px 14px; border-radius:20px; font-size:12px; letter-spacing:.05em; margin-right:8px; margin-bottom:14px;}
+  .cover h1{font-size:34px; margin:6px 0 10px; max-width:760px;}
+  .cover p.sub{font-size:16px; opacity:.92; max-width:640px;}
+  .cover-meta{display:flex; gap:28px; margin-top:26px; flex-wrap:wrap;}
+  .cover-meta div{background:rgba(255,255,255,.10); padding:12px 18px; border-radius:10px; min-width:140px;}
+  .cover-meta span{display:block; font-size:12px; opacity:.85;}
+  .cover-meta strong{font-size:16px;}
+  section{padding:34px 48px; border-bottom:1px solid var(--border);}
+  section h2{color:var(--secondary); font-size:24px; border-left:5px solid var(--primary); padding-left:14px; margin-top:0;}
+  section h3{color:var(--primary); font-size:18px; margin-top:26px;}
+  .story{background:var(--surface); border-left:5px solid var(--primary); padding:20px 24px; border-radius:0 10px 10px 0; font-size:15px;}
+  .story b{color:var(--secondary);}
+  .callout{border-radius:10px; padding:16px 18px; margin:16px 0; font-size:14.5px; border:1px solid var(--border);}
+  .callout.tip{background:#132A1E; border-left:5px solid var(--success);}
+  .callout.note{background:var(--surface); border-left:5px solid var(--secondary);}
+  .callout.warn{background:#2E2410; border-left:5px solid var(--warn);}
+  .callout.security{background:#2E1616; border-left:5px solid var(--danger);}
+  .callout .lbl{font-weight:700; display:block; margin-bottom:4px;}
+  table{width:100%; border-collapse:collapse; margin:16px 0; font-size:14px;}
+  th,td{border:1px solid var(--border); padding:9px 12px; text-align:left; vertical-align:top;}
+  th{background:var(--surface2); color:var(--secondary);}
+  tr:nth-child(even){background:var(--surface);}
+  .codewrap{position:relative; margin:16px 0;}
+  pre{background:var(--code-bg); color:var(--code-text); padding:18px 16px; border-radius:10px; overflow-x:auto; font-family:Consolas,"Cascadia Code",Menlo,monospace; font-size:13.5px; line-height:1.7; border:1px solid var(--border);}
+  pre code{white-space:pre;}
+  .copybtn{position:absolute; top:10px; right:10px; background:var(--primary); color:#1A1530; border:none; padding:6px 12px; border-radius:6px; font-size:12px; cursor:pointer; font-weight:600;}
+  .copybtn:hover{background:var(--secondary);}
+  .explain-list{list-style:none; padding:0; margin:14px 0;}
+  .explain-list li{background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:10px 14px; margin-bottom:6px; font-size:14.5px;}
+  .explain-list code{background:var(--surface2); padding:2px 6px; border-radius:5px; color:var(--secondary); font-weight:600;}
+  details{background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:12px 16px; margin:10px 0;}
+  details summary{cursor:pointer; font-weight:600; color:var(--secondary);}
+  .diagram{background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:20px; margin:16px 0; overflow-x:auto;}
+  .flow{display:flex; flex-wrap:wrap; align-items:center; gap:10px; font-size:13.5px;}
+  .flow .box{background:var(--surface2); border:2px solid var(--secondary); border-radius:8px; padding:8px 14px; font-weight:600; color:var(--secondary);}
+  .flow .arrow{color:var(--primary); font-size:18px;}
+  .steps{counter-reset:step;}
+  .steps .step{position:relative; padding-left:44px; margin-bottom:18px;}
+  .steps .step::before{counter-increment:step; content:counter(step); position:absolute; left:0; top:0; background:var(--primary); color:#1A1530; width:30px; height:30px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:700;}
+  .grid2{display:grid; grid-template-columns:1fr 1fr; gap:16px;}
+  @media(max-width:900px){.grid2{grid-template-columns:1fr;} nav.sidebar{display:none;} section{padding:26px 20px;} .cover{padding:36px 22px;}}
+  footer{padding:30px 48px; background:var(--surface); color:var(--muted); font-size:13px;}
+  code{color:var(--secondary);}
+</style>
+</head>
+<body>
+
+<div class="layout">
+  <nav class="sidebar">
+    <div id="progressWrap">
+      <div id="progressLabel">Reading progress</div>
+      <div id="progressBar"><div id="progressFill"></div></div>
+    </div>
+    <h3>Project 18</h3>
+    <a href="#cover">Cover</a>
+    <a href="#recap1">Recap: Projects 1–17</a>
+    <a href="#story">The Story</a>
+    <a href="#concepts">Concepts First</a>
+    <a href="#lab">Hands-On Lab</a>
+    <a href="#script">Full Script</a>
+    <a href="#linebyline">Line-by-Line</a>
+    <a href="#architecture">Architecture</a>
+    <a href="#incident">Production Incident</a>
+    <a href="#troubleshoot">Troubleshooting</a>
+    <a href="#security">Security Notes</a>
+    <a href="#recap">Key Learnings</a>
+    <a href="#interview">Interview Prep</a>
+    <a href="#challenges">Coding Challenges</a>
+    <a href="#resume">Resume Points</a>
+    <a href="#assignment">Practice Assignment</a>
+    <a href="#next">Next Project</a>
+  </nav>
+
+  <main id="top">
+    <div class="cover" id="cover">
+      <span class="badge">PROJECT 18</span><span class="badge">INTERMEDIATE</span><span class="badge">BFSI TRACK</span>
+      <h1>Windows Post-Patching Validation</h1>
+      <p class="sub">Project 17's counterpart: verify a server is actually healthy after patches were applied — new patches installed, reboot cleared, services back up, no new errors.</p>
+      <div class="cover-meta">
+        <div><span>Difficulty</span><strong>Intermediate</strong></div>
+        <div><span>Estimated Lab Time</span><strong>75–90 min</strong></div>
+        <div><span>Concepts</span><strong>8 core concepts</strong></div>
+        <div><span>Track</span><strong>18 of 40</strong></div>
+      </div>
+    </div>
+
+    <section id="recap1">
+      <h2>Quick Recap of Projects 1–17</h2>
+      <p>Project 17 answered "is this server ready to be patched?" This project answers the equally important
+      follow-up question nobody always remembers to ask: <b>"did patching actually work, and is the server healthy
+      now?"</b> We reuse the multi-check-to-one-verdict framework from Project 17, add a genuinely new check
+      (<code>Get-HotFix</code>), and fold in Project 7's event log technique to catch new errors that appeared
+      right after the reboot.</p>
+    </section>
+
+    <section id="story">
+      <h2>The Story — Why We're Building This</h2>
+      <div class="story">
+        Patch Tuesday finished overnight. The patching tool reports "success" for every server — but our manager has
+        seen that claim be wrong before: a patch can report success while a dependent service fails to restart, or
+        while the actual update never fully applied due to an interrupted reboot. <i>"I don't want to trust the
+        patching tool's word for it. I want our own independent script to verify each server is actually healthy
+        after patching, not just that the installer didn't error out."</i>
+      </div>
+    </section>
+
+    <section id="concepts">
+      <h2>Concepts First — Before We Touch Code</h2>
+
+      <h3>1. Why "The Installer Said Success" Isn't Enough</h3>
+      <div class="callout warn"><span class="lbl">A healthy skepticism worth having</span>A patch installer
+      reporting success only confirms the installation <i>process</i> completed without error — it says nothing
+      about whether the server actually came back up correctly afterward, whether dependent services recovered, or
+      whether the reboot fully completed. Independent post-patch validation closes that gap.</div>
+
+      <h3>2. Get-HotFix — Confirming What's Actually Installed</h3>
+      <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code>Get-HotFix | Sort-Object InstalledOn -Descending | Select-Object -First 5</code></pre></div>
+      <ul class="explain-list">
+        <li><code>Get-HotFix</code> — queries installed updates directly from Windows, independent of whatever the
+        patching tool itself reported — the same "verify from a different source than the one that made the claim"
+        principle as double-checking a service restart rather than trusting the restart command's exit code alone.</li>
+        <li><code>InstalledOn</code> — the date a given update was applied; sorting descending and taking the first
+        few shows the most recent patching activity.</li>
+      </ul>
+
+      <h3>3. Confirming the Pending Reboot Actually Cleared</h3>
+      <p>We reuse Project 17's three-location pending-reboot check — but now checking that it's <code>$false</code>,
+      confirming the reboot that (presumably) already happened actually resolved the pending state, rather than the
+      server coming back up with the condition still lingering.</p>
+
+      <h3>4. Services Should Be Running Again — Reused from Projects 4 and 17</h3>
+      <p>The exact same critical-services check, run again post-patch: a service that was fine before patching but
+      failed to come back up after the reboot is one of the most common real-world patching side effects.</p>
+
+      <h3>5. New Errors Since the Reboot — Reusing Project 7's Technique</h3>
+      <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code>$LastBoot = (Get-CimInstance Win32_OperatingSystem).LastBootUpTime
+Get-WinEvent -FilterHashtable @{ LogName = "Application"; Level = 1,2; StartTime = $LastBoot }</code></pre></div>
+      <ul class="explain-list">
+        <li>Instead of a fixed "last 7 days" window like Project 7, we scope the event search to <i>since the last
+        boot</i> — precisely the window that matters for catching problems the reboot itself may have introduced.</li>
+      </ul>
+
+      <h3>6. Combining Four Checks into One Verdict — Same Shape as Project 17</h3>
+      <p>Recent patch installed, no pending reboot, services healthy, no new critical errors — four independently
+      meaningful checks, combined exactly the way Project 17 combined its three.</p>
+    </section>
+
+    <section id="lab">
+      <h2>Hands-On Lab — Build It Yourself</h2>
+      <div class="steps">
+        <div class="step"><b>Create the project folder:</b>
+          <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code>New-Item -ItemType Directory -Path "C:\PS-Masterclass\Project18\reports" -Force
+Set-Location "C:\PS-Masterclass\Project18"</code></pre></div>
+        </div>
+        <div class="step"><b>Create <code>Test-PostPatchValidation.ps1</code></b> and paste the full script below.</div>
+        <div class="step"><b>Run it:</b>
+          <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code>.\Test-PostPatchValidation.ps1</code></pre></div>
+        </div>
+        <div class="step"><b>Validate:</b> confirm you see the 5 most recently installed hotfixes, pending reboot
+        status, service status, any new Application errors since boot, and one overall verdict.</div>
+      </div>
+    </section>
+
+    <section id="script">
+      <h2>Full Script — Test-PostPatchValidation.ps1</h2>
+      <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code># =====================================================================
+# Test-PostPatchValidation.ps1
+# ABC Bank - Windows Infrastructure Automation Team
+# Purpose: Independently verify server health AFTER a patching cycle
+# =====================================================================
+
+$ComputerName     = $env:COMPUTERNAME
+$CriticalServices = @("Spooler", "BITS")
+$MaxDaysSincePatch = 35                                       # Flags if nothing installed recently (missed patch cycle)
+
+$ValidationChecks = @()
+
+Write-Host "`n=== POST-PATCH VALIDATION: $ComputerName ===" -ForegroundColor Magenta
+
+# ---------------------------------------------------------------
+# CHECK 1: Recent patch installation (new - Get-HotFix)
+# ---------------------------------------------------------------
+$RecentHotfixes = Get-HotFix | Sort-Object InstalledOn -Descending
+$LatestPatch    = $RecentHotfixes | Select-Object -First 1     # The single most recent update
+
+$PatchOk = $false
+if ($LatestPatch -and $LatestPatch.InstalledOn) {                # Some hotfix entries lack a date - guard against that
+    $DaysSincePatch = ((Get-Date) - $LatestPatch.InstalledOn).TotalDays
+    $PatchOk = $DaysSincePatch -le $MaxDaysSincePatch
+    Write-Host "  Most recent patch: $($LatestPatch.HotFixID) on $($LatestPatch.InstalledOn) ($([math]::Round($DaysSincePatch,0)) days ago)" -ForegroundColor Cyan
+}
+$ValidationChecks += [PSCustomObject]@{ CheckName = "Recent Patch Installed"; Passed = $PatchOk }
+
+# ---------------------------------------------------------------
+# CHECK 2: Pending reboot cleared (Project 17's logic, reused, now expecting $false)
+# ---------------------------------------------------------------
+$RebootPending = $false
+if (Test-Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Component Based Servicing\RebootPending") { $RebootPending = $true }
+if (Test-Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsUpdate\Auto Update\RebootRequired") { $RebootPending = $true }
+$PendingRenames = Get-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager" -Name "PendingFileRenameOperations" -ErrorAction SilentlyContinue
+if ($PendingRenames) { $RebootPending = $true }
+
+$RebootClearedOk = -not $RebootPending
+if (-not $RebootClearedOk) {
+    Write-Host "  Pending reboot STILL present after patching - investigate" -ForegroundColor Red
+}
+$ValidationChecks += [PSCustomObject]@{ CheckName = "Pending Reboot Cleared"; Passed = $RebootClearedOk }
+
+# ---------------------------------------------------------------
+# CHECK 3: Critical services running (Project 4/17's logic, reused)
+# ---------------------------------------------------------------
+$ServicesOk = $true
+foreach ($SvcName in $CriticalServices) {
+    try {
+        $Svc = Get-Service -Name $SvcName -ErrorAction Stop
+        if ($Svc.Status -ne "Running") {
+            $ServicesOk = $false
+            Write-Host "  Service '$SvcName' did not come back up: $($Svc.Status)" -ForegroundColor Red
+        }
+    }
+    catch {
+        $ServicesOk = $false
+        Write-Host "  Service '$SvcName' not found" -ForegroundColor Red
+    }
+}
+$ValidationChecks += [PSCustomObject]@{ CheckName = "Critical Services Running"; Passed = $ServicesOk }
+
+# ---------------------------------------------------------------
+# CHECK 4: No new critical errors since the last boot (Project 7's technique, reused)
+# ---------------------------------------------------------------
+$LastBoot = (Get-CimInstance Win32_OperatingSystem).LastBootUpTime   # The reboot presumably caused by patching
+
+$NewErrors = @()
+try {
+    $NewErrors = Get-WinEvent -FilterHashtable @{ LogName = "Application"; Level = 1,2; StartTime = $LastBoot } -ErrorAction Stop
+}
+catch { }   # No errors since boot is a normal, good outcome - Project 7's pattern
+
+$NoNewErrorsOk = $NewErrors.Count -eq 0
+if (-not $NoNewErrorsOk) {
+    Write-Host "  $($NewErrors.Count) new Application error(s) since last boot ($LastBoot)" -ForegroundColor Red
+}
+$ValidationChecks += [PSCustomObject]@{ CheckName = "No New Errors Since Boot"; Passed = $NoNewErrorsOk }
+
+# ---------------------------------------------------------------
+# STEP 5: Combine into one verdict (identical shape to Project 17)
+# ---------------------------------------------------------------
+$OverallHealthy = ($ValidationChecks | Where-Object { -not $_.Passed }).Count -eq 0
+
+Write-Host "`n=== VALIDATION SUMMARY ===" -ForegroundColor Magenta
+$ValidationChecks | ForEach-Object {
+    $Color = if ($_.Passed) { "Green" } else { "Red" }
+    $Symbol = if ($_.Passed) { "PASS" } else { "FAIL" }
+    Write-Host "  [$Symbol] $($_.CheckName)" -ForegroundColor $Color
+}
+
+$Verdict = if ($OverallHealthy) { "PATCHING VALIDATED - SERVER HEALTHY" } else { "VALIDATION FAILED - investigate before closing the patch ticket" }
+Write-Host "`nOVERALL: $Verdict" -ForegroundColor $(if ($OverallHealthy) { "Green" } else { "Red" })
+
+# ---------------------------------------------------------------
+# STEP 6: Export
+# ---------------------------------------------------------------
+if (-not (Test-Path ".\reports")) { New-Item -ItemType Directory -Path ".\reports" | Out-Null }
+$Timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
+$ValidationChecks | Export-Csv -Path ".\reports\PostPatchValidation_$Timestamp.csv" -NoTypeInformation
+Write-Host "Report saved to .\reports\" -ForegroundColor Cyan
+</code></pre></div>
+      </div>
+    </section>
+
+    <section id="linebyline">
+      <h2>Line-by-Line Explanation</h2>
+
+      <h3><code>$LatestPatch = $RecentHotfixes | Select-Object -First 1</code></h3>
+      <ul class="explain-list">
+        <li>Same Top-N pattern from Project 5, here reduced to just the single most recent result — we don't need
+        the full history, only the newest entry, to answer "was anything installed recently."</li>
+      </ul>
+
+      <h3><code>if ($LatestPatch -and $LatestPatch.InstalledOn) { ... }</code></h3>
+      <ul class="explain-list">
+        <li>A defensive double-check: some hotfix entries (particularly very old ones, or certain update types)
+        don't always populate <code>InstalledOn</code>. Checking both that a patch exists <i>and</i> has a usable
+        date avoids a crash trying to do date math against <code>$null</code>.</li>
+      </ul>
+
+      <h3><code>$LastBoot = (Get-CimInstance Win32_OperatingSystem).LastBootUpTime</code></h3>
+      <ul class="explain-list">
+        <li>Reuses the exact property from Project 1's uptime calculation, but here it defines the <i>starting
+        point</i> for our event search rather than being used to calculate a duration — the same piece of data
+        serving a different purpose depending on the script's goal.</li>
+      </ul>
+
+      <h3><code>$RebootClearedOk = -not $RebootPending</code></h3>
+      <ul class="explain-list">
+        <li>Notice this is the exact inverse framing from Project 17, where <code>$RebootOk</code> meant "no reboot
+        was pending yet" (a pre-patching good sign); here <code>$RebootClearedOk</code> means "no reboot is pending
+        <i>anymore</i>" (a post-patching good sign) — same underlying check, different meaning depending on when in
+        the patching lifecycle it's run.</li>
+      </ul>
+
+      <h3><code>$ValidationChecks | Where-Object { -not $_.Passed }).Count -eq 0</code></h3>
+      <ul class="explain-list">
+        <li>Identical line to Project 17's verdict calculation — proof that once you build a good, reusable pattern
+        for "combine several pass/fail checks into one verdict," it transfers directly to a new project with a
+        completely different set of underlying checks.</li>
+      </ul>
+    </section>
+
+    <section id="architecture">
+      <h2>Architecture &amp; Validation Flow</h2>
+      <div class="diagram">
+        <div class="flow">
+          <div class="box">Get-HotFix</div><div class="arrow">+</div>
+          <div class="box">Reboot Check</div><div class="arrow">+</div>
+          <div class="box">Service Check</div><div class="arrow">+</div>
+          <div class="box">New-Error Check</div><div class="arrow">→</div>
+          <div class="box">$ValidationChecks</div>
+        </div>
+        <div class="flow" style="margin-top:12px;">
+          <div class="box">$ValidationChecks</div><div class="arrow">→</div>
+          <div class="box">Any Failures?</div><div class="arrow">→</div>
+          <div class="box">VALIDATED / FAILED Verdict</div>
+        </div>
+      </div>
+      <p>This script is structurally almost a mirror image of Project 17 — same shape, same verdict pattern, largely
+      the same underlying checks, just pointed at "after" instead of "before." Recognizing when a new problem is
+      really "the same shape as something I already solved" is a big part of becoming efficient at this kind of
+      automation work.</p>
+    </section>
+
+    <section id="incident">
+      <h2>Production Incident Walkthrough</h2>
+      <div class="story">
+        The patching tool reports 100% success across 30 servers overnight. Our validation script, run automatically
+        afterward, flags one server: services are fine, no pending reboot, a patch installed today — but 14 new
+        Application-log Critical/Error events appeared since the reboot, all from the same provider. The patching
+        tool's job (install updates) succeeded; the server's actual health did not, and only independent validation
+        caught the difference.
+      </div>
+      <ul class="explain-list">
+        <li><b>Why is this exactly the gap Project 7's technique was needed to close?</b> None of the other three
+        checks (patch date, reboot, services) would have caught an application quietly failing in a new way after
+        restart — only scanning the event log for the post-boot window surfaces that kind of problem.</li>
+        <li><b>Why validate independently instead of just trusting the patching tool's success report?</b> A
+        patching tool's "success" typically means its own installation steps completed — it has no visibility into
+        whether the server's applications are actually behaving normally afterward, which is a fundamentally
+        different, broader question.</li>
+      </ul>
+    </section>
+
+    <section id="troubleshoot">
+      <h2>Troubleshooting Cheat Sheet</h2>
+      <table>
+        <tr><th>Symptom</th><th>Likely Root Cause</th><th>Fix</th></tr>
+        <tr><td>"Recent Patch Installed" always fails even after patching</td><td>$MaxDaysSincePatch set too low, or InstalledOn wasn't populated for the latest hotfix</td><td>Run Get-HotFix directly and inspect InstalledOn values for your most recent entries</td></tr>
+        <tr><td>Script takes a long time on the event log check</td><td>Server hasn't rebooted in a very long time, making the search window huge</td><td>Expected - the window is intentionally tied to LastBootUpTime, which could be a long time ago on an unpatched system</td></tr>
+        <tr><td>Pending Reboot Cleared shows FAIL right after a supposedly completed reboot</td><td>A second update queued and is now itself waiting on another reboot</td><td>This is a real, valid finding, not a script bug - some patch cycles require multiple reboots</td></tr>
+        <tr><td>Get-HotFix runs very slowly</td><td>Known to be slower on some systems with a large update history</td><td>Expected behavior for this cmdlet; consider narrowing with -Id if checking for one specific known patch</td></tr>
+      </table>
+    </section>
+
+    <section id="security">
+      <h2>Security &amp; Best Practices</h2>
+      <div class="callout tip"><span class="lbl">Best practice reinforced here</span>Scoping the event log search
+      to <i>since last boot</i> rather than a fixed window is a meaningful improvement over Project 7's fixed 7-day
+      window for this specific use case — the right time window depends on what question you're actually asking,
+      and "what went wrong since the thing that might have caused it" is often more precise than an arbitrary
+      calendar period.</div>
+      <div class="callout security"><span class="lbl">Independent verification as a security principle</span>Trusting
+      a single source's self-reported success (the patching tool) without independent confirmation is a pattern
+      worth being suspicious of well beyond just patching — the same reasoning applies to deployment tools,
+      backup systems, and anything else that reports its own success.</div>
+    </section>
+
+    <section id="recap">
+      <h2>Key Learnings &amp; Recap</h2>
+      <div class="grid2">
+        <div>
+          <h3>Commands/Syntax Learned</h3>
+          <ul class="explain-list">
+            <li><code>Get-HotFix</code></li>
+            <li>Using <code>LastBootUpTime</code> as a dynamic event-log search start point</li>
+          </ul>
+        </div>
+        <div>
+          <h3>Concepts Learned</h3>
+          <ul class="explain-list">
+            <li>Why "the tool said success" isn't sufficient verification</li>
+            <li>Independent, source-agnostic validation as a security/reliability principle</li>
+            <li>Reusing an entire verdict-combination pattern unchanged across two different projects</li>
+            <li>Choosing a dynamic time window over a fixed one when it better fits the question</li>
+          </ul>
+        </div>
+      </div>
+      <h3>Common Mistakes to Avoid</h3>
+      <ul class="explain-list">
+        <li>Trusting a patching tool's reported success without independent verification.</li>
+        <li>Forgetting some hotfix entries may lack an InstalledOn date and crashing on the date math.</li>
+        <li>Using a fixed historical time window when "since the relevant event" would be more precise.</li>
+      </ul>
+    </section>
+
+    <section id="interview">
+      <h2>Interview Preparation</h2>
+      <details><summary>Q1. Why build a separate post-patch validation script instead of just trusting the patch management tool's success report?</summary>
+        <p><b>Answer:</b> A patching tool's success typically only confirms its own installation process completed
+        without error — it doesn't verify the server's actual runtime health afterward (services, application
+        errors, whether a required reboot fully completed). Independent validation checks the outcome that actually
+        matters, not just the process that was supposed to produce it.</p>
+        <p><b>Follow-up:</b> "What's a real-world example where a tool's 'success' and actual health diverge?" —
+        Answer: an installer can complete successfully while a dependent Windows service that was manually stopped
+        beforehand simply never gets restarted afterward — the patch itself installed fine, but the server isn't
+        actually back to a healthy state.</p>
+      </details>
+      <details><summary>Q2. Why scope the event log check to "since LastBootUpTime" instead of a fixed window like Project 7 used?</summary>
+        <p><b>Answer:</b> The relevant question here is specifically "did anything go wrong because of this reboot,"
+        so the natural, precise boundary is the reboot time itself — a fixed window (like "last 7 days") would
+        either miss recent-but-pre-reboot context or include irrelevant older noise, depending on how it's set.</p>
+        <p><b>Follow-up:</b> "When would a fixed window still be the better choice over a dynamic one?" — Answer:
+        when there's no natural event to anchor to, or when you specifically want a consistent, comparable period
+        across many different checks or servers regardless of when each one last rebooted.</p>
+      </details>
+      <details><summary>Q3. This script's verdict logic is nearly identical to Project 17's. Is that duplication a problem?</summary>
+        <p><b>Answer:</b> Not really — the verdict-combination logic (count failures, zero means pass) is a small,
+        stable, generic pattern; what's genuinely different between the two projects is the actual list of checks
+        being combined. In a more mature codebase, this shared logic would likely be extracted into its own reusable
+        function (foreshadowing the module-development stage later in the course) rather than staying duplicated
+        across scripts.</p>
+        <p><b>Follow-up:</b> "What would that shared function look like?" — Answer: something like
+        <code>Get-OverallVerdict -Checks $ValidationChecks</code> that takes any array of Name/Passed objects and
+        returns the combined boolean plus a formatted summary — reusable across this, Project 17, and any future
+        readiness-style check.</p>
+      </details>
+    </section>
+
+    <section id="challenges">
+      <h2>Coding Challenges</h2>
+      <details><summary>Challenge 1: Add a check confirming disk space didn't unexpectedly drop after patching (compare against a saved pre-patch baseline)</summary>
+        <details><summary>Show answer</summary>
+        <pre><code># Conceptually: save free space to a file before patching (Project 17), compare against current after (Project 18)
+$BaselineFreeGB = Get-Content ".\reports\pre-patch-disk-baseline.txt"
+$CurrentFreeGB = [math]::Round((Get-CimInstance Win32_LogicalDisk -Filter "DeviceID='C:'").FreeSpace / 1GB, 2)
+$DiskDropOk = ($BaselineFreeGB - $CurrentFreeGB) -lt 5   # Flags a sudden large, unexplained drop</code></pre>
+        </details>
+      </details>
+      <details><summary>Challenge 2: Only treat the event-log check as a failure if there are MORE than 3 new errors (tolerate the occasional harmless one)</summary>
+        <details><summary>Show answer</summary>
+        <pre><code>$NoNewErrorsOk = $NewErrors.Count -le 3</code></pre>
+        </details>
+      </details>
+      <details><summary>Challenge 3: List the specific HotFixIDs installed since the last boot, not just the single latest one</summary>
+        <details><summary>Show answer</summary>
+        <pre><code>$RecentHotfixes | Where-Object { $_.InstalledOn -gt $LastBoot.AddDays(-1) } | Select-Object HotFixID, InstalledOn</code></pre>
+        </details>
+      </details>
+    </section>
+
+    <section id="resume">
+      <h2>Resume Points</h2>
+      <ul class="explain-list">
+        <li>Built an independent PowerShell post-patch validation script verifying installed updates, service health, and reboot completion beyond the patching tool's own success report.</li>
+        <li>Implemented dynamic, boot-time-anchored event log analysis to detect new errors introduced by a patching reboot.</li>
+        <li>Extended a reusable multi-check verdict framework across two related readiness/validation projects.</li>
+      </ul>
+    </section>
+
+    <section id="assignment">
+      <h2>Practice Assignment</h2>
+      <div class="callout note">
+        Run both Project 17 and Project 18's scripts back to back on your machine right now (no actual patching
+        needed), and compare their output side by side. Write one sentence describing the key difference in what
+        each script is actually trying to answer, even though their code structure is nearly identical.
+      </div>
+    </section>
+
+    <section id="next">
+      <h2>Next Project Prerequisites</h2>
+      <p>Project 19 (SSL Certificate Discovery) begins a new mini-track on certificate and IIS management, starting
+      with discovering every certificate installed across the certificate store — another PSDrive-based exploration,
+      similar in spirit to Project 13's registry work. When ready, say <b>"Next Project."</b></p>
+    </section>
+
+    <footer>
+      PowerShell Masterclass — ABC Bank Automation Track · Project 18 of 40 · Generated for offline, self-contained use.
+    </footer>
+  </main>
+</div>
+
+<script>
+function copyCode(btn){
+  const code = btn.parentElement.querySelector('pre').innerText;
+  navigator.clipboard.writeText(code).then(()=>{
+    const old = btn.innerText; btn.innerText = "Copied!";
+    setTimeout(()=>btn.innerText = old, 1200);
+  });
+}
+window.addEventListener('scroll', ()=>{
+  const h = document.documentElement;
+  const pct = (h.scrollTop) / (h.scrollHeight - h.clientHeight) * 100;
+  document.getElementById('progressFill').style.width = pct + '%';
+  document.getElementById('progressLabel').innerText = 'Reading progress: ' + Math.round(pct) + '%';
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Project 27 — Multi-Cluster Management: Hub-and-Spoke with RHACM &amp; Ansible</title>
+<style>
+:root{
+  --blue:#5b9dff; --blue-bg:#132038;
+  --purple:#b58aff; --purple-bg:#221a3a;
+  --green:#3ed67f; --green-bg:#11301f;
+  --orange:#ffb15c; --orange-bg:#3a2712;
+  --red:#ff6b6b; --red-bg:#3a1616;
+  --teal:#4fd8e0; --teal-bg:#0f2f31;
+  --ink:#e7ecf5; --sub:#9aa7bd; --line:#2a3345; --bg:#0d1117; --card:#141b26;
+  --code-bg:#0a0e14; --code-ink:#dfe7f5;
+}
+*{box-sizing:border-box;}
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--ink);line-height:1.65;}
+a{color:var(--blue);}
+.progress{position:fixed;top:0;left:0;height:4px;background:linear-gradient(90deg,var(--blue),var(--teal));z-index:999;width:0%;transition:width .1s;}
+header.cover{background:linear-gradient(135deg,#101a30 0%,#241a3d 100%);color:#fff;padding:56px 24px 40px;text-align:center;border-bottom:1px solid var(--line);}
+header.cover .badge{display:inline-block;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);padding:6px 14px;border-radius:20px;font-size:13px;letter-spacing:.5px;margin-bottom:14px;}
+header.cover h1{margin:8px auto;max-width:900px;font-size:32px;}
+header.cover p.sub{max-width:750px;margin:10px auto 0;opacity:.85;font-size:16px;}
+.meta-grid{display:flex;flex-wrap:wrap;gap:12px;justify-content:center;margin-top:26px;}
+.meta-chip{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.18);padding:8px 16px;border-radius:8px;font-size:13px;}
+nav.toc{position:sticky;top:0;background:#0f151f;border-bottom:1px solid var(--line);z-index:100;padding:10px 16px;overflow-x:auto;white-space:nowrap;}
+nav.toc a{color:var(--sub);text-decoration:none;font-size:13px;margin-right:18px;padding:6px 10px;border-radius:6px;}
+nav.toc a:hover{background:var(--blue-bg);color:var(--blue);}
+main{max-width:980px;margin:0 auto;padding:30px 20px 80px;}
+section{margin-bottom:46px;}
+h2{font-size:24px;border-left:5px solid var(--blue);padding-left:12px;margin-top:10px;color:#fff;}
+h3{font-size:19px;color:var(--purple);margin-top:28px;}
+h4{font-size:16px;color:#fff;margin-top:20px;}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:20px 22px;margin:16px 0;}
+.box{border-radius:10px;padding:16px 18px;margin:14px 0;border-left:5px solid;}
+.box.concept{background:var(--blue-bg);border-color:var(--blue);}
+.box.arch{background:var(--purple-bg);border-color:var(--purple);}
+.box.success{background:var(--green-bg);border-color:var(--green);}
+.box.warning{background:var(--orange-bg);border-color:var(--orange);}
+.box.fail{background:var(--red-bg);border-color:var(--red);}
+.box.best{background:var(--teal-bg);border-color:var(--teal);}
+.box strong.tag{display:block;font-size:12px;text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px;opacity:.85;}
+details{background:var(--card);border:1px solid var(--line);border-radius:10px;margin:12px 0;padding:4px 16px;}
+details summary{cursor:pointer;font-weight:600;padding:12px 0;color:var(--blue);}
+table{width:100%;border-collapse:collapse;margin:14px 0;font-size:14px;}
+th,td{border:1px solid var(--line);padding:9px 12px;text-align:left;vertical-align:top;}
+th{background:var(--blue-bg);color:var(--blue);}
+tr:nth-child(even){background:#101623;}
+.codewrap{position:relative;margin:14px 0;}
+pre{background:var(--code-bg);color:var(--code-ink);padding:18px;border-radius:10px;overflow-x:auto;font-size:13px;line-height:1.6;font-family:"SF Mono",Menlo,Consolas,monospace;border:1px solid var(--line);}
+pre .c{color:#6fd18a;}
+.copy-btn{position:absolute;top:10px;right:10px;background:#22304a;color:#fff;border:1px solid var(--line);padding:6px 12px;border-radius:6px;font-size:12px;cursor:pointer;}
+.copy-btn:hover{background:#2c3d5e;}
+.cmd-label{font-size:12px;color:var(--sub);text-transform:uppercase;letter-spacing:.5px;margin:14px 0 4px;}
+.flow{background:var(--purple-bg);border:1px dashed var(--purple);border-radius:10px;padding:16px;font-family:monospace;white-space:pre;font-size:13px;overflow-x:auto;color:var(--ink);}
+.qa{margin:14px 0;padding:14px 16px;background:var(--card);border:1px solid var(--line);border-radius:8px;}
+.qa .q{font-weight:600;color:var(--purple);}
+.badge-diff{display:inline-block;padding:3px 10px;border-radius:12px;font-size:12px;font-weight:600;}
+.badge-diff.mid{background:var(--orange-bg);color:var(--orange);}
+.steps{counter-reset:step;}
+.step{position:relative;padding:14px 16px 14px 52px;margin:10px 0;background:var(--card);border:1px solid var(--line);border-radius:10px;}
+.step::before{counter-increment:step;content:counter(step);position:absolute;left:14px;top:14px;width:26px;height:26px;background:var(--blue);color:#0d1117;font-weight:700;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;}
+footer{text-align:center;padding:30px;color:var(--sub);font-size:13px;}
+</style>
+</head>
+<body>
+<div class="progress" id="progressBar"></div>
+
+<header class="cover">
+  <div class="badge">OPENSHIFT + ANSIBLE MASTERCLASS · PROJECT 27 OF ~28</div>
+  <h1>Multi-Cluster Management: Hub-and-Spoke with RHACM &amp; Ansible</h1>
+  <p class="sub">Extending payment-api to a second geographic region using Red Hat Advanced Cluster Management's hub-and-spoke model, automating Policy-based governance across both clusters, and resolving a live "policy compliant on hub, violated on spoke" incident.</p>
+  <div class="meta-grid">
+    <div class="meta-chip">Difficulty: <span class="badge-diff mid">Advanced</span></div>
+    <div class="meta-chip">Domain: Telecom / Platform Engineering</div>
+    <div class="meta-chip">RHACM 2.9+ · OpenShift 4.14+</div>
+    <div class="meta-chip">Ansible Core: 2.16 · kubernetes.core 3.x</div>
+    <div class="meta-chip">Lab Time: ~4 hrs</div>
+    <div class="meta-chip">Infra Cost: $0 for hub concepts; a true second cluster needs real infra</div>
+  </div>
+</header>
+
+<nav class="toc">
+  <a href="#story">Story</a>
+  <a href="#device">Run On Your Device</a>
+  <a href="#architecture">Architecture</a>
+  <a href="#playbooks">Playbooks</a>
+  <a href="#run">Execution</a>
+  <a href="#incident">Incident</a>
+  <a href="#breakfix">Break-Fix</a>
+  <a href="#security">Security</a>
+  <a href="#interview">Interview</a>
+  <a href="#resume">Resume</a>
+  <a href="#cheatsheet">Cheat Sheet</a>
+  <a href="#summary">Key Learnings</a>
+</nav>
+
+<main>
+
+<section id="story">
+<h2>1. The Production Story</h2>
+<div class="box concept">
+<strong class="tag">Scenario</strong>
+The company is expanding into a new region and regulatory requirements mean payment-api needs a second, geographically-separate OpenShift cluster — not just another namespace, an entirely separate cluster, with its own nodes and control plane. Managing two clusters by running every playbook from Projects 1-26 twice, by hand, against two different <code>oc login</code> contexts, doesn't scale and reintroduces exactly the drift risk Project 19 solved for a single cluster.
+</div>
+<div class="box warning">
+<strong class="tag">Business Problem</strong>
+Without central multi-cluster management, the two clusters will drift apart in RBAC, NetworkPolicy baseline, and SCC configuration within weeks — nobody will consistently remember to apply every governance change to both.
+</div>
+<div class="box best">
+<strong class="tag">Our Mandate</strong>
+Stand up RHACM's hub-and-spoke model, import the second cluster as a managed cluster, and use RHACM Policies (backed by our existing Ansible playbooks as the actual enforcement mechanism) to guarantee both clusters stay governed identically.
+</div>
+</section>
+
+<section id="device">
+<h2>2. Run This On Your Device</h2>
+<div class="box warning"><strong class="tag">Note</strong>A genuine two-cluster lab needs two real OpenShift clusters. This project's Ansible and Policy patterns are fully reviewable and buildable against a single hub cluster even without a second spoke actually attached — import a second cluster when one becomes available.</div>
+<div class="steps">
+<div class="step"><strong>Install the RHACM (multicluster engine) Operator on the hub cluster, reusing Project 7's pattern.</strong>
+<div class="codewrap"><pre>ansible-playbook playbooks/acm_install.yml</pre></div>
+</div>
+<div class="step"><strong>Confirm the hub is ready.</strong>
+<div class="codewrap"><pre>oc get multiclusterhub -n open-cluster-management</pre></div>
+</div>
+<div class="step"><strong>Add the multi-cluster playbook files from Section 4.</strong>
+<div class="codewrap"><pre>mkdir -p payment-stack/playbooks</pre></div>
+</div>
+<div class="step"><strong>Import the second cluster as a managed cluster.</strong>
+<div class="codewrap"><pre>ansible-playbook playbooks/import_cluster.yml -e cluster_name=payment-api-eu-west</pre></div>
+</div>
+<div class="step"><strong>Apply the governance Policy to both clusters.</strong>
+<div class="codewrap"><pre>ansible-playbook playbooks/acm_policy.yml -e app_name=payment-api</pre></div>
+</div>
+</div>
+</section>
+
+<section id="architecture">
+<h2>3. Architecture</h2>
+<div class="flow">HUB CLUSTER (RHACM / multicluster engine)
+   │
+   ├── ManagedCluster: payment-api-us-east (existing, from Projects 1-26)
+   └── ManagedCluster: payment-api-eu-west (new, imported this project)
+   │
+   ▼
+Policy objects (created once, on the HUB):
+   - RBAC baseline policy (wraps Project 2's role logic)
+   - NetworkPolicy baseline policy (wraps Project 1/21's roles)
+   - SCC policy (wraps Project 20's role)
+   │
+   ▼
+PlacementRule -- targets BOTH managed clusters
+   │
+   ▼
+Policy propagated and enforced on EACH spoke independently
+   │
+   ▼
+PolicyReport aggregated back to the HUB -- one dashboard shows
+compliance status across every cluster simultaneously</div>
+<table>
+<tr><th>Concept</th><th>Purpose</th></tr>
+<tr><td>Hub cluster</td><td>Runs RHACM itself; the single control point for governance across all managed clusters</td></tr>
+<tr><td>ManagedCluster</td><td>A spoke cluster registered with the hub via an agent, reporting status and receiving Policies</td></tr>
+<tr><td>Policy</td><td>RHACM's governance object — can wrap raw Kubernetes objects OR reference existing Ansible automation as the actual remediation</td></tr>
+<tr><td>PlacementRule</td><td>Determines WHICH managed clusters a given Policy applies to (label-based selection)</td></tr>
+</table>
+</section>
+
+<section id="playbooks">
+<h2>4. The Playbooks — Fully Commented</h2>
+
+<h3>4.1 playbooks/import_cluster.yml</h3>
+<div class="cmd-label">playbooks/import_cluster.yml</div>
+<div class="codewrap"><pre><span class="c">---
+# Imports an existing standalone OpenShift cluster as an RHACM
+# ManagedCluster -- run against the HUB cluster's API.</span>
+- name: Import a cluster into RHACM
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  tasks:
+    - name: Create the ManagedCluster object on the hub                     <span class="c"># registers intent to manage this cluster</span>
+      kubernetes.core.k8s:
+        state: present                                                       <span class="c"># idempotent apply</span>
+        definition:
+          apiVersion: cluster.open-cluster-management.io/v1                    <span class="c"># RHACM's cluster registration API group</span>
+          kind: ManagedCluster
+          metadata:
+            name: "{{ cluster_name }}"                                          <span class="c"># unique cluster identifier, e.g. payment-api-eu-west</span>
+            labels:
+              region: "{{ cluster_region | default('unspecified') }}"              <span class="c"># used later by PlacementRule label selection</span>
+              environment: production                                              <span class="c"># distinguishes this from any lab/test clusters</span>
+          spec:
+            hubAcceptsClient: true                                                  <span class="c"># hub explicitly agrees to manage this cluster -- a deliberate opt-in, not automatic</span>
+      register: mc_result                                                            <span class="c"># capture for assert</span>
+
+    - name: Assert ManagedCluster creation succeeded                                  <span class="c"># fail fast on API rejection</span>
+      ansible.builtin.assert:
+        that: [mc_result is succeeded]
+        fail_msg: "Failed to register ManagedCluster {{ cluster_name }}"
+
+    - name: Retrieve the generated import command/manifest                              <span class="c"># RHACM generates a bootstrap manifest to run ON the spoke cluster</span>
+      kubernetes.core.k8s_info:
+        kind: Secret
+        name: "{{ cluster_name }}-import"                                                 <span class="c"># auto-created Secret containing the klusterlet bootstrap YAML</span>
+        namespace: "{{ cluster_name }}"
+      register: import_secret                                                              <span class="c"># holds the import manifest -- applied manually on the spoke, or via a separate Ansible run targeting that cluster's own API</span>
+
+    - name: Wait for the spoke cluster to report itself Available                            <span class="c"># confirms the klusterlet agent successfully connected back to the hub</span>
+      kubernetes.core.k8s_info:
+        kind: ManagedCluster
+        api_version: cluster.open-cluster-management.io/v1
+        name: "{{ cluster_name }}"
+      register: mc_status                                                                     <span class="c"># holds live .status.conditions</span>
+      until: >
+        (mc_status.resources[0].status.conditions
+         | selectattr('type','equalto','ManagedClusterConditionAvailable')
+         | map(attribute='status') | first) == "True"                                            <span class="c"># confirms the spoke is actually reachable, not just registered</span>
+      retries: 20                                                                                  <span class="c"># import can take a few minutes</span>
+      delay: 15</pre></div>
+
+<h3>4.2 playbooks/acm_policy.yml</h3>
+<div class="cmd-label">playbooks/acm_policy.yml</div>
+<div class="codewrap"><pre><span class="c">---
+# Creates a Policy on the hub that enforces our RBAC baseline
+# (wrapping Project 2's actual logic) across EVERY managed cluster
+# matching the PlacementRule -- one definition, many clusters.</span>
+- name: Apply governance Policy across all managed clusters
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  tasks:
+    - name: Create the Policy object                                            <span class="c"># the governance rule itself</span>
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: policy.open-cluster-management.io/v1                        <span class="c"># RHACM's governance API group</span>
+          kind: Policy
+          metadata:
+            name: "{{ app_name }}-rbac-baseline"                                    <span class="c"># descriptive, one Policy per governance concern</span>
+            namespace: open-cluster-management-policies                             <span class="c"># conventional namespace for Policy objects on the hub</span>
+          spec:
+            remediationAction: enforce                                               <span class="c"># actively FIXES drift, not just reports it -- the multi-cluster equivalent of Project 2's re-apply-on-drift behavior</span>
+            policy-templates:
+              - objectDefinition:
+                  apiVersion: policy.open-cluster-management.io/v1
+                  kind: ConfigurationPolicy                                            <span class="c"># the actual object-comparison sub-policy</span>
+                  metadata:
+                    name: "{{ app_name }}-rbac-baseline-config"
+                  spec:
+                    remediationAction: enforce                                            <span class="c"># must also be set at this level</span>
+                    severity: high                                                          <span class="c"># shown in the compliance dashboard's prioritization</span>
+                    object-templates:
+                      - complianceType: musthave                                              <span class="c"># the RoleBinding MUST exist with this exact spec</span>
+                        objectDefinition:
+                          apiVersion: rbac.authorization.k8s.io/v1                              <span class="c"># mirrors Project 2's actual RoleBinding definition exactly</span>
+                          kind: RoleBinding
+                          metadata:
+                            name: payments-edit-binding
+                            namespace: "{{ app_name }}-prod"
+                          subjects:
+                            - kind: Group
+                              name: payments-developers                                            <span class="c"># same value Project 2's incident fixed -- now enforced across every cluster automatically</span>
+                              apiGroup: rbac.authorization.k8s.io
+                          roleRef:
+                            kind: ClusterRole
+                            name: edit
+                            apiGroup: rbac.authorization.k8s.io
+      register: policy_result                                                                        <span class="c"># capture for assert</span>
+
+    - name: Assert Policy creation succeeded
+      ansible.builtin.assert:
+        that: [policy_result is succeeded]
+        fail_msg: "Failed to create {{ app_name }}-rbac-baseline Policy"
+
+    - name: Create the PlacementRule targeting all production payment-api clusters      <span class="c"># decides WHICH clusters this Policy actually reaches</span>
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: apps.open-cluster-management.io/v1                                 <span class="c"># RHACM's placement API group</span>
+          kind: PlacementRule
+          metadata:
+            name: "{{ app_name }}-placement"
+            namespace: open-cluster-management-policies
+          spec:
+            clusterSelector:
+              matchLabels: {environment: production}                                       <span class="c"># matches the label set during import (Section 4.1) -- both clusters qualify</span>
+      register: placement_result
+
+    - name: Assert PlacementRule creation succeeded
+      ansible.builtin.assert:
+        that: [placement_result is succeeded]
+        fail_msg: "Failed to create PlacementRule for {{ app_name }}"</pre></div>
+</section>
+
+<section id="run">
+<h2>5. Execution &amp; Idempotency</h2>
+<div class="codewrap"><pre>ansible-playbook playbooks/import_cluster.yml -e cluster_name=payment-api-eu-west -e cluster_region=eu-west
+ansible-playbook playbooks/acm_policy.yml -e app_name=payment-api</pre></div>
+<div class="box success"><strong class="tag">First run</strong><pre style="background:#0f2b1c;border-color:#1a4a2c;">PLAY RECAP *** ok=6 changed=4 failed=0</pre></div>
+<div class="box success"><strong class="tag">Second run</strong><pre style="background:#0f2b1c;border-color:#1a4a2c;">PLAY RECAP *** ok=6 changed=0 failed=0</pre></div>
+</section>
+
+<section id="incident">
+<h2>6. Live Incident — Compliant on Hub, Violated on Spoke</h2>
+<div class="box fail"><strong class="tag">Report</strong>The RHACM dashboard shows the RBAC baseline Policy as "Compliant" across both clusters, but an engineer in the EU region reports the exact same "can't deploy" symptom as Project 2's original incident.</div>
+
+<div class="cmd-label">Step 1 — check the Policy status more closely, per-cluster</div>
+<div class="codewrap"><pre>oc get policy payment-api-rbac-baseline -n open-cluster-management-policies -o yaml
+status:
+  compliant: Compliant
+  status:
+    - clustername: payment-api-us-east
+      compliant: Compliant
+    - clustername: payment-api-eu-west
+      compliant: Compliant   <span class="c"># both say compliant -- but the symptom says otherwise</span></pre></div>
+
+<div class="cmd-label">Step 2 — check directly on the EU spoke cluster itself</div>
+<div class="codewrap"><pre><span class="c"># (logged into the EU cluster directly, not through the hub)</span>
+oc get rolebinding payments-edit-binding -n payment-api-prod
+NAME                    ROLE           AGE
+payments-edit-binding   ClusterRole/edit   45d
+oc get rolebinding payments-edit-binding -n payment-api-prod -o yaml | grep -A2 subjects
+subjects:
+  - kind: Group
+    name: payments-developers-eu   <span class="c"># DIFFERENT group name -- the EU region's IdP uses a region-suffixed naming convention</span></pre></div>
+<div class="box fail"><strong class="tag">Root cause</strong>The Policy's <code>musthave</code> comparison only checks that a RoleBinding named <code>payments-edit-binding</code> EXISTS with a roleRef of <code>edit</code> — it wasn't strict enough to catch that the SUBJECT'S group name was wrong for this region's actual IdP group naming convention. The Policy was technically satisfied by its own (too-loose) definition while still being functionally broken for EU users.</div>
+
+<div class="cmd-label">Step 3 — fix: make the Policy region-aware using Ansible variable templating before it's applied</div>
+<div class="codewrap"><pre><span class="c"># Instead of one static Policy, template per region and re-apply:</span>
+ansible-playbook playbooks/acm_policy.yml -e app_name=payment-api \
+  -e group_name_suffix="-eu"   <span class="c"># produces 'payments-developers-eu' for the EU-targeted Policy variant</span></pre></div>
+
+<div class="cmd-label">Step 4 — validate against the actual EU IdP group</div>
+<div class="codewrap"><pre>oc auth can-i create deployments -n payment-api-prod --as=engineer@eu.company.com
+&gt; yes</pre></div>
+<div class="box success"><strong class="tag">Resolved</strong>Beyond the immediate fix, this revealed a real gap: "Compliant" in RHACM only means the Policy's OWN definition matched — it says nothing about whether that definition was actually correct or complete for every region it applies to.</div>
+
+<h3>RCA Summary</h3>
+<table>
+<tr><th>Field</th><th>Detail</th></tr>
+<tr><td>Impact</td><td>EU engineers blocked from deploying while the dashboard showed full compliance, delaying detection</td></tr>
+<tr><td>Root cause</td><td>A single, region-agnostic Policy definition didn't account for the EU cluster's different IdP group naming convention</td></tr>
+<tr><td>Fix</td><td>Templated region-specific Policy variants via Ansible rather than one static definition assumed to fit every cluster</td></tr>
+<tr><td>Preventive action</td><td>Add an actual functional check (<code>oc auth can-i</code>-style, per region) alongside the structural Policy check — "the object matches" and "the object actually grants the intended access" are different questions</td></tr>
+</table>
+</section>
+
+<section id="breakfix">
+<h2>7. Additional Break-Fix Labs</h2>
+<details><summary>Break-Fix — ManagedCluster stuck, never becomes Available</summary>
+<div class="codewrap"><pre>oc get managedcluster payment-api-eu-west
+AVAILABLE: Unknown</pre></div>
+<p><strong>Root cause:</strong> the klusterlet import manifest was never actually applied on the spoke cluster's own API — Section 4.1 only generates it, applying it is a separate step against the SPOKE's credentials. <strong>Fix:</strong> confirm the import Secret's manifest was applied with <code>oc apply -f</code> against the spoke cluster specifically, not the hub.</p>
+</details>
+<details><summary>Break-Fix — Policy shows NonCompliant, enforce doesn't seem to fix it</summary>
+<div class="codewrap"><pre>oc get policy payment-api-rbac-baseline -o yaml
+status: {compliant: NonCompliant}
+<span class="c"># stays NonCompliant even after several minutes</span></pre></div>
+<p><strong>Root cause:</strong> the RHACM agent on the spoke cluster lacks RBAC permission to actually create/patch the target object itself. <strong>Fix:</strong> confirm the klusterlet's own ServiceAccount has sufficient cluster permissions — a governance tool needs write access to enforce anything, same principle as Project 19's Controller credential scoping.</p>
+</details>
+</section>
+
+<section id="security">
+<h2>8. Security Review</h2>
+<table>
+<tr><th>Control</th><th>Detail</th></tr>
+<tr><td>Deliberate opt-in management</td><td><code>hubAcceptsClient: true</code> is an explicit choice, not automatic for any discovered cluster</td></tr>
+<tr><td>Central governance, local enforcement</td><td>Policy defined once but enforced by each spoke's own agent — no single point of failure for enforcement itself</td></tr>
+<tr><td>Compliance ≠ correctness</td><td>This incident's real lesson — structural compliance checks need to be paired with functional validation, not trusted alone</td></tr>
+</table>
+</section>
+
+<section id="interview">
+<h2>9. Interview Preparation</h2>
+<div class="qa"><div class="q">Interviewer: "How do you keep governance consistent across multiple OpenShift clusters?"</div>
+<p><strong>Answer:</strong> RHACM's hub-and-spoke model lets me define a Policy once on the hub and have it enforced independently on every managed cluster, with compliance status aggregated back centrally. I template the actual object definitions from the same Ansible roles I already use for single-cluster governance, so there's one source of truth rather than maintaining parallel Policy YAML by hand. The key thing I learned is that a Policy showing 'Compliant' only means its own definition matched — if that definition doesn't account for real differences between clusters, like a different IdP group naming convention per region, you can be fully compliant and still functionally broken.</p></div>
+<div class="qa"><div class="q">Interviewer: "A multi-cluster policy showed 100% compliant but a real access problem still existed — how do you explain that?"</div>
+<p><strong>Answer:</strong> Structural compliance (does the object exist with the expected shape) and functional correctness (does it actually grant the intended access, for THIS cluster's real identities) are different questions. Our RBAC Policy checked that a RoleBinding existed pointing at 'edit' — true on every cluster — but not that its subject's group name matched each region's actual IdP convention. I added region-specific Policy variants and a functional <code>can-i</code>-style check alongside the structural one, since compliance dashboards can create false confidence if they only check shape.</p></div>
+</section>
+
+<section id="resume">
+<h2>10. Resume Points</h2>
+<div class="box best"><ul>
+<li>Implemented multi-cluster governance using Red Hat Advanced Cluster Management, automating cluster import and Policy-based RBAC/security baseline enforcement across geographically distributed OpenShift clusters via Ansible.</li>
+<li>Diagnosed and resolved a false-positive compliance incident where a structurally valid Policy failed to account for region-specific identity provider differences, adding functional validation alongside structural checks.</li>
+</ul></div>
+</section>
+
+<section id="cheatsheet">
+<h2>11. Troubleshooting Cheat Sheet</h2>
+<table>
+<tr><th>Symptom</th><th>Check</th></tr>
+<tr><td>ManagedCluster never Available</td><td>Confirm the import manifest was applied ON the spoke, not just generated on the hub</td></tr>
+<tr><td>Policy stuck NonCompliant</td><td>Klusterlet agent's own RBAC permissions on the spoke cluster</td></tr>
+<tr><td>"Compliant" but a real problem exists</td><td>Structural check passed but doesn't reflect a real per-cluster difference — add a functional check</td></tr>
+<tr><td>Policy applies to wrong/no clusters</td><td>PlacementRule label selector vs the labels actually set on each ManagedCluster</td></tr>
+</table>
+</section>
+
+<section id="summary">
+<h2>12. Key Learnings</h2>
+<div class="card">
+<h4>OpenShift/RHACM concepts</h4><p>Hub-and-spoke architecture, ManagedCluster import flow, Policy/ConfigurationPolicy/PlacementRule relationship, enforce vs inform remediation modes, why structural compliance isn't the same as functional correctness.</p>
+<h4>Ansible concepts</h4><p>Wrapping existing single-cluster role logic inside a multi-cluster Policy definition, templating region-specific variants of a shared governance object, waiting on a specific named status condition across a registration flow.</p>
+<h4>Commands learned</h4><p><code>oc get managedcluster</code>, <code>oc get policy -o yaml</code>, cross-cluster compliance status interpretation.</p>
+<h4>Next project prerequisites</h4><p>Keep this repo — Project 28 is the final capstone: a full, timed simulation combining every phase of this masterclass into one end-to-end enterprise scenario, from scratch to a live multi-layer incident.</p>
+</div>
+</section>
+
+</main>
+<footer>OpenShift + Ansible Masterclass — Project 27 of ~28.</footer>
+<script>
+window.addEventListener('scroll', function(){
+  var h = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+  var p = h ? (window.scrollY / h) * 100 : 0;
+  document.getElementById('progressBar').style.width = p + '%';
+});
+document.querySelectorAll('pre').forEach(function(pre){
+  if(pre.parentElement.classList.contains('codewrap')){
+    var btn = document.createElement('button');
+    btn.className = 'copy-btn'; btn.textContent = 'Copy';
+    btn.onclick = function(){
+      navigator.clipboard.writeText(pre.innerText);
+      btn.textContent = 'Copied!';
+      setTimeout(function(){ btn.textContent = 'Copy'; }, 1500);
+    };
+    pre.parentElement.appendChild(btn);
+  }
+});
+</script>
+</body>
+</html>

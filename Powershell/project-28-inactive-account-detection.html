@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Project 28 — Inactive Account Detection | PowerShell Masterclass</title>
+<style>
+  :root{
+    --primary:#A78BFA; --secondary:#C4B5FD; --surface:#1A1530; --surface2:#221B3D;
+    --bg:#0F0B1E; --text:#EDE9FE; --muted:#9CA3AF; --border:#332B57;
+    --success:#4ADE80; --warn:#FBBF24; --danger:#F87171;
+    --code-bg:#0A0716; --code-text:#E9E4FF;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0; font-family:"Segoe UI",Calibri,Roboto,Arial,sans-serif; background:var(--bg); color:var(--text); line-height:1.65;}
+  a{color:var(--secondary);}
+  .layout{display:flex; max-width:1400px; margin:0 auto;}
+  nav.sidebar{width:270px; flex-shrink:0; position:sticky; top:0; height:100vh; overflow-y:auto; background:var(--surface); border-right:1px solid var(--border); padding:22px 16px;}
+  nav.sidebar h3{color:var(--secondary); font-size:13px; text-transform:uppercase; letter-spacing:.06em; margin:18px 0 8px;}
+  nav.sidebar a{display:block; padding:7px 10px; border-radius:8px; color:var(--text); text-decoration:none; font-size:14px; margin-bottom:2px;}
+  nav.sidebar a:hover{background:var(--surface2); color:var(--secondary);}
+  #progressWrap{background:var(--surface2); border-radius:10px; padding:10px; margin-bottom:8px;}
+  #progressBar{height:8px; background:var(--border); border-radius:6px; overflow:hidden;}
+  #progressFill{height:100%; width:0%; background:linear-gradient(90deg,var(--primary),var(--secondary)); transition:width .2s;}
+  #progressLabel{font-size:12px; color:var(--muted); margin-top:6px;}
+  main{flex:1; min-width:0; padding:0;}
+  .cover{background:linear-gradient(135deg,#3B2A6B,#5B3FA0); color:#fff; padding:60px 48px; position:relative; overflow:hidden; border-bottom:1px solid var(--border);}
+  .cover::after{content:"";position:absolute;right:-80px;top:-80px;width:300px;height:300px;border-radius:50%;background:rgba(255,255,255,.06);}
+  .badge{display:inline-block; background:rgba(255,255,255,.14); padding:5px 14px; border-radius:20px; font-size:12px; letter-spacing:.05em; margin-right:8px; margin-bottom:14px;}
+  .cover h1{font-size:34px; margin:6px 0 10px; max-width:760px;}
+  .cover p.sub{font-size:16px; opacity:.92; max-width:640px;}
+  .cover-meta{display:flex; gap:28px; margin-top:26px; flex-wrap:wrap;}
+  .cover-meta div{background:rgba(255,255,255,.10); padding:12px 18px; border-radius:10px; min-width:140px;}
+  .cover-meta span{display:block; font-size:12px; opacity:.85;}
+  .cover-meta strong{font-size:16px;}
+  section{padding:34px 48px; border-bottom:1px solid var(--border);}
+  section h2{color:var(--secondary); font-size:24px; border-left:5px solid var(--primary); padding-left:14px; margin-top:0;}
+  section h3{color:var(--primary); font-size:18px; margin-top:26px;}
+  .story{background:var(--surface); border-left:5px solid var(--primary); padding:20px 24px; border-radius:0 10px 10px 0; font-size:15px;}
+  .story b{color:var(--secondary);}
+  .callout{border-radius:10px; padding:16px 18px; margin:16px 0; font-size:14.5px; border:1px solid var(--border);}
+  .callout.tip{background:#132A1E; border-left:5px solid var(--success);}
+  .callout.note{background:var(--surface); border-left:5px solid var(--secondary);}
+  .callout.warn{background:#2E2410; border-left:5px solid var(--warn);}
+  .callout.security{background:#2E1616; border-left:5px solid var(--danger);}
+  .callout .lbl{font-weight:700; display:block; margin-bottom:4px;}
+  table{width:100%; border-collapse:collapse; margin:16px 0; font-size:14px;}
+  th,td{border:1px solid var(--border); padding:9px 12px; text-align:left; vertical-align:top;}
+  th{background:var(--surface2); color:var(--secondary);}
+  tr:nth-child(even){background:var(--surface);}
+  .codewrap{position:relative; margin:16px 0;}
+  pre{background:var(--code-bg); color:var(--code-text); padding:18px 16px; border-radius:10px; overflow-x:auto; font-family:Consolas,"Cascadia Code",Menlo,monospace; font-size:13.5px; line-height:1.7; border:1px solid var(--border);}
+  pre code{white-space:pre;}
+  .copybtn{position:absolute; top:10px; right:10px; background:var(--primary); color:#1A1530; border:none; padding:6px 12px; border-radius:6px; font-size:12px; cursor:pointer; font-weight:600;}
+  .copybtn:hover{background:var(--secondary);}
+  .explain-list{list-style:none; padding:0; margin:14px 0;}
+  .explain-list li{background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:10px 14px; margin-bottom:6px; font-size:14.5px;}
+  .explain-list code{background:var(--surface2); padding:2px 6px; border-radius:5px; color:var(--secondary); font-weight:600;}
+  details{background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:12px 16px; margin:10px 0;}
+  details summary{cursor:pointer; font-weight:600; color:var(--secondary);}
+  .diagram{background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:20px; margin:16px 0; overflow-x:auto;}
+  .flow{display:flex; flex-wrap:wrap; align-items:center; gap:10px; font-size:13.5px;}
+  .flow .box{background:var(--surface2); border:2px solid var(--secondary); border-radius:8px; padding:8px 14px; font-weight:600; color:var(--secondary);}
+  .flow .arrow{color:var(--primary); font-size:18px;}
+  .steps{counter-reset:step;}
+  .steps .step{position:relative; padding-left:44px; margin-bottom:18px;}
+  .steps .step::before{counter-increment:step; content:counter(step); position:absolute; left:0; top:0; background:var(--primary); color:#1A1530; width:30px; height:30px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:700;}
+  .grid2{display:grid; grid-template-columns:1fr 1fr; gap:16px;}
+  @media(max-width:900px){.grid2{grid-template-columns:1fr;} nav.sidebar{display:none;} section{padding:26px 20px;} .cover{padding:36px 22px;}}
+  footer{padding:30px 48px; background:var(--surface); color:var(--muted); font-size:13px;}
+  code{color:var(--secondary);}
+</style>
+</head>
+<body>
+
+<div class="layout">
+  <nav class="sidebar">
+    <div id="progressWrap">
+      <div id="progressLabel">Reading progress</div>
+      <div id="progressBar"><div id="progressFill"></div></div>
+    </div>
+    <h3>Project 28</h3>
+    <a href="#cover">Cover</a>
+    <a href="#recap1">Recap: Projects 1–27</a>
+    <a href="#story">The Story</a>
+    <a href="#concepts">Concepts First</a>
+    <a href="#lab">Hands-On Lab</a>
+    <a href="#script">Full Script</a>
+    <a href="#linebyline">Line-by-Line</a>
+    <a href="#architecture">Architecture</a>
+    <a href="#incident">Production Incident</a>
+    <a href="#troubleshoot">Troubleshooting</a>
+    <a href="#security">Security Notes</a>
+    <a href="#recap">Key Learnings</a>
+    <a href="#interview">Interview Prep</a>
+    <a href="#challenges">Coding Challenges</a>
+    <a href="#resume">Resume Points</a>
+    <a href="#assignment">Practice Assignment</a>
+    <a href="#next">Next Project</a>
+  </nav>
+
+  <main id="top">
+    <div class="cover" id="cover">
+      <span class="badge">PROJECT 28</span><span class="badge">INTERMEDIATE</span><span class="badge">BFSI TRACK</span>
+      <h1>Inactive Account Detection</h1>
+      <p class="sub">Find AD accounts nobody's used in months — with a critical caveat about how AD actually tracks logon time — and a carefully guarded, opt-in disable action.</p>
+      <div class="cover-meta">
+        <div><span>Difficulty</span><strong>Intermediate</strong></div>
+        <div><span>Estimated Lab Time</span><strong>75–90 min</strong></div>
+        <div><span>Concepts</span><strong>8 core concepts</strong></div>
+        <div><span>Track</span><strong>28 of 40</strong></div>
+      </div>
+    </div>
+
+    <section id="recap1">
+      <h2>Quick Recap of Projects 1–27</h2>
+      <p>Project 27 audited who has access to privileged groups. This project asks a related question from a
+      different angle: <b>are there accounts nobody's actually using anymore?</b> Dormant accounts are a real
+      security exposure — every one is a credential that could be compromised and go unnoticed, since nobody's
+      watching it. We'll reuse Project 2/20's threshold-classification pattern, and Project 21's defense-in-depth
+      caution for the optional disable action.</p>
+    </section>
+
+    <section id="story">
+      <h2>The Story — Why We're Building This</h2>
+      <div class="story">
+        An auditor's question during ABC Bank's annual security review: <i>"How many accounts in your domain
+        haven't logged in for over 90 days, and what's your process for handling them?"</i> Nobody has a good
+        answer — there's no routine check for this. Our manager wants a report of inactive accounts, classified by
+        how long they've been dormant, with a clearly separate, cautiously-guarded option to actually disable the
+        most severely inactive ones.
+      </div>
+    </section>
+
+    <section id="concepts">
+      <h2>Concepts First — Before We Touch Code</h2>
+
+      <h3>1. LastLogonDate — and Its Important Limitation</h3>
+      <div class="callout warn"><span class="lbl">The single most important thing to understand in this project</span>
+      AD accounts have both <code>lastLogon</code> (not replicated between domain controllers — only accurate on the
+      specific DC a user last authenticated against) and <code>lastLogonTimestamp</code> (replicated, but only
+      updated roughly every 9-14 days by default, not on every single logon). PowerShell's convenient
+      <code>LastLogonDate</code> property is based on the replicated
+      <code>lastLogonTimestamp</code> — meaning it can be up to ~2 weeks "behind" reality. A report treating
+      LastLogonDate as perfectly precise could be off by two weeks in either direction.</div>
+
+      <h3>2. Why This Matters for Threshold Design</h3>
+      <p>Given that built-in imprecision, thresholds for "inactive" should be set with enough margin that a
+      2-week measurement uncertainty doesn't matter much — a 90-day threshold easily absorbs a 2-week margin of
+      error; a 14-day threshold would not.</p>
+
+      <h3>3. Search-ADAccount — A Purpose-Built Alternative</h3>
+      <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code>Search-ADAccount -AccountInactive -TimeSpan "90.00:00:00" -UsersOnly</code></pre></div>
+      <ul class="explain-list">
+        <li><code>Search-ADAccount -AccountInactive -TimeSpan</code> — a cmdlet specifically built for this exact
+        use case, handling the LastLogonDate lookup and comparison internally.</li>
+        <li><code>-TimeSpan "90.00:00:00"</code> — a TimeSpan string format: days.hours:minutes:seconds, here
+        meaning 90 days.</li>
+        <li><code>-UsersOnly</code> — excludes computer accounts, which also have logon timestamps but represent a
+        different kind of "inactivity" not relevant to a people-focused audit.</li>
+      </ul>
+
+      <h3>4. Threshold Classification — Reused from Projects 2 and 20</h3>
+      <p>Same shape again: Warning at (say) 60 days, Critical at 90+ days, giving Operations a sense of urgency
+      rather than one flat "inactive" bucket.</p>
+
+      <h3>5. Detection vs the Optional Disable — Extra Caution, Like Project 21</h3>
+      <div class="callout security"><span class="lbl">Disabling an account is reversible, but still needs real caution</span>
+      Unlike deleting a certificate (Project 21) or removing a firewall rule, disabling an AD account is relatively
+      easy to reverse — but a wrongly-disabled account for someone on extended leave, or a service account whose
+      "user" never logs in interactively by design, can still cause a real, disruptive incident. This script keeps
+      disable as a distinct, separately-invoked, ShouldProcess-guarded action — never bundled automatically into
+      the detection run.</div>
+
+      <h3>6. Excluding Service Accounts and Known Exceptions</h3>
+      <p>Some accounts (service accounts, break-glass emergency accounts) may legitimately show no interactive
+      logon for long periods by design — a config-driven exclusion list (Project 9's pattern) prevents these from
+      being flagged or, worse, disabled incorrectly.</p>
+    </section>
+
+    <section id="lab">
+      <h2>Hands-On Lab — Build It Yourself</h2>
+      <div class="callout note"><span class="lbl">Local Practice Lab vs Enterprise</span>Same ActiveDirectory
+      module and domain requirement as Projects 26-27.</div>
+      <div class="steps">
+        <div class="step"><b>Create the project structure:</b>
+          <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code>New-Item -ItemType Directory -Path "C:\PS-Masterclass\Project28\config" -Force
+New-Item -ItemType Directory -Path "C:\PS-Masterclass\Project28\logs" -Force
+Set-Location "C:\PS-Masterclass\Project28"</code></pre></div>
+        </div>
+        <div class="step"><b>Create <code>config\excluded-accounts.csv</code></b> (service accounts and known
+        exceptions that should never be flagged/disabled):
+          <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code>SamAccountName
+svc-backup
+svc-monitoring</code></pre></div>
+        </div>
+        <div class="step"><b>Create <code>Find-InactiveAccounts.ps1</code></b> and paste the full script below.</div>
+        <div class="step"><b>Run detection (default, always safe):</b>
+          <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code>.\Find-InactiveAccounts.ps1</code></pre></div>
+        </div>
+        <div class="step"><b>Only if you want to test the disable path,</b> on a lab account you've specifically
+        created for this purpose:
+          <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code>.\Find-InactiveAccounts.ps1 -DisableCritical -WhatIf:$false</code></pre></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="script">
+      <h2>Full Script — Find-InactiveAccounts.ps1</h2>
+      <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code># =====================================================================
+# Find-InactiveAccounts.ps1
+# ABC Bank - Windows Infrastructure Automation Team
+# Purpose: Detect (and optionally, cautiously, disable) inactive AD accounts
+# NOTE: LastLogonDate can lag real activity by up to ~2 weeks (replication interval)
+# =====================================================================
+
+[CmdletBinding(SupportsShouldProcess)]
+param(
+    [switch]$WhatIf = $true,
+    [switch]$DisableCritical              # Opt-in only - detection always runs regardless; this just enables the extra disable step
+)
+
+Import-Module ActiveDirectory -ErrorAction Stop
+
+$WarningDays  = 60
+$CriticalDays = 90
+$ExcludedAccounts = (Import-Csv ".\config\excluded-accounts.csv").SamAccountName   # Service accounts / known exceptions
+
+$LogPath = ".\logs\InactiveAccounts.log"
+function Write-Log {
+    param([string]$Message, [string]$Status = "INFO")
+    $Line = "{0} | {1} | {2}" -f (Get-Date -Format "yyyy-MM-dd HH:mm:ss"), $Status, $Message
+    Add-Content -Path $LogPath -Value $Line
+}
+
+Write-Host "`n=== INACTIVE ACCOUNT DETECTION ===" -ForegroundColor Magenta
+Write-Host "Note: LastLogonDate can lag real activity by up to ~2 weeks due to AD replication.`n" -ForegroundColor Yellow
+
+# ---------------------------------------------------------------
+# STEP 1: Find accounts inactive beyond the WARNING threshold (broadest net)
+# ---------------------------------------------------------------
+$InactiveAccounts = Search-ADAccount -AccountInactive -TimeSpan "$WarningDays.00:00:00" -UsersOnly |
+    Where-Object { $_.Enabled -eq $true }                              # Only currently-enabled accounts are meaningful findings
+
+$Results = @()
+
+foreach ($Account in $InactiveAccounts) {                              # Loops through every inactive account found
+
+    if ($Account.SamAccountName -in $ExcludedAccounts) {                 # Skips known service/exception accounts entirely
+        continue
+    }
+
+    $DaysInactive = if ($Account.LastLogonDate) {
+        ((Get-Date) - $Account.LastLogonDate).Days
+    } else {
+        "Never logged on"                                                  # Some accounts may have NO recorded logon at all
+    }
+
+    # ---------------------------------------------------------------
+    # STEP 2: Classify (Project 2/20's threshold pattern, reused)
+    # ---------------------------------------------------------------
+    $Status = if ($DaysInactive -eq "Never logged on") { "CRITICAL (never logged on)" }
+              elseif ($DaysInactive -ge $CriticalDays) { "CRITICAL" }
+              elseif ($DaysInactive -ge $WarningDays) { "WARNING" }
+              else { "HEALTHY" }                                            # Shouldn't occur given the search threshold, but kept for completeness
+
+    $Results += [PSCustomObject]@{
+        SamAccountName = $Account.SamAccountName
+        Name           = $Account.Name
+        LastLogonDate  = $Account.LastLogonDate
+        DaysInactive   = $DaysInactive
+        Status         = $Status
+    }
+
+    $Color = if ($Status -like "CRITICAL*") { "Red" } else { "Yellow" }
+    Write-Host "  [$Status] $($Account.SamAccountName) - last logon: $(if($Account.LastLogonDate){$Account.LastLogonDate}else{'never'})" -ForegroundColor $Color
+}
+
+# ---------------------------------------------------------------
+# STEP 3: Export and summarize
+# ---------------------------------------------------------------
+if (-not (Test-Path ".\reports")) { New-Item -ItemType Directory -Path ".\reports" | Out-Null }
+$Timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
+$Results | Export-Csv -Path ".\reports\InactiveAccounts_$Timestamp.csv" -NoTypeInformation
+
+$CriticalList = $Results | Where-Object { $_.Status -like "CRITICAL*" }
+Write-Host "`nSummary: $($CriticalList.Count) CRITICAL, $(($Results | Where-Object {$_.Status -eq 'WARNING'}).Count) WARNING inactive account(s)." -ForegroundColor Cyan
+
+# ---------------------------------------------------------------
+# STEP 4: OPT-IN ONLY - disable CRITICAL accounts, with extra guarding
+# ---------------------------------------------------------------
+if ($DisableCritical) {
+    Write-Host "`n--- DISABLE CRITICAL ACCOUNTS (opt-in) ---" -ForegroundColor Red
+
+    foreach ($Critical in $CriticalList) {
+
+        # Re-verify the exclusion list ONE MORE TIME immediately before disabling - Project 21's defense-in-depth pattern
+        if ($Critical.SamAccountName -in $ExcludedAccounts) {
+            Write-Log -Status "ERROR" -Message "SAFETY CHECK: skipped $($Critical.SamAccountName) - on exclusion list"
+            continue
+        }
+
+        if ($PSCmdlet.ShouldProcess($Critical.SamAccountName, "Disable Inactive AD Account")) {
+            Disable-ADAccount -Identity $Critical.SamAccountName
+            Write-Log -Status "SUCCESS" -Message "Disabled inactive account: $($Critical.SamAccountName) (inactive $($Critical.DaysInactive) days)"
+            Write-Host "  Disabled: $($Critical.SamAccountName)" -ForegroundColor Green
+        }
+        else {
+            Write-Host "  PREVIEW: Would disable $($Critical.SamAccountName)" -ForegroundColor Yellow
+        }
+    }
+}
+else {
+    Write-Host "`n(Run with -DisableCritical to enable the opt-in disable step for CRITICAL accounts.)" -ForegroundColor Cyan
+}
+</code></pre></div>
+      </div>
+    </section>
+
+    <section id="linebyline">
+      <h2>Line-by-Line Explanation</h2>
+
+      <h3><code>Search-ADAccount -AccountInactive -TimeSpan "$WarningDays.00:00:00" -UsersOnly</code></h3>
+      <ul class="explain-list">
+        <li>Building the TimeSpan string from the <code>$WarningDays</code> variable rather than hardcoding "60" —
+        the search casts the widest net (WARNING threshold) so both WARNING and CRITICAL accounts get picked up in
+        one query, with classification happening afterward in code.</li>
+      </ul>
+
+      <h3><code>Where-Object { $_.Enabled -eq $true }</code></h3>
+      <ul class="explain-list">
+        <li>Filters out accounts that are already disabled — an already-disabled inactive account isn't a new
+        finding worth flagging; it's already in the desired state, similar in spirit to Project 4's idempotent
+        "already healthy, no action needed" checks.</li>
+      </ul>
+
+      <h3><code>$DaysInactive = if ($Account.LastLogonDate) { ((Get-Date) - $Account.LastLogonDate).Days } else { "Never logged on" }</code></h3>
+      <ul class="explain-list">
+        <li>Some accounts (created but never used, or very old accounts predating reliable logon tracking) can have
+        a completely empty <code>LastLogonDate</code> — treating that as its own labeled case, rather than crashing
+        on the date math or misreporting it as some default number, keeps the report both accurate and honest.</li>
+      </ul>
+
+      <h3>The re-check of <code>$ExcludedAccounts</code> immediately before <code>Disable-ADAccount</code></h3>
+      <ul class="explain-list">
+        <li>Directly mirrors Project 21's double-check pattern — even though the exclusion filter was already
+        applied earlier when building <code>$Results</code>, re-verifying it again immediately before the
+        irreversible-feeling action (disabling someone's account) provides the same defense-in-depth protection
+        against a future code change accidentally weakening the earlier filter.</li>
+      </ul>
+
+      <h3><code>if ($DisableCritical) { ... } else { Write-Host "(Run with -DisableCritical...)" }</code></h3>
+      <ul class="explain-list">
+        <li>The disable step is gated behind an entirely separate opt-in switch, not just <code>-WhatIf:$false</code>
+        — someone must explicitly ask for disabling to even be considered, on top of then needing to also pass
+        <code>-WhatIf:$false</code> for it to actually happen. Two independent, deliberate opt-ins are required
+        before anything gets disabled.</li>
+      </ul>
+    </section>
+
+    <section id="architecture">
+      <h2>Architecture &amp; Detection/Disable Flow</h2>
+      <div class="diagram">
+        <div class="flow">
+          <div class="box">Search-ADAccount -AccountInactive</div><div class="arrow">→</div>
+          <div class="box">Exclude Known Accounts</div><div class="arrow">→</div>
+          <div class="box">Classify (Warning/Critical)</div><div class="arrow">→</div>
+          <div class="box">Report (always runs)</div>
+        </div>
+        <div class="flow" style="margin-top:12px;">
+          <div class="box">-DisableCritical (opt-in)</div><div class="arrow">→</div>
+          <div class="box">Re-verify Exclusions</div><div class="arrow">→</div>
+          <div class="box">ShouldProcess</div><div class="arrow">→</div>
+          <div class="box">Disable-ADAccount</div>
+        </div>
+      </div>
+      <p>Detection and disabling are architecturally two separate paths through this script, joined only by sharing
+      the same classification data — detection always runs and is always safe; disabling requires two separate,
+      explicit opt-ins layered on top. This mirrors the deliberate friction built into Project 25's restore
+      operation: the more consequential the action, the more explicit steps should stand between "script runs" and
+      "change happens."</p>
+    </section>
+
+    <section id="incident">
+      <h2>Production Incident Walkthrough</h2>
+      <div class="story">
+        The first run of this detection script (no disable, just reporting) turns up 40 accounts inactive over 90
+        days. Manual review by the security team finds most are genuinely departed contractors and former
+        employees whose accounts were never cleaned up — but two are legitimate employees who were on extended
+        medical leave, correctly excluded from disabling by being added to the exclusion list before anyone ever ran
+        <code>-DisableCritical</code>.
+      </div>
+      <ul class="explain-list">
+        <li><b>Why does running detection-only first, before ever considering the disable option, matter here?</b>
+        It gives humans a chance to review the findings and update the exclusion list (or investigate individual
+        cases) <i>before</i> any account is actually touched — exactly the workflow this script's two-step
+        opt-in design encourages, rather than a single command that detects and disables in the same breath.</li>
+      </ul>
+    </section>
+
+    <section id="troubleshoot">
+      <h2>Troubleshooting Cheat Sheet</h2>
+      <table>
+        <tr><th>Symptom</th><th>Likely Root Cause</th><th>Fix</th></tr>
+        <tr><td>An account you know is active shows as inactive</td><td>LastLogonDate's replication lag (up to ~2 weeks) - expected behavior, not a bug</td><td>Cross-check with lastLogon (non-replicated, DC-specific) if precise recent activity matters for a specific investigation</td></tr>
+        <tr><td>"The term 'Search-ADAccount' is not recognized"</td><td>ActiveDirectory module not imported</td><td>Confirm Import-Module ActiveDirectory succeeds standalone</td></tr>
+        <tr><td>Excluded accounts still appear in the report</td><td>SamAccountName in excluded-accounts.csv doesn't exactly match, or has extra whitespace</td><td>Compare exact values with Get-ADUser output</td></tr>
+        <tr><td>-DisableCritical does nothing even with -WhatIf:$false</td><td>No accounts currently qualify as CRITICAL, or all CRITICAL accounts are on the exclusion list</td><td>Check $CriticalList.Count directly before troubleshooting further - this may be correct behavior</td></tr>
+      </table>
+    </section>
+
+    <section id="security">
+      <h2>Security &amp; Best Practices</h2>
+      <div class="callout security"><span class="lbl">The core lesson of this project</span>Even a relatively
+      reversible action (disabling, not deleting) deserves layered, deliberate friction when it operates at scale
+      across potentially many accounts automatically — two separate opt-ins (a dedicated switch, plus -WhatIf:$false)
+      make it very unlikely anyone triggers disabling by accident.</div>
+      <div class="callout tip"><span class="lbl">Best practice reinforced here</span>Understanding a data source's
+      real-world limitations (LastLogonDate's replication lag) before building logic on top of it prevents a whole
+      class of "the report is technically wrong" problems — always understand what a property actually measures, not
+      just what its name suggests.</div>
+    </section>
+
+    <section id="recap">
+      <h2>Key Learnings &amp; Recap</h2>
+      <div class="grid2">
+        <div>
+          <h3>Commands/Syntax Learned</h3>
+          <ul class="explain-list">
+            <li><code>Search-ADAccount -AccountInactive -TimeSpan</code></li>
+            <li><code>Disable-ADAccount</code></li>
+            <li>TimeSpan string format (days.hours:minutes:seconds)</li>
+          </ul>
+        </div>
+        <div>
+          <h3>Concepts Learned</h3>
+          <ul class="explain-list">
+            <li>LastLogonDate's replication lag and why it matters for threshold design</li>
+            <li>Handling "never logged on" as its own distinct case</li>
+            <li>Two independent opt-ins for a consequential, scale-capable action</li>
+            <li>Detection always runs; disabling is a deliberate, separate, guarded choice</li>
+          </ul>
+        </div>
+      </div>
+      <h3>Common Mistakes to Avoid</h3>
+      <ul class="explain-list">
+        <li>Treating LastLogonDate as perfectly precise, especially for tight thresholds.</li>
+        <li>Forgetting to exclude legitimate service/exception accounts before disabling anything.</li>
+        <li>Bundling detection and disabling into one automatic step with no separate opt-in.</li>
+        <li>Crashing or misreporting on accounts with no recorded logon at all.</li>
+      </ul>
+    </section>
+
+    <section id="interview">
+      <h2>Interview Preparation</h2>
+      <details><summary>Q1. Why can LastLogonDate be inaccurate by up to two weeks, and why does that matter for this script's design?</summary>
+        <p><b>Answer:</b> LastLogonDate is based on lastLogonTimestamp, which is deliberately only replicated across
+        domain controllers every 9-14 days by default (to limit replication traffic) rather than on every single
+        logon — so a very recent logon might not yet be reflected. Thresholds need enough margin (this script uses
+        60/90 days) that this lag doesn't meaningfully affect the classification.</p>
+        <p><b>Follow-up:</b> "How would you get more precise, real-time logon information if you truly needed it?" —
+        Answer: query the non-replicated lastLogon attribute directly against every domain controller and take the
+        most recent value found — more accurate but significantly more expensive to query across a large domain.</p>
+      </details>
+      <details><summary>Q2. Why does disabling require both a separate -DisableCritical switch AND -WhatIf:$false, rather than just one flag?</summary>
+        <p><b>Answer:</b> Layering two independent, deliberate opt-ins makes it very unlikely someone triggers
+        account disabling by accident — a single flag could be added carelessly or copy-pasted from an example
+        without full consideration, while requiring two separate deliberate choices adds meaningful, appropriate
+        friction for an action affecting potentially many people's accounts at once.</p>
+        <p><b>Follow-up:</b> "Is there a risk that too much friction discourages legitimate use of the automation?"
+        — Answer: possibly, which is why detection (the safe, always-valuable part) runs unconditionally and needs
+        no special flags at all — the friction is deliberately concentrated only around the genuinely risky action,
+        not the reporting.</p>
+      </details>
+      <details><summary>Q3. Why exclude service accounts from this audit rather than letting them show up and just manually skipping them each time?</summary>
+        <p><b>Answer:</b> Service accounts often legitimately show no interactive logon for long periods by design —
+        including them every run would create persistent noise a human has to mentally filter out each time, and
+        worse, could result in one accidentally being disabled if the -DisableCritical path is ever used without
+        careful review. An explicit exclusion list makes this exception permanent and code-enforced, not dependent on
+        someone remembering it each time.</p>
+        <p><b>Follow-up:</b> "How would you catch a NEW service account that wasn't yet added to the exclusion list?"
+        — Answer: this is exactly the kind of gap that motivates re-verifying the exclusion list immediately before
+        disabling (the defense-in-depth check in Step 4) — but ultimately, keeping the exclusion list current is a
+        process discipline the script alone can't fully guarantee, which is why -DisableCritical remains opt-in and
+        reviewed rather than fully automatic.</p>
+      </details>
+    </section>
+
+    <section id="challenges">
+      <h2>Coding Challenges</h2>
+      <details><summary>Challenge 1: Add a WARNING-only email-style summary (Write-Host stand-in) listing just names and days inactive, for a weekly review email</summary>
+        <details><summary>Show answer</summary>
+        <pre><code>$WarningList = $Results | Where-Object { $_.Status -eq "WARNING" }
+$WarningList | ForEach-Object { Write-Host "$($_.SamAccountName): $($_.DaysInactive) days" }</code></pre>
+        </details>
+      </details>
+      <details><summary>Challenge 2: Instead of a flat exclusion list, exclude any account whose Description field contains "service account"</summary>
+        <details><summary>Show answer</summary>
+        <pre><code>$Account = Get-ADUser -Identity $Account.SamAccountName -Properties Description
+if ($Account.Description -like "*service account*") { continue }</code></pre>
+        </details>
+      </details>
+      <details><summary>Challenge 3: Add a -Weeks parameter as an alternative to hardcoded day thresholds, converting to days internally</summary>
+        <details><summary>Show answer</summary>
+        <pre><code>param([int]$WarningWeeks = 8, [int]$CriticalWeeks = 12)
+$WarningDays = $WarningWeeks * 7
+$CriticalDays = $CriticalWeeks * 7</code></pre>
+        </details>
+      </details>
+    </section>
+
+    <section id="resume">
+      <h2>Resume Points</h2>
+      <ul class="explain-list">
+        <li>Built a PowerShell Active Directory inactive account detection tool with threshold-based classification and replication-aware logon date handling.</li>
+        <li>Implemented a doubly-gated, opt-in account disabling workflow with defense-in-depth exclusion re-verification.</li>
+        <li>Designed a config-driven exclusion list to safely handle service accounts and known exceptions in an automated audit.</li>
+      </ul>
+    </section>
+
+    <section id="assignment">
+      <h2>Practice Assignment</h2>
+      <div class="callout note">
+        (If you have lab domain access) Add one of your test accounts to <code>excluded-accounts.csv</code>, confirm
+        it disappears from the detection report on the next run even if it would otherwise qualify as inactive, then
+        remove it from the exclusion list and confirm it reappears.
+      </div>
+    </section>
+
+    <section id="next">
+      <h2>Next Project Prerequisites</h2>
+      <p>Project 29 (Password Expiration Reporting) rounds out the AD hygiene projects — proactively reporting on
+      passwords about to expire, before users get locked out, reusing the same threshold classification pattern
+      once more. When ready, say <b>"Next Project."</b></p>
+    </section>
+
+    <footer>
+      PowerShell Masterclass — ABC Bank Automation Track · Project 28 of 40 · Generated for offline, self-contained use.
+    </footer>
+  </main>
+</div>
+
+<script>
+function copyCode(btn){
+  const code = btn.parentElement.querySelector('pre').innerText;
+  navigator.clipboard.writeText(code).then(()=>{
+    const old = btn.innerText; btn.innerText = "Copied!";
+    setTimeout(()=>btn.innerText = old, 1200);
+  });
+}
+window.addEventListener('scroll', ()=>{
+  const h = document.documentElement;
+  const pct = (h.scrollTop) / (h.scrollHeight - h.clientHeight) * 100;
+  document.getElementById('progressFill').style.width = pct + '%';
+  document.getElementById('progressLabel').innerText = 'Reading progress: ' + Math.round(pct) + '%';
+});
+</script>
+</body>
+</html>

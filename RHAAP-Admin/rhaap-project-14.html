@@ -1,0 +1,669 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RHAAP Masterclass — Project 14: Failure and Recovery Workflow</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/nord.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/yaml.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/json.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/bash.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/python.min.js"></script>
+<style>
+:root{
+  --bg:#0B1120; --panel:#111827; --card:#1E293B; --card-hover:#243146;
+  --primary:#8B5CF6; --primary-dim:#6D42C7; --secondary:#06B6D4;
+  --text:#F8FAFC; --muted:#94A3B8; --code-bg:#020617;
+  --success:#22C55E; --warning:#F59E0B; --error:#EF4444; --border:#243044;
+  --sans:'IBM Plex Sans',-apple-system,sans-serif; --mono:'IBM Plex Mono',ui-monospace,monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html{scroll-behavior:smooth;}
+body{background:var(--bg);color:var(--text);font-family:var(--sans);line-height:1.65;font-size:15.5px;-webkit-font-smoothing:antialiased;}
+::selection{background:var(--primary);color:#fff;}
+a{color:var(--secondary);text-decoration:none;}
+a:hover{text-decoration:underline;}
+.ticker-wrap{position:sticky;top:0;z-index:200;background:linear-gradient(90deg,#150C2E,#031B24);border-bottom:1px solid var(--border);overflow:hidden;height:34px;display:flex;align-items:center;}
+.ticker-track{display:inline-flex;white-space:nowrap;animation:scroll-left 38s linear infinite;font-family:var(--mono);font-size:12px;letter-spacing:.03em;color:var(--secondary);}
+.ticker-track span{padding:0 2.2rem;color:var(--muted);}
+.ticker-track span b{color:var(--primary);font-weight:600;}
+@keyframes scroll-left{0%{transform:translateX(0);}100%{transform:translateX(-50%);}}
+.topbar{position:sticky;top:34px;z-index:190;background:rgba(17,24,39,.92);backdrop-filter:blur(10px);border-bottom:1px solid var(--border);padding:.7rem 1.4rem;display:flex;align-items:center;justify-content:space-between;gap:1rem;}
+.brand{display:flex;align-items:center;gap:.6rem;font-family:var(--mono);font-size:13px;}
+.brand-dot{width:9px;height:9px;border-radius:50%;background:var(--primary);box-shadow:0 0 10px var(--primary);}
+.brand b{color:var(--text);letter-spacing:.02em;}
+.brand span{color:var(--muted);}
+.progress-shell{flex:1;max-width:280px;height:5px;background:var(--card);border-radius:3px;overflow:hidden;display:none;}
+.progress-fill{height:100%;width:0%;background:linear-gradient(90deg,var(--primary),var(--secondary));transition:width .15s;}
+@media(min-width:900px){.progress-shell{display:block;}}
+.meta-chips{display:flex;gap:.5rem;}
+.chip{font-family:var(--mono);font-size:11px;padding:.3rem .6rem;border-radius:5px;background:var(--card);border:1px solid var(--border);color:var(--muted);}
+.chip.proj{color:var(--primary);border-color:var(--primary-dim);}
+.layout{display:flex;max-width:1440px;margin:0 auto;align-items:flex-start;}
+.sidebar{width:270px;flex-shrink:0;position:sticky;top:96px;height:calc(100vh - 96px);overflow-y:auto;padding:1.5rem 1rem 3rem 1.4rem;border-right:1px solid var(--border);}
+.sidebar::-webkit-scrollbar{width:5px;}
+.sidebar::-webkit-scrollbar-thumb{background:var(--card);border-radius:3px;}
+.toc-group{margin-bottom:1.3rem;}
+.toc-label{font-family:var(--mono);font-size:10.5px;text-transform:uppercase;letter-spacing:.1em;color:var(--primary);margin-bottom:.5rem;font-weight:600;}
+.toc-link{display:flex;align-items:center;gap:.5rem;font-size:13px;color:var(--muted);padding:.35rem .5rem;border-radius:6px;border-left:2px solid transparent;margin-bottom:1px;transition:.15s;}
+.toc-link:hover{color:var(--text);background:var(--card);text-decoration:none;}
+.toc-link.active{color:var(--secondary);border-left-color:var(--secondary);background:var(--card);font-weight:600;}
+.main{flex:1;min-width:0;padding:0 0 6rem 0;}
+.section{padding:3.2rem clamp(1.4rem,4vw,4rem);border-bottom:1px solid var(--border);scroll-margin-top:100px;}
+.section:last-child{border-bottom:none;}
+.eyebrow{font-family:var(--mono);font-size:12px;color:var(--secondary);letter-spacing:.08em;text-transform:uppercase;margin-bottom:.6rem;display:flex;align-items:center;gap:.5rem;}
+.eyebrow::before{content:'';width:22px;height:1px;background:var(--secondary);}
+h1{font-size:clamp(1.9rem,4vw,2.7rem);font-weight:700;letter-spacing:-.01em;line-height:1.15;}
+h2{font-size:1.55rem;font-weight:700;margin-bottom:.9rem;letter-spacing:-.01em;}
+h3{font-size:1.15rem;font-weight:600;margin:1.4rem 0 .6rem;color:var(--text);}
+h4{font-size:.98rem;font-weight:600;margin:1.1rem 0 .4rem;color:var(--secondary);}
+p{color:#CBD5E1;margin-bottom:.85rem;}
+strong{color:var(--text);}
+.lead{font-size:1.05rem;color:var(--muted);max-width:70ch;}
+.cover{padding:4.5rem clamp(1.4rem,5vw,4.5rem) 3rem;position:relative;overflow:hidden;}
+.cover::before{content:'';position:absolute;top:-120px;right:-120px;width:420px;height:420px;border-radius:50%;background:radial-gradient(circle,rgba(139,92,246,.25),transparent 70%);filter:blur(10px);}
+.cover::after{content:'';position:absolute;bottom:-160px;left:-80px;width:380px;height:380px;border-radius:50%;background:radial-gradient(circle,rgba(6,182,212,.18),transparent 70%);filter:blur(10px);}
+.cover-badge{display:inline-flex;align-items:center;gap:.5rem;font-family:var(--mono);font-size:12px;padding:.4rem .8rem;border:1px solid var(--primary-dim);border-radius:20px;color:var(--primary);margin-bottom:1.4rem;position:relative;z-index:1;}
+.cover h1{position:relative;z-index:1;max-width:18ch;}
+.cover-sub{position:relative;z-index:1;color:var(--muted);max-width:62ch;margin-top:1rem;font-size:1.05rem;}
+.cover-stats{display:flex;gap:1.8rem;margin-top:2.2rem;flex-wrap:wrap;position:relative;z-index:1;}
+.stat b{display:block;font-size:1.5rem;font-family:var(--mono);color:var(--text);}
+.stat span{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;}
+.card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:1.3rem 1.5rem;margin:1rem 0;}
+.card-title{font-weight:600;color:var(--text);margin-bottom:.5rem;display:flex;align-items:center;gap:.5rem;}
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:1rem;}
+.grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;}
+@media(max-width:760px){.grid-2,.grid-3{grid-template-columns:1fr;}}
+.story{background:linear-gradient(135deg,rgba(139,92,246,.08),rgba(6,182,212,.05));border:1px solid var(--primary-dim);border-left:3px solid var(--primary);border-radius:10px;padding:1.3rem 1.5rem;margin:1rem 0;}
+.story .who{font-family:var(--mono);font-size:11px;color:var(--primary);text-transform:uppercase;letter-spacing:.08em;margin-bottom:.5rem;}
+.story p{color:#E2E8F0;font-style:italic;}
+.callout{border-radius:10px;padding:1.1rem 1.4rem;margin:1.1rem 0;border:1px solid;display:flex;gap:.8rem;}
+.callout .icon{font-size:1.1rem;line-height:1.4;}
+.callout p{margin:0;color:#E2E8F0;}
+.callout.tip{border-color:#164e63;background:rgba(6,182,212,.08);}
+.callout.tip .icon{color:var(--secondary);}
+.callout.warn{border-color:#78350f;background:rgba(245,158,11,.08);}
+.callout.warn .icon{color:var(--warning);}
+.callout.danger{border-color:#7f1d1d;background:rgba(239,68,68,.08);}
+.callout.danger .icon{color:var(--error);}
+.callout.prod{border-color:#3730a3;background:rgba(99,102,241,.08);}
+.callout.prod .icon{color:#818cf8;}
+.diagram{background:var(--code-bg);border:1px solid var(--border);border-radius:10px;padding:1.4rem;margin:1.1rem 0;overflow-x:auto;}
+.diagram pre{font-family:var(--mono);font-size:12.5px;color:var(--secondary);line-height:1.5;white-space:pre;}
+.diagram .cap{font-family:var(--mono);font-size:11px;color:var(--muted);margin-top:.6rem;border-top:1px dashed var(--border);padding-top:.5rem;}
+.codeblock{position:relative;margin:1.1rem 0;border-radius:10px;overflow:hidden;border:1px solid var(--border);}
+.codeblock .head{display:flex;justify-content:space-between;align-items:center;background:#0d1424;padding:.5rem 1rem;font-family:var(--mono);font-size:11.5px;color:var(--muted);border-bottom:1px solid var(--border);}
+.codeblock .head .fname{color:var(--secondary);}
+.copy-btn{background:var(--card);border:1px solid var(--border);color:var(--muted);font-family:var(--mono);font-size:11px;padding:.25rem .6rem;border-radius:5px;cursor:pointer;transition:.15s;}
+.copy-btn:hover{background:var(--primary-dim);color:#fff;}
+.copy-btn.copied{background:var(--success);color:#fff;border-color:var(--success);}
+pre code.hljs{padding:1.1rem 1.3rem !important;font-size:13px;font-family:var(--mono) !important;background:var(--code-bg) !important;}
+.tbl-wrap{overflow-x:auto;margin:1.1rem 0;border:1px solid var(--border);border-radius:10px;}
+table{width:100%;border-collapse:collapse;font-size:13.5px;}
+th{background:#0d1424;color:var(--primary);text-align:left;padding:.65rem .9rem;font-family:var(--mono);font-size:11.5px;text-transform:uppercase;letter-spacing:.05em;border-bottom:1px solid var(--border);}
+td{padding:.6rem .9rem;border-bottom:1px solid var(--border);color:#CBD5E1;vertical-align:top;}
+tr:last-child td{border-bottom:none;}
+td code,p code,li code{font-family:var(--mono);background:var(--code-bg);color:var(--secondary);padding:.1rem .4rem;border-radius:4px;font-size:.9em;border:1px solid var(--border);}
+.steps{counter-reset:step;list-style:none;margin:1rem 0;}
+.steps li{counter-increment:step;position:relative;padding:.55rem 0 .55rem 2.6rem;border-left:1px solid var(--border);margin-left:.6rem;}
+.steps li::before{content:counter(step);position:absolute;left:-.72rem;top:.4rem;width:1.4rem;height:1.4rem;border-radius:50%;background:var(--card);border:1px solid var(--primary-dim);color:var(--primary);font-family:var(--mono);font-size:11px;display:flex;align-items:center;justify-content:center;}
+.steps li:last-child{border-left-color:transparent;}
+.steps li b{color:var(--text);}
+.steps li .field-note{display:block;color:var(--muted);font-size:13px;margin-top:.15rem;}
+.collapse{border:1px solid var(--border);border-radius:10px;margin:1rem 0;overflow:hidden;background:var(--panel);}
+.collapse summary{padding:.85rem 1.2rem;cursor:pointer;font-weight:600;color:var(--text);display:flex;align-items:center;justify-content:space-between;list-style:none;font-size:14px;}
+.collapse summary::-webkit-details-marker{display:none;}
+.collapse summary::after{content:'+';color:var(--primary);font-family:var(--mono);font-size:16px;transition:.2s;}
+.collapse[open] summary::after{content:'−';}
+.collapse summary:hover{background:var(--card);}
+.collapse .body{padding:0 1.2rem 1.2rem;color:#CBD5E1;}
+.collapse .body p:first-child{margin-top:.3rem;}
+.badge{display:inline-block;font-family:var(--mono);font-size:10.5px;padding:.18rem .55rem;border-radius:20px;text-transform:uppercase;letter-spacing:.05em;font-weight:600;}
+.badge.ui{background:rgba(139,92,246,.15);color:var(--primary);border:1px solid var(--primary-dim);}
+.badge.api{background:rgba(6,182,212,.15);color:var(--secondary);border:1px solid #0e7490;}
+.badge.ans{background:rgba(34,197,94,.15);color:var(--success);border:1px solid #15803d;}
+.badge.concept{background:rgba(148,163,184,.15);color:var(--muted);border:1px solid var(--border);}
+.method{font-family:var(--mono);font-weight:700;font-size:12px;padding:.2rem .55rem;border-radius:5px;}
+.method.get{background:rgba(6,182,212,.18);color:var(--secondary);}
+.method.post{background:rgba(34,197,94,.18);color:var(--success);}
+.method.patch{background:rgba(245,158,11,.18);color:var(--warning);}
+.method.delete{background:rgba(239,68,68,.18);color:var(--error);}
+.qa{border:1px solid var(--border);border-radius:10px;padding:1.1rem 1.3rem;margin-bottom:.9rem;background:var(--panel);}
+.qa .q{font-weight:600;color:var(--secondary);margin-bottom:.4rem;display:flex;gap:.5rem;}
+.qa .q .qn{font-family:var(--mono);color:var(--primary);}
+.qa .a{color:#CBD5E1;margin-bottom:.5rem;}
+.qa .follow{font-size:12.5px;color:var(--muted);border-top:1px dashed var(--border);padding-top:.5rem;margin-top:.5rem;}
+.qa .follow b{color:var(--warning);}
+.challenge{border:1px solid var(--primary-dim);border-radius:10px;padding:1.2rem 1.4rem;margin:1rem 0;background:rgba(139,92,246,.06);}
+.challenge .num{font-family:var(--mono);color:var(--primary);font-size:12px;text-transform:uppercase;letter-spacing:.08em;margin-bottom:.4rem;}
+.resume-list{list-style:none;}
+.resume-list li{padding:.6rem 0 .6rem 1.6rem;position:relative;color:#CBD5E1;border-bottom:1px dashed var(--border);}
+.resume-list li:last-child{border-bottom:none;}
+.resume-list li::before{content:'▹';position:absolute;left:0;color:var(--secondary);}
+.checklist{list-style:none;}
+.checklist li{padding:.35rem 0 .35rem 1.7rem;position:relative;color:#CBD5E1;}
+.checklist li::before{content:'✓';position:absolute;left:0;color:var(--success);font-weight:700;}
+.footer-nav{display:flex;justify-content:space-between;align-items:center;padding:2.2rem clamp(1.4rem,4vw,4rem);background:var(--panel);flex-wrap:wrap;gap:1rem;}
+.next-card{border:1px solid var(--primary-dim);border-radius:10px;padding:1.1rem 1.4rem;background:linear-gradient(135deg,rgba(139,92,246,.1),rgba(6,182,212,.05));max-width:520px;}
+.next-card .lbl{font-family:var(--mono);font-size:11px;color:var(--primary);text-transform:uppercase;letter-spacing:.08em;margin-bottom:.3rem;}
+.next-card b{font-size:1.05rem;}
+@media(max-width:960px){.sidebar{display:none;}.section{padding:2.2rem 1.1rem;}}
+.small{font-size:12.5px;color:var(--muted);}
+.tree-note{display:inline-block;color:var(--muted);font-style:italic;}
+</style>
+</head>
+<body>
+
+<div class="ticker-wrap"><div class="ticker-track" id="tickerTrack"></div></div>
+
+<div class="topbar">
+  <div class="brand"><span class="brand-dot"></span><b>RHAAP MASTERCLASS</b><span>/ ABC Bank Automation Platform Team</span></div>
+  <div class="progress-shell"><div class="progress-fill" id="progressFill"></div></div>
+  <div class="meta-chips">
+    <span class="chip proj">PROJECT 14 / 40</span>
+    <span class="chip">INTERMEDIATE ADMIN — FINAL</span>
+  </div>
+</div>
+
+<div class="layout">
+  <nav class="sidebar" id="sidebar">
+    <div class="toc-group">
+      <div class="toc-label">Orientation</div>
+      <a class="toc-link" href="#objectives">Learning Objectives</a>
+      <a class="toc-link" href="#story">Enterprise Story</a>
+      <a class="toc-link" href="#repo-structure">Repository Structure So Far</a>
+    </div>
+    <div class="toc-group">
+      <div class="toc-label">Concept</div>
+      <a class="toc-link" href="#three-strategies">Retry vs Rollback vs Escalation</a>
+      <a class="toc-link" href="#task-level-retry">Task-Level Retry Logic</a>
+    </div>
+    <div class="toc-group">
+      <div class="toc-label">Build</div>
+      <a class="toc-link" href="#add-retry">Adding Retry to the Restart Task</a>
+      <a class="toc-link" href="#escalation-node">Building the Escalation Node</a>
+      <a class="toc-link" href="#full-graph">The Complete Failure/Recovery Graph</a>
+    </div>
+    <div class="toc-group">
+      <div class="toc-label">Run It</div>
+      <a class="toc-link" href="#security">Security Notes</a>
+      <a class="toc-link" href="#troubleshoot">Troubleshooting</a>
+      <a class="toc-link" href="#production-day">A Day On The Team</a>
+    </div>
+    <div class="toc-group">
+      <div class="toc-label">Practice</div>
+      <a class="toc-link" href="#interview">Interview Prep</a>
+      <a class="toc-link" href="#challenges">Coding Challenges</a>
+      <a class="toc-link" href="#resume">Resume Points</a>
+      <a class="toc-link" href="#assignment">Practice Assignment</a>
+      <a class="toc-link" href="#milestone">Intermediate Track Complete</a>
+    </div>
+  </nav>
+
+  <main class="main">
+
+    <section class="section cover" id="cover">
+      <div class="cover-badge">● PROJECT 14 OF 40 — INTERMEDIATE ADMINISTRATION FINALE</div>
+      <h1>Failure and Recovery Workflow</h1>
+      <p class="cover-sub">Project 12's Rollback node had an honest weakness: its own debug message admitted "MANUAL INTERVENTION REQUIRED" and then... nothing happened. Today, three real recovery strategies get layered onto the governed-restart workflow — retry for transient blips, rollback for real failures, and escalation for when rollback itself doesn't work — so "manual intervention required" actually reaches a human, fast.</p>
+      <div class="cover-stats">
+        <div class="stat"><b>Intermediate</b><span>Difficulty</span></div>
+        <div class="stat"><b>2.5 hrs</b><span>Estimated Time</span></div>
+        <div class="stat"><b>3</b><span>Recovery Strategies Layered</span></div>
+        <div class="stat"><b>UI · API · Ansible</b><span>Every Operation, 3 Ways</span></div>
+      </div>
+    </section>
+
+    <section class="section" id="objectives">
+      <div class="eyebrow">Orientation</div>
+      <h2>Learning Objectives</h2>
+      <ul class="checklist">
+        <li>Distinguish three recovery strategies — retry, rollback, and escalation — and match each to the right class of failure</li>
+        <li>Implement task-level retry logic in Ansible using <code>until</code>/<code>retries</code>/<code>delay</code>, and explain why it must always have a hard ceiling</li>
+        <li>Extend the Project 12 workflow with a new Escalation node that fires specifically when Rollback itself fails</li>
+        <li>Explain why retry logic belongs inside the playbook while rollback/escalation branching belongs in the workflow graph</li>
+        <li>Wire escalation to a distinctly higher-urgency notification channel than routine Success/Failure alerts</li>
+        <li>Diagnose a case where retry logic silently masked a real, non-transient failure for longer than it should have</li>
+      </ul>
+    </section>
+
+    <section class="section" id="story">
+      <div class="eyebrow">Enterprise Story</div>
+      <h2>Week Fourteen — "And Then What?"</h2>
+      <div class="story">
+        <div class="who">Priya Nair, Head of Platform Engineering</div>
+        <p>"I reread the Rollback playbook from Project 12. It has a line that says 'MANUAL INTERVENTION REQUIRED' when rollback itself fails. Where does that message actually go? Right now, nowhere except job output nobody's necessarily watching. That's not acceptable for a production workflow. And separately — Amit mentioned some restarts fail on the first attempt due to a brief SSH blip and succeed instantly on a second try. Do we really want every one of those going all the way to Rollback?"</p>
+      </div>
+    </section>
+
+    <section class="section" id="repo-structure">
+      <div class="eyebrow">Orientation</div>
+      <h2>Repository Structure So Far</h2>
+      <div class="diagram">
+<pre>linux-ops-automation/
+│
+├── playbooks/
+│   ├── restart-service.yml                  <span class="tree-note"># Project 1 — retry logic added this project</span>
+│   ├── patch-compliance-check.yml           <span class="tree-note"># Project 7</span>
+│   ├── service-health-check.yml             <span class="tree-note"># Project 12</span>
+│   ├── service-rollback-notify.yml          <span class="tree-note"># Project 12</span>
+│   └── escalate-incident.yml                <span class="tree-note"># NEW — Project 14</span>
+│
+├── rhaap-config/
+│   └── job_templates/
+│       ├── restart_service.yml
+│       ├── patch_compliance_check.yml
+│       ├── service_health_check.yml
+│       ├── service_rollback_notify.yml
+│       ├── escalate_incident.yml            <span class="tree-note"># NEW — Project 14</span>
+│       └── governed_service_restart_workflow.yml   <span class="tree-note"># extended again this project</span>
+│
+├── inventories/
+├── roles/
+├── group_vars/
+├── host_vars/
+│
+├── README.md
+└── CHANGELOG.md
+
+platform-governance-automation/
+│   (unchanged this project — see Project 13 for full contents)</pre>
+        <div class="cap">Fig 14.1 — one new playbook, one new wrapping Job Template, and a third extension to the same workflow definition that's been growing since Project 12.</div>
+      </div>
+    </section>
+
+    <section class="section" id="three-strategies">
+      <div class="eyebrow">Concept</div>
+      <h2>Retry vs. Rollback vs. Escalation</h2>
+      <p>Three genuinely different responses to failure, each appropriate to a different situation. Conflating them — retrying forever, or escalating for a one-off blip — is its own kind of failure.</p>
+      <div class="tbl-wrap">
+        <table>
+          <tr><th>Strategy</th><th>Appropriate for</th><th>Where it lives</th></tr>
+          <tr><td>Retry</td><td>Transient, self-resolving issues — a brief SSH connection blip, a momentary resource contention</td><td>Inside the playbook itself, at the task level (Ansible's <code>until</code>/<code>retries</code>/<code>delay</code>)</td></tr>
+          <tr><td>Rollback</td><td>A real failure where the safest response is attempting to restore a known-good state</td><td>The workflow graph — a Failure-linked node (Project 12)</td></tr>
+          <tr><td>Escalation</td><td>Rollback itself failing, or any situation where automation has exhausted its own remediation options and a human must act</td><td>The workflow graph — a Failure-linked node attached to the Rollback node specifically (today's addition)</td></tr>
+        </table>
+      </div>
+      <div class="callout tip">
+        <div class="icon">◆</div>
+        <p><strong>This directly answers both of Priya's and Amit's questions in one framework.</strong> Amit's transient SSH blips belong at the retry layer, inside the playbook — they should never even reach the workflow's Failure branch if a second attempt would have succeeded. Priya's "manual intervention required" message belongs at the escalation layer — a distinct, loud, workflow-level response to Rollback's own failure, not a debug line lost in job output.</p>
+      </div>
+    </section>
+
+    <section class="section" id="task-level-retry">
+      <div class="eyebrow">Concept</div>
+      <h2>Task-Level Retry Logic — With a Hard Ceiling</h2>
+      <p>Ansible's <code>until</code>/<code>retries</code>/<code>delay</code> re-runs a task until a condition is met or a retry limit is reached. This is fundamentally different from the workflow-level Failure branching in Project 12 — it happens entirely within a single task, invisible to the workflow graph unless every retry is exhausted.</p>
+      <div class="callout danger">
+        <div class="icon">■</div>
+        <p><strong>Every retry loop must have a hard ceiling.</strong> Retrying indefinitely turns a real, non-transient failure into a job that appears "still running" for far longer than it should — precisely the kind of hang Project 7's Timeout setting exists to catch, but a retry loop without its own bound can still waste significant time before that outer Timeout finally intervenes.</p>
+      </div>
+    </section>
+
+    <section class="section" id="add-retry">
+      <div class="eyebrow">Build</div>
+      <h2>Adding Retry to the Restart Task</h2>
+      <div class="codeblock">
+        <div class="head"><span class="fname">playbooks/restart-service.yml (updated)</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre><code class="language-yaml">---
+- name: Restart a named service on Linux Operations hosts
+  hosts: rhel_web
+  become: true
+  gather_facts: true
+
+  vars:
+    service_name: "httpd"
+
+  tasks:
+    - name: Ensure the target service is currently known to systemd
+      ansible.builtin.service_facts:
+
+    - name: Fail fast if the service does not exist on this host
+      ansible.builtin.fail:
+        msg: "Service {{ service_name }} not found on {{ inventory_hostname }}"
+      when: (service_name + '.service') not in ansible_facts.services
+
+    - name: Restart the service, retrying briefly for transient SSH/connection blips
+      ansible.builtin.systemd:
+        name: "{{ service_name }}"
+        state: restarted
+        enabled: true
+      register: restart_result
+      until: restart_result is succeeded
+      retries: 2
+      delay: 5
+      # Total worst case: 3 attempts, ~10 seconds of delay between them —
+      # bounded, and far shorter than the 300s Timeout on this Job Template
+      # (Project 7), so a genuinely stuck task still surfaces promptly.
+
+    - name: Confirm the service is active after restart
+      ansible.builtin.systemd:
+        name: "{{ service_name }}"
+      register: post_restart
+
+    - name: Report final state
+      ansible.builtin.debug:
+        msg: "{{ service_name }} on {{ inventory_hostname }} is now {{ post_restart.status.ActiveState }}"</code></pre>
+      </div>
+      <div class="collapse">
+        <summary>Why retries: 2 and not something larger?</summary>
+        <div class="body">
+          <p><code>retries: 2</code> means the task attempts up to 3 total executions (the original attempt plus 2 retries) — enough to absorb Amit's described transient blip without meaningfully changing the job's total runtime, while still failing fast into the workflow's Rollback path for anything that isn't actually transient. A much larger retry count would start masking real failures behind a long, silent wait — exactly the risk called out in the Concept section above.</p>
+          <p>Critically: this retry logic lives entirely inside the <b>Restart</b> node's own playbook. From the workflow graph's perspective (Project 12's Success/Failure links), this task either ultimately succeeds (possibly after retries) or ultimately fails — the graph itself doesn't need to know retries happened at all.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="escalation-node">
+      <div class="eyebrow">Build</div>
+      <h2>Building the Escalation Node</h2>
+      <div class="codeblock">
+        <div class="head"><span class="fname">playbooks/escalate-incident.yml</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre><code class="language-yaml">---
+- name: Escalate — automated remediation has been exhausted
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    service_name: "httpd"
+    change_ticket: "unknown"
+
+  tasks:
+    - name: Record a clear, structured escalation summary in job output
+      ansible.builtin.debug:
+        msg: >
+          🔺 ESCALATION: automated rollback failed for service
+          '{{ service_name }}' (change ticket {{ change_ticket }}).
+          Manual intervention is now required. This job's Slack/email
+          notification is the primary alert — do not assume anyone
+          has already seen this.
+
+    # A future enhancement (tracked for a later project once Custom
+    # Credential Types exist — Project 19) would post directly to
+    # ABC Bank's ITSM system here, using a Webhook credential to open
+    # an incident ticket automatically rather than only notifying.</code></pre>
+      </div>
+      <h3><span class="badge ans">ANSIBLE</span> — wrap it and wire it into the workflow</h3>
+      <div class="codeblock">
+        <div class="head"><span class="fname">escalation_setup.yml</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre><code class="language-yaml">- name: Create the escalation job template
+  awx.awx.job_template:
+    name: "Linux — Escalate Incident"
+    job_type: run
+    inventory: "Linux Servers"
+    project: "linux-ops-automation-prod"
+    playbook: "playbooks/escalate-incident.yml"
+    execution_environment: "Default execution environment"
+    timeout: 60
+    allow_simultaneous: true   # deliberately allows simultaneous escalations —
+                                # never let a concurrency lock silently swallow
+                                # a second, unrelated escalation
+    controller_host: "{{ controller_host }}"
+    controller_oauthtoken: "{{ controller_oauthtoken }}"
+    state: present
+
+- name: Attach a high-urgency Slack notification to the escalation template
+  awx.awx.job_template:
+    name: "Linux — Escalate Incident"
+    notification_templates_success:
+      - "Linux Ops PAGE-WORTHY Slack Channel"
+    notification_templates_error:
+      - "Linux Ops PAGE-WORTHY Slack Channel"
+    controller_host: "{{ controller_host }}"
+    controller_oauthtoken: "{{ controller_oauthtoken }}"
+    state: present
+
+- name: Wire the Rollback node's Failure path to Escalate
+  awx.awx.workflow_job_template_node:
+    workflow_job_template: "Linux — Governed Service Restart"
+    identifier: "rollback"
+    failure_nodes: ["escalate"]
+    controller_host: "{{ controller_host }}"
+    controller_oauthtoken: "{{ controller_oauthtoken }}"
+    state: present
+
+- name: Register the Escalate node itself
+  awx.awx.workflow_job_template_node:
+    workflow_job_template: "Linux — Governed Service Restart"
+    identifier: "escalate"
+    unified_job_template: "Linux — Escalate Incident"
+    controller_host: "{{ controller_host }}"
+    controller_oauthtoken: "{{ controller_oauthtoken }}"
+    state: present</code></pre>
+      </div>
+      <div class="callout warn">
+        <div class="icon">▲</div>
+        <p><strong>Notice <code>allow_simultaneous: true</code> here, deliberately opposite to every other template in this course so far.</strong> An escalation path is exactly the wrong place to apply Project 7's usual "block concurrent runs" default — if two independent incidents both need to escalate around the same time, the second escalation must never be silently blocked by the first.</p>
+      </div>
+      <div class="callout tip">
+        <div class="icon">◆</div>
+        <p><strong>A separate, distinctly-named "PAGE-WORTHY" Slack channel/notification template</strong> (versus the routine channel from Project 11) is a deliberate design choice — escalation alerts need to visually and audibly stand apart from routine Success/Failure chatter, or they risk being lost in the same noise Project 11 worked to prevent.</p>
+      </div>
+    </section>
+
+    <section class="section" id="full-graph">
+      <div class="eyebrow">Build</div>
+      <h2>The Complete Failure/Recovery Graph</h2>
+      <div class="diagram">
+<pre>              Start
+                |
+                v
+           Pre-Check
+                |
+          +-----+-----+
+          |           |
+       SUCCESS      FAILURE
+          |           |
+          v           v
+   [ Approval Gate ]  (stop)
+          |
+    +-----+-----+
+    |           |
+ APPROVED     DENIED
+    |           |
+    v           v
+  Restart     (stop)
+  (internal retry: up to 3 attempts, ~10s total, before this
+   node is considered to have genuinely failed)
+    |
+    +-----------+-----------+
+    |                       |
+ SUCCESS                 FAILURE
+    |                       |
+    v                       v
+ Validate               Rollback
+                             |
+                       +-----+-----+
+                       |           |
+                    SUCCESS     FAILURE
+                       |           |
+                       v           v
+                  (done, logged)  Escalate
+                                     |
+                                     v
+                            PAGE-WORTHY notification
+                            fires immediately</pre>
+        <div class="cap">Fig 14.2 — three layers of resilience, each doing exactly one job: absorb noise (retry), attempt real recovery (rollback), and guarantee human visibility when recovery itself fails (escalate).</div>
+      </div>
+    </section>
+
+    <section class="section" id="security">
+      <div class="eyebrow">Run It</div>
+      <h2>Security Notes For Project 14</h2>
+      <div class="callout danger">
+        <div class="icon">■</div>
+        <p><strong>Escalation notifications must never depend on the same channel/mechanism that might already be failing.</strong> If, hypothetically, the routine Slack integration itself were down, an escalation routed only to that same channel would be silently lost at exactly the worst moment. Consider a secondary channel or notification type for true escalations as the platform matures — noted here as a design tension worth revisiting, not fully solved in this project.</p>
+      </div>
+      <div class="callout warn">
+        <div class="icon">▲</div>
+        <p><strong>A retry loop is still subject to RBAC and credential scoping exactly like a single attempt</strong> — it doesn't introduce a new privilege surface, but it does mean a misbehaving retry could attempt a state-changing action multiple times against production hosts. This is one more reason the retry ceiling must stay small and deliberate.</p>
+      </div>
+    </section>
+
+    <section class="section" id="troubleshoot">
+      <div class="eyebrow">Run It — Production Incident</div>
+      <h2>Incident: Retries Quietly Absorbed a Real Failure</h2>
+      <div class="story">
+        <div class="who">Sara Khan</div>
+        <p>"The restart for <code>sshd</code> on lnx-web-04 took almost 40 seconds instead of the usual couple seconds. It did eventually succeed, but that felt slow."</p>
+      </div>
+      <div class="tbl-wrap">
+        <table>
+          <tr><th>Stage</th><th>What you do</th></tr>
+          <tr><td><b>OBSERVE</b></td><td>The job ultimately reported <code>successful</code> — no workflow-level failure, no Rollback triggered — but the elapsed time was abnormally long for this specific host.</td></tr>
+          <tr><td><b>COLLECT EVIDENCE</b></td><td>Job output shows the <b>Restart</b> task actually succeeded only on its third attempt — both retries were consumed, meaning something genuinely intermittent (not a one-off blip) was happening specifically on <code>lnx-web-04</code>.</td></tr>
+          <tr><td><b>ISOLATE FAILURE</b></td><td>Because the task eventually succeeded within the retry ceiling, the workflow correctly proceeded down the Success path — the retry logic did exactly what it was designed to do. But "eventually succeeded" masked a real, worsening problem on that specific host from ever surfacing as a visible failure.</td></tr>
+          <tr><td><b>CHECK DEPENDENCIES</b></td><td>Investigate <code>lnx-web-04</code> directly — you find intermittent network flakiness on that host's connection, likely a failing NIC or a flaky switch port, not something any application-layer retry can meaningfully fix.</td></tr>
+          <tr><td><b>IDENTIFY ROOT CAUSE</b></td><td>The retry logic is working as designed; the actual issue is that "succeeded after retries" currently looks identical, in reporting, to "succeeded on the first try" — there's no visibility into <em>how many retries a job actually needed</em>, which is itself useful signal being silently discarded.</td></tr>
+          <tr><td><b>FIX</b></td><td>Add a task that explicitly reports the retry count achieved (Ansible exposes this via the registered result's <code>attempts</code> field) into job output and, ideally, into the Success notification message from Project 11 — so "succeeded, but needed 3 attempts" is visibly different from a clean first-try success.</td></tr>
+          <tr><td><b>VALIDATE</b></td><td>Re-run against <code>lnx-web-04</code> and confirm the retry count is now visible in both job output and the Slack notification.</td></tr>
+          <tr><td><b>PREVENT RECURRENCE</b></td><td>File a separate infrastructure ticket for <code>lnx-web-04</code>'s underlying network issue — automation retry logic correctly kept the immediate task working, but it should never be treated as a substitute for actually investigating and fixing a host with a recurring, worsening problem.</td></tr>
+        </table>
+      </div>
+      <div class="callout tip">
+        <div class="icon">◆</div>
+        <p><strong>The broader lesson:</strong> retry logic that successfully recovers can hide a signal worth acting on. Designing for resilience (Project 14's whole point) doesn't mean designing away visibility — surface how much resilience was actually needed, don't just silently benefit from it.</p>
+      </div>
+    </section>
+
+    <section class="section" id="production-day">
+      <div class="eyebrow">Run It</div>
+      <h2>A Day On The Platform Team</h2>
+      <ul class="checklist">
+        <li><b>Ticket received:</b> "Give the Rollback failure path somewhere real to go" plus Amit's transient-retry observation, addressed together as one coherent resilience design</li>
+        <li><b>Information collected:</b> which failures Amit's team had actually observed as transient versus genuine, to size the retry ceiling appropriately rather than guessing</li>
+        <li><b>Code developed:</b> retry logic added to the existing restart playbook, plus a new escalation playbook and its wrapping Job Template</li>
+        <li><b>Testing:</b> deliberately forced a Rollback failure in a lab-like test to confirm the Escalate node actually fires and the PAGE-WORTHY notification delivers, before trusting the design in production</li>
+        <li><b>Documentation:</b> the three-strategy framework (retry/rollback/escalate) published as the team's standard resilience pattern for all future automation, not just this one workflow</li>
+        <li><b>Ticket closed:</b> with the retry-masking incident (found during a routine review of unusually long-running jobs) prompting the added attempt-count visibility as a permanent improvement</li>
+      </ul>
+    </section>
+
+    <section class="section" id="interview">
+      <div class="eyebrow">Practice</div>
+      <h2>Interview Preparation</h2>
+      <div class="qa">
+        <div class="q"><span class="qn">Q1.</span> When would you use task-level retry versus a workflow-level Rollback node?</div>
+        <div class="a">Retry is for genuinely transient issues — a brief connection blip likely to succeed on a second attempt — and belongs inside the playbook itself with a small, hard-bounded retry count. Rollback is for real failures where automated remediation is worth attempting, and belongs as a Failure-linked node in the workflow graph, since it's a distinct, visible action rather than a silent internal retry.</div>
+      </div>
+      <div class="qa">
+        <div class="q"><span class="qn">Q2.</span> Why must a retry loop always have a hard ceiling?</div>
+        <div class="a">Without one, a genuinely broken (non-transient) failure could retry indefinitely, consuming time and potentially masking a real problem behind what looks like a still-running job, rather than failing promptly into whatever recovery path — rollback, escalation — actually addresses non-transient failures.</div>
+      </div>
+      <div class="qa">
+        <div class="q"><span class="qn">Q3.</span> How would you design an escalation path so it doesn't get lost in routine notification noise?</div>
+        <div class="a">Route it to a distinctly separate, clearly higher-urgency notification channel or template rather than reusing the same channel as routine Success/Failure alerts, and avoid applying routine concurrency restrictions (like blocking simultaneous runs) that could suppress a second, unrelated escalation.</div>
+      </div>
+      <div class="qa">
+        <div class="q"><span class="qn">Q4.</span> A job succeeded, but took much longer than usual. What would make you suspect masked retry behavior, and how would you confirm it?</div>
+        <div class="a">An abnormal elapsed time on an otherwise-quick task is the signal; confirming it means checking the job output for retry attempts on the specific task (Ansible's registered result exposes an attempt count), which reveals whether the task actually needed multiple tries to succeed rather than completing cleanly on the first attempt.</div>
+      </div>
+      <div class="qa">
+        <div class="q"><span class="qn">Q5.</span> Why is "the job succeeded" not always sufficient information for a resilient automation platform?</div>
+        <div class="a">Because it can hide how much effort was needed to reach that success — a task that barely scraped by after several retries reports identically to one that succeeded cleanly, unless the automation is explicitly designed to surface that difference, which itself is valuable signal for spotting a degrading host or service before it becomes an outright failure.</div>
+      </div>
+    </section>
+
+    <section class="section" id="challenges">
+      <div class="eyebrow">Practice</div>
+      <h2>Coding Challenges</h2>
+      <div class="challenge">
+        <div class="num">Challenge 1</div>
+        <p><strong>Add the attempt-count visibility improvement</strong> from this project's incident — modify the restart playbook to explicitly report how many attempts were needed, and surface that value in the Success notification message from Project 11.</p>
+      </div>
+      <div class="challenge">
+        <div class="num">Challenge 2</div>
+        <p><strong>Design (on paper) a secondary escalation channel</strong> that doesn't depend on the same Slack integration as routine notifications — what would you use, and how would you decide when the primary channel has genuinely failed versus just being quiet?</p>
+      </div>
+      <div class="challenge">
+        <div class="num">Challenge 3</div>
+        <p><strong>Extend the drift-check playbook (Project 9)</strong> to flag any Job Template used as an escalation node that has <code>allow_simultaneous: false</code> — directly automating the concurrency check this project's design depends on.</p>
+      </div>
+    </section>
+
+    <section class="section" id="resume">
+      <div class="eyebrow">Practice</div>
+      <h2>Resume Points</h2>
+      <ul class="resume-list">
+        <li>Designed and implemented a three-tier automation resilience model — retry, rollback, and escalation — for a production RHAAP workflow</li>
+        <li>Added bounded task-level retry logic to absorb transient failures without masking genuine, non-transient issues</li>
+        <li>Built an automated escalation path with dedicated high-urgency notification routing, closing a gap where manual-intervention failures previously went unreported</li>
+        <li>Diagnosed a case where successful retry behavior silently obscured a degrading host issue, and implemented attempt-count visibility to surface it going forward</li>
+      </ul>
+    </section>
+
+    <section class="section" id="assignment">
+      <div class="eyebrow">Practice</div>
+      <h2>Practice Assignment</h2>
+      <div class="callout prod">
+        <div class="icon">◆</div>
+        <p><strong>Lab vs. Enterprise Production:</strong> retry logic and the escalation node are fully practicable on a lab RHAAP/AWX instance — you can simulate a transient failure by intentionally introducing a brief, self-resolving condition (e.g., a task that fails on its first invocation via a marker file, then succeeds after).</p>
+      </div>
+      <ol class="steps">
+        <li>Add retry logic to your lab's restart-service playbook, following this project's pattern.</li>
+        <li>Simulate a transient failure that resolves within the retry ceiling, and confirm the job reports success without ever reaching the workflow's Rollback path.</li>
+        <li>Build the escalation playbook and Job Template, and wire the Rollback node's Failure path to it.</li>
+        <li>Deliberately force both Restart and Rollback to fail, and confirm the Escalate node fires and its notification arrives distinctly (e.g., a different channel or clearly marked message) from routine alerts.</li>
+        <li>Add attempt-count reporting to the restart playbook and confirm it appears in job output when retries were actually used.</li>
+      </ol>
+    </section>
+
+    <section class="section" id="milestone">
+      <div class="milestone" style="background:linear-gradient(135deg,rgba(34,197,94,.1),rgba(6,182,212,.06));border:1px solid #15803d;border-radius:10px;padding:1.3rem 1.5rem;">
+        <div class="lbl" style="font-family:var(--mono);font-size:11px;color:var(--success);text-transform:uppercase;letter-spacing:.08em;margin-bottom:.4rem;">🏁 Intermediate Administration Track Complete — Projects 08–14</div>
+        <p style="margin:0;">Surveys, Job Template Governance, Schedules, Notifications, Workflows, Approvals, and now layered Failure/Recovery — the governed-restart workflow built across this track is now a genuinely production-grade piece of automation: self-service, reviewed, scheduled where appropriate, observable, approved by the right people, and resilient to failure at three distinct layers. Advanced Administration begins next with Execution Environments — the containerized runtime every one of these jobs has been quietly relying on since Project 1.</p>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<div class="footer-nav">
+  <div class="small">Project 14 / 40 — Intermediate Administration Complete</div>
+  <div class="next-card">
+    <div class="lbl">Say "Next Project" when ready</div>
+    <b>Project 15 — Dynamic Inventory</b>
+  </div>
+</div>
+
+<script>
+hljs.highlightAll();
+const tickerItems = [
+  "PROJECT 14: FAILURE AND RECOVERY WORKFLOW",
+  "ABC BANK — AUTOMATION PLATFORM TEAM",
+  "INTERMEDIATE ADMINISTRATION TRACK COMPLETE — PROJECTS 08 THROUGH 14",
+  "NEXT: PROJECT 15 — DYNAMIC INVENTORY (ADVANCED ADMINISTRATION BEGINS)",
+];
+const track = document.getElementById('tickerTrack');
+const html = tickerItems.map(t => `<span><b>●</b> ${t}</span>`).join('');
+track.innerHTML = html + html;
+
+const links = document.querySelectorAll('.toc-link');
+const sections = Array.from(links).map(l => document.querySelector(l.getAttribute('href')));
+const progressFill = document.getElementById('progressFill');
+function onScroll(){
+  const scrollPos = window.scrollY + 140;
+  let activeIdx = 0;
+  sections.forEach((sec, i) => { if(sec && sec.offsetTop <= scrollPos) activeIdx = i; });
+  links.forEach((l,i)=> l.classList.toggle('active', i === activeIdx));
+  const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+  const pct = docHeight > 0 ? (window.scrollY / docHeight) * 100 : 0;
+  progressFill.style.width = Math.min(100, Math.max(0,pct)) + '%';
+}
+window.addEventListener('scroll', onScroll);
+onScroll();
+
+function copyCode(btn){
+  const block = btn.closest('.codeblock').querySelector('code');
+  navigator.clipboard.writeText(block.innerText).then(()=>{
+    btn.textContent = 'Copied';
+    btn.classList.add('copied');
+    setTimeout(()=>{ btn.textContent='Copy'; btn.classList.remove('copied'); }, 1600);
+  });
+}
+</script>
+</body>
+</html>

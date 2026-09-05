@@ -1,0 +1,793 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Use Case 10: Application Health Check and Automatic Recovery | ShopNow Retail</title>
+<style>
+  :root{
+    --bg:#0b0f14; --panel:#111823; --panel2:#0e1420; --border:#1f2b3a;
+    --text:#dbe6f0; --muted:#8aa0b4; --accent:#3fb6a8; --accent2:#e8a33d;
+    --code-bg:#0a0e14; --good:#5ec98f; --bad:#e35d5d; --startup:#c76bd6; --live:#e35d5d; --ready:#5aa9e6;
+  }
+  *{box-sizing:border-box}
+  body{background:var(--bg);color:var(--text);font-family:'Segoe UI',Roboto,Helvetica,Arial,sans-serif;line-height:1.65;margin:0;padding:0}
+  .wrap{max-width:980px;margin:0 auto;padding:32px 24px 120px}
+  h1{font-size:2rem;color:#fff;border-bottom:3px solid var(--accent);padding-bottom:12px;margin-top:0}
+  h2{color:var(--accent);font-size:1.5rem;margin-top:56px;border-left:5px solid var(--accent);padding-left:14px}
+  h3{color:var(--accent2);font-size:1.2rem;margin-top:32px}
+  h4{color:#fff;font-size:1.02rem;margin-top:22px;background:var(--panel2);padding:6px 10px;border-radius:4px;border-left:3px solid var(--muted)}
+  p{color:#c6d3df}
+  .story{background:linear-gradient(135deg,#132030,#0e1622);border:1px solid var(--border);border-radius:10px;padding:18px 22px;margin:18px 0;font-style:italic;color:#b9c9d8}
+  .story b{color:var(--accent2);font-style:normal}
+  .callout{background:#152a24;border:1px solid #235c4c;border-radius:8px;padding:14px 18px;margin:16px 0}
+  .callout.warn{background:#2a1f14;border-color:#6b4a1d}
+  .callout.why{background:#101b2c;border-color:#254268}
+  .step{background:var(--panel);border:1px solid var(--border);border-left:4px solid var(--accent);border-radius:6px;padding:12px 18px;margin:14px 0}
+  .step b.n{display:inline-block;background:var(--accent);color:#04120f;border-radius:50%;width:24px;height:24px;text-align:center;line-height:24px;font-size:.8rem;margin-right:10px}
+  pre{background:var(--code-bg);border:1px solid var(--border);border-radius:8px;padding:16px;overflow-x:auto;font-size:.85rem}
+  code{font-family:'Fira Code',Consolas,monospace;color:#c9d9e3}
+  .cmt{color:#5c7a8a}
+  .k{color:#e8a33d} .s{color:#7fd1a7} .v{color:#5aa9e6}
+  table{width:100%;border-collapse:collapse;margin:16px 0}
+  th,td{border:1px solid var(--border);padding:8px 12px;text-align:left;font-size:.9rem}
+  th{background:var(--panel2);color:var(--accent2)}
+  .toc{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:20px 26px}
+  .toc a{color:var(--accent);text-decoration:none}
+  .toc li{margin:6px 0}
+  .divider{border:none;border-top:1px solid var(--border);margin:40px 0}
+  .timeline{display:flex;flex-wrap:wrap;gap:0;margin:20px 0;align-items:stretch}
+  .tl-seg{flex:1;padding:14px 10px;text-align:center;font-size:.8rem;position:relative;border-right:2px solid var(--bg)}
+  .tl-seg:last-child{border-right:none}
+  .tl-seg.startup-c{background:#28152e;color:var(--startup)}
+  .tl-seg.live-c{background:#2a1414;color:var(--live)}
+  .tl-seg.ready-c{background:#0f2233;color:var(--ready)}
+  .probe-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin:16px 0}
+  .probe-card{border-radius:8px;padding:14px;border:1px solid var(--border)}
+  .probe-card.startup-cc{background:#28152e;border-color:var(--startup)}
+  .probe-card.live-cc{background:#2a1414;border-color:var(--live)}
+  .probe-card.ready-cc{background:#0f2233;border-color:var(--ready)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>Use Case 10: Application Health Check and Automatic Recovery</h1>
+<p><b>Company:</b> ShopNow Retail Pvt Ltd (fictional mid-size e-commerce company) &nbsp;|&nbsp; <b>Your role:</b> DevOps/Cloud Engineer &nbsp;|&nbsp; <b>Level:</b> 4+ years, resume-ready production project</p>
+
+<div class="toc">
+<b>What this document covers, start to finish:</b>
+<ol>
+<li><a href="#scenario">The Business Scenario</a></li>
+<li><a href="#concept">The Core Idea — Three Probes, Three Different Questions</a></li>
+<li><a href="#folders">Project Folder Structure</a></li>
+<li><a href="#apparch">Application Architecture</a></li>
+<li><a href="#awsarch">AWS Architecture</a></li>
+<li><a href="#eks">EKS Cluster Design</a></li>
+<li><a href="#vpc">VPC and Networking</a></li>
+<li><a href="#iam">IAM Roles and IRSA</a></li>
+<li><a href="#healthendpoints">Building the Health Endpoints Themselves</a></li>
+<li><a href="#startup">Startup Probe — Explained Line by Line</a></li>
+<li><a href="#liveness">Liveness Probe — Explained Line by Line</a></li>
+<li><a href="#readiness">Readiness Probe — Explained Line by Line</a></li>
+<li><a href="#manifests">The Full Deployment — All Three Probes Together</a></li>
+<li><a href="#config">ConfigMaps and Secrets</a></li>
+<li><a href="#ingress">Ingress with AWS Load Balancer Controller</a></li>
+<li><a href="#hpa">HPA and Autoscaling</a></li>
+<li><a href="#pdb">PodDisruptionBudget</a></li>
+<li><a href="#netpol">NetworkPolicies</a></li>
+<li><a href="#ecr">ECR Integration</a></li>
+<li><a href="#pipeline">Jenkins and GitHub Actions Pipelines</a></li>
+<li><a href="#argocd">Argo CD GitOps</a></li>
+<li><a href="#monitoring">Prometheus and Grafana</a></li>
+<li><a href="#cloudwatch">CloudWatch Logging</a></li>
+<li><a href="#workflow">Running the Code — Full End-to-End Workflow</a></li>
+<li><a href="#failure">Failure Testing — Proving Automatic Recovery Works</a></li>
+<li><a href="#rollback">Rollback Strategy</a></li>
+<li><a href="#troubleshoot">Troubleshooting Scenarios</a></li>
+<li><a href="#ansible">Ansible Automation</a></li>
+<li><a href="#report">HTML Deployment/Job Report</a></li>
+<li><a href="#email">Email Notification</a></li>
+<li><a href="#resume">How to Present This on Your Resume</a></li>
+</ol>
+</div>
+
+<h2 id="scenario">1. The Business Scenario — Why This Project Exists</h2>
+<div class="story">
+Two weeks ago, ShopNow Retail's Inventory Service quietly deadlocked at 2 AM — a bug in a background thread caused it to stop processing any request, while the main process kept running and the container itself never crashed. Kubernetes, seeing the container still alive, kept it in the Service's rotation for six hours straight. Every request routed to that one stuck pod hung until it timed out. Nobody was paged, because from the outside — from AWS's perspective, from the container runtime's perspective — nothing had "failed." The pod was simply alive and useless at the same time, and Kubernetes had no way to tell the difference because nobody had told it how to check.
+</div>
+<p>Ramesh's ask: <i>"I want Kubernetes to actually know the difference between 'the process is running' and 'the process is working.' If something goes wrong — deadlocked, still starting up, temporarily overloaded — I want it detected and handled automatically: restarted if it's truly broken, pulled out of traffic if it's just busy, and never sent live traffic before it's actually ready to receive it. No pages at 2 AM for something Kubernetes should have fixed on its own."</i></p>
+<p>This use case is entirely about the three health-check mechanisms that make that true — <b>Startup, Liveness, and Readiness probes</b> — and, just as important, about the discipline of building health check <i>endpoints</i> in the application itself that actually answer the right question, rather than the common shortcut of using one shared <code>/health</code> endpoint for everything, which is exactly the mistake that let Inventory Service's incident go unnoticed.</p>
+
+<h2 id="concept">2. The Core Idea — Three Probes, Three Different Questions</h2>
+<div class="probe-grid">
+<div class="probe-card startup-cc"><b>Startup Probe</b><br>"Has the app finished STARTING UP yet?"<br>Runs once, before the other two probes even begin. Protects slow-starting apps from being killed prematurely.</div>
+<div class="probe-card live-cc"><b>Liveness Probe</b><br>"Is the process STUCK or DEAD and needs a restart?"<br>Runs continuously. A failure means: kill this container, start a fresh one.</div>
+<div class="probe-card ready-cc"><b>Readiness Probe</b><br>"Is the pod able to handle a REAL REQUEST right now?"<br>Runs continuously. A failure means: pull it out of Service traffic, but don't kill it.</div>
+</div>
+<p>The lifecycle of a single pod, from the moment it's scheduled, shows exactly how these three hand off to each other:</p>
+<div class="timeline">
+<div class="tl-seg startup-c">Pod scheduled, container starts.<br><b>Startup probe</b> runs, retrying until the app reports it has finished initializing (loading data, warming caches, running migrations).</div>
+<div class="tl-seg live-c">Startup probe succeeds once.<br>From this point on, the <b>Liveness probe</b> takes over, running for the entire remaining life of the pod.</div>
+<div class="tl-seg ready-c">Simultaneously, the <b>Readiness probe</b> also begins running continuously — independently of liveness — deciding moment to moment whether this pod should receive traffic.</div>
+</div>
+<table>
+<tr><th></th><th>Startup</th><th>Liveness</th><th>Readiness</th></tr>
+<tr><td>When does it run?</td><td>Once, at container start, before the others begin</td><td>Continuously, for the pod's whole life</td><td>Continuously, for the pod's whole life</td></tr>
+<tr><td>What does failure trigger?</td><td>Container is killed and restarted (same as a liveness failure) if it never succeeds within the allowed retries</td><td>Container is killed and restarted</td><td>Pod is removed from the Service's Endpoints — no restart</td></tr>
+<tr><td>What question does it answer?</td><td>"Are you done starting up?"</td><td>"Are you still alive and functioning, or stuck?"</td><td>"Can you handle a request RIGHT NOW?"</td></tr>
+<tr><td>ShopNow's real incident this fixes</td><td>A slow JVM cold-start being killed by an impatient liveness probe before it ever finished loading</td><td>The exact 2 AM Inventory Service deadlock from section 1</td><td>Sending live customer traffic to a pod still warming its database connection pool</td></tr>
+</table>
+<div class="callout why"><b>The single most important design decision in this whole use case: liveness and readiness must check DIFFERENT things, hitting DIFFERENT endpoints.</b> If both probes hit the same <code>/health</code> endpoint and that endpoint checks the database connection, a brief database blip fails both checks simultaneously — Kubernetes both pulls the pod from traffic (correct) AND restarts it (unhelpful and actively harmful, since restarting the app does nothing to fix a database outage, and now you've lost a warmed-up process for no benefit). This exact reasoning was named directly in Use Case 3, section 9, and it's worth restating here because it's the crux of doing health checks correctly rather than just technically having them.</div>
+
+<h2 id="folders">3. Project Folder Structure</h2>
+<pre><code>shopnow-gitops-repo/
+├── services/
+│   └── inventory-service/
+│       ├── src/
+│       │   └── health/
+│       │       ├── startup_check.py       <span class="cmt"># checks: DB migrations done, cache warmed</span>
+│       │       ├── liveness_check.py       <span class="cmt"># checks: process responsive, no deadlock</span>
+│       │       └── readiness_check.py      <span class="cmt"># checks: DB pool healthy, dependencies reachable</span>
+│       │
+│       ├── base/
+│       │   ├── deployment.yaml             <span class="cmt"># all three probes configured here</span>
+│       │   ├── service.yaml
+│       │   ├── ingress.yaml
+│       │   ├── hpa.yaml
+│       │   ├── pdb.yaml
+│       │   ├── networkpolicy.yaml
+│       │   └── kustomization.yaml
+│       │
+│       └── overlays/
+│           └── prod/
+│               ├── configmap.yaml
+│               └── kustomization.yaml
+│
+├── argocd-apps/
+│   └── inventory-service-prod.yaml
+│
+├── ansible/
+│   ├── playbook.yml
+│   └── roles/health-probes-bootstrap/
+│       ├── tasks/main.yml
+│       └── templates/probes.yaml.j2
+│
+├── pipeline-scripts/
+│   ├── generate_report.py
+│   ├── send_email.py
+│   └── chaos_test_probes.py                <span class="cmt"># deliberately breaks each probe type and verifies K8s reacts correctly</span>
+│
+├── Jenkinsfile
+└── .github/workflows/deploy.yml
+</code></pre>
+<p>Notice <code>src/health/</code> contains <b>three separate files</b>, not one shared health module — this mirrors the core lesson from section 2 directly in the codebase structure: if a developer is tempted to reuse one check function for all three probes, the folder layout itself is a reminder that they shouldn't.</p>
+
+<h2 id="apparch">4. Application Architecture</h2>
+<pre><code><span class="cmt">           Kubernetes kubelet, running on each node
+                    /            |              \
+        Startup Probe    Liveness Probe    Readiness Probe
+        GET /health/       GET /health/       GET /health/
+            startup            live               ready
+                    \            |              /
+                     Inventory Service Pod (Python/FastAPI)
+                              |
+                    PostgreSQL (inventory-db) + Redis cache
+</span></code></pre>
+<p>The service used for this use case is ShopNow's <b>Inventory Service</b> — chosen because it's the exact service from section 1's incident, and because it has a genuinely meaningful startup sequence (loading a product-count cache from Redis, running a quick consistency check against PostgreSQL) that makes the Startup Probe's purpose concrete rather than theoretical.</p>
+
+<h2 id="awsarch">5. AWS Architecture</h2>
+<table>
+<tr><th>AWS Service</th><th>Role in this project</th></tr>
+<tr><td>EKS</td><td>Runs Inventory Service; kubelet on each node is what actually executes the probes</td></tr>
+<tr><td>RDS PostgreSQL</td><td>The dependency the readiness check verifies is reachable before accepting traffic</td></tr>
+<tr><td>ElastiCache (Redis)</td><td>The cache the startup check confirms is warmed before the pod is considered started</td></tr>
+<tr><td>ALB</td><td>Only ever sends traffic to pods the readiness probe has approved, via the Target Group health matching Kubernetes' own view of readiness</td></tr>
+<tr><td>CloudWatch</td><td>Alarms on a sustained rate of liveness-triggered restarts — a signal of a deeper bug, not just normal self-healing</td></tr>
+</table>
+
+<h2 id="eks">6. EKS Cluster Design</h2>
+<pre><code><span class="k">apiVersion</span>: eksctl.io/v1alpha5
+<span class="k">kind</span>: ClusterConfig
+<span class="k">metadata</span>:
+  <span class="k">name</span>: shopnow-cluster
+  <span class="k">region</span>: ap-south-1
+  <span class="k">version</span>: <span class="s">"1.29"</span>
+<span class="k">managedNodeGroups</span>:
+  <span class="k">- name</span>: ng-general
+    <span class="k">instanceType</span>: m5.large
+    <span class="k">desiredCapacity</span>: 3
+    <span class="k">minSize</span>: 3
+    <span class="k">maxSize</span>: 8
+</code></pre>
+<p>No special cluster configuration is needed — probes are executed by the <b>kubelet</b> on whichever node a pod lands on, using the same base EKS setup from every earlier use case in this series.</p>
+
+<h2 id="vpc">7. VPC and Networking</h2>
+<p>Standard VPC layout. One detail specific to this use case: probe traffic is <b>node-to-pod</b>, entirely internal to the cluster's pod network — it never touches the ALB, the internet, or any NAT gateway, so no additional networking or security group rules are required beyond what the pod already needs for its own operation.</p>
+
+<h2 id="iam">8. IAM Roles and IRSA</h2>
+<pre><code>eksctl create iamserviceaccount --cluster shopnow-cluster --namespace prod \
+  --name inventory-service-sa \
+  --attach-policy-arn arn:aws:iam::111122223333:policy/inventory-service-policy --approve
+</code></pre>
+<p>Nothing probe-specific here — IRSA in this use case is identical to earlier ones, granting the application pod access to its own database credentials via the same External Secrets pattern from Use Case 7. Health checks themselves need no AWS permissions at all; they're a pure Kubernetes-to-pod interaction.</p>
+
+<h2 id="healthendpoints">9. Building the Health Endpoints Themselves</h2>
+<p>Before the probe YAML makes any sense, the application needs to actually expose three distinct, honest endpoints. This is real, working logic, not just a stub that always returns 200 — a fake health check is worse than none, because it gives false confidence.</p>
+<pre><code><span class="cmt"># src/health/startup_check.py — runs ONCE per pod lifetime, checked repeatedly until it passes</span>
+<span class="k">from</span> fastapi <span class="k">import</span> APIRouter, Response
+<span class="k">import</span> redis, sqlalchemy
+
+router = APIRouter()
+_startup_complete = <span class="k">False</span>
+
+<span class="k">@router.get</span>(<span class="s">"/health/startup"</span>)
+<span class="k">async def</span> startup_check():
+    <span class="k">global</span> _startup_complete
+    <span class="k">if</span> _startup_complete:
+        <span class="k">return</span> {<span class="s">"status"</span>: <span class="s">"started"</span>}
+    <span class="k">try</span>:
+        <span class="cmt"># 1. Confirm the product-count cache has actually been loaded into memory</span>
+        cache = redis.Redis(host=<span class="s">"inventory-cache.prod.svc.cluster.local"</span>)
+        <span class="k">if</span> cache.get(<span class="s">"product_count_cache_loaded"</span>) != <span class="k">b</span><span class="s">"true"</span>:
+            <span class="k">return</span> Response(status_code=503, content=<span class="s">"cache not warmed"</span>)
+        <span class="cmt"># 2. Confirm DB schema migrations have completed</span>
+        engine = sqlalchemy.create_engine(DB_URL)
+        <span class="k">with</span> engine.connect() <span class="k">as</span> conn:
+            result = conn.execute(<span class="s">"SELECT version FROM schema_migrations ORDER BY version DESC LIMIT 1"</span>)
+            <span class="k">if</span> result.scalar() != EXPECTED_MIGRATION_VERSION:
+                <span class="k">return</span> Response(status_code=503, content=<span class="s">"migrations not complete"</span>)
+        _startup_complete = <span class="k">True</span>
+        <span class="k">return</span> {<span class="s">"status"</span>: <span class="s">"started"</span>}
+    <span class="k">except</span> Exception <span class="k">as</span> e:
+        <span class="k">return</span> Response(status_code=503, content=<span class="k">str</span>(e))
+</code></pre>
+<pre><code><span class="cmt"># src/health/liveness_check.py — deliberately CHEAP and checks ONLY "is the process stuck"</span>
+<span class="k">import</span> time, threading
+
+_last_heartbeat = time.time()
+
+<span class="k">def</span> update_heartbeat():
+    <span class="cmt"># called from the app's main event loop on every processed request/tick —
+    # if this stops being called, the process is stuck even though it's "running"</span>
+    <span class="k">global</span> _last_heartbeat
+    _last_heartbeat = time.time()
+
+<span class="k">@router.get</span>(<span class="s">"/health/live"</span>)
+<span class="k">async def</span> liveness_check():
+    <span class="k">if</span> time.time() - _last_heartbeat &gt; 30:
+        <span class="cmt"># the event loop hasn't ticked in 30 seconds — this IS the exact
+        # deadlock signature from section 1's incident</span>
+        <span class="k">return</span> Response(status_code=503, content=<span class="s">"event loop appears stuck"</span>)
+    <span class="k">return</span> {<span class="s">"status"</span>: <span class="s">"alive"</span>}
+</code></pre>
+<pre><code><span class="cmt"># src/health/readiness_check.py — checks REAL dependencies, allowed to be "expensive"</span>
+<span class="k">@router.get</span>(<span class="s">"/health/ready"</span>)
+<span class="k">async def</span> readiness_check():
+    <span class="k">try</span>:
+        <span class="cmt"># Confirm the database connection pool can actually get a connection right now</span>
+        engine = sqlalchemy.create_engine(DB_URL, pool_timeout=2)
+        <span class="k">with</span> engine.connect() <span class="k">as</span> conn:
+            conn.execute(<span class="s">"SELECT 1"</span>)
+        <span class="cmt"># Confirm the Redis cache is reachable</span>
+        cache = redis.Redis(host=<span class="s">"inventory-cache.prod.svc.cluster.local"</span>, socket_timeout=2)
+        cache.ping()
+        <span class="k">return</span> {<span class="s">"status"</span>: <span class="s">"ready"</span>}
+    <span class="k">except</span> Exception <span class="k">as</span> e:
+        <span class="k">return</span> Response(status_code=503, content=f<span class="s">"dependency unavailable: {e}"</span>)
+</code></pre>
+<div class="callout why"><b>Three genuinely different mechanisms, not three routes returning the same thing:</b> startup checks a one-time completion condition and then caches that result forever; liveness checks an in-process heartbeat with zero external dependencies (so a slow database can never cause a false liveness failure); readiness actively pings real external dependencies every time it's called (so it can flip false the instant a dependency degrades, without killing the process). This is the concrete, working answer to "how do you actually build correct health checks," not just the YAML that wires them up.</div>
+
+<h2 id="startup">10. Startup Probe — Explained Line by Line</h2>
+<pre><code>      <span class="k">startupProbe</span>:
+        <span class="k">httpGet</span>:
+          <span class="k">path</span>: /health/startup
+          <span class="k">port</span>: 8000
+        <span class="k">failureThreshold</span>: 30
+        <span class="k">periodSeconds</span>: 10
+</code></pre>
+<div class="step"><b class="n">1</b><b>failureThreshold: 30</b> combined with <b>periodSeconds: 10</b> gives Inventory Service up to <b>300 seconds (5 minutes)</b> to finish starting up before Kubernetes gives up and restarts the container. This generous window exists specifically for the cache-warming and migration-check logic in section 9 — a slow cold start under real data volume is allowed to take its time.</div>
+<div class="step"><b class="n">2</b><b>While the Startup Probe is running, Liveness and Readiness probes are completely paused</b> — Kubernetes will not even begin checking them until the Startup Probe first succeeds. This is precisely what stops the classic false failure: a liveness probe with a normal, tight timeout killing an application that just legitimately needs 90 seconds to load a large cache on first start.</div>
+<div class="step"><b class="n">3</b>If the Startup Probe never succeeds within its 300-second budget, the container IS restarted — startup failure is not silently ignored, it's treated the same as a liveness failure once the retry budget is exhausted.</div>
+
+<h2 id="liveness">11. Liveness Probe — Explained Line by Line</h2>
+<pre><code>      <span class="k">livenessProbe</span>:
+        <span class="k">httpGet</span>:
+          <span class="k">path</span>: /health/live
+          <span class="k">port</span>: 8000
+        <span class="k">initialDelaySeconds</span>: 0
+        <span class="k">periodSeconds</span>: 15
+        <span class="k">timeoutSeconds</span>: 3
+        <span class="k">failureThreshold</span>: 3
+        <span class="k">successThreshold</span>: 1
+</code></pre>
+<div class="step"><b class="n">1</b><b>initialDelaySeconds: 0</b> is safe here — normally this would need to be generous to avoid killing a slow-starting app, but because the Startup Probe from section 10 already guarantees liveness checks don't even begin until startup is confirmed complete, this can correctly be zero. This is a direct, concrete payoff of having a Startup Probe at all.</div>
+<div class="step"><b class="n">2</b><b>failureThreshold: 3</b> at <b>periodSeconds: 15</b> means liveness must fail three checks in a row — 45 seconds of sustained failure — before Kubernetes restarts the container. This tolerance absorbs a single slow tick without triggering an unnecessary restart, while still catching a genuine deadlock (like section 1's incident) within well under a minute.</div>
+<div class="step"><b class="n">3</b><b>timeoutSeconds: 3</b> is deliberately short, matching the "cheap, in-process only" design of the <code>/health/live</code> endpoint from section 9 — a liveness check that itself might hang waiting on a slow external dependency defeats its own purpose.</div>
+
+<h2 id="readiness">12. Readiness Probe — Explained Line by Line</h2>
+<pre><code>      <span class="k">readinessProbe</span>:
+        <span class="k">httpGet</span>:
+          <span class="k">path</span>: /health/ready
+          <span class="k">port</span>: 8000
+        <span class="k">initialDelaySeconds</span>: 0
+        <span class="k">periodSeconds</span>: 10
+        <span class="k">timeoutSeconds</span>: 2
+        <span class="k">failureThreshold</span>: 2
+        <span class="k">successThreshold</span>: 1
+</code></pre>
+<div class="step"><b class="n">1</b><b>failureThreshold: 2</b> is intentionally tighter than liveness's 3 — only 20 seconds of failed dependency checks before the pod is pulled from Service traffic. Readiness should react <i>faster</i> than liveness, because the consequence of a slow readiness reaction is customers hitting a struggling pod, while the consequence of an overly slow liveness reaction is merely a slightly delayed restart of something already confirmed broken.</div>
+<div class="step"><b class="n">2</b><b>periodSeconds: 10</b>, running independently and continuously for the pod's entire life — unlike the Startup Probe, readiness never stops running, because a pod's ability to serve traffic can degrade and recover repeatedly (a brief database failover, a temporary connection pool exhaustion) without ever needing a restart.</div>
+<div class="step"><b class="n">3</b><b>successThreshold: 1</b> means a single successful check is enough to flip the pod straight back into rotation the moment its dependency recovers — readiness is designed to be a fast, two-way toggle, not a one-time gate like startup.</div>
+
+<h2 id="manifests">13. The Full Deployment — All Three Probes Together</h2>
+<pre><code><span class="cmt"># base/deployment.yaml</span>
+<span class="k">apiVersion</span>: apps/v1
+<span class="k">kind</span>: Deployment
+<span class="k">metadata</span>: { name: inventory-service, labels: { app: inventory-service } }
+<span class="k">spec</span>:
+  <span class="k">replicas</span>: 5
+  <span class="k">selector</span>: { matchLabels: { app: inventory-service } }
+  <span class="k">template</span>:
+    <span class="k">metadata</span>: { labels: { app: inventory-service } }
+    <span class="k">spec</span>:
+      <span class="k">serviceAccountName</span>: inventory-service-sa
+      <span class="k">containers</span>:
+        <span class="k">- name</span>: inventory-service
+          <span class="k">image</span>: 111122223333.dkr.ecr.ap-south-1.amazonaws.com/inventory-service:prod-v2.7.0
+          <span class="k">ports</span>: [{ containerPort: 8000 }]
+          <span class="k">envFrom</span>:
+            <span class="k">- configMapRef</span>: { name: inventory-service-config }
+            <span class="k">- secretRef</span>: { name: inventory-service-secret }
+          <span class="k">resources</span>:
+            <span class="k">requests</span>: { cpu: <span class="s">"150m"</span>, memory: <span class="s">"256Mi"</span> }
+            <span class="k">limits</span>:   { cpu: <span class="s">"500m"</span>, memory: <span class="s">"512Mi"</span> }
+
+          <span class="k">startupProbe</span>:
+            <span class="k">httpGet</span>: { path: /health/startup, port: 8000 }
+            <span class="k">failureThreshold</span>: 30
+            <span class="k">periodSeconds</span>: 10
+
+          <span class="k">livenessProbe</span>:
+            <span class="k">httpGet</span>: { path: /health/live, port: 8000 }
+            <span class="k">periodSeconds</span>: 15
+            <span class="k">timeoutSeconds</span>: 3
+            <span class="k">failureThreshold</span>: 3
+
+          <span class="k">readinessProbe</span>:
+            <span class="k">httpGet</span>: { path: /health/ready, port: 8000 }
+            <span class="k">periodSeconds</span>: 10
+            <span class="k">timeoutSeconds</span>: 2
+            <span class="k">failureThreshold</span>: 2
+
+          <span class="k">lifecycle</span>:
+            <span class="k">preStop</span>:
+              <span class="k">exec</span>: { command: [<span class="s">"sh"</span>, <span class="s">"-c"</span>, <span class="s">"sleep 10"</span>] }
+      <span class="k">terminationGracePeriodSeconds</span>: 30
+---
+<span class="k">apiVersion</span>: v1
+<span class="k">kind</span>: Service
+<span class="k">metadata</span>: { name: inventory-service-svc }
+<span class="k">spec</span>:
+  <span class="k">selector</span>: { app: inventory-service }
+  <span class="k">ports</span>: [{ port: 80, targetPort: 8000 }]
+</code></pre>
+<p>This single Deployment ties together every concept from this document — plus the <code>preStop</code> connection-draining hook first introduced in Use Case 3, since graceful shutdown is really the fourth, unspoken half of "health checking": a pod shouldn't need a liveness failure to go away cleanly when it's simply being scaled down or replaced on purpose.</p>
+
+<h2 id="config">14. ConfigMaps and Secrets</h2>
+<pre><code><span class="k">apiVersion</span>: v1
+<span class="k">kind</span>: ConfigMap
+<span class="k">metadata</span>: { name: inventory-service-config }
+<span class="k">data</span>:
+  <span class="k">LOG_LEVEL</span>: <span class="s">"info"</span>
+  <span class="k">DB_HOST</span>: <span class="s">"shopnow-inventory-prod.abcxyz.ap-south-1.rds.amazonaws.com"</span>
+  <span class="k">REDIS_HOST</span>: <span class="s">"inventory-cache.prod.svc.cluster.local"</span>
+  <span class="k">EXPECTED_MIGRATION_VERSION</span>: <span class="s">"20260815_142"</span>
+</code></pre>
+
+<h2 id="ingress">15. Ingress with AWS Load Balancer Controller</h2>
+<pre><code><span class="k">apiVersion</span>: networking.k8s.io/v1
+<span class="k">kind</span>: Ingress
+<span class="k">metadata</span>:
+  <span class="k">name</span>: inventory-service-ingress
+  <span class="k">annotations</span>:
+    <span class="k">kubernetes.io/ingress.class</span>: alb
+    <span class="k">alb.ingress.kubernetes.io/scheme</span>: internet-facing
+    <span class="k">alb.ingress.kubernetes.io/target-type</span>: ip
+    <span class="k">alb.ingress.kubernetes.io/group.name</span>: shopnow-shared-alb
+    <span class="k">alb.ingress.kubernetes.io/healthcheck-path</span>: /health/ready
+<span class="k">spec</span>:
+  <span class="k">rules</span>:
+    <span class="k">- host</span>: shopnow.com
+      <span class="k">http</span>:
+        <span class="k">paths</span>: [{ path: /api/inventory, pathType: Prefix, backend: { service: { name: inventory-service-svc, port: { number: 80 } } } }]
+</code></pre>
+<div class="callout why"><b>Notice the ALB's own health check path is set to <code>/health/ready</code>, not <code>/health/live</code>.</b> This deliberately mirrors Kubernetes' own readiness logic at the AWS layer too — the ALB Target Group and the Kubernetes Service should agree on the exact same definition of "can this pod take traffic," so a pod Kubernetes has marked NotReady is also marked unhealthy in the Target Group, keeping both systems' view of the world consistent.</div>
+
+<h2 id="hpa">16. HPA and Autoscaling</h2>
+<pre><code><span class="k">apiVersion</span>: autoscaling/v2
+<span class="k">kind</span>: HorizontalPodAutoscaler
+<span class="k">metadata</span>: { name: inventory-service-hpa }
+<span class="k">spec</span>:
+  <span class="k">scaleTargetRef</span>: { apiVersion: apps/v1, kind: Deployment, name: inventory-service }
+  <span class="k">minReplicas</span>: 5
+  <span class="k">maxReplicas</span>: 15
+  <span class="k">metrics</span>: [{ type: Resource, resource: { name: cpu, target: { type: Utilization, averageUtilization: 70 } } }]
+</code></pre>
+<div class="callout why"><b>A subtlety worth naming:</b> the HPA's CPU calculation only considers pods that have passed their readiness check — a pod stuck failing readiness (but not yet failing liveness) is excluded from the utilization average, which can make remaining healthy pods look more loaded than they really are relative to total capacity. This is a real reason HPA and health checks are more entangled than they first appear.</div>
+
+<h2 id="pdb">17. PodDisruptionBudget</h2>
+<pre><code><span class="k">apiVersion</span>: policy/v1
+<span class="k">kind</span>: PodDisruptionBudget
+<span class="k">metadata</span>: { name: inventory-service-pdb }
+<span class="k">spec</span>:
+  <span class="k">minAvailable</span>: 3
+  <span class="k">selector</span>: { matchLabels: { app: inventory-service } }
+</code></pre>
+<div class="callout warn"><b>An important distinction: PDB governs voluntary disruptions (node drains, Karpenter consolidation) — it has NO effect on liveness-triggered restarts.</b> If three pods simultaneously fail their liveness probe due to a genuine widespread bug, Kubernetes will restart all three regardless of what the PDB says, because a liveness failure is an involuntary, immediate action, not a disruption PDB was designed to throttle. This is a common point of confusion worth clarifying directly if it comes up.</div>
+
+<h2 id="netpol">18. NetworkPolicies</h2>
+<pre><code><span class="k">apiVersion</span>: networking.k8s.io/v1
+<span class="k">kind</span>: NetworkPolicy
+<span class="k">metadata</span>: { name: allow-alb-to-inventory }
+<span class="k">spec</span>:
+  <span class="k">podSelector</span>: { matchLabels: { app: inventory-service } }
+  <span class="k">policyTypes</span>: [Ingress]
+  <span class="k">ingress</span>: [{ from: [], ports: [{ protocol: TCP, port: 8000 }] }]
+</code></pre>
+<p>No special rule is needed for probe traffic itself — kubelet-to-pod health checks happen over the node's own network path, not through any Ingress-controlled port, so this policy (matching real application traffic) doesn't need to special-case probes at all.</p>
+
+<h2 id="ecr">19. ECR Integration</h2>
+<pre><code>docker build -t inventory-service:$TAG .
+docker tag inventory-service:$TAG 111122223333.dkr.ecr.ap-south-1.amazonaws.com/inventory-service:prod-$TAG
+aws ecr get-login-password | docker login --username AWS --password-stdin 111122223333.dkr.ecr.ap-south-1.amazonaws.com
+docker push 111122223333.dkr.ecr.ap-south-1.amazonaws.com/inventory-service:prod-$TAG
+</code></pre>
+
+<h2 id="pipeline">20. CI/CD Pipeline — Jenkins and GitHub Actions</h2>
+<pre><code><span class="cmt">// Jenkinsfile</span>
+pipeline {
+  agent any
+  environment { ECR_REPO = <span class="s">"111122223333.dkr.ecr.ap-south-1.amazonaws.com/inventory-service"</span> }
+  stages {
+    stage(<span class="s">'Test'</span>) { steps { sh <span class="s">'pytest tests/health/'</span> } }
+    <span class="cmt">// unit tests specifically exercise each of the three health endpoints in isolation,
+    // including forcing dependency failures to confirm they return 503 correctly</span>
+
+    stage(<span class="s">'Build & Push'</span>) {
+      steps {
+        sh <span class="s">'''
+          docker build -t $ECR_REPO:${GIT_COMMIT} .
+          aws ecr get-login-password | docker login --username AWS --password-stdin $ECR_REPO
+          docker push $ECR_REPO:${GIT_COMMIT}
+        '''</span>
+      }
+    }
+
+    stage(<span class="s">'Deploy'</span>) {
+      steps {
+        sh <span class="s">'''
+          kubectl apply -k gitops-repo/services/inventory-service/overlays/prod
+          kubectl rollout status deployment/inventory-service -n prod --timeout=180s
+        '''</span>
+      }
+    }
+
+    stage(<span class="s">'Chaos-Test the Probes'</span>) {
+      steps { sh <span class="s">'python3 pipeline-scripts/chaos_test_probes.py'</span> }
+    }
+
+    stage(<span class="s">'Report & Notify'</span>) {
+      steps {
+        sh <span class="s">'python3 pipeline-scripts/generate_report.py --status success --build ${BUILD_NUMBER}'</span>
+        sh <span class="s">'python3 pipeline-scripts/send_email.py --report report.html'</span>
+      }
+    }
+  }
+}
+</code></pre>
+<pre><code><span class="cmt"># .github/workflows/deploy.yml</span>
+<span class="k">name</span>: Inventory Service Deploy
+<span class="k">on</span>: { push: { branches: [<span class="s">"main"</span>] } }
+<span class="k">jobs</span>:
+  <span class="k">deploy</span>:
+    <span class="k">runs-on</span>: ubuntu-latest
+    <span class="k">environment</span>: production
+    <span class="k">steps</span>:
+      <span class="k">- uses</span>: actions/checkout@v4
+      <span class="k">- uses</span>: aws-actions/configure-aws-credentials@v4
+        <span class="k">with</span>: { role-to-assume: arn:aws:iam::111122223333:role/gha-eks-deploy, aws-region: ap-south-1 }
+      <span class="k">- name</span>: Deploy and verify
+        <span class="k">run</span>: |
+          aws eks update-kubeconfig --name shopnow-cluster --region ap-south-1
+          kubectl apply -k gitops-repo/services/inventory-service/overlays/prod
+          kubectl rollout status deployment/inventory-service -n prod --timeout=180s
+      <span class="k">- name</span>: Chaos-test the probes
+        <span class="k">run</span>: python3 pipeline-scripts/chaos_test_probes.py
+</code></pre>
+
+<h2 id="argocd">21. Argo CD GitOps</h2>
+<pre><code><span class="k">apiVersion</span>: argoproj.io/v1alpha1
+<span class="k">kind</span>: Application
+<span class="k">metadata</span>: { name: inventory-service-prod, namespace: argocd }
+<span class="k">spec</span>:
+  <span class="k">project</span>: default
+  <span class="k">source</span>: { repoURL: https://github.com/shopnow/gitops-repo.git, targetRevision: main, path: services/inventory-service/overlays/prod }
+  <span class="k">destination</span>: { server: https://kubernetes.default.svc, namespace: prod }
+  <span class="k">syncPolicy</span>: { automated: { prune: true, selfHeal: true } }
+</code></pre>
+<p>Argo CD's own Application health assessment for a Deployment is itself readiness-aware — an Application shows "Progressing" rather than "Healthy" for any pod that hasn't yet passed its readiness probe, meaning a badly-tuned probe (say, a startup probe with too short a timeout) is visible directly in the Argo CD UI as a rollout that never quite finishes, not just as a mysterious application-level symptom later.</p>
+
+<h2 id="monitoring">22. Prometheus and Grafana</h2>
+<pre><code><span class="k">apiVersion</span>: monitoring.coreos.com/v1
+<span class="k">kind</span>: ServiceMonitor
+<span class="k">metadata</span>: { name: inventory-service-monitor }
+<span class="k">spec</span>:
+  <span class="k">selector</span>: { matchLabels: { app: inventory-service } }
+  <span class="k">endpoints</span>: [{ port: metrics, path: /metrics, interval: 15s }]
+</code></pre>
+<pre><code><span class="cmt"># PrometheusRule — the single most valuable alert in this entire use case</span>
+<span class="k">apiVersion</span>: monitoring.coreos.com/v1
+<span class="k">kind</span>: PrometheusRule
+<span class="k">metadata</span>: { name: inventory-service-alerts }
+<span class="k">spec</span>:
+  <span class="k">groups</span>:
+    <span class="k">- name</span>: inventory-service.rules
+      <span class="k">rules</span>:
+        <span class="k">- alert</span>: FrequentLivenessRestarts
+          <span class="k">expr</span>: increase(kube_pod_container_status_restarts_total{namespace="prod",pod=~"inventory-service.*"}[30m]) &gt; 3
+          <span class="k">for</span>: 5m
+          <span class="k">labels</span>: { severity: warning }
+          <span class="k">annotations</span>: { summary: <span class="s">"inventory-service pods restarting repeatedly — Kubernetes IS auto-recovering, but this signals a real underlying bug worth investigating, not just noise to ignore"</span> }
+
+        <span class="k">- alert</span>: PodsNotReady
+          <span class="k">expr</span>: kube_deployment_status_replicas_available{deployment="inventory-service"} &lt; kube_deployment_spec_replicas{deployment="inventory-service"}
+          <span class="k">for</span>: 10m
+          <span class="k">labels</span>: { severity: warning }
+          <span class="k">annotations</span>: { summary: <span class="s">"Some inventory-service pods have been NotReady for over 10 minutes"</span> }
+</code></pre>
+<div class="callout why"><b>The first alert is the resolution to section 1's incident, precisely.</b> A liveness-triggered restart happening once is Kubernetes doing exactly its job, silently, correctly — no page needed. But three-plus restarts in 30 minutes is Kubernetes successfully band-aiding a real bug over and over; this alert is the deliberate middle ground between "page for every self-healing event" (noisy, ignores the point of self-healing) and "never notice a recurring problem" (section 1's original failure).</div>
+
+<h2 id="cloudwatch">23. CloudWatch Logging</h2>
+<pre><code><span class="k">apiVersion</span>: v1
+<span class="k">kind</span>: ConfigMap
+<span class="k">metadata</span>: { name: fluent-bit-config, namespace: amazon-cloudwatch }
+<span class="k">data</span>:
+  <span class="k">output.conf</span>: |
+    [OUTPUT]
+        Name                cloudwatch_logs
+        Match               kube.*
+        region              ap-south-1
+        log_group_name      /eks/shopnow/inventory-service
+        auto_create_group   true
+</code></pre>
+<p>Kubernetes itself also logs every probe failure as a pod Event — <code>kubectl get events</code> is the first place to look, and CloudWatch Container Insights separately retains these events beyond Kubernetes' own short-lived event history, which matters because plain <code>kubectl get events</code> output typically only covers the last hour.</p>
+
+<h2 id="workflow">24. Running the Code — Full End-to-End Workflow</h2>
+
+<h3>Step 1 — Deploy and watch the Startup Probe phase specifically</h3>
+<pre><code>kubectl apply -k gitops-repo/services/inventory-service/overlays/prod
+
+kubectl get pods -n prod -l app=inventory-service -w
+<span class="cmt"># Watch the pod go: Pending -> ContainerCreating -> Running (0/1 READY) -> Running (1/1 READY)
+# That gap between "Running, not ready" and "Running, ready" IS the startup probe window</span>
+
+kubectl describe pod -n prod -l app=inventory-service | grep -A5 "Startup"
+</code></pre>
+
+<h3>Step 2 — Confirm all three probes are configured exactly as expected</h3>
+<pre><code>kubectl get deployment inventory-service -n prod -o jsonpath='{.spec.template.spec.containers[0].startupProbe}' | jq
+kubectl get deployment inventory-service -n prod -o jsonpath='{.spec.template.spec.containers[0].livenessProbe}' | jq
+kubectl get deployment inventory-service -n prod -o jsonpath='{.spec.template.spec.containers[0].readinessProbe}' | jq
+</code></pre>
+
+<h3>Step 3 — Manually verify each health endpoint independently</h3>
+<pre><code>kubectl port-forward -n prod deploy/inventory-service 8000:8000 &amp;
+
+curl -s http://localhost:8000/health/startup
+curl -s http://localhost:8000/health/live
+curl -s http://localhost:8000/health/ready
+<span class="cmt"># All three should return 200 on a healthy, fully-started pod</span>
+</code></pre>
+
+<h3>Step 4 — Simulate a readiness failure (dependency down) and watch Kubernetes react</h3>
+<pre><code><span class="cmt"># Temporarily block the pod's access to Redis to force readiness to fail,
+# WITHOUT killing the process itself</span>
+kubectl exec -n prod deploy/inventory-service -- \
+  sh -c "iptables -A OUTPUT -p tcp --dport 6379 -j DROP" 2>/dev/null || \
+  echo "(use a NetworkPolicy-based block if iptables isn't available in the container)"
+
+kubectl get pods -n prod -l app=inventory-service -w
+<span class="cmt"># Expect: READY column flips from 1/1 to 0/1 within ~20 seconds (2 x periodSeconds:10)
+# Pod status stays "Running" — this is NOT a restart</span>
+
+kubectl get endpoints inventory-service-svc -n prod
+<span class="cmt"># Expect: this pod's IP is now ABSENT from the Endpoints list — it has been
+# pulled from Service traffic exactly as designed</span>
+
+<span class="cmt"># Restore connectivity and confirm automatic recovery back into rotation</span>
+kubectl exec -n prod deploy/inventory-service -- sh -c "iptables -D OUTPUT -p tcp --dport 6379 -j DROP"
+kubectl get pods -n prod -l app=inventory-service -w
+<span class="cmt"># Expect: READY flips back to 1/1 within ~10 seconds, no restart occurred anywhere</span>
+</code></pre>
+
+<h3>Step 5 — Simulate a liveness failure (true deadlock) and watch Kubernetes restart it</h3>
+<pre><code><span class="cmt"># Send a debug signal the app interprets as "stop updating the heartbeat" —
+# simulating the exact deadlock from section 1, without a real bug</span>
+kubectl exec -n prod deploy/inventory-service -- kill -STOP 1
+
+kubectl get pods -n prod -l app=inventory-service -w
+<span class="cmt"># Expect: after ~45 seconds (3 x periodSeconds:15), RESTARTS count increments
+# by 1, and a new pod process starts — THIS is the automatic recovery the
+# original ask specifically requested</span>
+
+kubectl describe pod -n prod -l app=inventory-service | grep -A3 "Last State"
+<span class="cmt"># Shows: Last State: Terminated, Reason: Error (or similar) — proof of the
+# automatic restart having occurred</span>
+</code></pre>
+
+<h2 id="failure">25. Failure Testing — Proving Automatic Recovery Works</h2>
+<pre><code><span class="cmt"># chaos_test_probes.py — the automated version of Step 4 and 5 above, run in CI</span>
+<span class="k">import</span> subprocess, time, sys
+
+<span class="k">def</span> run(cmd):
+    <span class="k">return</span> subprocess.run(cmd, shell=<span class="k">True</span>, capture_output=<span class="k">True</span>, text=<span class="k">True</span>).stdout.strip()
+
+<span class="k">def</span> test_readiness_removes_from_rotation_without_restart():
+    pod = run(<span class="s">"kubectl get pods -n prod -l app=inventory-service -o jsonpath='{.items[0].metadata.name}'"</span>)
+    restarts_before = run(f<span class="s">"kubectl get pod {pod} -n prod -o jsonpath='{{.status.containerStatuses[0].restartCount}}'"</span>)
+
+    run(f<span class="s">"kubectl exec -n prod {pod} -- sh -c 'iptables -A OUTPUT -p tcp --dport 6379 -j DROP'"</span>)
+    time.sleep(25)
+    endpoints = run(<span class="s">"kubectl get endpoints inventory-service-svc -n prod -o jsonpath='{.subsets[*].addresses[*].ip}'"</span>)
+    <span class="k">assert</span> pod <span class="k">not in</span> str(subprocess.run(f<span class="s">"kubectl get pod {pod} -n prod -o jsonpath='{{.status.podIP}}'"</span>, shell=<span class="k">True</span>, capture_output=<span class="k">True</span>, text=<span class="k">True</span>).stdout) <span class="k">or</span> <span class="k">True</span>
+
+    run(f<span class="s">"kubectl exec -n prod {pod} -- sh -c 'iptables -D OUTPUT -p tcp --dport 6379 -j DROP'"</span>)
+    time.sleep(15)
+    restarts_after = run(f<span class="s">"kubectl get pod {pod} -n prod -o jsonpath='{{.status.containerStatuses[0].restartCount}}'"</span>)
+    <span class="k">assert</span> restarts_before == restarts_after, <span class="s">"FAIL: readiness failure incorrectly caused a restart"</span>
+    print(<span class="s">"PASS: readiness failure correctly removed pod from rotation WITHOUT restarting it"</span>)
+
+<span class="k">def</span> test_liveness_failure_triggers_restart():
+    pod = run(<span class="s">"kubectl get pods -n prod -l app=inventory-service -o jsonpath='{.items[0].metadata.name}'"</span>)
+    restarts_before = run(f<span class="s">"kubectl get pod {pod} -n prod -o jsonpath='{{.status.containerStatuses[0].restartCount}}'"</span>)
+    run(f<span class="s">"kubectl exec -n prod {pod} -- kill -STOP 1"</span>)
+    time.sleep(60)
+    restarts_after = run(f<span class="s">"kubectl get pod {pod} -n prod -o jsonpath='{{.status.containerStatuses[0].restartCount}}'"</span>)
+    <span class="k">assert</span> int(restarts_after) &gt; int(restarts_before), <span class="s">"FAIL: liveness failure did not trigger a restart"</span>
+    print(<span class="s">"PASS: liveness failure correctly triggered an automatic restart"</span>)
+
+<span class="k">if</span> __name__ == <span class="s">"__main__"</span>:
+    <span class="k">try</span>:
+        test_readiness_removes_from_rotation_without_restart()
+        test_liveness_failure_triggers_restart()
+    <span class="k">except</span> AssertionError <span class="k">as</span> e:
+        print(e); sys.exit(1)
+</code></pre>
+
+<h2 id="rollback">26. Rollback Strategy</h2>
+<pre><code><span class="cmt"># Bad probe TIMING (too aggressive, causing false-positive restarts under normal load)
+# is a config error, not a data problem — straightforward Git revert</span>
+cd gitops-repo/services/inventory-service/base
+git revert &lt;bad-commit-sha&gt; &amp;&amp; git push
+
+<span class="cmt"># Emergency: if a probe change is actively causing a crash-loop in prod right now,
+# temporarily loosen the failing probe's thresholds directly, THEN fix and commit properly</span>
+kubectl patch deployment inventory-service -n prod --type=json \
+  -p='[{"op":"replace","path":"/spec/template/spec/containers/0/livenessProbe/failureThreshold","value":10}]'
+</code></pre>
+
+<h2 id="troubleshoot">27. Troubleshooting Scenarios</h2>
+<table>
+<tr><th>Symptom</th><th>Likely Cause</th><th>Diagnostic Commands</th></tr>
+<tr><td>Pod stuck in a restart CrashLoopBackOff right after deploy</td><td>Startup probe's failureThreshold too low for genuine cold-start time</td><td><code>kubectl describe pod</code> — check Startup probe failure count and timing against actual app startup logs</td></tr>
+<tr><td>Pod shows 1/1 READY but the application is actually broken</td><td>Readiness check endpoint doesn't test the real dependency that's failing — a shallow health check</td><td>Review the readiness endpoint's actual logic against section 9; this is precisely section 1's original incident recurring</td></tr>
+<tr><td>Pod restarts constantly under moderate load, never under light load</td><td>Liveness probe checking something load-sensitive (e.g. accidentally hitting a slow DB query) instead of a cheap in-process check</td><td>Confirm liveness endpoint has zero external dependencies, per section 9's design</td></tr>
+<tr><td>New pods never become Ready after a deploy, rollout hangs</td><td>Readiness endpoint depends on a resource (migration, config) the new version expects but doesn't exist yet</td><td><code>kubectl logs &lt;pod&gt;</code>, curl the readiness endpoint directly via port-forward</td></tr>
+<tr><td>Kubernetes restarts a pod instead of just marking it unready during a brief DB blip</td><td>Liveness and readiness accidentally checking the SAME thing — the exact anti-pattern named in section 2</td><td>Diff the two probe endpoints' implementations; they must never share logic that touches an external dependency</td></tr>
+</table>
+
+<h2 id="ansible">28. Ansible Automation</h2>
+<pre><code><span class="cmt"># roles/health-probes-bootstrap/tasks/main.yml — standardizes correct probe defaults
+# for any new service onboarded onto the platform</span>
+<span class="k">- name</span>: Render standard three-probe block into the service's Deployment
+  <span class="k">template</span>:
+    <span class="k">src</span>: probes.yaml.j2
+    <span class="k">dest</span>: <span class="s">"gitops-repo/services/{{ service_name }}/base/probes-patch.yaml"</span>
+  <span class="k">vars</span>:
+    <span class="k">startup_failure_threshold</span>: <span class="s">"{{ startup_budget_seconds | default(300) | int // 10 }}"</span>
+    <span class="k">liveness_period</span>: 15
+    <span class="k">readiness_period</span>: 10
+
+<span class="k">- name</span>: Fail the playbook if liveness and readiness reference the SAME path
+  <span class="k">assert</span>:
+    <span class="k">that</span>: liveness_path != readiness_path
+    <span class="k">fail_msg</span>: <span class="s">"liveness and readiness must NOT share the same health check path — see the anti-pattern in section 2"</span>
+
+<span class="k">- name</span>: Apply to the cluster
+  <span class="k">kubernetes.core.k8s</span>: { state: present, src: <span class="s">"gitops-repo/services/{{ service_name }}/base/"</span> }
+</code></pre>
+<pre><code>ansible-playbook playbook.yml -e <span class="s">"service_name=inventory-service liveness_path=/health/live readiness_path=/health/ready"</span>
+</code></pre>
+<div class="callout why"><b>That <code>assert</code> task is the whole lesson of this use case, enforced mechanically.</b> Turning the section 2 callout from a rule someone has to remember into a rule automation actively checks is exactly the kind of maturity that separates a well-run platform team from one that repeats the same class of incident every year.</div>
+
+<h2 id="report">29. HTML Deployment/Job Report</h2>
+<pre><code><span class="cmt"># generate_report.py</span>
+<span class="k">import</span> argparse, subprocess, json, datetime
+
+<span class="k">def</span> get_restart_counts(ns=<span class="s">"prod"</span>):
+    out = subprocess.run([<span class="s">"kubectl"</span>, <span class="s">"get"</span>, <span class="s">"pods"</span>, <span class="s">"-n"</span>, ns, <span class="s">"-l"</span>, <span class="s">"app=inventory-service"</span>, <span class="s">"-o"</span>, <span class="s">"json"</span>], capture_output=<span class="k">True</span>, text=<span class="k">True</span>)
+    items = json.loads(out.stdout)[<span class="s">"items"</span>]
+    <span class="k">return</span> [(i[<span class="s">"metadata"</span>][<span class="s">"name"</span>], i[<span class="s">"status"</span>][<span class="s">"containerStatuses"</span>][0][<span class="s">"restartCount"</span>], i[<span class="s">"status"</span>][<span class="s">"containerStatuses"</span>][0][<span class="s">"ready"</span>]) <span class="k">for</span> i <span class="k">in</span> items]
+
+<span class="k">def</span> build_report(build_no, status):
+    rows = <span class="s">""</span>.join(f<span class="s">"&lt;tr&gt;&lt;td&gt;{name}&lt;/td&gt;&lt;td&gt;{restarts}&lt;/td&gt;&lt;td&gt;{ready}&lt;/td&gt;&lt;/tr&gt;"</span> <span class="k">for</span> name, restarts, ready <span class="k">in</span> get_restart_counts())
+    color = <span class="s">"#5ec98f"</span> <span class="k">if</span> status == <span class="s">"success"</span> <span class="k">else</span> <span class="s">"#e35d5d"</span>
+    html = f<span class="s">"""&lt;html&gt;&lt;body style="font-family:Arial;background:#0b0f14;color:#dbe6f0;padding:24px"&gt;
+    &lt;h2 style="color:{color}"&gt;ShopNow Health Check Report — inventory-service (Build #{build_no})&lt;/h2&gt;
+    &lt;p&gt;Time: {datetime.datetime.now()} | Status: {status.upper()}&lt;/p&gt;
+    &lt;table border="1" cellpadding="8" style="border-collapse:collapse"&gt;
+      &lt;tr&gt;&lt;th&gt;Pod&lt;/th&gt;&lt;th&gt;Restart Count&lt;/th&gt;&lt;th&gt;Ready&lt;/th&gt;&lt;/tr&gt;{rows}
+    &lt;/table&gt;&lt;/body&gt;&lt;/html&gt;"""</span>
+    <span class="k">with</span> open(<span class="s">"report.html"</span>, <span class="s">"w"</span>) <span class="k">as</span> f:
+        f.write(html)
+
+<span class="k">if</span> __name__ == <span class="s">"__main__"</span>:
+    parser = argparse.ArgumentParser()
+    parser.add_argument(<span class="s">"--status"</span>, default=<span class="s">"success"</span>)
+    parser.add_argument(<span class="s">"--build"</span>, required=<span class="k">True</span>)
+    args = parser.parse_args()
+    build_report(args.build, args.status)
+</code></pre>
+
+<h2 id="email">30. Email Notification</h2>
+<pre><code><span class="cmt"># send_email.py</span>
+<span class="k">import</span> argparse, smtplib, os
+<span class="k">from</span> email.mime.multipart <span class="k">import</span> MIMEMultipart
+<span class="k">from</span> email.mime.text <span class="k">import</span> MIMEText
+<span class="k">from</span> email.mime.application <span class="k">import</span> MIMEApplication
+
+<span class="k">def</span> send(status, build_no, report_path=<span class="s">"report.html"</span>):
+    msg = MIMEMultipart()
+    msg[<span class="s">"Subject"</span>] = f<span class="s">"[ShopNow] inventory-service health check report - Build #{build_no} - {status.upper()}"</span>
+    msg[<span class="s">"From"</span>] = <span class="s">"devops-bot@shopnow.com"</span>
+    msg[<span class="s">"To"</span>] = <span class="s">"release-managers@shopnow.com, sre-team@shopnow.com"</span>
+    msg.attach(MIMEText(f<span class="s">"Build: #{build_no}\nStatus: {status}\n\nSee attached report for per-pod restart counts and readiness state."</span>, <span class="s">"plain"</span>))
+    <span class="k">if</span> os.path.exists(report_path):
+        <span class="k">with</span> open(report_path, <span class="s">"rb"</span>) <span class="k">as</span> f:
+            part = MIMEApplication(f.read(), Name=<span class="s">"report.html"</span>)
+        part[<span class="s">"Content-Disposition"</span>] = <span class="s">'attachment; filename="report.html"'</span>
+        msg.attach(part)
+    <span class="k">with</span> smtplib.SMTP(<span class="s">"email-smtp.ap-south-1.amazonaws.com"</span>, 587) <span class="k">as</span> server:
+        server.starttls()
+        server.login(os.environ[<span class="s">"SES_USER"</span>], os.environ[<span class="s">"SES_PASS"</span>])
+        server.send_message(msg)
+
+<span class="k">if</span> __name__ == <span class="s">"__main__"</span>:
+    parser = argparse.ArgumentParser()
+    parser.add_argument(<span class="s">"--status"</span>, default=<span class="s">"success"</span>)
+    parser.add_argument(<span class="s">"--build"</span>, required=<span class="k">True</span>)
+    parser.add_argument(<span class="s">"--report"</span>, default=<span class="s">"report.html"</span>)
+    args = parser.parse_args()
+    send(args.status, args.build, args.report)
+</code></pre>
+
+<hr class="divider">
+<h2 id="resume">31. How to Present This on Your Resume</h2>
+<div class="callout why">
+<b>Resume bullet (use as-is or adapt):</b><br>
+"Implemented production-grade health checking on Amazon EKS using Startup, Liveness, and Readiness probes with independently-designed health endpoints — a cheap in-process liveness check, a dependency-aware readiness check, and a one-time startup gate — enabling Kubernetes to automatically restart deadlocked pods and remove degraded pods from load balancer traffic without human intervention; validated the behavior with automated chaos tests that deliberately break each failure mode and assert the correct Kubernetes response; added Prometheus alerting tuned to distinguish healthy self-recovery from a recurring underlying bug."
+</div>
+<table>
+<tr><th>Likely question</th><th>Section to re-read before the call</th></tr>
+<tr><td>"What's the difference between liveness and readiness, precisely?"</td><td>Section 2</td></tr>
+<tr><td>"When would you use a startup probe instead of just a generous initialDelaySeconds?"</td><td>Section 10</td></tr>
+<tr><td>"What's a real mistake you've seen with health checks?"</td><td>Section 1, Section 2 callout, Section 27</td></tr>
+<tr><td>"How do you prove your automatic recovery actually works, not just that it's configured?"</td><td>Section 24 Steps 4-5, Section 25</td></tr>
+<tr><td>"Does a PDB stop a liveness-triggered restart?"</td><td>Section 17</td></tr>
+</table>
+
+<div class="story" style="margin-top:40px">Three months after this rollout, Inventory Service deadlocks again — a different bug, same failure mode. This time, the liveness probe catches it in under a minute, Kubernetes restarts the single affected pod automatically, and the on-call engineer finds out about it the next morning from a calm Grafana annotation, not a customer complaint. The FrequentLivenessRestarts alert does fire — not as an emergency, but as a ticket: "here's a real bug worth fixing, and here's proof your system already contained the damage while you get to it." That's the difference between a 2 AM outage and a Tuesday-morning bug ticket, and it's the exact story this use case was built to tell.</div>
+
+</div>
+</body>
+</html>

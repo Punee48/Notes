@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Project 15 — OpenShift Performance Troubleshooting: CPU, Memory &amp; I/O Bottleneck Investigation</title>
+<style>
+:root{
+  --blue:#5b9dff; --blue-bg:#132038;
+  --purple:#b58aff; --purple-bg:#221a3a;
+  --green:#3ed67f; --green-bg:#11301f;
+  --orange:#ffb15c; --orange-bg:#3a2712;
+  --red:#ff6b6b; --red-bg:#3a1616;
+  --teal:#4fd8e0; --teal-bg:#0f2f31;
+  --ink:#e7ecf5; --sub:#9aa7bd; --line:#2a3345; --bg:#0d1117; --card:#141b26;
+  --code-bg:#0a0e14; --code-ink:#dfe7f5;
+}
+*{box-sizing:border-box;}
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--ink);line-height:1.65;}
+a{color:var(--blue);}
+.progress{position:fixed;top:0;left:0;height:4px;background:linear-gradient(90deg,var(--blue),var(--teal));z-index:999;width:0%;transition:width .1s;}
+header.cover{background:linear-gradient(135deg,#101a30 0%,#241a3d 100%);color:#fff;padding:56px 24px 40px;text-align:center;border-bottom:1px solid var(--line);}
+header.cover .badge{display:inline-block;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);padding:6px 14px;border-radius:20px;font-size:13px;letter-spacing:.5px;margin-bottom:14px;}
+header.cover h1{margin:8px auto;max-width:900px;font-size:32px;}
+header.cover p.sub{max-width:750px;margin:10px auto 0;opacity:.85;font-size:16px;}
+.meta-grid{display:flex;flex-wrap:wrap;gap:12px;justify-content:center;margin-top:26px;}
+.meta-chip{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.18);padding:8px 16px;border-radius:8px;font-size:13px;}
+nav.toc{position:sticky;top:0;background:#0f151f;border-bottom:1px solid var(--line);z-index:100;padding:10px 16px;overflow-x:auto;white-space:nowrap;}
+nav.toc a{color:var(--sub);text-decoration:none;font-size:13px;margin-right:18px;padding:6px 10px;border-radius:6px;}
+nav.toc a:hover{background:var(--blue-bg);color:var(--blue);}
+main{max-width:980px;margin:0 auto;padding:30px 20px 80px;}
+section{margin-bottom:46px;}
+h2{font-size:24px;border-left:5px solid var(--blue);padding-left:12px;margin-top:10px;color:#fff;}
+h3{font-size:19px;color:var(--purple);margin-top:28px;}
+h4{font-size:16px;color:#fff;margin-top:20px;}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:20px 22px;margin:16px 0;}
+.box{border-radius:10px;padding:16px 18px;margin:14px 0;border-left:5px solid;}
+.box.concept{background:var(--blue-bg);border-color:var(--blue);}
+.box.arch{background:var(--purple-bg);border-color:var(--purple);}
+.box.success{background:var(--green-bg);border-color:var(--green);}
+.box.warning{background:var(--orange-bg);border-color:var(--orange);}
+.box.fail{background:var(--red-bg);border-color:var(--red);}
+.box.best{background:var(--teal-bg);border-color:var(--teal);}
+.box strong.tag{display:block;font-size:12px;text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px;opacity:.85;}
+details{background:var(--card);border:1px solid var(--line);border-radius:10px;margin:12px 0;padding:4px 16px;}
+details summary{cursor:pointer;font-weight:600;padding:12px 0;color:var(--blue);}
+table{width:100%;border-collapse:collapse;margin:14px 0;font-size:14px;}
+th,td{border:1px solid var(--line);padding:9px 12px;text-align:left;vertical-align:top;}
+th{background:var(--blue-bg);color:var(--blue);}
+tr:nth-child(even){background:#101623;}
+.codewrap{position:relative;margin:14px 0;}
+pre{background:var(--code-bg);color:var(--code-ink);padding:18px;border-radius:10px;overflow-x:auto;font-size:13px;line-height:1.6;font-family:"SF Mono",Menlo,Consolas,monospace;border:1px solid var(--line);}
+pre .c{color:#6fd18a;}
+.copy-btn{position:absolute;top:10px;right:10px;background:#22304a;color:#fff;border:1px solid var(--line);padding:6px 12px;border-radius:6px;font-size:12px;cursor:pointer;}
+.copy-btn:hover{background:#2c3d5e;}
+.cmd-label{font-size:12px;color:var(--sub);text-transform:uppercase;letter-spacing:.5px;margin:14px 0 4px;}
+.flow{background:var(--purple-bg);border:1px dashed var(--purple);border-radius:10px;padding:16px;font-family:monospace;white-space:pre;font-size:13px;overflow-x:auto;color:var(--ink);}
+.qa{margin:14px 0;padding:14px 16px;background:var(--card);border:1px solid var(--line);border-radius:8px;}
+.qa .q{font-weight:600;color:var(--purple);}
+.badge-diff{display:inline-block;padding:3px 10px;border-radius:12px;font-size:12px;font-weight:600;}
+.badge-diff.mid{background:var(--orange-bg);color:var(--orange);}
+.steps{counter-reset:step;}
+.step{position:relative;padding:14px 16px 14px 52px;margin:10px 0;background:var(--card);border:1px solid var(--line);border-radius:10px;}
+.step::before{counter-increment:step;content:counter(step);position:absolute;left:14px;top:14px;width:26px;height:26px;background:var(--blue);color:#0d1117;font-weight:700;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;}
+footer{text-align:center;padding:30px;color:var(--sub);font-size:13px;}
+</style>
+</head>
+<body>
+<div class="progress" id="progressBar"></div>
+
+<header class="cover">
+  <div class="badge">OPENSHIFT + ANSIBLE MASTERCLASS · PROJECT 15 OF ~28</div>
+  <h1>OpenShift Performance Troubleshooting: CPU, Memory &amp; I/O Bottleneck Investigation</h1>
+  <p class="sub">Building an Ansible-driven performance triage playbook layered on top of the metrics (Project 8) and logs (Project 9) pipelines, and resolving a live "app is slow but nothing is crashing" incident.</p>
+  <div class="meta-grid">
+    <div class="meta-chip">Difficulty: <span class="badge-diff mid">Advanced</span></div>
+    <div class="meta-chip">Domain: Telecom / Platform Engineering</div>
+    <div class="meta-chip">OpenShift: 4.14+</div>
+    <div class="meta-chip">Ansible Core: 2.16 · kubernetes.core 3.x</div>
+    <div class="meta-chip">Lab Time: ~3.5 hrs</div>
+    <div class="meta-chip">Infra Cost: $0 (CRC / existing cluster)</div>
+  </div>
+</header>
+
+<nav class="toc">
+  <a href="#story">Story</a>
+  <a href="#device">Run On Your Device</a>
+  <a href="#architecture">Architecture</a>
+  <a href="#playbooks">Playbooks</a>
+  <a href="#run">Execution</a>
+  <a href="#incident">Incident</a>
+  <a href="#breakfix">Break-Fix</a>
+  <a href="#security">Security</a>
+  <a href="#interview">Interview</a>
+  <a href="#resume">Resume</a>
+  <a href="#cheatsheet">Cheat Sheet</a>
+  <a href="#summary">Key Learnings</a>
+</nav>
+
+<main>
+
+<section id="story">
+<h2>1. The Production Story</h2>
+<div class="box concept">
+<strong class="tag">Scenario</strong>
+payment-api is up, no pods are crashing, no alerts are firing — but customers report checkout "feels slow," and the support team can't quantify it beyond that. This is the hardest kind of incident: nothing is obviously broken, so the team needs a structured way to actually find the bottleneck instead of guessing.
+</div>
+<div class="box warning">
+<strong class="tag">Business Problem</strong>
+Performance investigations have historically been ad hoc — whoever's on call tries a random assortment of commands. We need a repeatable, layered triage method: CPU → memory → I/O → network → application, in that order, backed by the metrics/logs infrastructure we already built.
+</div>
+<div class="box best">
+<strong class="tag">Our Mandate</strong>
+Build an Ansible performance-triage playbook that pulls CPU/memory/throttling data across the stack in one pass, and use it live to find the real bottleneck.
+</div>
+</section>
+
+<section id="device">
+<h2>2. Run This On Your Device</h2>
+<div class="steps">
+<div class="step"><strong>Confirm metrics (Project 8) and logging (Project 9) are both working.</strong>
+<div class="codewrap"><pre>oc get servicemonitor -n payment-api-dev
+oc get lokistack -n openshift-logging</pre></div>
+</div>
+<div class="step"><strong>Add the performance triage playbook files from Section 4 to your repo.</strong>
+<div class="codewrap"><pre>mkdir -p payment-stack/playbooks</pre></div>
+</div>
+<div class="step"><strong>Run the triage playbook.</strong>
+<div class="codewrap"><pre>ansible-playbook playbooks/perf_triage.yml -e app_name=payment-api -e environment=dev</pre></div>
+</div>
+<div class="step"><strong>Read the generated report.</strong>
+<div class="codewrap"><pre>cat perf-triage-report.txt</pre></div>
+</div>
+<div class="step"><strong>(Optional) Generate synthetic CPU load to see it caught.</strong>
+<div class="codewrap"><pre>oc rsh deploy/payment-api-backend -n payment-api-dev -- \
+  sh -c "yes > /dev/null &"</pre></div>
+</div>
+</div>
+</section>
+
+<section id="architecture">
+<h2>3. Architecture</h2>
+<div class="box arch"><strong class="tag">Concept</strong>Performance triage follows a strict layer order because each layer can produce misleading symptoms at the layer above it. CPU throttling looks like slow application code. Memory pressure looks like random restarts. Disk I/O saturation looks like a slow database when the database itself is fine. Working top-down (or in a fixed order) prevents chasing the wrong layer.</div>
+<div class="flow">1. CPU        — oc adm top pod, cpu throttling metric (container_cpu_cfs_throttled)
+2. Memory     — oc adm top pod, working set vs limit, OOMKilled history
+3. Disk I/O   — PVC-backed workloads: read/write latency from kubelet_volume_stats
+4. Network    — Service latency, DNS resolution time
+5. Application — actual code-level slowness, visible only once 1-4 are ruled out</div>
+<table>
+<tr><th>Layer</th><th>Key metric/signal</th><th>Tool</th></tr>
+<tr><td>CPU</td><td>Usage vs request/limit; throttled periods</td><td><code>oc adm top pod</code>, Prometheus <code>container_cpu_cfs_throttled_periods_total</code></td></tr>
+<tr><td>Memory</td><td>Working set vs limit; OOMKilled count</td><td><code>oc adm top pod</code>, <code>oc get events</code></td></tr>
+<tr><td>Disk I/O</td><td>Volume read/write latency</td><td>Prometheus <code>kubelet_volume_stats_*</code></td></tr>
+<tr><td>Network</td><td>Service-to-service latency, DNS lookup time</td><td>Application logs (Project 9 correlation IDs), <code>oc rsh</code> + <code>dig</code></td></tr>
+</table>
+</section>
+
+<section id="playbooks">
+<h2>4. The Playbooks — Fully Commented</h2>
+
+<h3>4.1 playbooks/perf_triage.yml</h3>
+<div class="cmd-label">playbooks/perf_triage.yml</div>
+<div class="codewrap"><pre><span class="c">---
+# READ-ONLY layered performance triage: CPU, then memory, then
+# recent OOM events, then a throttling check. Produces one report
+# instead of requiring the engineer to remember command sequences.</span>
+- name: Performance triage for {{ app_name }}
+  hosts: localhost
+  connection: local
+  gather_facts: true
+
+  tasks:
+    - name: Get current CPU/memory usage for all app pods                  <span class="c"># 'oc adm top' isn't a native Ansible module -- shell it, read-only</span>
+      ansible.builtin.command:                                              <span class="c"># command, not shell -- no piping needed, slightly safer</span>
+        cmd: >
+          oc adm top pod -n {{ app_name }}-{{ environment }}
+          --no-headers                                                       <span class="c"># drop the header row for easier parsing</span>
+      register: top_output                                                   <span class="c"># raw text output, one line per pod</span>
+      changed_when: false                                                     <span class="c"># explicitly a read-only query -- never reports 'changed'</span>
+
+    - name: Get resource requests/limits for comparison                       <span class="c"># raw usage numbers are meaningless without their bounds</span>
+      kubernetes.core.k8s_info:                                                <span class="c"># structured, safer than parsing text for this part</span>
+        kind: Pod
+        namespace: "{{ app_name }}-{{ environment }}"
+        label_selectors: ["app={{ app_name }}-backend"]                         <span class="c"># scoped to the tier customers actually reported as slow</span>
+      register: pods_info                                                       <span class="c"># holds full pod specs including resources</span>
+
+    - name: Check for recent OOMKilled events                                    <span class="c"># memory pressure often manifests as silent restarts, not obvious errors</span>
+      kubernetes.core.k8s_info:
+        kind: Event                                                               <span class="c"># Kubernetes Event objects, short-lived (~1hr retention by default)</span>
+        namespace: "{{ app_name }}-{{ environment }}"
+        field_selectors: ["reason=OOMKilling"]                                     <span class="c"># filters server-side to just this reason</span>
+      register: oom_events                                                          <span class="c"># holds any matching events in the retention window</span>
+
+    - name: Query CPU throttling metric via Prometheus (Thanos Querier)               <span class="c"># the single most-missed CPU-layer signal</span>
+      ansible.builtin.uri:                                                             <span class="c"># direct HTTP query against the cluster's metrics API</span>
+        url: "https://thanos-querier.openshift-monitoring.svc:9091/api/v1/query"
+        method: GET
+        body_format: form-urlencoded
+        body:
+          query: >-
+            rate(container_cpu_cfs_throttled_periods_total{namespace="{{ app_name }}-{{ environment }}"}[5m])  <span class="c"># PromQL: throttled periods per second over 5m</span>
+        headers:
+          Authorization: "Bearer {{ lookup('env', 'PROM_TOKEN') }}"                     <span class="c"># service account token, never hardcoded -- pulled from environment</span>
+        validate_certs: true
+      register: throttle_query                                                            <span class="c"># holds the raw Prometheus API JSON response</span>
+      ignore_errors: true                                                                  <span class="c"># don't fail the whole triage if Thanos Querier access isn't configured yet</span>
+
+    - name: Write the performance triage report                                            <span class="c"># local file, not a cluster object -- pure output</span>
+      ansible.builtin.copy:
+        dest: "./perf-triage-report.txt"
+        content: |
+          Performance Triage Report — {{ ansible_date_time.iso8601 }}
+          =====================================================
+          CPU/Memory (oc adm top):
+          {{ top_output.stdout }}
+
+          OOMKilled events in retention window: {{ oom_events.resources | length }}
+          {{ oom_events.resources | map(attribute='message') | join('\n') if oom_events.resources else '  (none)' }}
+
+          CPU throttling query: {{ 'reachable' if throttle_query is succeeded else 'query failed -- check PROM_TOKEN / Thanos access' }}
+
+    - name: Surface a warning if any OOMKilled events were found                             <span class="c"># fails the play visibly -- same pattern as Project 11's health gate</span>
+      ansible.builtin.fail:
+        msg: "OOMKilled events found -- see perf-triage-report.txt"
+      when: oom_events.resources | length &gt; 0</pre></div>
+</section>
+
+<section id="run">
+<h2>5. Execution</h2>
+<div class="codewrap"><pre>export PROM_TOKEN=$(oc create token prometheus-k8s -n openshift-monitoring)
+ansible-playbook playbooks/perf_triage.yml -e app_name=payment-api -e environment=dev</pre></div>
+<div class="box success"><strong class="tag">Healthy run</strong><pre style="background:#0f2b1c;border-color:#1a4a2c;">PLAY RECAP *** ok=5 changed=0 failed=0</pre></div>
+</section>
+
+<section id="incident">
+<h2>6. Live Incident — "Slow But Nothing Is Crashing"</h2>
+<div class="box fail"><strong class="tag">Report</strong>Checkout feels slow. No alerts firing, no pod restarts, no errors in the logs.</div>
+
+<div class="cmd-label">Step 1 — run the triage playbook first</div>
+<div class="codewrap"><pre>ansible-playbook playbooks/perf_triage.yml -e app_name=payment-api -e environment=prod
+cat perf-triage-report.txt
+CPU/Memory (oc adm top):
+payment-api-backend-7f-a1   480m   210Mi
+payment-api-backend-7f-b2   495m   205Mi
+
+OOMKilled events: 0
+CPU throttling query: reachable</pre></div>
+<p>CPU usage is near the 500m limit on both pods — a strong lead. Check the actual throttling number, not just usage.</p>
+
+<div class="cmd-label">Step 2 — query the throttling metric directly in the console</div>
+<div class="codewrap"><pre><span class="c">PromQL in Observe &gt; Metrics:</span>
+rate(container_cpu_cfs_throttled_periods_total{namespace="payment-api-prod"}[5m])
+&gt; 0.85   <span class="c"># pods are being throttled ~85% of measured periods</span></pre></div>
+<div class="box fail"><strong class="tag">Root cause candidate</strong>The backend's CPU <em>limit</em> (500m, set back in Project 3) is now too low for current load — the container is being CPU-throttled by the kernel's CFS scheduler well before it hits any crash condition. This produces exactly the symptom reported: slow, not broken.</div>
+
+<div class="cmd-label">Step 3 — cross-check against actual request latency via logs (Project 9)</div>
+<div class="codewrap"><pre>{kubernetes_namespace_name="payment-api-prod"} | json | duration_ms > 2000
+<span class="c"># confirms a spike in slow requests correlating with the same time window as the throttling</span></pre></div>
+
+<div class="cmd-label">Step 4 — fix: raise the CPU limit deliberately via Ansible (not a hotfix hand-edit)</div>
+<div class="codewrap"><pre><span class="c"># In roles/backend/tasks/main.yml, update:</span>
+resources:
+  requests: {cpu: 200m, memory: 256Mi}
+  limits: {cpu: "1", memory: 512Mi}     <span class="c"># raised from 500m -- based on observed throttling, not a guess</span></pre></div>
+<div class="codewrap"><pre>ansible-playbook playbooks/site.yml -e app_name=payment-api -e environment=prod</pre></div>
+
+<div class="cmd-label">Step 5 — validate</div>
+<div class="codewrap"><pre>ansible-playbook playbooks/perf_triage.yml -e app_name=payment-api -e environment=prod
+<span class="c"># throttling metric drops toward 0 over the following 15 minutes</span></pre></div>
+<div class="box success"><strong class="tag">Resolved</strong>Checkout latency returned to normal; root cause was CPU limit sizing, not a code regression or infrastructure failure.</div>
+
+<h3>RCA Summary</h3>
+<table>
+<tr><th>Field</th><th>Detail</th></tr>
+<tr><td>Impact</td><td>Elevated checkout latency, no hard failures, hard to notice without deliberate triage</td></tr>
+<tr><td>Root cause</td><td>Backend CPU limit (500m) too low for current traffic, causing CFS throttling well under the alerting thresholds from Project 8</td></tr>
+<tr><td>Fix</td><td>Raised CPU limit based on observed throttling data, applied via Ansible</td></tr>
+<tr><td>Preventive action</td><td>Add a PrometheusRule alert (extends Project 8) for sustained CPU throttling above a threshold, since "not crashing" was masking a real problem</td></tr>
+</table>
+</section>
+
+<section id="breakfix">
+<h2>7. Additional Break-Fix Labs</h2>
+<details><summary>Break-Fix — disk I/O bottleneck on the database tier</summary>
+<div class="codewrap"><pre><span class="c">PromQL:</span>
+rate(kubelet_volume_stats_write_latency_seconds_sum{namespace="payment-api-prod"}[5m])
+&gt; 0.05   <span class="c"># 50ms+ average write latency -- unusually high for the configured StorageClass</span></pre></div>
+<p><strong>Root cause:</strong> the StorageClass backing the database PVC (Project 6) uses a slower storage tier than expected — checking <code>oc get storageclass -o yaml</code> confirms the provisioner parameters. <strong>Fix:</strong> migrate to a faster StorageClass (requires the PVC migration runbook, not a simple expand) or reduce write volume via application-level batching.</p>
+</details>
+<details><summary>Break-Fix — DNS resolution adding latency</summary>
+<div class="codewrap"><pre>oc rsh deploy/payment-api-backend -n payment-api-prod
+time nslookup payment-api-postgres
+<span class="c"># real 0m1.240s -- unusually slow for in-cluster DNS, should be ms not seconds</span></pre></div>
+<p><strong>Root cause:</strong> CoreDNS pods under resource pressure on a specific node. <strong>Fix:</strong> apply the same node-triage method from Project 11 to the nodes running CoreDNS pods specifically.</p>
+</details>
+</section>
+
+<section id="security">
+<h2>8. Security Review</h2>
+<table>
+<tr><th>Control</th><th>Detail</th></tr>
+<tr><td>Scoped Prometheus access</td><td>Triage queries use a dedicated service account token, not a personal credential</td></tr>
+<tr><td>Read-only investigation</td><td>Entire triage playbook only queries state — no risk of making an incident worse while diagnosing it</td></tr>
+<tr><td>Deliberate limit changes</td><td>Resource limit fixes go through Ansible/Git, never a manual hotfix under pressure</td></tr>
+</table>
+</section>
+
+<section id="interview">
+<h2>9. Interview Preparation</h2>
+<div class="qa"><div class="q">Interviewer: "An app is slow but nothing is crashing or alerting — how do you approach it?"</div>
+<p><strong>Answer:</strong> I go layer by layer — CPU, memory, disk I/O, network, then application code — because each layer can produce misleading symptoms at the layer above. In one real case, usage looked fine at a glance, but the actual CPU throttling metric showed pods being throttled 85% of the time — the container was hitting its CFS limit constantly, which reads as "slow" rather than "crashed" because the kernel just delays execution instead of killing anything.</p></div>
+<div class="qa"><div class="q">Interviewer: "Why didn't your existing alerts catch this?"</div>
+<p><strong>Answer:</strong> Our Project 8 alerts covered restart rate and endpoint availability — real failure signals — but not sustained CPU throttling, which is a degradation signal, not a failure signal. That gap became the direct preventive action: add a throttling-specific alert so this class of issue pages someone before a customer notices.</p></div>
+</section>
+
+<section id="resume">
+<h2>10. Resume Points</h2>
+<div class="box best"><ul>
+<li>Built a layered Ansible performance-triage playbook (CPU, memory, OOM events, throttling) integrated with Prometheus, standardizing "slow but not crashing" incident investigation.</li>
+<li>Diagnosed a production latency incident to CPU throttling caused by an under-sized resource limit, resolving it with a data-driven capacity change and adding a new alert to close the detection gap.</li>
+</ul></div>
+</section>
+
+<section id="cheatsheet">
+<h2>11. Troubleshooting Cheat Sheet</h2>
+<table>
+<tr><th>Symptom</th><th>Check</th></tr>
+<tr><td>Slow but not crashing</td><td>CPU throttling metric FIRST, before assuming application code is the issue</td></tr>
+<tr><td>Random restarts</td><td>OOMKilled events, working set vs memory limit</td></tr>
+<tr><td>Slow DB queries</td><td>Volume read/write latency metrics before blaming query design</td></tr>
+<tr><td>Slow service-to-service calls</td><td>DNS resolution time via <code>time nslookup</code> inside a pod</td></tr>
+</table>
+</section>
+
+<section id="summary">
+<h2>12. Key Learnings</h2>
+<div class="card">
+<h4>OpenShift concepts</h4><p>CFS CPU throttling vs raw usage, OOMKilled event semantics, layered performance troubleshooting order and why it matters.</p>
+<h4>Ansible concepts</h4><p>Combining shell/command output with structured <code>k8s_info</code> queries, direct Prometheus API queries via <code>uri</code>, field selectors for targeted Event queries.</p>
+<h4>Commands learned</h4><p><code>oc adm top pod</code>, PromQL for <code>container_cpu_cfs_throttled_periods_total</code>, <code>time nslookup</code> for in-pod DNS latency checks.</p>
+<h4>Next project prerequisites</h4><p>Keep this repo — Project 16 formalizes production incident management end-to-end, tying together every troubleshooting method built across Projects 2-15 into one consistent incident response framework.</p>
+</div>
+</section>
+
+</main>
+<footer>OpenShift + Ansible Masterclass — Project 15 of ~28.</footer>
+<script>
+window.addEventListener('scroll', function(){
+  var h = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+  var p = h ? (window.scrollY / h) * 100 : 0;
+  document.getElementById('progressBar').style.width = p + '%';
+});
+document.querySelectorAll('pre').forEach(function(pre){
+  if(pre.parentElement.classList.contains('codewrap')){
+    var btn = document.createElement('button');
+    btn.className = 'copy-btn'; btn.textContent = 'Copy';
+    btn.onclick = function(){
+      navigator.clipboard.writeText(pre.innerText);
+      btn.textContent = 'Copied!';
+      setTimeout(function(){ btn.textContent = 'Copy'; }, 1500);
+    };
+    pre.parentElement.appendChild(btn);
+  }
+});
+</script>
+</body>
+</html>

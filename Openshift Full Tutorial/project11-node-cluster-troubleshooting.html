@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Project 11 — OpenShift Node &amp; Cluster-Level Troubleshooting Automation</title>
+<style>
+:root{
+  --blue:#5b9dff; --blue-bg:#132038;
+  --purple:#b58aff; --purple-bg:#221a3a;
+  --green:#3ed67f; --green-bg:#11301f;
+  --orange:#ffb15c; --orange-bg:#3a2712;
+  --red:#ff6b6b; --red-bg:#3a1616;
+  --teal:#4fd8e0; --teal-bg:#0f2f31;
+  --ink:#e7ecf5; --sub:#9aa7bd; --line:#2a3345; --bg:#0d1117; --card:#141b26;
+  --code-bg:#0a0e14; --code-ink:#dfe7f5;
+}
+*{box-sizing:border-box;}
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--ink);line-height:1.65;}
+a{color:var(--blue);}
+.progress{position:fixed;top:0;left:0;height:4px;background:linear-gradient(90deg,var(--blue),var(--teal));z-index:999;width:0%;transition:width .1s;}
+header.cover{background:linear-gradient(135deg,#101a30 0%,#241a3d 100%);color:#fff;padding:56px 24px 40px;text-align:center;border-bottom:1px solid var(--line);}
+header.cover .badge{display:inline-block;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);padding:6px 14px;border-radius:20px;font-size:13px;letter-spacing:.5px;margin-bottom:14px;}
+header.cover h1{margin:8px auto;max-width:900px;font-size:32px;}
+header.cover p.sub{max-width:750px;margin:10px auto 0;opacity:.85;font-size:16px;}
+.meta-grid{display:flex;flex-wrap:wrap;gap:12px;justify-content:center;margin-top:26px;}
+.meta-chip{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.18);padding:8px 16px;border-radius:8px;font-size:13px;}
+nav.toc{position:sticky;top:0;background:#0f151f;border-bottom:1px solid var(--line);z-index:100;padding:10px 16px;overflow-x:auto;white-space:nowrap;}
+nav.toc a{color:var(--sub);text-decoration:none;font-size:13px;margin-right:18px;padding:6px 10px;border-radius:6px;}
+nav.toc a:hover{background:var(--blue-bg);color:var(--blue);}
+main{max-width:980px;margin:0 auto;padding:30px 20px 80px;}
+section{margin-bottom:46px;}
+h2{font-size:24px;border-left:5px solid var(--blue);padding-left:12px;margin-top:10px;color:#fff;}
+h3{font-size:19px;color:var(--purple);margin-top:28px;}
+h4{font-size:16px;color:#fff;margin-top:20px;}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:20px 22px;margin:16px 0;}
+.box{border-radius:10px;padding:16px 18px;margin:14px 0;border-left:5px solid;}
+.box.concept{background:var(--blue-bg);border-color:var(--blue);}
+.box.arch{background:var(--purple-bg);border-color:var(--purple);}
+.box.success{background:var(--green-bg);border-color:var(--green);}
+.box.warning{background:var(--orange-bg);border-color:var(--orange);}
+.box.fail{background:var(--red-bg);border-color:var(--red);}
+.box.best{background:var(--teal-bg);border-color:var(--teal);}
+.box strong.tag{display:block;font-size:12px;text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px;opacity:.85;}
+details{background:var(--card);border:1px solid var(--line);border-radius:10px;margin:12px 0;padding:4px 16px;}
+details summary{cursor:pointer;font-weight:600;padding:12px 0;color:var(--blue);}
+table{width:100%;border-collapse:collapse;margin:14px 0;font-size:14px;}
+th,td{border:1px solid var(--line);padding:9px 12px;text-align:left;vertical-align:top;}
+th{background:var(--blue-bg);color:var(--blue);}
+tr:nth-child(even){background:#101623;}
+.codewrap{position:relative;margin:14px 0;}
+pre{background:var(--code-bg);color:var(--code-ink);padding:18px;border-radius:10px;overflow-x:auto;font-size:13px;line-height:1.6;font-family:"SF Mono",Menlo,Consolas,monospace;border:1px solid var(--line);}
+pre .c{color:#6fd18a;}
+.copy-btn{position:absolute;top:10px;right:10px;background:#22304a;color:#fff;border:1px solid var(--line);padding:6px 12px;border-radius:6px;font-size:12px;cursor:pointer;}
+.copy-btn:hover{background:#2c3d5e;}
+.cmd-label{font-size:12px;color:var(--sub);text-transform:uppercase;letter-spacing:.5px;margin:14px 0 4px;}
+.flow{background:var(--purple-bg);border:1px dashed var(--purple);border-radius:10px;padding:16px;font-family:monospace;white-space:pre;font-size:13px;overflow-x:auto;color:var(--ink);}
+.qa{margin:14px 0;padding:14px 16px;background:var(--card);border:1px solid var(--line);border-radius:8px;}
+.qa .q{font-weight:600;color:var(--purple);}
+.badge-diff{display:inline-block;padding:3px 10px;border-radius:12px;font-size:12px;font-weight:600;}
+.badge-diff.mid{background:var(--orange-bg);color:var(--orange);}
+.steps{counter-reset:step;}
+.step{position:relative;padding:14px 16px 14px 52px;margin:10px 0;background:var(--card);border:1px solid var(--line);border-radius:10px;}
+.step::before{counter-increment:step;content:counter(step);position:absolute;left:14px;top:14px;width:26px;height:26px;background:var(--blue);color:#0d1117;font-weight:700;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;}
+footer{text-align:center;padding:30px;color:var(--sub);font-size:13px;}
+</style>
+</head>
+<body>
+<div class="progress" id="progressBar"></div>
+
+<header class="cover">
+  <div class="badge">OPENSHIFT + ANSIBLE MASTERCLASS · PROJECT 11 OF ~28</div>
+  <h1>OpenShift Node &amp; Cluster-Level Troubleshooting Automation</h1>
+  <p class="sub">Building an Ansible cluster-health check playbook (nodes, ClusterOperators, ClusterVersion) and working through a real NotReady-node incident and a degraded ClusterOperator, layer by layer.</p>
+  <div class="meta-grid">
+    <div class="meta-chip">Difficulty: <span class="badge-diff mid">Advanced</span></div>
+    <div class="meta-chip">Domain: Telecom / Platform Engineering</div>
+    <div class="meta-chip">OpenShift: 4.14+</div>
+    <div class="meta-chip">Ansible Core: 2.16 · kubernetes.core 3.x</div>
+    <div class="meta-chip">Lab Time: ~3.5 hrs</div>
+    <div class="meta-chip">Infra Cost: $0 (CRC / existing cluster)</div>
+  </div>
+</header>
+
+<nav class="toc">
+  <a href="#story">Story</a>
+  <a href="#device">Run On Your Device</a>
+  <a href="#architecture">Architecture</a>
+  <a href="#playbooks">Playbooks</a>
+  <a href="#run">Execution</a>
+  <a href="#incident">Incident</a>
+  <a href="#breakfix">Break-Fix</a>
+  <a href="#security">Security</a>
+  <a href="#interview">Interview</a>
+  <a href="#resume">Resume</a>
+  <a href="#cheatsheet">Cheat Sheet</a>
+  <a href="#summary">Key Learnings</a>
+</nav>
+
+<main>
+
+<section id="story">
+<h2>1. The Production Story</h2>
+<div class="box concept">
+<strong class="tag">Scenario</strong>
+The payment-api platform has been stable for months. This morning, on-call gets paged: <code>node-worker-03</code> is NotReady, and shortly after, one ClusterOperator shows Degraded. The team has never had a standard first-response playbook for node/cluster-level issues — everyone improvises with a different set of <code>oc</code> commands.
+</div>
+<div class="box warning">
+<strong class="tag">Business Problem</strong>
+Inconsistent incident response means some engineers miss key diagnostic steps under pressure, extending outages longer than necessary.
+</div>
+<div class="box best">
+<strong class="tag">Our Mandate</strong>
+Build a read-only Ansible cluster-health playbook that any on-call engineer can run first, producing a structured triage report — then use it live on today's two incidents.
+</div>
+</section>
+
+<section id="device">
+<h2>2. Run This On Your Device</h2>
+<div class="steps">
+<div class="step"><strong>Confirm cluster-admin access (needed for node/ClusterOperator visibility).</strong>
+<div class="codewrap"><pre>oc auth can-i get nodes
+oc auth can-i get clusteroperators</pre></div>
+</div>
+<div class="step"><strong>Add the health-check playbook files from Section 4 to your repo.</strong>
+<div class="codewrap"><pre>mkdir -p payment-stack/playbooks</pre></div>
+</div>
+<div class="step"><strong>Run the read-only cluster health check.</strong>
+<div class="codewrap"><pre>ansible-playbook playbooks/cluster_health.yml</pre></div>
+</div>
+<div class="step"><strong>Read the generated triage report.</strong>
+<div class="codewrap"><pre>cat cluster-health-report.txt</pre></div>
+</div>
+<div class="step"><strong>(Optional, CRC lab only) Simulate node pressure to see the report catch it.</strong>
+<div class="codewrap"><pre>oc debug node/&lt;nodename&gt; -- chroot /host fallocate -l 8G /var/tmp/filler.dat</pre></div>
+</div>
+</div>
+</section>
+
+<section id="architecture">
+<h2>3. Architecture</h2>
+<div class="box arch"><strong class="tag">Concept</strong>OpenShift's control plane health is layered: individual Nodes report Ready/NotReady based on kubelet heartbeats and condition checks (disk/memory/PID pressure); ClusterOperators report on the health of platform components (networking, ingress, etcd, etc.); ClusterVersion reports overall upgrade/reconciliation state. A single incident can show symptoms at one or all three layers.</div>
+<div class="flow">Node conditions (Ready, MemoryPressure, DiskPressure, PIDPressure)
+   │  aggregated by
+   ▼
+kubelet → API Server → Node object status
+   │
+   ▼
+ClusterOperators (network, ingress, kube-apiserver, etcd, ...)
+   │  each reports: Available / Progressing / Degraded
+   ▼
+ClusterVersion — overall cluster health/upgrade state
+   │
+   ▼
+Our Ansible triage playbook queries ALL THREE layers in one pass</div>
+<table>
+<tr><th>Layer</th><th>Command</th><th>What it tells you</th></tr>
+<tr><td>Node</td><td><code>oc get nodes</code>, <code>oc describe node</code></td><td>Is the machine itself healthy and schedulable?</td></tr>
+<tr><td>ClusterOperator</td><td><code>oc get clusteroperators</code></td><td>Is a specific platform component (e.g. ingress, etcd) healthy?</td></tr>
+<tr><td>ClusterVersion</td><td><code>oc get clusterversion</code></td><td>Is the cluster fully reconciled / mid-upgrade / failing to progress?</td></tr>
+</table>
+</section>
+
+<section id="playbooks">
+<h2>4. The Playbooks — Fully Commented</h2>
+
+<h3>4.1 playbooks/cluster_health.yml</h3>
+<div class="cmd-label">playbooks/cluster_health.yml</div>
+<div class="codewrap"><pre><span class="c">---
+# READ-ONLY triage playbook -- every task here only queries state,
+# never modifies the cluster. Safe for any on-call engineer to run
+# first, before any remediation action.</span>
+- name: OpenShift cluster health triage
+  hosts: localhost
+  connection: local
+  gather_facts: true                                                    <span class="c"># need ansible_date_time for the report timestamp</span>
+
+  tasks:
+    - name: Query all Node objects                                       <span class="c"># read-only fetch of every node's live status</span>
+      kubernetes.core.k8s_info:                                           <span class="c"># info module -- guarantees no mutation</span>
+        kind: Node                                                        <span class="c"># cluster-scoped object type</span>
+      register: nodes                                                     <span class="c"># holds full Node list with .status.conditions</span>
+
+    - name: Identify NotReady nodes                                       <span class="c"># filter down to just the problem nodes</span>
+      ansible.builtin.set_fact:
+        not_ready_nodes: >-
+          {{ nodes.resources | selectattr('status.conditions', 'defined')
+             | map(attribute='status.conditions')
+             | map('selectattr', 'type', 'equalto', 'Ready')
+             | map('first')
+             | zip(nodes.resources | map(attribute='metadata.name'))
+             | selectattr('0.status', 'ne', 'True')
+             | map(attribute='1') | list }}                                <span class="c"># pulls out just the names of nodes whose Ready condition isn't True</span>
+
+    - name: Query all ClusterOperators                                     <span class="c"># platform component health</span>
+      kubernetes.core.k8s_info:
+        kind: ClusterOperator                                               <span class="c"># OpenShift-specific cluster-scoped object</span>
+        api_version: config.openshift.io/v1                                 <span class="c"># config API group</span>
+      register: cluster_operators                                           <span class="c"># holds every operator's status.conditions</span>
+
+    - name: Identify Degraded ClusterOperators                               <span class="c"># filter to just the unhealthy ones</span>
+      ansible.builtin.set_fact:
+        degraded_operators: >-
+          {{ cluster_operators.resources
+             | selectattr('status.conditions', 'defined')
+             | map(attribute='status.conditions')
+             | map('selectattr', 'type', 'equalto', 'Degraded')
+             | map('first', default={'status':'False'})
+             | zip(cluster_operators.resources | map(attribute='metadata.name'))
+             | selectattr('0.status', 'equalto', 'True')
+             | map(attribute='1') | list }}                                  <span class="c"># names of operators whose Degraded condition is True</span>
+
+    - name: Query ClusterVersion                                              <span class="c"># overall cluster reconciliation state</span>
+      kubernetes.core.k8s_info:
+        kind: ClusterVersion
+        api_version: config.openshift.io/v1
+        name: version                                                          <span class="c"># fixed, well-known singleton name</span>
+      register: cluster_version                                                <span class="c"># holds .status.conditions and current version</span>
+
+    - name: Build and write the triage report                                  <span class="c"># human-readable summary, not a cluster change</span>
+      ansible.builtin.copy:                                                     <span class="c"># writes a local file, NOT a k8s object -- purely local output</span>
+        dest: "./cluster-health-report.txt"                                     <span class="c"># relative to where ansible-playbook was run</span>
+        content: |
+          Cluster Health Triage Report — {{ ansible_date_time.iso8601 }}
+          =====================================================
+          NotReady Nodes: {{ not_ready_nodes | length }}
+          {{ not_ready_nodes | join(', ') if not_ready_nodes else '  (none)' }}
+
+          Degraded ClusterOperators: {{ degraded_operators | length }}
+          {{ degraded_operators | join(', ') if degraded_operators else '  (none)' }}
+
+          ClusterVersion: {{ cluster_version.resources[0].status.desired.version }}
+
+    - name: Surface a clear warning in play output if anything is unhealthy       <span class="c"># fails the play visibly -- useful in CI/scheduled runs</span>
+      ansible.builtin.fail:
+        msg: "Cluster health issues found -- see cluster-health-report.txt"
+      when: (not_ready_nodes | length &gt; 0) or (degraded_operators | length &gt; 0)   <span class="c"># only fails if something is actually wrong</span></pre></div>
+</section>
+
+<section id="run">
+<h2>5. Execution</h2>
+<div class="box concept"><strong class="tag">Note</strong>This playbook is intentionally NOT idempotency-tested in the usual "changed=0" sense — it makes zero changes on every run by design. Its output changing between runs reflects real cluster state, not a bug.</div>
+<div class="codewrap"><pre>ansible-playbook playbooks/cluster_health.yml</pre></div>
+<div class="box success"><strong class="tag">Healthy cluster run</strong><pre style="background:#0f2b1c;border-color:#1a4a2c;">PLAY RECAP *** ok=6 changed=0 failed=0</pre></div>
+<div class="box fail"><strong class="tag">Unhealthy cluster run</strong><pre style="background:#3a1616;border-color:#5a2020;">TASK [Surface a clear warning...] ***
+fatal: [localhost]: FAILED! =&gt; {"msg": "Cluster health issues found -- see cluster-health-report.txt"}</pre></div>
+</section>
+
+<section id="incident">
+<h2>6. Live Incident — NotReady Node + Degraded ClusterOperator</h2>
+<div class="box fail"><strong class="tag">7:02 AM — Page</strong>Alert fires for <code>node-worker-03</code> NotReady.</div>
+
+<div class="cmd-label">Step 1 — run the triage playbook first, always</div>
+<div class="codewrap"><pre>ansible-playbook playbooks/cluster_health.yml
+cat cluster-health-report.txt
+NotReady Nodes: 1
+  node-worker-03
+Degraded ClusterOperators: 1
+  image-registry</pre></div>
+<p>Both symptoms confirmed in one read-only pass — now we know the scope before touching anything.</p>
+
+<div class="cmd-label">Step 2 — investigate the node</div>
+<div class="codewrap"><pre>oc describe node node-worker-03
+Conditions:
+  Type             Status
+  MemoryPressure   True
+  DiskPressure     False
+  Ready            False
+
+Events:
+  Warning  NodeHasInsufficientMemory  kubelet reports insufficient memory</pre></div>
+
+<div class="cmd-label">Step 3 — check what's consuming memory on the node</div>
+<div class="codewrap"><pre>oc adm top node node-worker-03
+NAME              CPU    MEMORY   MEMORY%
+node-worker-03    340m   15872Mi  98%
+
+oc get pods -A --field-selector spec.nodeName=node-worker-03 -o wide
+<span class="c"># a batch analytics job (unrelated to payment-api) was scheduled here without memory limits</span></pre></div>
+<div class="box fail"><strong class="tag">Root cause (node)</strong>An unrelated batch job with no memory limit consumed nearly all available memory on the node, triggering kubelet's MemoryPressure condition and evicting/blocking other workloads — including pods the image-registry operator depends on for that zone.</div>
+
+<div class="cmd-label">Step 4 — connect the dots to the Degraded ClusterOperator</div>
+<div class="codewrap"><pre>oc describe clusteroperator image-registry
+Message: Degraded: unable to schedule registry pod: node-worker-03 under memory pressure,
+  no other node available in this zone</pre></div>
+
+<div class="cmd-label">Step 5 — mitigate: evict/kill the offending workload, let kubelet recover</div>
+<div class="codewrap"><pre>oc delete pod batch-job-7f2a -n analytics
+<span class="c"># kubelet clears MemoryPressure once usage drops below the eviction threshold</span></pre></div>
+
+<div class="cmd-label">Step 6 — re-run the triage playbook to confirm recovery</div>
+<div class="codewrap"><pre>ansible-playbook playbooks/cluster_health.yml
+PLAY RECAP *** ok=6 changed=0 failed=0   <span class="c"># no failure = fully healthy again</span></pre></div>
+<div class="box success"><strong class="tag">7:34 AM — Resolved</strong>Node returned to Ready, image-registry operator recovered automatically once scheduling was possible again.</div>
+
+<h3>RCA Summary</h3>
+<table>
+<tr><th>Field</th><th>Detail</th></tr>
+<tr><td>Impact</td><td>One node NotReady ~32 min; image-registry Degraded for the same window</td></tr>
+<tr><td>Root cause</td><td>An unrelated batch job with no memory limit exhausted node memory, cascading into a platform ClusterOperator</td></tr>
+<tr><td>Fix</td><td>Evicted the offending pod; kubelet self-recovered once pressure cleared</td></tr>
+<tr><td>Preventive action</td><td>Enforce a namespace-level LimitRange (Project 1 pattern) on the analytics namespace so this class of workload can never go unbounded again</td></tr>
+</table>
+</section>
+
+<section id="breakfix">
+<h2>7. Additional Break-Fix Labs</h2>
+<details><summary>Break-Fix — kubelet certificate expired</summary>
+<div class="codewrap"><pre>oc get csr | grep Pending
+oc describe node node-worker-04
+Ready condition unknown -- kubelet stopped posting node status</pre></div>
+<p><strong>Root cause:</strong> node's kubelet serving certificate expired and wasn't auto-approved. <strong>Fix:</strong> <code>oc get csr</code>, review, then <code>oc adm certificate approve &lt;csr-name&gt;</code> for legitimate pending requests.</p>
+</details>
+<details><summary>Break-Fix — ClusterVersion stuck, not progressing</summary>
+<div class="codewrap"><pre>oc get clusterversion
+NAME      VERSION   AVAILABLE   PROGRESSING   SINCE
+version   4.15.2     True        True          4h
+
+oc describe clusterversion
+Unable to apply 4.15.3: the cluster operator monitoring is degraded</pre></div>
+<p><strong>Root cause:</strong> an upgrade is blocked because a specific ClusterOperator won't go healthy. <strong>Fix:</strong> resolve the named operator's Degraded condition first — upgrades will not proceed past a Degraded operator by design, which is a safety feature, not a bug.</p>
+</details>
+</section>
+
+<section id="security">
+<h2>8. Security Review</h2>
+<table>
+<tr><th>Control</th><th>Detail</th></tr>
+<tr><td>Read-only by design</td><td>The triage playbook uses only <code>k8s_info</code> — impossible to accidentally change cluster state during an incident</td></tr>
+<tr><td>Least privilege for triage</td><td>Only needs read access to Nodes/ClusterOperators/ClusterVersion — narrower than full cluster-admin</td></tr>
+<tr><td>Blast-radius containment</td><td>Preventive LimitRange enforcement prevents one misbehaving namespace from affecting platform components again</td></tr>
+</table>
+</section>
+
+<section id="interview">
+<h2>9. Interview Preparation</h2>
+<div class="qa"><div class="q">Interviewer: "A node is NotReady — what do you check?"</div>
+<p><strong>Answer:</strong> <code>oc describe node</code> first — the Conditions section shows exactly which pressure condition tripped (Memory/Disk/PID) and Events usually names the trigger. In one real incident, MemoryPressure was caused by an unrelated batch job with no memory limit running on that node, which also cascaded into a Degraded ClusterOperator whose pods couldn't be scheduled anywhere in that zone.</p></div>
+<div class="qa"><div class="q">Interviewer: "Why start every incident with a read-only playbook instead of jumping straight to fixes?"</div>
+<p><strong>Answer:</strong> It establishes full scope in one consistent pass before anyone touches anything — otherwise you risk fixing the symptom you happened to notice first while missing a related, causally-connected issue elsewhere, like the ClusterOperator in this case.</p></div>
+</section>
+
+<section id="resume">
+<h2>10. Resume Points</h2>
+<div class="box best"><ul>
+<li>Built a read-only Ansible cluster-health triage playbook covering Node, ClusterOperator, and ClusterVersion status, standardizing incident first-response across the on-call rotation.</li>
+<li>Diagnosed and resolved a cascading incident where an unbounded batch workload caused node memory pressure and a downstream Degraded ClusterOperator.</li>
+</ul></div>
+</section>
+
+<section id="cheatsheet">
+<h2>11. Troubleshooting Cheat Sheet</h2>
+<table>
+<tr><th>Symptom</th><th>Check</th></tr>
+<tr><td>Node NotReady</td><td><code>oc describe node</code> — Conditions + Events</td></tr>
+<tr><td>MemoryPressure/DiskPressure True</td><td><code>oc adm top node</code>, then find the actual consuming pod</td></tr>
+<tr><td>ClusterOperator Degraded</td><td><code>oc describe clusteroperator &lt;name&gt;</code> — Message field is usually specific</td></tr>
+<tr><td>ClusterVersion not progressing</td><td>Check which operator is blocking, resolve that operator first</td></tr>
+</table>
+</section>
+
+<section id="summary">
+<h2>12. Key Learnings</h2>
+<div class="card">
+<h4>OpenShift concepts</h4><p>Node conditions (Ready/MemoryPressure/DiskPressure/PIDPressure), ClusterOperator Available/Progressing/Degraded model, ClusterVersion reconciliation and upgrade gating.</p>
+<h4>Ansible concepts</h4><p>Read-only triage design using only <code>k8s_info</code>, complex Jinja filter chains to extract specific status conditions, writing a local report file with <code>copy</code>, failing the play deliberately to surface issues in automation/CI contexts.</p>
+<h4>Commands learned</h4><p><code>oc describe node</code>, <code>oc adm top node</code>, <code>oc describe clusteroperator</code>, <code>oc get clusterversion</code>, <code>oc get csr</code> / <code>oc adm certificate approve</code>.</p>
+<h4>Next project prerequisites</h4><p>Keep this repo — Project 12 covers MachineConfig and MachineConfigPools, including how node-level OS configuration should (and shouldn't) be automated with Ansible alongside OpenShift's own declarative control plane.</p>
+</div>
+</section>
+
+</main>
+<footer>OpenShift + Ansible Masterclass — Project 11 of ~28.</footer>
+<script>
+window.addEventListener('scroll', function(){
+  var h = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+  var p = h ? (window.scrollY / h) * 100 : 0;
+  document.getElementById('progressBar').style.width = p + '%';
+});
+document.querySelectorAll('pre').forEach(function(pre){
+  if(pre.parentElement.classList.contains('codewrap')){
+    var btn = document.createElement('button');
+    btn.className = 'copy-btn'; btn.textContent = 'Copy';
+    btn.onclick = function(){
+      navigator.clipboard.writeText(pre.innerText);
+      btn.textContent = 'Copied!';
+      setTimeout(function(){ btn.textContent = 'Copy'; }, 1500);
+    };
+    pre.parentElement.appendChild(btn);
+  }
+});
+</script>
+</body>
+</html>

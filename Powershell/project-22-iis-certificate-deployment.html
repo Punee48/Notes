@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Project 22 — IIS Certificate Deployment | PowerShell Masterclass</title>
+<style>
+  :root{
+    --primary:#A78BFA; --secondary:#C4B5FD; --surface:#1A1530; --surface2:#221B3D;
+    --bg:#0F0B1E; --text:#EDE9FE; --muted:#9CA3AF; --border:#332B57;
+    --success:#4ADE80; --warn:#FBBF24; --danger:#F87171;
+    --code-bg:#0A0716; --code-text:#E9E4FF;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0; font-family:"Segoe UI",Calibri,Roboto,Arial,sans-serif; background:var(--bg); color:var(--text); line-height:1.65;}
+  a{color:var(--secondary);}
+  .layout{display:flex; max-width:1400px; margin:0 auto;}
+  nav.sidebar{width:270px; flex-shrink:0; position:sticky; top:0; height:100vh; overflow-y:auto; background:var(--surface); border-right:1px solid var(--border); padding:22px 16px;}
+  nav.sidebar h3{color:var(--secondary); font-size:13px; text-transform:uppercase; letter-spacing:.06em; margin:18px 0 8px;}
+  nav.sidebar a{display:block; padding:7px 10px; border-radius:8px; color:var(--text); text-decoration:none; font-size:14px; margin-bottom:2px;}
+  nav.sidebar a:hover{background:var(--surface2); color:var(--secondary);}
+  #progressWrap{background:var(--surface2); border-radius:10px; padding:10px; margin-bottom:8px;}
+  #progressBar{height:8px; background:var(--border); border-radius:6px; overflow:hidden;}
+  #progressFill{height:100%; width:0%; background:linear-gradient(90deg,var(--primary),var(--secondary)); transition:width .2s;}
+  #progressLabel{font-size:12px; color:var(--muted); margin-top:6px;}
+  main{flex:1; min-width:0; padding:0;}
+  .cover{background:linear-gradient(135deg,#3B2A6B,#5B3FA0); color:#fff; padding:60px 48px; position:relative; overflow:hidden; border-bottom:1px solid var(--border);}
+  .cover::after{content:"";position:absolute;right:-80px;top:-80px;width:300px;height:300px;border-radius:50%;background:rgba(255,255,255,.06);}
+  .badge{display:inline-block; background:rgba(255,255,255,.14); padding:5px 14px; border-radius:20px; font-size:12px; letter-spacing:.05em; margin-right:8px; margin-bottom:14px;}
+  .cover h1{font-size:34px; margin:6px 0 10px; max-width:760px;}
+  .cover p.sub{font-size:16px; opacity:.92; max-width:640px;}
+  .cover-meta{display:flex; gap:28px; margin-top:26px; flex-wrap:wrap;}
+  .cover-meta div{background:rgba(255,255,255,.10); padding:12px 18px; border-radius:10px; min-width:140px;}
+  .cover-meta span{display:block; font-size:12px; opacity:.85;}
+  .cover-meta strong{font-size:16px;}
+  section{padding:34px 48px; border-bottom:1px solid var(--border);}
+  section h2{color:var(--secondary); font-size:24px; border-left:5px solid var(--primary); padding-left:14px; margin-top:0;}
+  section h3{color:var(--primary); font-size:18px; margin-top:26px;}
+  .story{background:var(--surface); border-left:5px solid var(--primary); padding:20px 24px; border-radius:0 10px 10px 0; font-size:15px;}
+  .story b{color:var(--secondary);}
+  .callout{border-radius:10px; padding:16px 18px; margin:16px 0; font-size:14.5px; border:1px solid var(--border);}
+  .callout.tip{background:#132A1E; border-left:5px solid var(--success);}
+  .callout.note{background:var(--surface); border-left:5px solid var(--secondary);}
+  .callout.warn{background:#2E2410; border-left:5px solid var(--warn);}
+  .callout.security{background:#2E1616; border-left:5px solid var(--danger);}
+  .callout .lbl{font-weight:700; display:block; margin-bottom:4px;}
+  table{width:100%; border-collapse:collapse; margin:16px 0; font-size:14px;}
+  th,td{border:1px solid var(--border); padding:9px 12px; text-align:left; vertical-align:top;}
+  th{background:var(--surface2); color:var(--secondary);}
+  tr:nth-child(even){background:var(--surface);}
+  .codewrap{position:relative; margin:16px 0;}
+  pre{background:var(--code-bg); color:var(--code-text); padding:18px 16px; border-radius:10px; overflow-x:auto; font-family:Consolas,"Cascadia Code",Menlo,monospace; font-size:13.5px; line-height:1.7; border:1px solid var(--border);}
+  pre code{white-space:pre;}
+  .copybtn{position:absolute; top:10px; right:10px; background:var(--primary); color:#1A1530; border:none; padding:6px 12px; border-radius:6px; font-size:12px; cursor:pointer; font-weight:600;}
+  .copybtn:hover{background:var(--secondary);}
+  .explain-list{list-style:none; padding:0; margin:14px 0;}
+  .explain-list li{background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:10px 14px; margin-bottom:6px; font-size:14.5px;}
+  .explain-list code{background:var(--surface2); padding:2px 6px; border-radius:5px; color:var(--secondary); font-weight:600;}
+  details{background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:12px 16px; margin:10px 0;}
+  details summary{cursor:pointer; font-weight:600; color:var(--secondary);}
+  .diagram{background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:20px; margin:16px 0; overflow-x:auto;}
+  .flow{display:flex; flex-wrap:wrap; align-items:center; gap:10px; font-size:13.5px;}
+  .flow .box{background:var(--surface2); border:2px solid var(--secondary); border-radius:8px; padding:8px 14px; font-weight:600; color:var(--secondary);}
+  .flow .arrow{color:var(--primary); font-size:18px;}
+  .steps{counter-reset:step;}
+  .steps .step{position:relative; padding-left:44px; margin-bottom:18px;}
+  .steps .step::before{counter-increment:step; content:counter(step); position:absolute; left:0; top:0; background:var(--primary); color:#1A1530; width:30px; height:30px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:700;}
+  .grid2{display:grid; grid-template-columns:1fr 1fr; gap:16px;}
+  @media(max-width:900px){.grid2{grid-template-columns:1fr;} nav.sidebar{display:none;} section{padding:26px 20px;} .cover{padding:36px 22px;}}
+  footer{padding:30px 48px; background:var(--surface); color:var(--muted); font-size:13px;}
+  code{color:var(--secondary);}
+</style>
+</head>
+<body>
+
+<div class="layout">
+  <nav class="sidebar">
+    <div id="progressWrap">
+      <div id="progressLabel">Reading progress</div>
+      <div id="progressBar"><div id="progressFill"></div></div>
+    </div>
+    <h3>Project 22</h3>
+    <a href="#cover">Cover</a>
+    <a href="#recap1">Recap: Projects 1–21</a>
+    <a href="#story">The Story</a>
+    <a href="#concepts">Concepts First</a>
+    <a href="#lab">Hands-On Lab</a>
+    <a href="#script">Full Script</a>
+    <a href="#linebyline">Line-by-Line</a>
+    <a href="#architecture">Architecture</a>
+    <a href="#incident">Production Incident</a>
+    <a href="#troubleshoot">Troubleshooting</a>
+    <a href="#security">Security Notes</a>
+    <a href="#recap">Key Learnings</a>
+    <a href="#interview">Interview Prep</a>
+    <a href="#challenges">Coding Challenges</a>
+    <a href="#resume">Resume Points</a>
+    <a href="#assignment">Practice Assignment</a>
+    <a href="#next">Next Project</a>
+  </nav>
+
+  <main id="top">
+    <div class="cover" id="cover">
+      <span class="badge">PROJECT 22</span><span class="badge">INTERMEDIATE</span><span class="badge">BFSI TRACK</span>
+      <h1>IIS Certificate Deployment</h1>
+      <p class="sub">Bind a certificate to an IIS website — the deployment step that actually makes a renewed certificate take effect for real traffic. Introduces the IIS: PSDrive.</p>
+      <div class="cover-meta">
+        <div><span>Difficulty</span><strong>Intermediate</strong></div>
+        <div><span>Estimated Lab Time</span><strong>80–95 min</strong></div>
+        <div><span>Concepts</span><strong>8 core concepts</strong></div>
+        <div><span>Track</span><strong>22 of 40</strong></div>
+      </div>
+    </div>
+
+    <section id="recap1">
+      <h2>Quick Recap of Projects 1–21</h2>
+      <p>Project 21 got a renewed certificate safely into the certificate store. But a certificate sitting in the
+      store does nothing on its own — it has to be <b>bound</b> to a website before browsers actually see it. This
+      project closes that final gap, introducing the <code>IIS:</code> PSDrive — the same provider-drive pattern
+      we've now seen for the file system, registry, and certificate store.</p>
+    </section>
+
+    <section id="story">
+      <h2>The Story — Why We're Building This</h2>
+      <div class="story">
+        The renewed certificate from Project 21 is sitting correctly in the certificate store — but the banking
+        portal website is still serving the old, soon-to-expire one, because nobody's told IIS to actually use the
+        new certificate yet. Our manager wants a script that <b>binds</b> a given certificate (by thumbprint) to a
+        specific site and port, safely and idempotently, so this final deployment step isn't a manual, error-prone
+        click through IIS Manager.
+      </div>
+    </section>
+
+    <section id="concepts">
+      <h2>Concepts First — Before We Touch Code</h2>
+
+      <h3>1. The WebAdministration Module and the IIS: Drive</h3>
+      <div class="callout note"><span class="lbl">The same pattern, one more time</span>Just like
+      <code>HKLM:</code> for the registry and <code>Cert:</code> for certificates, importing the
+      <code>WebAdministration</code> module exposes IIS configuration as an <code>IIS:</code> PSDrive — sites,
+      application pools, and bindings all become browsable, exactly like folders.</div>
+      <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code>Import-Module WebAdministration
+Get-ChildItem "IIS:\Sites"</code></pre></div>
+
+      <h3>2. What a Binding Actually Is</h3>
+      <p>A <b>binding</b> connects a website to a specific IP address, port, and (for HTTPS) a certificate. One site
+      can have multiple bindings — e.g. port 80 for HTTP and port 443 for HTTPS, each configured independently.</p>
+
+      <h3>3. Viewing Existing Bindings with Get-WebBinding</h3>
+      <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code>Get-WebBinding -Name "Default Web Site"</code></pre></div>
+      <p>Shows every binding configured for a site, including protocol, IP, port, and (for HTTPS bindings) whether a
+      certificate hash is currently attached.</p>
+
+      <h3>4. Binding a Certificate — Two Different Approaches</h3>
+      <table>
+        <tr><th>Approach</th><th>How</th></tr>
+        <tr><td>New-WebBinding + certificate assignment</td><td>Creates the binding, then attaches a certificate via the <code>IIS:\SslBindings</code> path</td></tr>
+        <tr><td>netsh (legacy)</td><td>The older, non-PowerShell way — mentioned for awareness, not used here</td></tr>
+      </table>
+      <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code># Attaching a certificate to an existing HTTPS binding via the SslBindings path
+$BindingPath = "IIS:\SslBindings\0.0.0.0!443"
+Get-Item "Cert:\LocalMachine\My\$Thumbprint" | New-Item -Path $BindingPath</code></pre></div>
+      <ul class="explain-list">
+        <li><code>IIS:\SslBindings\0.0.0.0!443</code> — the exclamation mark separates IP address from port in this
+        particular provider path format; <code>0.0.0.0</code> means "any IP address" on port 443.</li>
+        <li>Piping a certificate object (from the <code>Cert:</code> drive we already know from Project 19) directly
+        into <code>New-Item</code> on the <code>IIS:</code> drive is a genuinely elegant example of PowerShell's
+        provider model letting two completely different subsystems (certificates and web server config)
+        interoperate through the same object pipeline.</li>
+      </ul>
+
+      <h3>5. Idempotency — Don't Rebind What's Already Correctly Bound</h3>
+      <p>Same principle as every remediation project since Project 10: check whether the site's current binding
+      already uses the correct certificate thumbprint before doing anything, and skip cleanly if it does.</p>
+
+      <h3>6. Why This Needs ShouldProcess</h3>
+      <p>Changing a live website's certificate binding affects real traffic immediately — exactly the kind of action
+      that deserves <code>-WhatIf</code> preview support before ever running for real, following Projects 10, 13,
+      14, and 21's established pattern.</p>
+    </section>
+
+    <section id="lab">
+      <h2>Hands-On Lab — Build It Yourself</h2>
+      <div class="callout note"><span class="lbl">Local practice note</span>IIS isn't installed by default on
+      Windows 10/11. If you'd like to practice hands-on, enable it first: <code>Control Panel → Programs → Turn
+      Windows features on or off → check "Internet Information Services"</code> (or
+      <code>Enable-WindowsOptionalFeature -Online -FeatureName IIS-WebServerRole -All</code> as Administrator). This
+      installs a lightweight IIS with a working "Default Web Site" you can safely experiment on. If you'd rather not
+      install IIS locally, read through the script and explanations — the concepts transfer directly to a real
+      server.</div>
+      <div class="steps">
+        <div class="step"><b>Create the project folder and a test certificate:</b>
+          <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code>New-Item -ItemType Directory -Path "C:\PS-Masterclass\Project22\logs" -Force
+Set-Location "C:\PS-Masterclass\Project22"
+
+$TestCert = New-SelfSignedCertificate -Subject "CN=abcbank-portal.local" -CertStoreLocation "Cert:\LocalMachine\My" -DnsName "abcbank-portal.local"
+Write-Host "Test certificate thumbprint: $($TestCert.Thumbprint)"</code></pre></div>
+        </div>
+        <div class="step"><b>Create <code>Set-IisCertificateBinding.ps1</code></b> (as Administrator) and paste the
+        full script below, using your test certificate's thumbprint.</div>
+        <div class="step"><b>Run it in preview mode first:</b>
+          <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code>.\Set-IisCertificateBinding.ps1</code></pre></div>
+        </div>
+        <div class="step"><b>Apply for real:</b>
+          <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code>.\Set-IisCertificateBinding.ps1 -WhatIf:$false</code></pre></div>
+        </div>
+        <div class="step"><b>Validate:</b> open IIS Manager → Default Web Site → Bindings, and confirm the HTTPS
+        binding now shows your test certificate. Run the script a second time and confirm it reports "already
+        correctly bound" instead of rebinding.</div>
+      </div>
+    </section>
+
+    <section id="script">
+      <h2>Full Script — Set-IisCertificateBinding.ps1</h2>
+      <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code># =====================================================================
+# Set-IisCertificateBinding.ps1
+# ABC Bank - Windows Infrastructure Automation Team
+# Purpose: Idempotently bind a certificate to an IIS site's HTTPS binding
+# =====================================================================
+
+[CmdletBinding(SupportsShouldProcess)]
+param(
+    [switch]$WhatIf = $true,
+    [string]$SiteName        = "Default Web Site",
+    [string]$CertThumbprint  = "PUT_YOUR_TEST_CERT_THUMBPRINT_HERE",
+    [int]$Port                = 443
+)
+
+Import-Module WebAdministration -ErrorAction Stop   # Makes the IIS: drive and Get-WebBinding/New-WebBinding available
+
+$LogPath = ".\logs\IisBindingChanges.log"
+function Write-Log {
+    param([string]$Message, [string]$Status = "INFO")
+    $Line = "{0} | {1} | {2}" -f (Get-Date -Format "yyyy-MM-dd HH:mm:ss"), $Status, $Message
+    Add-Content -Path $LogPath -Value $Line
+}
+
+Write-Host "`n=== IIS CERTIFICATE BINDING: $SiteName ===" -ForegroundColor Magenta
+
+# ---------------------------------------------------------------
+# STEP 1: Ensure an HTTPS binding exists on the target port at all
+# ---------------------------------------------------------------
+$ExistingBinding = Get-WebBinding -Name $SiteName -Protocol "https" -Port $Port -ErrorAction SilentlyContinue
+
+if (-not $ExistingBinding) {
+    Write-Host "No HTTPS binding on port $Port yet." -ForegroundColor Yellow
+
+    if ($PSCmdlet.ShouldProcess("$SiteName`:$Port", "Create HTTPS Binding")) {
+        New-WebBinding -Name $SiteName -Protocol "https" -Port $Port -IPAddress "*"   # Creates the binding shell first, cert attached next
+        Write-Log -Status "INFO" -Message "Created HTTPS binding for $SiteName on port $Port"
+        $ExistingBinding = Get-WebBinding -Name $SiteName -Protocol "https" -Port $Port   # Re-fetch now that it exists
+    }
+    else {
+        Write-Host "PREVIEW: Would create HTTPS binding on port $Port." -ForegroundColor Yellow
+    }
+}
+
+# ---------------------------------------------------------------
+# STEP 2: Check whether the CORRECT certificate is already attached (idempotency)
+# ---------------------------------------------------------------
+$CurrentThumbprint = if ($ExistingBinding.CertificateHash) { $ExistingBinding.CertificateHash } else { $null }
+
+if ($CurrentThumbprint -eq $CertThumbprint) {
+    Write-Host "Binding already uses the correct certificate ($CertThumbprint) - no action needed." -ForegroundColor Green
+    Write-Log -Status "INFO" -Message "Binding for $SiteName`:$Port already correct - no change made"
+}
+else {
+    Write-Host "Current cert: $(if ($CurrentThumbprint) {$CurrentThumbprint} else {'<none>'})  Desired: $CertThumbprint" -ForegroundColor Cyan
+
+    if ($PSCmdlet.ShouldProcess("$SiteName`:$Port", "Attach certificate $CertThumbprint")) {
+
+        Write-Log -Status "INFO" -Message "BEFORE CHANGE: $SiteName`:$Port had cert '$CurrentThumbprint'"   # Backup-before-change, Project 13's pattern
+
+        $BindingPath = "IIS:\SslBindings\0.0.0.0!$Port"                                  # The provider path for this IP/port combination
+
+        if (Test-Path $BindingPath) {                                                      # An SSL binding entry might already exist here
+            Remove-Item -Path $BindingPath -Force                                            # Clear it before attaching the new certificate
+        }
+
+        Get-Item "Cert:\LocalMachine\My\$CertThumbprint" |                                  # Fetches the certificate object (Project 19/21's Cert: drive)
+            New-Item -Path $BindingPath | Out-Null                                            # Attaches it to this IP/port via the IIS provider
+
+        Write-Log -Status "SUCCESS" -Message "AFTER CHANGE: $SiteName`:$Port now bound to cert '$CertThumbprint'"
+        Write-Host "Certificate bound successfully." -ForegroundColor Green
+    }
+    else {
+        Write-Host "PREVIEW: Would attach certificate $CertThumbprint to $SiteName`:$Port" -ForegroundColor Yellow
+    }
+}
+
+# ---------------------------------------------------------------
+# STEP 3: Final verification
+# ---------------------------------------------------------------
+$FinalBinding = Get-WebBinding -Name $SiteName -Protocol "https" -Port $Port -ErrorAction SilentlyContinue
+$FinalThumbprint = if ($FinalBinding) { $FinalBinding.CertificateHash } else { $null }
+
+Write-Host "`nFinal verified binding certificate: $(if ($FinalThumbprint) {$FinalThumbprint} else {'<none>'})" -ForegroundColor Cyan
+Write-Host "Audit log: $LogPath" -ForegroundColor Cyan
+</code></pre></div>
+      </div>
+    </section>
+
+    <section id="linebyline">
+      <h2>Line-by-Line Explanation</h2>
+
+      <h3><code>Import-Module WebAdministration -ErrorAction Stop</code></h3>
+      <ul class="explain-list">
+        <li>Unlike CIM or the registry (available by default), IIS management cmdlets and the <code>IIS:</code>
+        drive only become available after explicitly importing this module — <code>-ErrorAction Stop</code> ensures
+        a clear failure immediately if IIS management tools aren't installed, rather than confusing "command not
+        found" errors later in the script.</li>
+      </ul>
+
+      <h3><code>Get-WebBinding -Name $SiteName -Protocol "https" -Port $Port -ErrorAction SilentlyContinue</code></h3>
+      <ul class="explain-list">
+        <li>Filtering by both protocol and port narrows this to exactly the one binding we care about — a site
+        could have several HTTPS bindings on different ports, and we don't want to accidentally match the wrong one.</li>
+      </ul>
+
+      <h3><code>$CurrentThumbprint = if ($ExistingBinding.CertificateHash) { $ExistingBinding.CertificateHash } else { $null }</code></h3>
+      <ul class="explain-list">
+        <li>A binding can exist without any certificate attached yet (e.g. right after being newly created in Step
+        1) — this guards against comparing against a missing property and produces a clean <code>$null</code> in
+        that case, feeding into the same "no value yet" handling pattern used for registry values in Project 13.</li>
+      </ul>
+
+      <h3><code>if (Test-Path $BindingPath) { Remove-Item -Path $BindingPath -Force }</code></h3>
+      <ul class="explain-list">
+        <li>An SSL binding "slot" for a given IP/port combination can only hold one certificate at a time — if one's
+        already attached (even the wrong one), it must be cleared before a new one can be attached in its place,
+        which is why this removal happens as part of the same guarded, ShouldProcess-checked block rather than being
+        skipped.</li>
+      </ul>
+
+      <h3><code>Get-Item "Cert:\LocalMachine\My\$CertThumbprint" | New-Item -Path $BindingPath</code></h3>
+      <ul class="explain-list">
+        <li>This single line crosses two completely different PowerShell providers: <code>Get-Item</code> reads a
+        specific certificate object off the <code>Cert:</code> drive, and pipes that same object into
+        <code>New-Item</code> operating on the <code>IIS:</code> drive — the certificate object itself carries
+        enough information (its raw certificate data) for the IIS provider to attach it correctly.</li>
+      </ul>
+    </section>
+
+    <section id="architecture">
+      <h2>Architecture &amp; Binding Flow</h2>
+      <div class="diagram">
+        <div class="flow">
+          <div class="box">Get-WebBinding</div><div class="arrow">→</div>
+          <div class="box">Exists?</div><div class="arrow">→</div>
+          <div class="box">No → New-WebBinding</div>
+        </div>
+        <div class="flow" style="margin-top:12px;">
+          <div class="box">Binding Exists</div><div class="arrow">→</div>
+          <div class="box">Correct Cert Attached?</div><div class="arrow">→</div>
+          <div class="box">No → Clear + Attach New Cert</div>
+        </div>
+        <div class="flow" style="margin-top:12px;">
+          <div class="box">Cert:\...\Thumbprint</div><div class="arrow">→</div>
+          <div class="box">IIS:\SslBindings\IP!Port</div><div class="arrow">→</div>
+          <div class="box">Bound</div>
+        </div>
+      </div>
+      <p>This script's real value is bridging two provider drives we already know separately (<code>Cert:</code>
+      from Project 19, <code>IIS:</code> introduced here) into one coherent deployment step — a great illustration
+      of why learning PowerShell's provider model pays off: once you understand it once, connecting different
+      subsystems together becomes almost natural.</p>
+    </section>
+
+    <section id="incident">
+      <h2>Production Incident Walkthrough</h2>
+      <div class="story">
+        A manual certificate rebind last year went wrong when someone forgot to clear the old SSL binding entry
+        first — the attempt to attach the new certificate silently failed, and the site kept serving the old,
+        soon-to-expire certificate for two more weeks before anyone noticed the change hadn't actually taken effect.
+        This script's explicit clear-then-attach sequence, plus its final verification step, exists specifically to
+        prevent that exact failure mode from recurring.
+      </div>
+      <ul class="explain-list">
+        <li><b>Why does the script re-fetch and print the final bound thumbprint at the end, rather than trusting the New-Item call succeeded?</b>
+        Exactly the same "verify, don't just trust" principle from Project 13's registry work — a change silently not
+        taking effect is a real, observed failure mode for IIS bindings specifically, so an explicit final check
+        catches it immediately instead of leaving it to be discovered days later.</li>
+      </ul>
+    </section>
+
+    <section id="troubleshoot">
+      <h2>Troubleshooting Cheat Sheet</h2>
+      <table>
+        <tr><th>Symptom</th><th>Likely Root Cause</th><th>Fix</th></tr>
+        <tr><td>"The term 'Get-WebBinding' is not recognized"</td><td>WebAdministration module isn't available - IIS management tools not installed</td><td>Confirm IIS was installed per the lab's local practice note, including management tools</td></tr>
+        <tr><td>New-Item on the SslBindings path fails</td><td>Not running as Administrator, or an existing binding wasn't cleared first</td><td>Confirm elevation, and confirm the Remove-Item step ran if a binding already existed</td></tr>
+        <tr><td>Final verification shows a different thumbprint than expected</td><td>Multiple certificates might have a similar-looking but not identical thumbprint - easy to mistype/miscopy</td><td>Copy the thumbprint directly from Get-ChildItem output rather than retyping it manually</td></tr>
+        <tr><td>Script reports the binding is already correct, but IIS Manager shows otherwise</td><td>IIS Manager's own cached view wasn't refreshed</td><td>Close and reopen IIS Manager, or press F5/refresh within it</td></tr>
+      </table>
+    </section>
+
+    <section id="security">
+      <h2>Security &amp; Best Practices</h2>
+      <div class="callout security"><span class="lbl">This changes live traffic behavior immediately</span>Unlike
+      most projects so far, a certificate binding change on IIS affects real, in-flight web traffic the moment it's
+      applied — treat this class of change with the same seriousness as the NTFS/SMB projects' caution, always
+      previewing with -WhatIf first on anything beyond a local practice lab.</div>
+      <div class="callout tip"><span class="lbl">Best practice reinforced here</span>Logging both the before and
+      after thumbprint (Project 13's backup-before-change pattern) means a binding rollback, if ever needed, has a
+      clear record of exactly what to restore.</div>
+    </section>
+
+    <section id="recap">
+      <h2>Key Learnings &amp; Recap</h2>
+      <div class="grid2">
+        <div>
+          <h3>Commands/Syntax Learned</h3>
+          <ul class="explain-list">
+            <li><code>Import-Module WebAdministration</code></li>
+            <li><code>Get-WebBinding</code> / <code>New-WebBinding</code></li>
+            <li><code>IIS:\SslBindings\IP!Port</code> path format</li>
+            <li>Piping a <code>Cert:</code> object into <code>New-Item</code> on <code>IIS:</code></li>
+          </ul>
+        </div>
+        <div>
+          <h3>Concepts Learned</h3>
+          <ul class="explain-list">
+            <li>What a binding is (IP + port + optional certificate)</li>
+            <li>Bridging two different PowerShell providers in one workflow</li>
+            <li>Clearing an existing SSL binding slot before attaching a new certificate</li>
+            <li>Why live-traffic-affecting changes deserve extra verification</li>
+          </ul>
+        </div>
+      </div>
+      <h3>Common Mistakes to Avoid</h3>
+      <ul class="explain-list">
+        <li>Trying to attach a new certificate without clearing an existing SSL binding entry first.</li>
+        <li>Not verifying the binding actually took effect after the change.</li>
+        <li>Forgetting the WebAdministration module needs to be imported before IIS cmdlets are available.</li>
+      </ul>
+    </section>
+
+    <section id="interview">
+      <h2>Interview Preparation</h2>
+      <details><summary>Q1. What's the difference between a certificate being "in the store" and a website "using" it?</summary>
+        <p><b>Answer:</b> A certificate sitting in <code>Cert:\LocalMachine\My</code> is just present on the server —
+        nothing uses it automatically. A website only actually serves a given certificate once it's explicitly
+        bound to that site's HTTPS binding; Projects 21 and 22 together cover both halves of getting a renewed
+        certificate fully deployed.</p>
+        <p><b>Follow-up:</b> "Could the same certificate be bound to multiple sites?" — Answer: yes, the same
+        certificate (by thumbprint) can be attached to multiple bindings across multiple sites, as long as it's a
+        valid match for each site's hostname(s).</p>
+      </details>
+      <details><summary>Q2. Why does the script remove an existing SSL binding entry before attaching a new certificate, rather than just overwriting it directly?</summary>
+        <p><b>Answer:</b> The <code>IIS:\SslBindings\IP!Port</code> path can only hold one certificate binding at a
+        time for that specific IP/port combination — attempting to create a new item there while one already exists
+        can fail or behave unpredictably, so explicitly clearing it first ensures a clean, predictable replacement.</p>
+        <p><b>Follow-up:</b> "What real-world incident does this pattern specifically guard against?" — Answer:
+        exactly the one described in this project's incident walkthrough — a rebind that silently fails because the
+        old binding entry was never cleared, leaving the site serving the old certificate without any obvious error.</p>
+      </details>
+      <details><summary>Q3. Why is piping a Cert: object directly into New-Item on the IIS: drive considered elegant, rather than just error-prone magic?</summary>
+        <p><b>Answer:</b> It's a direct, visible expression of PowerShell's object pipeline and provider model working
+        as designed — the certificate object carries everything the IIS provider needs, so no manual translation,
+        string formatting, or external tool call is required to connect the two subsystems. It's the same underlying
+        design philosophy as Project 1's very first pipeline example, now paying off in a genuinely practical,
+        cross-subsystem task.</p>
+        <p><b>Follow-up:</b> "What would the equivalent look like without PowerShell's provider model?" — Answer:
+        historically, binding a certificate to IIS required calling <code>netsh http add sslcert</code> with manually
+        formatted string parameters (IP:port, certificate hash, app ID) — functionally similar, but without the
+        object-based safety and readability PowerShell's approach provides.</p>
+      </details>
+    </section>
+
+    <section id="challenges">
+      <h2>Coding Challenges</h2>
+      <details><summary>Challenge 1: Add support for binding to a specific hostname (SNI) instead of all IPs</summary>
+        <details><summary>Show answer</summary>
+        <pre><code>New-WebBinding -Name $SiteName -Protocol "https" -Port $Port -IPAddress "*" -HostHeader "portal.abcbank.internal" -SslFlags 1
+# SslFlags 1 enables SNI (Server Name Indication), allowing hostname-specific bindings on a shared IP</code></pre>
+        </details>
+      </details>
+      <details><summary>Challenge 2: List every site and its current bound certificate thumbprint in one summary table</summary>
+        <details><summary>Show answer</summary>
+        <pre><code>Get-ChildItem "IIS:\Sites" | ForEach-Object {
+    $B = Get-WebBinding -Name $_.Name -Protocol "https" -ErrorAction SilentlyContinue
+    [PSCustomObject]@{ Site = $_.Name; CertThumbprint = $B.CertificateHash }
+}</code></pre>
+        </details>
+      </details>
+      <details><summary>Challenge 3: Warn if the certificate being bound is itself within 30 days of expiry (reusing Project 20's thresholds)</summary>
+        <details><summary>Show answer</summary>
+        <pre><code>$CertToBind = Get-Item "Cert:\LocalMachine\My\$CertThumbprint"
+$DaysLeft = ($CertToBind.NotAfter - (Get-Date)).Days
+if ($DaysLeft -lt 30) { Write-Warning "You're binding a certificate that itself expires in $DaysLeft days!" }</code></pre>
+        </details>
+      </details>
+    </section>
+
+    <section id="resume">
+      <h2>Resume Points</h2>
+      <ul class="explain-list">
+        <li>Built an idempotent PowerShell IIS certificate binding automation script bridging the certificate store and IIS configuration providers.</li>
+        <li>Implemented safe SSL binding replacement logic with pre-clear and post-change verification to prevent silent binding failures.</li>
+        <li>Applied ShouldProcess and structured audit logging to a live-traffic-affecting deployment operation.</li>
+      </ul>
+    </section>
+
+    <section id="assignment">
+      <h2>Practice Assignment</h2>
+      <div class="callout note">
+        Create a second self-signed test certificate with a different Subject, bind it over the first one using the
+        script, and confirm the log file's before/after entries correctly show the thumbprint changing from the
+        first certificate to the second.
+      </div>
+    </section>
+
+    <section id="next">
+      <h2>Next Project Prerequisites</h2>
+      <p>Project 23 (IIS Application Pool Automation) shifts from certificates to the application pools that
+      actually run a site's code — health checking and safely recycling them, reusing the idempotent-remediation
+      pattern from Project 10 in a new IIS-specific context. When ready, say <b>"Next Project."</b></p>
+    </section>
+
+    <footer>
+      PowerShell Masterclass — ABC Bank Automation Track · Project 22 of 40 · Generated for offline, self-contained use.
+    </footer>
+  </main>
+</div>
+
+<script>
+function copyCode(btn){
+  const code = btn.parentElement.querySelector('pre').innerText;
+  navigator.clipboard.writeText(code).then(()=>{
+    const old = btn.innerText; btn.innerText = "Copied!";
+    setTimeout(()=>btn.innerText = old, 1200);
+  });
+}
+window.addEventListener('scroll', ()=>{
+  const h = document.documentElement;
+  const pct = (h.scrollTop) / (h.scrollHeight - h.clientHeight) * 100;
+  document.getElementById('progressFill').style.width = pct + '%';
+  document.getElementById('progressLabel').innerText = 'Reading progress: ' + Math.round(pct) + '%';
+});
+</script>
+</body>
+</html>

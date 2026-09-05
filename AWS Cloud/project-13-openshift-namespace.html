@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Project 13 — OpenShift Namespace-as-a-Service Automation | NovaStack Bank</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&family=JetBrains+Mono:wght@400;500;700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg: #0b0e0f; --bg-panel: #12171a; --bg-panel-2: #161c20;
+    --line: #23303580; --line-strong: #2c3b3f;
+    --amber: #ff9d3d; --amber-dim: #7a5326;
+    --teal: #35d6b0; --teal-dim: #1c6a58;
+    --red: #ff5c5c; --red-dim: #5a2323;
+    --blue: #6db8ff; --blue-dim: #234a6b;
+    --purple: #b48cff; --purple-dim: #3a2c5c;
+    --text: #dbe4e6; --text-dim: #8fa1a6; --text-faint: #5c6d71;
+    --mono: 'JetBrains Mono', monospace; --display: 'Sora', sans-serif; --body: 'Manrope', sans-serif;
+  }
+  *{box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{margin:0; background:var(--bg); color:var(--text); font-family:var(--body); line-height:1.65; font-size:15.5px;}
+  ::selection{background:var(--amber); color:#101314;}
+  .rail{position:sticky; top:0; z-index:50; background:linear-gradient(180deg,#0d1113 0%, #0d1113ee 100%); border-bottom:1px solid var(--line-strong); backdrop-filter: blur(6px);}
+  .rail-inner{max-width:1180px; margin:0 auto; padding:10px 28px; display:flex; align-items:center; gap:14px; overflow-x:auto;}
+  .rail-tag{font-family:var(--mono); font-size:11px; letter-spacing:.08em; color:var(--text-faint); white-space:nowrap; padding-right:10px; border-right:1px solid var(--line-strong);}
+  .rail-steps{display:flex; gap:0; align-items:center; white-space:nowrap;}
+  .rail-step{font-family:var(--mono); font-size:11.5px; color:var(--text-faint); padding:4px 10px; border-radius:3px;}
+  .rail-step.done{color:var(--teal);}
+  .rail-step.active{color:var(--amber); background:#1c1512; border:1px solid var(--amber-dim);}
+  .rail-arrow{color:var(--text-faint); font-size:11px; opacity:.5;}
+  header.hero{max-width:1180px; margin:0 auto; padding:64px 28px 40px; border-bottom:1px solid var(--line);}
+  .eyebrow{font-family:var(--mono); font-size:12px; color:var(--amber); letter-spacing:.14em; text-transform:uppercase; display:flex; align-items:center; gap:10px;}
+  .eyebrow::before{content:"●"; font-size:8px; color:var(--teal); animation:pulse 2s infinite;}
+  @keyframes pulse{0%,100%{opacity:1;}50%{opacity:.3;}}
+  h1.title{font-family:var(--display); font-weight:800; font-size:clamp(28px,4vw,44px); margin:14px 0 10px; letter-spacing:-0.01em; color:#f2f6f6;}
+  .subtitle{color:var(--text-dim); font-size:16px; max-width:780px;}
+  .meta-strip{display:flex; flex-wrap:wrap; gap:10px; margin-top:26px;}
+  .meta-chip{font-family:var(--mono); font-size:11.5px; color:var(--text-dim); background:var(--bg-panel); border:1px solid var(--line-strong); padding:6px 12px; border-radius:20px;}
+  .meta-chip b{color:var(--text);}
+  main{max-width:1180px; margin:0 auto; padding:0 28px 100px; display:flex; gap:40px;}
+  nav.toc{width:230px; flex-shrink:0; position:sticky; top:64px; align-self:flex-start; padding-top:36px; max-height:calc(100vh - 80px); overflow-y:auto;}
+  nav.toc a{display:block; font-size:12.5px; color:var(--text-faint); text-decoration:none; padding:6px 0 6px 14px; border-left:2px solid var(--line); transition:.15s;}
+  nav.toc a:hover{color:var(--amber); border-left-color:var(--amber);}
+  .content{flex:1; min-width:0; padding-top:36px;}
+  section{margin-bottom:64px; scroll-margin-top:80px;}
+  .sec-head{display:flex; align-items:baseline; gap:12px; margin-bottom:20px;}
+  .sec-num{font-family:var(--mono); color:var(--amber); font-size:13px;}
+  h2{font-family:var(--display); font-weight:700; font-size:22px; color:#f2f6f6; margin:0;}
+  h3{font-family:var(--display); font-weight:600; font-size:16px; color:var(--teal); margin:26px 0 10px;}
+  p{color:var(--text-dim); margin:10px 0;}
+  strong{color:var(--text);}
+  a{color:var(--amber);}
+  .callout{background:var(--bg-panel); border:1px solid var(--line-strong); border-left:3px solid var(--amber); padding:16px 20px; border-radius:4px; margin:16px 0; color:var(--text-dim); font-size:14.5px;}
+  .callout.red{border-left-color:var(--red);}
+  .callout.blue{border-left-color:var(--blue);}
+  .callout.purple{border-left-color:var(--purple);}
+  .callout b{color:var(--text); display:block; font-family:var(--mono); font-size:11.5px; letter-spacing:.06em; text-transform:uppercase; margin-bottom:6px;}
+  table{width:100%; border-collapse:collapse; margin:16px 0; font-size:13.5px;}
+  th,td{text-align:left; padding:9px 12px; border-bottom:1px solid var(--line);}
+  th{font-family:var(--mono); font-size:11px; letter-spacing:.05em; text-transform:uppercase; color:var(--text-faint); font-weight:500;}
+  td{color:var(--text-dim);}
+  tr:hover td{color:var(--text);}
+  ul,ol{color:var(--text-dim); padding-left:22px;}
+  li{margin:6px 0;}
+  li::marker{color:var(--amber);}
+  pre{background:#0a0d0e; border:1px solid var(--line-strong); border-radius:6px; padding:18px 20px; overflow-x:auto; font-family:var(--mono); font-size:12.4px; line-height:1.75; color:#c9d6d8; margin:16px 0;}
+  .code-label{font-family:var(--mono); font-size:11px; color:var(--bg); background:var(--teal); display:inline-block; padding:3px 10px; border-radius:4px 4px 0 0; letter-spacing:.05em; margin-bottom:-1px; position:relative; top:1px;}
+  .code-label.arch{background:var(--purple);}
+  .cmt{color:#5c8f7f;} .kw{color:#ff9d3d;} .str{color:#8fd0e6;} .why{color:#b48cff;}
+  code.inline{font-family:var(--mono); background:#1a2225; color:var(--teal); padding:2px 6px; border-radius:3px; font-size:12.8px;}
+  .flow{display:flex; flex-direction:column; gap:0; margin:20px 0;}
+  .flow-node{display:flex; align-items:center; gap:14px; padding:12px 16px; background:var(--bg-panel); border:1px solid var(--line-strong); border-radius:6px;}
+  .flow-node .n{font-family:var(--mono); font-size:11px; color:var(--bg); background:var(--amber); width:26px; height:26px; border-radius:50%; display:flex; align-items:center; justify-content:center; flex-shrink:0; font-weight:700;}
+  .flow-node .label{font-family:var(--display); font-weight:600; color:var(--text); font-size:14px;}
+  .flow-node .desc{color:var(--text-faint); font-size:12.5px;}
+  .flow-connector{width:1px; height:20px; background:var(--line-strong); margin-left:29px;}
+  .team-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(230px,1fr)); gap:14px; margin:16px 0;}
+  .team-card{background:var(--bg-panel); border:1px solid var(--line-strong); border-radius:6px; padding:16px;}
+  .team-card h4{font-family:var(--mono); font-size:12px; color:var(--amber); margin:0 0 8px; letter-spacing:.04em;}
+  .team-card ul{margin:0; padding-left:16px; font-size:13px;}
+  .ticket{background:var(--bg-panel-2); border:1px solid var(--line-strong); border-radius:6px; overflow:hidden; margin:16px 0;}
+  .ticket-head{display:flex; justify-content:space-between; align-items:center; background:#191f22; padding:10px 18px; border-bottom:1px solid var(--line-strong); font-family:var(--mono); font-size:12px;}
+  .ticket-id{color:var(--teal);}
+  .ticket-badge{padding:2px 10px; border-radius:10px; font-size:10.5px; letter-spacing:.05em; text-transform:uppercase;}
+  .ticket-badge.change{background:var(--amber-dim); color:var(--amber);}
+  .ticket-body{padding:16px 18px;}
+  .ticket-row{display:flex; gap:10px; margin:6px 0; font-size:13px;}
+  .ticket-row .k{width:150px; flex-shrink:0; color:var(--text-faint); font-family:var(--mono); font-size:11.5px;}
+  .ticket-row .v{color:var(--text-dim);}
+  .chain{display:flex; align-items:center; flex-wrap:wrap; gap:8px; margin:16px 0;}
+  .chain-item{font-family:var(--mono); font-size:12px; background:var(--bg-panel); border:1px solid var(--line-strong); padding:8px 14px; border-radius:4px; color:var(--text-dim);}
+  .chain-arrow{color:var(--amber);}
+  .qa{background:var(--bg-panel); border:1px solid var(--line-strong); border-radius:6px; padding:18px 20px; margin:14px 0;}
+  .qa .q{font-family:var(--display); font-weight:600; color:var(--amber); font-size:14.5px; margin-bottom:8px;}
+  .qa .a{color:var(--text-dim); font-size:13.8px;}
+  .arch-note{background:linear-gradient(135deg,#1a1420,#12171a); border:1px solid var(--purple-dim); border-radius:6px; padding:16px 20px; margin:14px 0;}
+  .arch-note b{color:var(--purple); font-family:var(--mono); font-size:11px; letter-spacing:.06em; text-transform:uppercase; display:block; margin-bottom:6px;}
+  .arch-note p{margin:0; color:var(--text-dim); font-size:13.8px;}
+  .os-split{display:grid; grid-template-columns:1fr 1fr; gap:16px; margin:16px 0;}
+  .os-card{background:var(--bg-panel); border:1px solid var(--line-strong); border-radius:6px; padding:16px;}
+  .os-card h4{font-family:var(--mono); font-size:12px; letter-spacing:.05em; margin:0 0 10px;}
+  .os-card.linux h4{color:var(--teal);}
+  .os-card.windows h4{color:var(--blue);}
+  footer{max-width:1180px; margin:0 auto; padding:30px 28px 60px; color:var(--text-faint); font-family:var(--mono); font-size:11.5px; border-top:1px solid var(--line);}
+  @media (max-width:900px){ main{flex-direction:column;} nav.toc{display:none;} }
+</style>
+</head>
+<body>
+
+<div class="rail">
+  <div class="rail-inner">
+    <span class="rail-tag">NOVASTACK BANK · AUTOMATION ENGINEERING</span>
+    <div class="rail-steps">
+      <span class="rail-step done">TICKET</span><span class="rail-arrow">→</span>
+      <span class="rail-step done">DESIGN</span><span class="rail-arrow">→</span>
+      <span class="rail-step done">DEV</span><span class="rail-arrow">→</span>
+      <span class="rail-step active">UAT</span><span class="rail-arrow">→</span>
+      <span class="rail-step">CAB</span><span class="rail-arrow">→</span>
+      <span class="rail-step">PROD</span><span class="rail-arrow">→</span>
+      <span class="rail-step">CLOSE</span>
+    </div>
+  </div>
+</div>
+
+<header class="hero">
+  <div class="eyebrow">Project 13 of 25 · OpenShift / Multi-Environment</div>
+  <h1 class="title">OpenShift Application &amp; Platform Automation<br>Governed Namespace-as-a-Service</h1>
+  <p class="subtitle">Self-service OpenShift namespace provisioning with quota, network policy, and RBAC applied structurally in the same run — turning a two-week manual process, and the incident it caused, into a 30-minute governed one.</p>
+  <div class="meta-strip"><span class="meta-chip">Company: <b>NovaStack Bank</b></span>
+<span class="meta-chip">Trigger: <b>Resource-exhaustion incident + migration deadline</b></span>
+<span class="meta-chip">Platform: <b>OpenShift</b></span>
+<span class="meta-chip">Environments: <b>DEV · UAT · PROD</b></span>
+<span class="meta-chip">Change: <b>CHG0042803</b></span></div>
+</header>
+
+<main>
+<nav class="toc"><a href="#scenario">01 · Business Scenario</a>
+<a href="#arch">02 · Architecture</a>
+<a href="#workflow">03 · Project Workflow</a>
+<a href="#teams">04 · Team Responsibilities</a>
+<a href="#tickets">05 · Ticket Flow</a>
+<a href="#approval">06 · Approval Flow</a>
+<a href="#requirements">07 · Requirement Gathering</a>
+<a href="#auth">08 · Authentication</a>
+<a href="#design">09 · Ansible Design</a>
+<a href="#code">10 · Code & Roles</a>
+<a href="#aap">11 · RHAAP / AAP</a>
+<a href="#testing">12 · Testing Strategy</a>
+<a href="#prod">13 · Production Deployment</a>
+<a href="#rollback">14 · Rollback</a>
+<a href="#troubleshoot">15 · Troubleshooting</a>
+<a href="#monitoring">16 · Monitoring</a>
+<a href="#security">17 · Security</a>
+<a href="#docs">18 · Documentation</a>
+<a href="#interview">19 · Interview Prep</a>
+<a href="#takeaways">20 · Key Takeaways</a></nav>
+<div class="content">
+
+<section id="scenario">
+  <div class="sec-head"><span class="sec-num">01</span><h2>Business Scenario</h2></div>
+  <p>NovaStack Bank's digital channels team is migrating the mobile banking API layer onto OpenShift, moving away from static VMs. Today, onboarding a new microservice team onto the OpenShift cluster is a two-week manual process — a platform engineer hand-creates the namespace, resource quotas, network policies, and service accounts by running <code class="inline">oc</code> commands from memory, with no two namespaces provisioned quite the same way. This inconsistency already caused one incident where a missing resource quota let a single misbehaving pod exhaust a shared node's memory.</p>
+  <p>Platform Engineering has asked Automation Engineering to build a namespace-as-a-service pipeline: application teams request an OpenShift namespace via ServiceNow, and Ansible provisions a fully governed, consistent namespace — quotas, network policies, RBAC, and a starter deployment — in minutes instead of weeks.</p>
+  <div class="callout"><b>Why this can't stay manual</b>Inconsistent manual namespace setup is exactly what caused the resource-exhaustion incident, and a two-week onboarding time is actively blocking the OpenShift migration timeline. Standardized, automated provisioning fixes both the consistency and the speed problem at once.</div>
+  <p>This is the first project using the <code class="inline">kubernetes.core</code> collection against the OpenShift API, and it reuses the fail-closed request-validation pattern from Projects 11 and 12 applied to Kubernetes resource definitions.</p>
+</section>
+
+<section id="arch">
+  <div class="sec-head"><span class="sec-num">02</span><h2>Architecture</h2></div>
+  <div class="flow">
+    <div class="flow-node"><div class="n">1</div><div><div class="label">ServiceNow Catalog Item: New Namespace</div><div class="desc">Team name, expected workload size, environment</div></div></div>
+    <div class="flow-connector"></div>
+    <div class="flow-node"><div class="n">2</div><div><div class="label">AAP Workflow: Namespace Provision</div><div class="desc">Namespace → Quota → NetworkPolicy → RBAC → Starter Deployment</div></div></div>
+    <div class="flow-connector"></div>
+    <div class="flow-node"><div class="n">3</div><div><div class="label">kubernetes.core Collection</div><div class="desc">k8s module against the OpenShift API server</div></div></div>
+    <div class="flow-connector"></div>
+    <div class="flow-node"><div class="n">4</div><div><div class="label">Templated Manifests (Jinja2)</div><div class="desc">Every namespace gets identical governance objects, sized per tier</div></div></div>
+    <div class="flow-connector"></div>
+    <div class="flow-node"><div class="n">5</div><div><div class="label">Team Onboarded to CI/CD + Monitoring</div><div class="desc">Namespace registered with the cluster's existing Prometheus setup</div></div></div>
+  </div>
+</section>
+
+<section id="workflow">
+  <div class="sec-head"><span class="sec-num">03</span><h2>Project Workflow</h2></div>
+  <div class="flow">
+    <div class="flow-node"><div class="n">1</div><div><div class="label">Resource-Exhaustion Incident + Migration Deadline Pressure</div><div class="desc">Dual driver: safety and speed</div></div></div>
+    <div class="flow-connector"></div>
+    <div class="flow-node"><div class="n">2</div><div><div class="label">Requirement Gathering with Platform Engineering</div><div class="desc">Define the standard quota tiers and network policy baseline</div></div></div>
+    <div class="flow-connector"></div>
+    <div class="flow-node"><div class="n">3</div><div><div class="label">Design Templated Manifest Set</div><div class="desc">One Jinja2 template family, parameterized by tier</div></div></div>
+    <div class="flow-connector"></div>
+    <div class="flow-node"><div class="n">4</div><div><div class="label">Build Provisioning Role + Peer Review</div><div class="desc">Idempotent against the OpenShift API</div></div></div>
+    <div class="flow-connector"></div>
+    <div class="flow-node"><div class="n">5</div><div><div class="label">DEV/UAT Cluster Pilot with 3 Real Teams</div><div class="desc">Validate the self-service flow end to end</div></div></div>
+    <div class="flow-connector"></div>
+    <div class="flow-node"><div class="n">6</div><div><div class="label">CAB Approval for PROD Cluster Rollout</div><div class="desc">Platform Engineering owns final RBAC review</div></div></div>
+    <div class="flow-connector"></div>
+    <div class="flow-node"><div class="n">7</div><div><div class="label">Steady-State — Onboarding Time Tracked</div><div class="desc">Two weeks down to under 30 minutes is the headline result</div></div></div>
+  </div>
+</section>
+
+<section id="teams">
+  <div class="sec-head"><span class="sec-num">04</span><h2>Team Responsibilities</h2></div>
+  <div class="team-grid">
+    <div class="team-card"><h4>YOU — AUTOMATION ENGINEER</h4><ul><li>Build the namespace provisioning role</li><li>Maintain the quota-tier template set</li></ul></div>
+    <div class="team-card"><h4>PLATFORM ENGINEERING (OpenShift)</h4><ul><li>Owns cluster capacity planning and quota tiers</li><li>Owns the network policy baseline</li></ul></div>
+    <div class="team-card"><h4>APPLICATION TEAMS</h4><ul><li>Submit namespace requests with accurate workload sizing</li></ul></div>
+    <div class="team-card"><h4>SECURITY TEAM</h4><ul><li>Approves the default RBAC and network policy baseline</li></ul></div>
+  </div>
+</section>
+
+<section id="tickets">
+  <div class="sec-head"><span class="sec-num">05</span><h2>Ticket Flow</h2></div>
+  <div class="ticket"><div class="ticket-head"><span class="ticket-id">CHG0042803</span><span class="ticket-badge change">NORMAL CHANGE</span></div>
+  <div class="ticket-body">
+    <div class="ticket-row"><div class="k">SCOPE</div><div class="v">Enable self-service, governed namespace provisioning on the PROD OpenShift cluster</div></div>
+    <div class="ticket-row"><div class="k">VALIDATION PLAN</div><div class="v">Confirm every new namespace carries quota, network policy, and RBAC objects matching the approved baseline with zero manual steps</div></div>
+  </div></div>
+</section>
+
+<section id="approval">
+  <div class="sec-head"><span class="sec-num">06</span><h2>Approval Flow</h2></div>
+  <div class="chain"><span class="chain-item">You</span><span class="chain-arrow">→</span><span class="chain-item">Automation Lead</span><span class="chain-arrow">→</span><span class="chain-item">Platform Engineering Owner</span><span class="chain-arrow">→</span><span class="chain-item">Security</span><span class="chain-arrow">→</span><span class="chain-item">CAB</span></div>
+</section>
+
+<section id="requirements">
+  <div class="sec-head"><span class="sec-num">07</span><h2>Requirement Gathering</h2></div>
+  <table><tr><th>Question</th><th>Why it matters</th></tr>
+  <tr><td>What are the standard workload size tiers (Small/Medium/Large) and their quota values?</td><td>Directly prevents the resource-exhaustion class of incident that started this project</td></tr>
+  <tr><td>What network policy baseline applies by default — deny-all with explicit allows?</td><td>Determines the security posture every namespace starts with</td></tr>
+  <tr><td>What RBAC roles does a requesting team get by default — namespace-admin, edit, view?</td><td>Balances team autonomy against blast radius</td></tr>
+  <tr><td>Should namespace deletion be automatable too, or always manual?</td><td>Deleting a namespace destroys everything in it — worth a deliberate, separate decision</td></tr>
+  </table>
+</section>
+
+<section id="auth">
+  <div class="sec-head"><span class="sec-num">08</span><h2>Authentication</h2></div>
+  <p>The automation authenticates to the OpenShift API using a dedicated ServiceAccount with cluster-role permissions scoped to namespace, quota, network policy, and RBAC object creation only — it cannot modify existing namespaces it doesn't own or touch cluster-level configuration.</p>
+</section>
+
+<section id="design">
+  <div class="sec-head"><span class="sec-num">09</span><h2>Ansible Design</h2></div>
+  <div class="arch-note"><b>Architect's note</b><p>Every governance object (quota, network policy, RBAC) is defined as a Jinja2-templated Kubernetes manifest, applied via the same idempotent <code class="inline">k8s</code> module call pattern — consistency isn't enforced by code review discipline, it's structurally guaranteed because there's only one template family, parameterized by tier.</p></div>
+  <pre><span class="cmt"># ansible-openshift-namespace/</span>
+├── templates/
+│   ├── namespace.yml.j2
+│   ├── resourcequota.yml.j2
+│   ├── networkpolicy-default-deny.yml.j2
+│   └── rolebinding.yml.j2
+├── vars/quota_tiers.yml
+├── roles/ns_provision/tasks/main.yml
+├── playbooks/provision_namespace.yml
+└── README.md</pre>
+</section>
+
+<section id="code">
+  <div class="sec-head"><span class="sec-num">10</span><h2>Code &amp; Roles</h2></div>
+  <span class="code-label">vars/quota_tiers.yml</span>
+  <pre><span class="kw">---</span>
+<span class="cmt"># The tier system is what turns "resource exhaustion incident" into</span>
+<span class="cmt"># "impossible by construction" -- no namespace can be created without</span>
+<span class="cmt"># a quota from this table.</span>
+quota_tiers:
+  small:
+    cpu_limit: "2"
+    memory_limit: "4Gi"
+    pod_count: 10
+  medium:
+    cpu_limit: "8"
+    memory_limit: "16Gi"
+    pod_count: 30
+  large:
+    cpu_limit: "20"
+    memory_limit: "48Gi"
+    pod_count: 75</pre>
+
+  <span class="code-label">roles/ns_provision/tasks/main.yml</span>
+  <pre><span class="kw">---</span>
+- name: Assert requested tier is a known, approved value
+  ansible.builtin.assert:
+    that: requested_tier in quota_tiers
+    fail_msg: "Provisioning refused: '{{ requested_tier }}' is not an approved quota tier. Choose small, medium, or large."
+
+- name: Create the namespace
+  kubernetes.core.k8s:
+    state: present
+    definition: "{{ lookup('template', 'namespace.yml.j2') }}"
+
+<span class="cmt"># Quota is applied in the SAME task run as namespace creation, not as</span>
+<span class="cmt"># a follow-up step -- there is no window where the namespace exists</span>
+<span class="cmt"># without a quota attached, which is exactly the gap that caused the</span>
+<span class="cmt"># original incident.</span>
+- name: Apply resource quota for the requested tier
+  kubernetes.core.k8s:
+    state: present
+    definition: "{{ lookup('template', 'resourcequota.yml.j2') }}"
+
+- name: Apply default-deny network policy baseline
+  kubernetes.core.k8s:
+    state: present
+    definition: "{{ lookup('template', 'networkpolicy-default-deny.yml.j2') }}"
+
+- name: Bind requesting team to namespace-admin role
+  kubernetes.core.k8s:
+    state: present
+    definition: "{{ lookup('template', 'rolebinding.yml.j2') }}"
+
+- name: Verify quota is actually enforced before handing namespace to the team
+  kubernetes.core.k8s_info:
+    kind: ResourceQuota
+    namespace: "{{ requested_namespace }}"
+  register: quota_check
+  failed_when: quota_check.resources | length == 0
+  <span class="cmt"># A final read-back check -- we don't just trust that the apply</span>
+  <span class="cmt"># succeeded, we confirm the quota object genuinely exists before</span>
+  <span class="cmt"># telling the requesting team their namespace is ready.</span></pre>
+  <h3>Execution flow, in plain terms</h3>
+  <p>An invalid tier request is rejected before anything is created. Namespace and quota are applied back-to-back in the same run, closing the exact window that let one misbehaving pod exhaust a node in the original incident, followed by the network policy baseline and RBAC binding. The final read-back check confirms the quota object is really there — not just that the API call returned success — before the namespace is considered ready.</p>
+</section>
+
+<section id="aap">
+  <div class="sec-head"><span class="sec-num">11</span><h2>RHAAP / AAP Configuration</h2></div>
+  <table><tr><th>Component</th><th>Configuration</th></tr>
+  <tr><td>Job Template</td><td><code class="inline">OpenShift-Namespace-Provision</code>, survey maps to the ServiceNow catalog item fields</td></tr>
+  <tr><td>Credentials</td><td>OpenShift ServiceAccount token, scoped via a dedicated ClusterRole for namespace-governance objects only</td></tr>
+  <tr><td>Execution Environment</td><td>Custom EE including the kubernetes.core collection and oc CLI</td></tr>
+  </table>
+</section>
+
+<section id="testing">
+  <div class="sec-head"><span class="sec-num">12</span><h2>Testing Strategy</h2></div>
+  <ul><li>Provisioned a namespace against a DEV cluster and deliberately deployed a pod exceeding quota, confirming Kubernetes itself rejects it — proving the quota is real, not cosmetic</li><li>Ran the provisioning role twice in a row to confirm full idempotency against the OpenShift API</li></ul>
+</section>
+
+<section id="prod">
+  <div class="sec-head"><span class="sec-num">13</span><h2>Production Deployment</h2></div>
+  <p>Piloted with 3 real application teams on the DEV/UAT cluster first, gathering feedback on tier sizing accuracy, before enabling the same self-service flow on the PROD cluster.</p>
+</section>
+
+<section id="rollback">
+  <div class="sec-head"><span class="sec-num">14</span><h2>Rollback Procedure</h2></div>
+  <p>Disable the ServiceNow catalog item to pause new self-service requests; an incorrectly provisioned namespace's governance objects can be re-applied with corrected values via the same idempotent role, without deleting the namespace itself.</p>
+</section>
+
+<section id="troubleshoot">
+  <div class="sec-head"><span class="sec-num">15</span><h2>Troubleshooting</h2></div>
+  <div class="callout red"><b>Team reports their pods won't communicate cross-namespace</b>
+  <strong>Symptom:</strong> App-to-app calls fail immediately after onboarding.<br>
+  <strong>Root cause:</strong> This is expected — the default-deny network policy baseline blocks all traffic until explicitly allowed.<br>
+  <strong>Fix:</strong> Not a bug — team submits a follow-up request for a specific NetworkPolicy allow-rule to the namespaces they need to reach, reviewed by Security given it's a deliberate exception to the default posture.</div>
+</section>
+
+<section id="monitoring">
+  <div class="sec-head"><span class="sec-num">16</span><h2>Monitoring &amp; Validation</h2></div>
+  <p>Onboarding time (request submitted → namespace ready) is tracked as the primary success metric, alongside a cluster-wide dashboard confirming zero namespaces exist without an attached ResourceQuota — the direct proof the original incident class is closed.</p>
+</section>
+
+<section id="security">
+  <div class="sec-head"><span class="sec-num">17</span><h2>Security Considerations</h2></div>
+  <ul><li>Default-deny network policy means every namespace starts maximally restricted, with access explicitly granted rather than implicitly open</li><li>The provisioning ServiceAccount cannot modify namespaces it didn't create, limiting blast radius of a credential compromise</li></ul>
+</section>
+
+<section id="docs">
+  <div class="sec-head"><span class="sec-num">18</span><h2>Documentation Maintained</h2></div>
+  <ul><li>Quota tier reference for app teams choosing a size at request time</li><li>Network policy exception request process</li></ul>
+</section>
+
+<section id="interview">
+  <div class="sec-head"><span class="sec-num">19</span><h2>Interview Preparation</h2></div>
+  <div class="qa"><div class="q">How does this prevent the resource-exhaustion incident from happening again?</div>
+  <div class="a">The quota is applied in the same automated run as the namespace itself, with a read-back verification before the namespace is handed off — there's no manual step where someone could forget it, and no window where the namespace exists without a quota already enforced.</div></div>
+  <div class="qa"><div class="q">Why default-deny network policy instead of default-allow with monitoring?</div>
+  <div class="a">Default-deny means a misconfiguration fails toward "nothing works, investigate immediately" rather than "everything's silently reachable" — for a bank's internal network, an explicit-allow model is the safer default even though it adds a follow-up request step for legitimate cross-namespace traffic.</div></div>
+</section>
+
+<section id="takeaways">
+  <div class="sec-head"><span class="sec-num">20</span><h2>Skills Learned</h2></div>
+  <ul><li>OpenShift/Kubernetes automation via the kubernetes.core collection</li><li>Template-driven governance objects as a structural (not procedural) consistency guarantee</li><li>Read-back verification instead of trusting apply-call success alone</li><li>Default-deny network policy design and its operational tradeoffs</li></ul>
+</section>
+
+</div>
+</main>
+
+<footer>
+  NovaStack Bank — Automation Engineering Internal Documentation · Project 13/25 · Generated for training purposes, no real infrastructure, secrets, or credentials represented.
+</footer>
+
+</body>
+</html>

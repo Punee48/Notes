@@ -1,0 +1,722 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Use Case 5: Canary Deployment with Progressive Traffic | ShopNow Retail</title>
+<style>
+  :root{
+    --bg:#0b0f14; --panel:#111823; --panel2:#0e1420; --border:#1f2b3a;
+    --text:#dbe6f0; --muted:#8aa0b4; --accent:#3fb6a8; --accent2:#e8a33d;
+    --code-bg:#0a0e14; --good:#5ec98f; --bad:#e35d5d; --stable:#5aa9e6; --canary:#e8a33d;
+  }
+  *{box-sizing:border-box}
+  body{background:var(--bg);color:var(--text);font-family:'Segoe UI',Roboto,Helvetica,Arial,sans-serif;line-height:1.65;margin:0;padding:0}
+  .wrap{max-width:980px;margin:0 auto;padding:32px 24px 120px}
+  h1{font-size:2rem;color:#fff;border-bottom:3px solid var(--accent);padding-bottom:12px;margin-top:0}
+  h2{color:var(--accent);font-size:1.5rem;margin-top:56px;border-left:5px solid var(--accent);padding-left:14px}
+  h3{color:var(--accent2);font-size:1.2rem;margin-top:32px}
+  h4{color:#fff;font-size:1.02rem;margin-top:22px;background:var(--panel2);padding:6px 10px;border-radius:4px;border-left:3px solid var(--muted)}
+  p{color:#c6d3df}
+  .story{background:linear-gradient(135deg,#132030,#0e1622);border:1px solid var(--border);border-radius:10px;padding:18px 22px;margin:18px 0;font-style:italic;color:#b9c9d8}
+  .story b{color:var(--accent2);font-style:normal}
+  .callout{background:#152a24;border:1px solid #235c4c;border-radius:8px;padding:14px 18px;margin:16px 0}
+  .callout.warn{background:#2a1f14;border-color:#6b4a1d}
+  .callout.why{background:#101b2c;border-color:#254268}
+  .step{background:var(--panel);border:1px solid var(--border);border-left:4px solid var(--accent);border-radius:6px;padding:12px 18px;margin:14px 0}
+  .step b.n{display:inline-block;background:var(--accent);color:#04120f;border-radius:50%;width:24px;height:24px;text-align:center;line-height:24px;font-size:.8rem;margin-right:10px}
+  pre{background:var(--code-bg);border:1px solid var(--border);border-radius:8px;padding:16px;overflow-x:auto;font-size:.85rem}
+  code{font-family:'Fira Code',Consolas,monospace;color:#c9d9e3}
+  .cmt{color:#5c7a8a}
+  .k{color:#e8a33d} .s{color:#7fd1a7} .v{color:#5aa9e6}
+  table{width:100%;border-collapse:collapse;margin:16px 0}
+  th,td{border:1px solid var(--border);padding:8px 12px;text-align:left;font-size:.9rem}
+  th{background:var(--panel2);color:var(--accent2)}
+  .toc{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:20px 26px}
+  .toc a{color:var(--accent);text-decoration:none}
+  .toc li{margin:6px 0}
+  .divider{border:none;border-top:1px solid var(--border);margin:40px 0}
+  .bar-row{display:flex;align-items:center;gap:10px;margin:8px 0;font-size:.85rem}
+  .bar-track{flex:1;background:#182230;border-radius:5px;overflow:hidden;height:22px;display:flex}
+  .bar-stable{background:var(--stable);height:100%}
+  .bar-canary{background:var(--canary);height:100%}
+  .bar-label{width:110px;color:var(--muted)}
+  .gate{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin:16px 0}
+  .gate-card{background:var(--panel2);border:1px solid var(--border);border-radius:8px;padding:12px 14px}
+  .gate-card b{color:var(--accent2)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>Use Case 5: Canary Deployment with Progressive Traffic</h1>
+<p><b>Company:</b> ShopNow Retail Pvt Ltd (fictional mid-size e-commerce company) &nbsp;|&nbsp; <b>Your role:</b> DevOps/Cloud Engineer &nbsp;|&nbsp; <b>Level:</b> 4+ years, resume-ready production project</p>
+
+<div class="toc">
+<b>What this document covers, start to finish:</b>
+<ol>
+<li><a href="#scenario">The Business Scenario</a></li>
+<li><a href="#concept">The Core Idea — Canary vs Blue-Green vs Rolling Update</a></li>
+<li><a href="#apparch">Application Architecture</a></li>
+<li><a href="#awsarch">AWS Architecture</a></li>
+<li><a href="#eks">EKS Cluster Design</a></li>
+<li><a href="#vpc">VPC and Networking</a></li>
+<li><a href="#iam">IAM Roles and IRSA</a></li>
+<li><a href="#argorollouts">Introducing Argo Rollouts — Why Plain Kubernetes Isn't Enough</a></li>
+<li><a href="#manifests">The Rollout Manifest — Full Progressive Canary Steps</a></li>
+<li><a href="#analysis">AnalysisTemplate — Automated Metric Gates</a></li>
+<li><a href="#svc">Stable and Canary Services, and Weighted Routing</a></li>
+<li><a href="#pdb">PodDisruptionBudget</a></li>
+<li><a href="#config">ConfigMaps and Secrets</a></li>
+<li><a href="#ingress">Ingress with AWS Load Balancer Controller</a></li>
+<li><a href="#hpa">HPA and Autoscaling</a></li>
+<li><a href="#netpol">NetworkPolicies</a></li>
+<li><a href="#ecr">ECR Integration</a></li>
+<li><a href="#pipeline">Jenkins and GitHub Actions Pipelines</a></li>
+<li><a href="#argocd">Argo CD GitOps</a></li>
+<li><a href="#monitoring">Prometheus and Grafana</a></li>
+<li><a href="#cloudwatch">CloudWatch Logging</a></li>
+<li><a href="#workflow">Running the Code — Full End-to-End Workflow</a></li>
+<li><a href="#failure">Failure Testing — Proving Auto-Rollback Works</a></li>
+<li><a href="#rollback">Rollback Strategy</a></li>
+<li><a href="#troubleshoot">Troubleshooting Scenarios</a></li>
+<li><a href="#ansible">Ansible Automation</a></li>
+<li><a href="#report">HTML Deployment/Job Report</a></li>
+<li><a href="#email">Email Notification</a></li>
+<li><a href="#resume">How to Present This on Your Resume</a></li>
+</ol>
+</div>
+
+<h2 id="scenario">1. The Business Scenario — Why This Project Exists</h2>
+<div class="story">
+ShopNow Retail's Catalog Service (the Python/FastAPI service from Use Case 1) had a Blue-Green deploy go strange three weeks ago. Green passed every smoke test and every manual UAT scenario cleanly — but under the real, chaotic mix of actual customer search queries at 7 PM on a weekday, a subtle change to how the search-ranking algorithm handled queries with special characters caused a slow memory leak that only showed up after about twenty minutes of real production load. By the time anyone noticed rising latency, 100% of customers were already on the leaking version, because Blue-Green had already switched everyone over in one shot.
+</div>
+<p>Ramesh's ask this time: <i>"I don't want an all-or-nothing switch for services where the risk is 'this behaves subtly wrong under real traffic patterns we can't fully simulate in testing.' I want new versions to earn more traffic gradually — start small, watch the numbers, and only let it grow if the numbers stay healthy. And I want the growing and the watching to happen automatically, not depend on someone staring at a dashboard at 7 PM."</i></p>
+<p>This is <b>Canary Deployment with Progressive Traffic</b> — the third and most gradual of the three deployment strategies in this series. Where Blue-Green is a single all-or-nothing switch validated <i>before</i> the switch, Canary is a series of small, increasing switches validated <i>continuously during</i> the rollout, using real production traffic itself as the test.</p>
+
+<h2 id="concept">2. The Core Idea — Canary vs Blue-Green vs Rolling Update</h2>
+<div class="bar-row"><div class="bar-label">Stage 1</div><div class="bar-track"><div class="bar-stable" style="width:90%"></div><div class="bar-canary" style="width:10%"></div></div><div>V1: 90% &nbsp;|&nbsp; V2: 10%</div></div>
+<div class="bar-row"><div class="bar-label">Stage 2</div><div class="bar-track"><div class="bar-stable" style="width:75%"></div><div class="bar-canary" style="width:25%"></div></div><div>V1: 75% &nbsp;|&nbsp; V2: 25%</div></div>
+<div class="bar-row"><div class="bar-label">Stage 3</div><div class="bar-track"><div class="bar-stable" style="width:50%"></div><div class="bar-canary" style="width:50%"></div></div><div>V1: 50% &nbsp;|&nbsp; V2: 50%</div></div>
+<div class="bar-row"><div class="bar-label">Stage 4</div><div class="bar-track"><div class="bar-stable" style="width:0%"></div><div class="bar-canary" style="width:100%"></div></div><div>V1: 0% &nbsp;|&nbsp; V2: 100%</div></div>
+<p>Between every stage above, an automated check runs against error rate, p95 latency, and CPU usage. If the new version ("the canary") looks healthy, traffic advances to the next stage. If it looks unhealthy at any point, the rollout <b>pauses or automatically rolls back to 0% canary traffic</b> — before most customers were ever exposed.</p>
+<table>
+<tr><th></th><th>Rolling Update</th><th>Blue-Green</th><th>Canary (this use case)</th></tr>
+<tr><td>How much real traffic sees the new version before full rollout?</td><td>Grows as fast as pods become Ready</td><td>0%, until one instant 100% switch</td><td>A small %, growing in controlled, measured steps</td></tr>
+<tr><td>How is "is the new version okay" decided?</td><td>Only readiness probes</td><td>Pre-switch smoke tests + manual UAT</td><td>Continuous automated metric analysis against live production traffic</td></tr>
+<tr><td>Blast radius if the new version is subtly broken</td><td>All pods eventually, but caught fast via probes</td><td>100% of customers, immediately, if pre-switch testing missed it</td><td>Capped at whatever % it reached before the gate caught it — often just 10%</td></tr>
+<tr><td>Best fit</td><td>Most stateless services, routine deploys</td><td>Payment/checkout — needs a clean atomic cutover</td><td>Catalog/search/recommendation — behavior only fully knowable under real traffic mix</td></tr>
+</table>
+<div class="callout why"><b>Why Catalog Service is the right fit for Canary, specifically.</b> Its risk profile is exactly "looks fine in every test, misbehaves only under the messy variety of real customer queries" — the opposite of Payment Service's risk profile, which is "must never process the same transaction two different ways, so no mixed-version window is acceptable at all." Matching deployment strategy to actual risk shape is the same judgment call from Use Case 4, applied to a different kind of risk.</div>
+
+<h2 id="apparch">3. Application Architecture</h2>
+<pre><code><span class="cmt">                  Customer Browser
+                        |
+              ALB (Ingress, weighted routing)
+                   /            \
+            90% traffic      10% traffic
+                 |                |
+      catalog-service-stable   catalog-service-canary
+      (v1.9.4, 8 replicas est.) (v1.10.0, scaled to match %)
+                 \                /
+                  \              /
+                   Shared RDS PostgreSQL (catalog-db)
+</span></code></pre>
+<p>Same Catalog Service (Python/FastAPI) from Use Case 1, now deployed via <b>Argo Rollouts</b> instead of a plain Deployment — the tool that actually understands the concept of "stages" and "traffic weight" and "automated analysis," none of which exist in vanilla Kubernetes.</p>
+
+<h2 id="awsarch">4. AWS Architecture</h2>
+<table>
+<tr><th>AWS Service</th><th>Role in this project</th></tr>
+<tr><td>EKS</td><td>Runs stable and canary ReplicaSets simultaneously, orchestrated by the Argo Rollouts controller instead of the native Deployment controller</td></tr>
+<tr><td>ALB</td><td>Performs the actual weighted traffic split, using two Target Groups (stable, canary) whose weights the AWS Load Balancer Controller updates automatically as the Rollout progresses</td></tr>
+<tr><td>ECR</td><td>Same repository as before, canary image tagged distinctly (e.g. <code>catalog-service:canary-v1.10.0</code>)</td></tr>
+<tr><td>RDS PostgreSQL</td><td>Shared between stable and canary, same backward-compatibility rule from Use Case 4 applies here too</td></tr>
+<tr><td>CloudWatch</td><td>Feeds latency/error metrics that Prometheus scrapes, which Argo Rollouts' AnalysisTemplate then queries to make promote/rollback decisions</td></tr>
+</table>
+<div class="callout why"><b>The weighted ALB Target Group split is the actual mechanism behind the percentages in the diagram.</b> "10% traffic to canary" isn't a Kubernetes-native concept at the Service layer the way the Blue-Green selector switch was in Use Case 4 — the AWS Load Balancer Controller, driven by Argo Rollouts, adjusts the <i>weight</i ) attribute on each Target Group so the ALB itself statistically routes roughly 1 in 10 requests to canary pods. This is a detail worth being precise about in an interview: canary weighting happens at the load balancer, not inside the cluster.</div>
+
+<h2 id="eks">5. EKS Cluster Design</h2>
+<pre><code><span class="k">apiVersion</span>: eksctl.io/v1alpha5
+<span class="k">kind</span>: ClusterConfig
+<span class="k">metadata</span>:
+  <span class="k">name</span>: shopnow-cluster
+  <span class="k">region</span>: ap-south-1
+  <span class="k">version</span>: <span class="s">"1.29"</span>
+<span class="k">managedNodeGroups</span>:
+  <span class="k">- name</span>: ng-general
+    <span class="k">instanceType</span>: m5.large
+    <span class="k">desiredCapacity</span>: 4
+    <span class="k">minSize</span>: 4
+    <span class="k">maxSize</span>: 12
+</code></pre>
+<p>No special node group needed for Canary itself — unlike Blue-Green, the total pod count during a canary rollout only ever grows gradually (a few extra canary pods at a time), never doubles the whole fleet at once, so headroom needs are smaller.</p>
+
+<h2 id="vpc">6. VPC and Networking</h2>
+<p>Same VPC and subnet design as earlier use cases. No networking changes are needed for Canary beyond what already exists — the traffic-splitting logic lives entirely in the ALB Target Group weights and the Argo Rollouts controller, not in VPC routing.</p>
+
+<h2 id="iam">7. IAM Roles and IRSA</h2>
+<pre><code><span class="cmt"># Stable and canary pods share the same IRSA role — same application, same permissions needed</span>
+eksctl create iamserviceaccount --cluster shopnow-cluster --namespace prod \
+  --name catalog-service-sa \
+  --attach-policy-arn arn:aws:iam::111122223333:policy/catalog-service-policy --approve
+
+<span class="cmt"># The Argo Rollouts controller itself also needs IAM permission to modify ALB Target Group weights</span>
+eksctl create iamserviceaccount --cluster shopnow-cluster --namespace argo-rollouts \
+  --name argo-rollouts \
+  --attach-policy-arn arn:aws:iam::111122223333:policy/argo-rollouts-alb-policy --approve
+</code></pre>
+
+<h2 id="argorollouts">8. Introducing Argo Rollouts — Why Plain Kubernetes Isn't Enough</h2>
+<div class="story">Plain Kubernetes has exactly one built-in Deployment strategy that matters for traffic control: RollingUpdate, based on pod counts, not percentages, and with no concept of "pause here and check metrics before continuing." Trying to hand-build a percentage-based, metric-gated, multi-stage progressive rollout out of raw Deployments and Services means writing and babysitting your own custom controller — a serious undertaking. <b>Argo Rollouts</b> is a Kubernetes controller, installed once on the cluster, that replaces the Deployment object with a <code>Rollout</code> object supporting exactly this: canary steps, weights, pauses, and automated analysis, all declared in YAML.</div>
+<pre><code><span class="cmt"># One-time cluster install</span>
+kubectl create namespace argo-rollouts
+kubectl apply -n argo-rollouts -f https://github.com/argoproj/argo-rollouts/releases/latest/download/install.yaml
+
+<span class="cmt"># kubectl plugin for visualizing rollouts (very useful during the workflow steps later)</span>
+kubectl argo rollouts version
+</code></pre>
+
+<h2 id="manifests">9. The Rollout Manifest — Full Progressive Canary Steps</h2>
+<pre><code><span class="cmt"># catalog-service-rollout.yaml — replaces the plain Deployment from Use Case 1</span>
+<span class="k">apiVersion</span>: argoproj.io/v1alpha1
+<span class="k">kind</span>: Rollout
+<span class="k">metadata</span>:
+  <span class="k">name</span>: catalog-service
+  <span class="k">namespace</span>: prod
+<span class="k">spec</span>:
+  <span class="k">replicas</span>: 10
+  <span class="k">selector</span>:
+    <span class="k">matchLabels</span>: { app: catalog-service }
+  <span class="k">template</span>:
+    <span class="k">metadata</span>: { labels: { app: catalog-service } }
+    <span class="k">spec</span>:
+      <span class="k">serviceAccountName</span>: catalog-service-sa
+      <span class="k">containers</span>:
+        <span class="k">- name</span>: catalog-service
+          <span class="k">image</span>: 111122223333.dkr.ecr.ap-south-1.amazonaws.com/catalog-service:prod-v1.9.4
+          <span class="k">ports</span>: [{ containerPort: 8000 }]
+          <span class="k">envFrom</span>:
+            <span class="k">- configMapRef</span>: { name: catalog-service-config }
+            <span class="k">- secretRef</span>: { name: catalog-service-secret }
+          <span class="k">resources</span>:
+            <span class="k">requests</span>: { cpu: <span class="s">"150m"</span>, memory: <span class="s">"256Mi"</span> }
+            <span class="k">limits</span>:   { cpu: <span class="s">"500m"</span>, memory: <span class="s">"512Mi"</span> }
+          <span class="k">readinessProbe</span>: { httpGet: { path: /health, port: 8000 }, initialDelaySeconds: 5, periodSeconds: 10 }
+  <span class="k">strategy</span>:
+    <span class="k">canary</span>:
+      <span class="k">canaryService</span>: catalog-service-canary-svc
+      <span class="k">stableService</span>: catalog-service-stable-svc
+      <span class="k">trafficRouting</span>:
+        <span class="k">alb</span>:
+          <span class="k">ingress</span>: catalog-service-ingress
+          <span class="k">servicePort</span>: 80
+      <span class="k">steps</span>:
+        <span class="k">- setWeight</span>: 10
+        <span class="k">- pause</span>: { duration: 5m }
+        <span class="k">- analysis</span>:
+            <span class="k">templates</span>:
+              <span class="k">- templateName</span>: catalog-service-health-check
+        <span class="k">- setWeight</span>: 25
+        <span class="k">- pause</span>: { duration: 5m }
+        <span class="k">- analysis</span>:
+            <span class="k">templates</span>:
+              <span class="k">- templateName</span>: catalog-service-health-check
+        <span class="k">- setWeight</span>: 50
+        <span class="k">- pause</span>: { duration: 10m }
+        <span class="k">- analysis</span>:
+            <span class="k">templates</span>:
+              <span class="k">- templateName</span>: catalog-service-health-check
+        <span class="k">- setWeight</span>: 100
+</code></pre>
+<p>Reading this <code>steps</code> list top to bottom is reading the exact sequence from section 2's diagram: <b>weight 10, wait 5 minutes, run the automated health check, and only if it passes does the controller move to the next line</b> — weight 25, wait, check again — all the way to 100. If any <code>analysis</code> step fails, Argo Rollouts automatically halts and, depending on configuration, either pauses indefinitely for a human to look, or rolls the weight back to 0.</p>
+
+<h2 id="analysis">10. AnalysisTemplate — Automated Metric Gates</h2>
+<pre><code><span class="cmt"># catalog-service-analysistemplate.yaml — the actual "monitor errors, latency, CPU" logic</span>
+<span class="k">apiVersion</span>: argoproj.io/v1alpha1
+<span class="k">kind</span>: AnalysisTemplate
+<span class="k">metadata</span>:
+  <span class="k">name</span>: catalog-service-health-check
+  <span class="k">namespace</span>: prod
+<span class="k">spec</span>:
+  <span class="k">metrics</span>:
+    <span class="k">- name</span>: error-rate
+      <span class="k">interval</span>: 1m
+      <span class="k">successCondition</span>: result &lt; 0.02      <span class="cmt"># error rate must stay under 2%</span>
+      <span class="k">failureLimit</span>: 2
+      <span class="k">provider</span>:
+        <span class="k">prometheus</span>:
+          <span class="k">address</span>: http://prometheus-server.monitoring.svc.cluster.local
+          <span class="k">query</span>: |
+            sum(rate(http_requests_total{app="catalog-service",version="canary",status=~"5.."}[2m]))
+            /
+            sum(rate(http_requests_total{app="catalog-service",version="canary"}[2m]))
+
+    <span class="k">- name</span>: p95-latency
+      <span class="k">interval</span>: 1m
+      <span class="k">successCondition</span>: result &lt; 400        <span class="cmt"># p95 latency must stay under 400ms</span>
+      <span class="k">failureLimit</span>: 2
+      <span class="k">provider</span>:
+        <span class="k">prometheus</span>:
+          <span class="k">address</span>: http://prometheus-server.monitoring.svc.cluster.local
+          <span class="k">query</span>: |
+            histogram_quantile(0.95,
+              sum(rate(http_request_duration_seconds_bucket{app="catalog-service",version="canary"}[2m])) by (le)
+            ) * 1000
+
+    <span class="k">- name</span>: cpu-usage
+      <span class="k">interval</span>: 1m
+      <span class="k">successCondition</span>: result &lt; 75          <span class="cmt"># average CPU utilization must stay under 75%</span>
+      <span class="k">failureLimit</span>: 2
+      <span class="k">provider</span>:
+        <span class="k">prometheus</span>:
+          <span class="k">address</span>: http://prometheus-server.monitoring.svc.cluster.local
+          <span class="k">query</span>: |
+            avg(rate(container_cpu_usage_seconds_total{pod=~"catalog-service-canary.*"}[2m])) * 100
+</code></pre>
+<p>Three metrics, three questions, all asked automatically every minute against <b>only the canary pods</b>' data — exactly matching the business ask in the original request ("monitor errors, latency, and CPU usage before increasing traffic"):</p>
+<div class="gate">
+<div class="gate-card"><b>error-rate &lt; 2%</b><br>Is the canary actually failing requests more than we'd tolerate?</div>
+<div class="gate-card"><b>p95-latency &lt; 400ms</b><br>Is the canary noticeably slower for real users?</div>
+<div class="gate-card"><b>cpu-usage &lt; 75%</b><br>Is the canary a resource hog that will fall over under full load?</div>
+</div>
+<p><code>failureLimit: 2</code> means a metric is allowed to fail its check up to twice (to tolerate normal noise) before Argo Rollouts treats the whole analysis as failed and halts the promotion — this is what stops a single brief network blip from unfairly killing an otherwise-healthy canary.</p>
+
+<h2 id="svc">11. Stable and Canary Services, and Weighted Routing</h2>
+<pre><code><span class="k">apiVersion</span>: v1
+<span class="k">kind</span>: Service
+<span class="k">metadata</span>: { name: catalog-service-stable-svc, namespace: prod }
+<span class="k">spec</span>:
+  <span class="k">selector</span>: { app: catalog-service }   <span class="cmt"># Argo Rollouts injects a rollouts-pod-template-hash label automatically</span>
+  <span class="k">ports</span>: [{ port: 80, targetPort: 8000 }]
+---
+<span class="k">apiVersion</span>: v1
+<span class="k">kind</span>: Service
+<span class="k">metadata</span>: { name: catalog-service-canary-svc, namespace: prod }
+<span class="k">spec</span>:
+  <span class="k">selector</span>: { app: catalog-service }
+  <span class="k">ports</span>: [{ port: 80, targetPort: 8000 }]
+</code></pre>
+<p>Unlike Use Case 4's manual Service-selector patch, here you never touch these Services by hand — the Argo Rollouts controller automatically manages which pods each Service's selector matches (using a hash label it adds to each ReplicaSet) and automatically updates the ALB Target Group weights behind the Ingress from section 14 to match whatever <code>setWeight</code> value the current step specifies. This is the entire value of adopting the tool instead of hand-rolling the same idea.</p>
+
+<h2 id="pdb">12. PodDisruptionBudget</h2>
+<pre><code><span class="k">apiVersion</span>: policy/v1
+<span class="k">kind</span>: PodDisruptionBudget
+<span class="k">metadata</span>: { name: catalog-service-pdb, namespace: prod }
+<span class="k">spec</span>:
+  <span class="k">minAvailable</span>: 7      <span class="cmt"># out of 10 total replicas across stable+canary combined</span>
+  <span class="k">selector</span>: { matchLabels: { app: catalog-service } }
+</code></pre>
+<p>One PDB targeting the shared <code>app: catalog-service</code> label covers both stable and canary pods together, since a node drain during a canary rollout shouldn't be allowed to push the combined healthy pod count below a safe floor, regardless of how traffic happens to be split between the two versions at that moment.</p>
+
+<h2 id="config">13. ConfigMaps and Secrets</h2>
+<pre><code><span class="k">apiVersion</span>: v1
+<span class="k">kind</span>: ConfigMap
+<span class="k">metadata</span>: { name: catalog-service-config, namespace: prod }
+<span class="k">data</span>:
+  <span class="k">DB_HOST</span>: <span class="s">"shopnow-catalog-prod.abcxyz.ap-south-1.rds.amazonaws.com"</span>
+  <span class="k">LOG_LEVEL</span>: <span class="s">"info"</span>
+  <span class="k">SEARCH_INDEX_URL</span>: <span class="s">"http://opensearch.prod.svc.cluster.local:9200"</span>
+</code></pre>
+<p>Stable and canary share this exact same ConfigMap and ExternalSecret — same principle as Blue-Green in the previous use case: they're the same application, same infrastructure dependencies, only the code differs.</p>
+
+<h2 id="ingress">14. Ingress with AWS Load Balancer Controller</h2>
+<pre><code><span class="cmt"># catalog-service-ingress.yaml — Argo Rollouts manages the weighted forward-actions
+# on this Ingress automatically; you only declare the base routing rule once</span>
+<span class="k">apiVersion</span>: networking.k8s.io/v1
+<span class="k">kind</span>: Ingress
+<span class="k">metadata</span>:
+  <span class="k">name</span>: catalog-service-ingress
+  <span class="k">namespace</span>: prod
+  <span class="k">annotations</span>:
+    <span class="k">kubernetes.io/ingress.class</span>: alb
+    <span class="k">alb.ingress.kubernetes.io/scheme</span>: internet-facing
+    <span class="k">alb.ingress.kubernetes.io/target-type</span>: ip
+    <span class="k">alb.ingress.kubernetes.io/certificate-arn</span>: arn:aws:acm:ap-south-1:111122223333:certificate/xxxx
+<span class="k">spec</span>:
+  <span class="k">rules</span>:
+    <span class="k">- host</span>: shopnow.com
+      <span class="k">http</span>:
+        <span class="k">paths</span>:
+          <span class="k">- path</span>: /api/catalog
+            <span class="k">pathType</span>: Prefix
+            <span class="k">backend</span>:
+              <span class="k">service</span>: { name: catalog-service-stable-svc, port: { number: 80 } }
+</code></pre>
+<p>You write this Ingress pointing at the stable Service exactly once. From that point on, Argo Rollouts rewrites the underlying ALB listener rule's forward action behind the scenes to include both Target Groups with the current step's weight — you never manually edit percentages into this file again after the initial setup.</p>
+
+<h2 id="hpa">15. HPA and Autoscaling</h2>
+<pre><code><span class="k">apiVersion</span>: autoscaling/v2
+<span class="k">kind</span>: HorizontalPodAutoscaler
+<span class="k">metadata</span>: { name: catalog-service-hpa, namespace: prod }
+<span class="k">spec</span>:
+  <span class="k">scaleTargetRef</span>: { apiVersion: argoproj.io/v1alpha1, kind: Rollout, name: catalog-service }
+  <span class="k">minReplicas</span>: 10
+  <span class="k">maxReplicas</span>: 30
+  <span class="k">metrics</span>: [{ type: Resource, resource: { name: cpu, target: { type: Utilization, averageUtilization: 65 } } }]
+</code></pre>
+<p>Note <code>scaleTargetRef.kind</code> is <code>Rollout</code>, not <code>Deployment</code> — Argo Rollouts implements the <code>scale</code> subresource so the HPA can target it exactly the same way it would a normal Deployment, scaling the total pod count while Argo Rollouts separately manages how that total is split between stable and canary based on the current step's weight.</p>
+
+<h2 id="netpol">16. NetworkPolicies</h2>
+<pre><code><span class="k">apiVersion</span>: networking.k8s.io/v1
+<span class="k">kind</span>: NetworkPolicy
+<span class="k">metadata</span>: { name: allow-alb-to-catalog, namespace: prod }
+<span class="k">spec</span>:
+  <span class="k">podSelector</span>: { matchLabels: { app: catalog-service } }
+  <span class="k">policyTypes</span>: [Ingress]
+  <span class="k">ingress</span>: [{ from: [], ports: [{ protocol: TCP, port: 8000 }] }]
+</code></pre>
+<p>One policy, matching the shared <code>app</code> label, automatically covers both stable and canary pods without needing a version-specific rule.</p>
+
+<h2 id="ecr">17. ECR Integration</h2>
+<pre><code>docker build -t catalog-service:canary-$TAG .
+docker tag catalog-service:canary-$TAG 111122223333.dkr.ecr.ap-south-1.amazonaws.com/catalog-service:canary-$TAG
+aws ecr get-login-password | docker login --username AWS --password-stdin 111122223333.dkr.ecr.ap-south-1.amazonaws.com
+docker push 111122223333.dkr.ecr.ap-south-1.amazonaws.com/catalog-service:canary-$TAG
+</code></pre>
+
+<h2 id="pipeline">18. CI/CD Pipeline — Jenkins and GitHub Actions</h2>
+<pre><code><span class="cmt">// Jenkinsfile</span>
+pipeline {
+  agent any
+  environment {
+    ECR_REPO = <span class="s">"111122223333.dkr.ecr.ap-south-1.amazonaws.com/catalog-service"</span>
+    IMAGE_TAG = <span class="s">"canary-${GIT_COMMIT.take(7)}"</span>
+  }
+  stages {
+    stage(<span class="s">'Test'</span>) { steps { sh <span class="s">'pytest'</span> } }
+    stage(<span class="s">'Build & Push'</span>) {
+      steps {
+        sh <span class="s">'''
+          docker build -t $ECR_REPO:$IMAGE_TAG .
+          aws ecr get-login-password | docker login --username AWS --password-stdin $ECR_REPO
+          docker push $ECR_REPO:$IMAGE_TAG
+        '''</span>
+      }
+    }
+    stage(<span class="s">'Trigger Progressive Rollout'</span>) {
+      steps {
+        sh <span class="s">'''
+          kubectl argo rollouts set image catalog-service catalog-service=$ECR_REPO:$IMAGE_TAG -n prod
+        '''</span>
+      }
+    }
+    stage(<span class="s">'Watch Rollout Progress'</span>) {
+      steps {
+        sh <span class="s">'kubectl argo rollouts status catalog-service -n prod --timeout 1800s'</span>
+        <span class="cmt">// this call blocks and only returns success once weight has reached 100%
+        // and returns failure automatically if Argo Rollouts aborts the rollout</span>
+      }
+    }
+    stage(<span class="s">'Report & Notify'</span>) {
+      steps {
+        sh <span class="s">'python3 generate_report.py --service catalog-service --status success --build ${BUILD_NUMBER}'</span>
+        sh <span class="s">'python3 send_email.py --service catalog-service --report report.html'</span>
+      }
+    }
+  }
+  post {
+    failure {
+      sh <span class="s">'kubectl argo rollouts abort catalog-service -n prod'</span>
+      sh <span class="s">'python3 send_email.py --service catalog-service --status FAILED --build ${BUILD_NUMBER}'</span>
+    }
+  }
+}
+</code></pre>
+<pre><code><span class="cmt"># .github/workflows/canary-deploy.yml</span>
+<span class="k">name</span>: Catalog Service Canary Deploy
+<span class="k">on</span>: { workflow_dispatch: {} }
+<span class="k">jobs</span>:
+  <span class="k">canary-rollout</span>:
+    <span class="k">runs-on</span>: ubuntu-latest
+    <span class="k">environment</span>: production
+    <span class="k">steps</span>:
+      <span class="k">- uses</span>: actions/checkout@v4
+      <span class="k">- uses</span>: aws-actions/configure-aws-credentials@v4
+        <span class="k">with</span>: { role-to-assume: arn:aws:iam::111122223333:role/gha-eks-deploy, aws-region: ap-south-1 }
+      <span class="k">- name</span>: Update kubeconfig
+        <span class="k">run</span>: aws eks update-kubeconfig --name shopnow-cluster --region ap-south-1
+      <span class="k">- name</span>: Install kubectl argo rollouts plugin
+        <span class="k">run</span>: |
+          curl -LO https://github.com/argoproj/argo-rollouts/releases/latest/download/kubectl-argo-rollouts-linux-amd64
+          chmod +x kubectl-argo-rollouts-linux-amd64
+          sudo mv kubectl-argo-rollouts-linux-amd64 /usr/local/bin/kubectl-argo-rollouts
+      <span class="k">- name</span>: Start progressive rollout
+        <span class="k">run</span>: kubectl argo rollouts set image catalog-service catalog-service=$ECR_REGISTRY/catalog-service:canary-${{ github.sha }} -n prod
+      <span class="k">- name</span>: Watch until complete or aborted
+        <span class="k">run</span>: kubectl argo rollouts status catalog-service -n prod --timeout 1800s
+</code></pre>
+
+<h2 id="argocd">19. Argo CD GitOps</h2>
+<pre><code><span class="cmt"># The Rollout object itself is just another manifest, managed by Argo CD like anything else</span>
+<span class="k">apiVersion</span>: argoproj.io/v1alpha1
+<span class="k">kind</span>: Application
+<span class="k">metadata</span>: { name: catalog-service, namespace: argocd }
+<span class="k">spec</span>:
+  <span class="k">project</span>: default
+  <span class="k">source</span>: { repoURL: https://github.com/shopnow/gitops-repo.git, targetRevision: main, path: services/catalog-service }
+  <span class="k">destination</span>: { server: https://kubernetes.default.svc, namespace: prod }
+  <span class="k">syncPolicy</span>: { automated: { prune: true, selfHeal: true } }
+</code></pre>
+<p>Argo CD's UI has native, built-in awareness of Argo Rollouts objects (both are Argo Project tools) — it renders the canary steps, current weight, and analysis run status directly in the Application graph, so the GitOps view and the progressive-delivery view live in the same place instead of two disconnected tools.</p>
+
+<h2 id="monitoring">20. Prometheus and Grafana</h2>
+<pre><code><span class="k">apiVersion</span>: monitoring.coreos.com/v1
+<span class="k">kind</span>: ServiceMonitor
+<span class="k">metadata</span>: { name: catalog-service-monitor, namespace: prod }
+<span class="k">spec</span>:
+  <span class="k">selector</span>: { matchLabels: { app: catalog-service } }
+  <span class="k">endpoints</span>: [{ port: metrics, path: /metrics, interval: 15s }]
+</code></pre>
+<p>Prometheus is not optional decoration in this use case — it is the literal data source the AnalysisTemplate in section 10 queries to decide whether to promote or halt. The Grafana dashboard mirrors those same three PromQL queries visually, split by <code>version=stable</code> vs <code>version=canary</code>, so a human watching during the 5-10 minute pause windows sees exactly what the automated gate is about to decide, side by side.</p>
+
+<h2 id="cloudwatch">21. CloudWatch Logging</h2>
+<pre><code><span class="k">apiVersion</span>: v1
+<span class="k">kind</span>: ConfigMap
+<span class="k">metadata</span>: { name: fluent-bit-config, namespace: amazon-cloudwatch }
+<span class="k">data</span>:
+  <span class="k">output.conf</span>: |
+    [OUTPUT]
+        Name                cloudwatch_logs
+        Match               kube.*
+        region              ap-south-1
+        log_group_name      /eks/shopnow/catalog-service
+        log_stream_prefix   ${kubernetes['pod_name']}-
+        auto_create_group   true
+</code></pre>
+<p>Both stable and canary pods share one log group here (unlike Blue-Green's split groups), because with Canary you specifically want to be able to search across both versions together while a rollout is in progress — comparing error messages from canary pods against the stable baseline side by side in the same query is often exactly how you diagnose <i>why</i> an analysis gate failed.</p>
+
+<h2 id="workflow">22. Running the Code — Full End-to-End Workflow</h2>
+
+<h3>Step 1 — Prerequisites</h3>
+<pre><code>aws eks update-kubeconfig --name shopnow-cluster --region ap-south-1
+kubectl get pods -n argo-rollouts
+<span class="cmt"># Confirm the argo-rollouts controller and the argo-rollouts CRDs are installed</span>
+kubectl get crd rollouts.argoproj.io
+</code></pre>
+
+<h3>Step 2 — Apply the baseline (first-ever rollout of this service under Argo Rollouts)</h3>
+<pre><code>kubectl apply -f catalog-service-config.yaml
+kubectl apply -f external-secret.yaml
+kubectl apply -f catalog-service-analysistemplate.yaml
+kubectl apply -f catalog-service-rollout.yaml
+kubectl apply -f catalog-service-stable-svc.yaml
+kubectl apply -f catalog-service-canary-svc.yaml
+kubectl apply -f catalog-service-ingress.yaml
+kubectl apply -f catalog-service-pdb.yaml
+kubectl apply -f catalog-service-hpa.yaml
+
+kubectl argo rollouts get rollout catalog-service -n prod --watch
+<span class="cmt"># Expect: all 10 replicas come up as "stable" since there's no new revision yet</span>
+</code></pre>
+
+<h3>Step 3 — Trigger a new canary rollout with a real code change</h3>
+<pre><code>kubectl argo rollouts set image catalog-service \
+  catalog-service=111122223333.dkr.ecr.ap-south-1.amazonaws.com/catalog-service:canary-v1.10.0 \
+  -n prod
+
+<span class="cmt"># Watch the live visual progression — this is the single most useful command in this use case</span>
+kubectl argo rollouts get rollout catalog-service -n prod --watch
+</code></pre>
+<p>The terminal output from that watch command visually mirrors the diagram from section 2, updating live:</p>
+<pre><code>Name:            catalog-service
+Namespace:       prod
+Status:          <span class="k">॥</span> Paused
+Strategy:        Canary
+  Step:          1/7
+  SetWeight:     10
+  ActualWeight:  10
+Images:          catalog-service:prod-v1.9.4 (stable)
+                 catalog-service:canary-v1.10.0 (canary)
+Replicas:
+  Desired:       10
+  Current:       11
+  Updated:       1
+  Ready:         11
+  Available:     11
+</code></pre>
+
+<h3>Step 4 — Observe the automated analysis run during the pause</h3>
+<pre><code>kubectl get analysisrun -n prod
+kubectl describe analysisrun &lt;analysisrun-name&gt; -n prod
+<span class="cmt"># Shows each metric (error-rate, p95-latency, cpu-usage), its measured value every
+# minute, and whether it's currently Successful, Failed, or still Running</span>
+</code></pre>
+
+<h3>Step 5 — Let it auto-promote, or manually intervene</h3>
+<pre><code><span class="cmt"># If everything looks healthy and you don't want to wait for the pause timer,
+# a human with access can manually promote a step early:</span>
+kubectl argo rollouts promote catalog-service -n prod
+
+<span class="cmt"># If something looks off and you want to stop it right now, before auto-analysis
+# even finishes:</span>
+kubectl argo rollouts abort catalog-service -n prod
+</code></pre>
+
+<h3>Step 6 — Confirm full promotion</h3>
+<pre><code>kubectl argo rollouts get rollout catalog-service -n prod
+<span class="cmt"># Expect eventually: Status: ✔ Healthy, SetWeight: 100, only the canary image
+# remains — Argo Rollouts has now promoted canary to be the new stable</span>
+
+kubectl get pods -n prod -l app=catalog-service -L rollouts-pod-template-hash
+</code></pre>
+
+<h2 id="failure">23. Failure Testing — Proving Auto-Rollback Works</h2>
+<pre><code><span class="cmt"># Test 1: Deploy a canary that deliberately returns 500s on 15% of requests
+# and confirm the error-rate gate catches it and halts before 25% weight</span>
+kubectl argo rollouts set image catalog-service catalog-service=...:canary-broken-errors -n prod
+kubectl get analysisrun -n prod -w
+<span class="cmt"># Expected: AnalysisRun shows error-rate metric flip to Failed within ~2 minutes,
+# and the Rollout status shows "Degraded" — weight never advances past 10%</span>
+
+<span class="cmt"># Test 2: Deploy a canary with an artificial CPU-hogging bug</span>
+kubectl argo rollouts set image catalog-service catalog-service=...:canary-cpu-bug -n prod
+<span class="cmt"># Expected: cpu-usage metric fails the &lt;75% threshold, rollout halts automatically</span>
+
+<span class="cmt"># Test 3: Confirm stable pods are completely unaffected while canary is failing</span>
+curl -s https://shopnow.com/api/catalog/health
+<span class="cmt"># Still 200 OK throughout — 90% (or more, if the gate caught it at step 1) of
+# customers never touched the broken version at all</span>
+</code></pre>
+
+<h2 id="rollback">24. Rollback Strategy</h2>
+<pre><code><span class="cmt"># Automatic — this is the headline behavior: an AnalysisTemplate failure aborts
+# the Rollout on its own, no human action required, weight returns to 0% canary</span>
+
+<span class="cmt"># Manual abort at any stage, any time a human wants to stop it early:</span>
+kubectl argo rollouts abort catalog-service -n prod
+
+<span class="cmt"># Full undo back to the previous stable revision:</span>
+kubectl argo rollouts undo catalog-service -n prod
+
+<span class="cmt"># GitOps version — revert the image tag in Git, Argo CD re-syncs the Rollout spec:</span>
+cd gitops-repo/services/catalog-service
+git revert &lt;bad-commit-sha&gt; &amp;&amp; git push
+</code></pre>
+<div class="callout why"><b>The core promise of this use case, restated precisely:</b> in Use Case 3 and 4, rollback is something a human or a pipeline stage triggers after noticing a problem. Here, for the metrics explicitly named in the original ask — errors, latency, CPU — rollback can happen with <b>zero human involvement</b>, often within one or two minutes of the metric crossing its threshold, capping exposure at whatever the current step's traffic weight was.</div>
+
+<h2 id="troubleshoot">25. Troubleshooting Scenarios</h2>
+<table>
+<tr><th>Symptom</th><th>Likely Cause</th><th>Diagnostic Commands</th></tr>
+<tr><td>Rollout stuck at "Paused" forever, never proceeds</td><td>Manual pause step with no duration, waiting for explicit <code>promote</code></td><td><code>kubectl argo rollouts get rollout catalog-service -n prod</code></td></tr>
+<tr><td>AnalysisRun stuck "Running", never resolves</td><td>Prometheus query returning no data — wrong label selector or Prometheus unreachable</td><td><code>kubectl describe analysisrun &lt;name&gt; -n prod</code>, test the PromQL query directly in Prometheus UI</td></tr>
+<tr><td>ALB not actually splitting traffic despite weight showing 25%</td><td>AWS Load Balancer Controller IAM role missing ELB modify permissions</td><td><code>kubectl logs -n kube-system deploy/aws-load-balancer-controller</code></td></tr>
+<tr><td>Canary pods never come up at all</td><td>ConfigMap/Secret reference typo unique to the canary image's new expected env vars</td><td><code>kubectl describe pod &lt;canary-pod&gt; -n prod</code></td></tr>
+<tr><td>Analysis passes but real users still report issues at higher weights</td><td>Metrics thresholds set too lenient, or missing a business-specific metric (e.g. search relevance)</td><td>Review and tighten <code>successCondition</code> values in the AnalysisTemplate</td></tr>
+</table>
+
+<h2 id="ansible">26. Ansible Automation</h2>
+<pre><code><span class="cmt"># bootstrap-canary-rollout.yml — converts an existing plain Deployment service
+# to a canary-enabled Rollout with sensible default steps and thresholds</span>
+<span class="k">- name</span>: Migrate a service to Argo Rollouts canary strategy
+  <span class="k">hosts</span>: localhost
+  <span class="k">gather_facts</span>: false
+  <span class="k">vars</span>:
+    <span class="k">service_name</span>: <span class="s">"{{ svc }}"</span>
+
+  <span class="k">tasks</span>:
+    <span class="k">- name</span>: Render Rollout manifest from existing Deployment spec
+      <span class="k">template</span>: { src: templates/rollout.yaml.j2, dest: <span class="s">"gitops-repo/services/{{ service_name }}/rollout.yaml"</span> }
+
+    <span class="k">- name</span>: Render default AnalysisTemplate
+      <span class="k">template</span>: { src: templates/analysistemplate.yaml.j2, dest: <span class="s">"gitops-repo/services/{{ service_name }}/analysistemplate.yaml"</span> }
+      <span class="k">vars</span>:
+        <span class="k">error_rate_threshold</span>: 0.02
+        <span class="k">latency_threshold_ms</span>: 400
+        <span class="k">cpu_threshold_pct</span>: 75
+
+    <span class="k">- name</span>: Render stable and canary Services
+      <span class="k">template</span>: { src: templates/service.yaml.j2, dest: <span class="s">"gitops-repo/services/{{ service_name }}/{{ item }}-svc.yaml"</span> }
+      <span class="k">loop</span>: [stable, canary]
+
+    <span class="k">- name</span>: Apply everything
+      <span class="k">kubernetes.core.k8s</span>: { state: present, src: <span class="s">"gitops-repo/services/{{ service_name }}/"</span> }
+</code></pre>
+<pre><code>ansible-playbook bootstrap-canary-rollout.yml -e <span class="s">"svc=catalog-service"</span>
+</code></pre>
+
+<h2 id="report">27. HTML Deployment/Job Report</h2>
+<pre><code><span class="cmt"># generate_report.py — shows the step-by-step weight progression and gate results</span>
+<span class="k">import</span> argparse, subprocess, json, datetime
+
+<span class="k">def</span> get_rollout_status(service, ns=<span class="s">"prod"</span>):
+    out = subprocess.run([<span class="s">"kubectl"</span>, <span class="s">"get"</span>, <span class="s">"rollout"</span>, service, <span class="s">"-n"</span>, ns, <span class="s">"-o"</span>, <span class="s">"json"</span>], capture_output=<span class="k">True</span>, text=<span class="k">True</span>)
+    <span class="k">return</span> json.loads(out.stdout)
+
+<span class="k">def</span> build_report(service, build_no, status):
+    r = get_rollout_status(service)
+    current_step = r[<span class="s">"status"</span>].get(<span class="s">"currentStepIndex"</span>, <span class="s">"?"</span>)
+    weight = r[<span class="s">"status"</span>].get(<span class="s">"canary"</span>, {}).get(<span class="s">"weights"</span>, {}).get(<span class="s">"canary"</span>, <span class="s">"?"</span>)
+    phase = r[<span class="s">"status"</span>].get(<span class="s">"phase"</span>, <span class="s">"Unknown"</span>)
+    color = <span class="s">"#5ec98f"</span> <span class="k">if</span> status == <span class="s">"success"</span> <span class="k">else</span> <span class="s">"#e35d5d"</span>
+    html = f<span class="s">"""&lt;html&gt;&lt;body style="font-family:Arial;background:#0b0f14;color:#dbe6f0;padding:24px"&gt;
+    &lt;h2 style="color:{color}"&gt;ShopNow Canary Deploy Report — {service} (Build #{build_no})&lt;/h2&gt;
+    &lt;p&gt;Time: {datetime.datetime.now()} | Status: {status.upper()}&lt;/p&gt;
+    &lt;p&gt;Final Phase: {phase} | Final Step Reached: {current_step} | Final Canary Weight: {weight}%&lt;/p&gt;
+    &lt;/body&gt;&lt;/html&gt;"""</span>
+    <span class="k">with</span> open(<span class="s">"report.html"</span>, <span class="s">"w"</span>) <span class="k">as</span> f:
+        f.write(html)
+
+<span class="k">if</span> __name__ == <span class="s">"__main__"</span>:
+    parser = argparse.ArgumentParser()
+    parser.add_argument(<span class="s">"--service"</span>, required=<span class="k">True</span>)
+    parser.add_argument(<span class="s">"--status"</span>, default=<span class="s">"success"</span>)
+    parser.add_argument(<span class="s">"--build"</span>, required=<span class="k">True</span>)
+    args = parser.parse_args()
+    build_report(args.service, args.build, args.status)
+</code></pre>
+
+<h2 id="email">28. Email Notification</h2>
+<pre><code><span class="cmt"># send_email.py</span>
+<span class="k">import</span> argparse, smtplib, os
+<span class="k">from</span> email.mime.multipart <span class="k">import</span> MIMEMultipart
+<span class="k">from</span> email.mime.text <span class="k">import</span> MIMEText
+<span class="k">from</span> email.mime.application <span class="k">import</span> MIMEApplication
+
+<span class="k">def</span> send(service, status, build_no, report_path=<span class="s">"report.html"</span>):
+    msg = MIMEMultipart()
+    msg[<span class="s">"Subject"</span>] = f<span class="s">"[ShopNow] {service} canary rollout - Build #{build_no} - {status.upper()}"</span>
+    msg[<span class="s">"From"</span>] = <span class="s">"devops-bot@shopnow.com"</span>
+    msg[<span class="s">"To"</span>] = <span class="s">"release-managers@shopnow.com, catalog-team@shopnow.com"</span>
+    body = f<span class="s">"Service: {service}\nBuild: #{build_no}\nStatus: {status}\n\n"</span>
+    <span class="k">if</span> status != <span class="s">"success"</span>:
+        body += <span class="s">"Rollout was auto-aborted or halted by an analysis gate. Check AnalysisRun details:\nkubectl describe analysisrun -n prod\n"</span>
+    msg.attach(MIMEText(body, <span class="s">"plain"</span>))
+    <span class="k">if</span> os.path.exists(report_path):
+        <span class="k">with</span> open(report_path, <span class="s">"rb"</span>) <span class="k">as</span> f:
+            part = MIMEApplication(f.read(), Name=<span class="s">"report.html"</span>)
+        part[<span class="s">"Content-Disposition"</span>] = <span class="s">'attachment; filename="report.html"'</span>
+        msg.attach(part)
+    <span class="k">with</span> smtplib.SMTP(<span class="s">"email-smtp.ap-south-1.amazonaws.com"</span>, 587) <span class="k">as</span> server:
+        server.starttls()
+        server.login(os.environ[<span class="s">"SES_USER"</span>], os.environ[<span class="s">"SES_PASS"</span>])
+        server.send_message(msg)
+
+<span class="k">if</span> __name__ == <span class="s">"__main__"</span>:
+    parser = argparse.ArgumentParser()
+    parser.add_argument(<span class="s">"--service"</span>, required=<span class="k">True</span>)
+    parser.add_argument(<span class="s">"--status"</span>, default=<span class="s">"success"</span>)
+    parser.add_argument(<span class="s">"--build"</span>, required=<span class="k">True</span>)
+    parser.add_argument(<span class="s">"--report"</span>, default=<span class="s">"report.html"</span>)
+    args = parser.parse_args()
+    send(args.service, args.status, args.build, args.report)
+</code></pre>
+
+<hr class="divider">
+<h2 id="resume">29. How to Present This on Your Resume</h2>
+<div class="callout why">
+<b>Resume bullet (use as-is or adapt):</b><br>
+"Implemented progressive canary deployments on Amazon EKS using Argo Rollouts, shifting production traffic to new releases in controlled stages (10% → 25% → 50% → 100%) via weighted AWS ALB Target Groups; built Prometheus-backed AnalysisTemplates that automatically gate promotion on live error rate, p95 latency, and CPU usage, triggering automatic rollback within minutes on threshold breach with zero human intervention; integrated the rollout pipeline with Jenkins/GitHub Actions and Argo CD, and validated the auto-rollback behavior with deliberately broken canary builds."
+</div>
+<table>
+<tr><th>Likely question</th><th>Section to re-read before the call</th></tr>
+<tr><td>"How is canary different from Blue-Green?"</td><td>Section 2</td></tr>
+<tr><td>"How does the traffic percentage actually get enforced?"</td><td>Section 4 callout, Section 11</td></tr>
+<tr><td>"What exactly decides whether to promote or roll back?"</td><td>Section 10</td></tr>
+<tr><td>"What happens automatically vs what needs a human?"</td><td>Section 22 Step 5, Section 24</td></tr>
+<tr><td>"How did you prove the auto-rollback actually works?"</td><td>Section 23</td></tr>
+</table>
+
+<div class="story" style="margin-top:40px">The next time a search-ranking change ships to Catalog Service, the same class of subtle, load-dependent bug from section 1 does resurface — but this time, the error-rate AnalysisTemplate catches it eleven minutes in, at 10% traffic, and Argo Rollouts halts the rollout automatically at 2:47 AM while every engineer is asleep. By the time anyone reads the Slack alert in the morning, the incident is already contained to roughly 1 in 10 requests for eleven minutes, not a full-scale outage — and that difference, provable and repeatable, is the story this use case gives you.</div>
+
+</div>
+</body>
+</html>

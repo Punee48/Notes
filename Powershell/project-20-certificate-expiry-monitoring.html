@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Project 20 — Certificate Expiry Monitoring | PowerShell Masterclass</title>
+<style>
+  :root{
+    --primary:#A78BFA; --secondary:#C4B5FD; --surface:#1A1530; --surface2:#221B3D;
+    --bg:#0F0B1E; --text:#EDE9FE; --muted:#9CA3AF; --border:#332B57;
+    --success:#4ADE80; --warn:#FBBF24; --danger:#F87171;
+    --code-bg:#0A0716; --code-text:#E9E4FF;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0; font-family:"Segoe UI",Calibri,Roboto,Arial,sans-serif; background:var(--bg); color:var(--text); line-height:1.65;}
+  a{color:var(--secondary);}
+  .layout{display:flex; max-width:1400px; margin:0 auto;}
+  nav.sidebar{width:270px; flex-shrink:0; position:sticky; top:0; height:100vh; overflow-y:auto; background:var(--surface); border-right:1px solid var(--border); padding:22px 16px;}
+  nav.sidebar h3{color:var(--secondary); font-size:13px; text-transform:uppercase; letter-spacing:.06em; margin:18px 0 8px;}
+  nav.sidebar a{display:block; padding:7px 10px; border-radius:8px; color:var(--text); text-decoration:none; font-size:14px; margin-bottom:2px;}
+  nav.sidebar a:hover{background:var(--surface2); color:var(--secondary);}
+  #progressWrap{background:var(--surface2); border-radius:10px; padding:10px; margin-bottom:8px;}
+  #progressBar{height:8px; background:var(--border); border-radius:6px; overflow:hidden;}
+  #progressFill{height:100%; width:0%; background:linear-gradient(90deg,var(--primary),var(--secondary)); transition:width .2s;}
+  #progressLabel{font-size:12px; color:var(--muted); margin-top:6px;}
+  main{flex:1; min-width:0; padding:0;}
+  .cover{background:linear-gradient(135deg,#3B2A6B,#5B3FA0); color:#fff; padding:60px 48px; position:relative; overflow:hidden; border-bottom:1px solid var(--border);}
+  .cover::after{content:"";position:absolute;right:-80px;top:-80px;width:300px;height:300px;border-radius:50%;background:rgba(255,255,255,.06);}
+  .badge{display:inline-block; background:rgba(255,255,255,.14); padding:5px 14px; border-radius:20px; font-size:12px; letter-spacing:.05em; margin-right:8px; margin-bottom:14px;}
+  .cover h1{font-size:34px; margin:6px 0 10px; max-width:760px;}
+  .cover p.sub{font-size:16px; opacity:.92; max-width:640px;}
+  .cover-meta{display:flex; gap:28px; margin-top:26px; flex-wrap:wrap;}
+  .cover-meta div{background:rgba(255,255,255,.10); padding:12px 18px; border-radius:10px; min-width:140px;}
+  .cover-meta span{display:block; font-size:12px; opacity:.85;}
+  .cover-meta strong{font-size:16px;}
+  section{padding:34px 48px; border-bottom:1px solid var(--border);}
+  section h2{color:var(--secondary); font-size:24px; border-left:5px solid var(--primary); padding-left:14px; margin-top:0;}
+  section h3{color:var(--primary); font-size:18px; margin-top:26px;}
+  .story{background:var(--surface); border-left:5px solid var(--primary); padding:20px 24px; border-radius:0 10px 10px 0; font-size:15px;}
+  .story b{color:var(--secondary);}
+  .callout{border-radius:10px; padding:16px 18px; margin:16px 0; font-size:14.5px; border:1px solid var(--border);}
+  .callout.tip{background:#132A1E; border-left:5px solid var(--success);}
+  .callout.note{background:var(--surface); border-left:5px solid var(--secondary);}
+  .callout.warn{background:#2E2410; border-left:5px solid var(--warn);}
+  .callout.security{background:#2E1616; border-left:5px solid var(--danger);}
+  .callout .lbl{font-weight:700; display:block; margin-bottom:4px;}
+  table{width:100%; border-collapse:collapse; margin:16px 0; font-size:14px;}
+  th,td{border:1px solid var(--border); padding:9px 12px; text-align:left; vertical-align:top;}
+  th{background:var(--surface2); color:var(--secondary);}
+  tr:nth-child(even){background:var(--surface);}
+  .codewrap{position:relative; margin:16px 0;}
+  pre{background:var(--code-bg); color:var(--code-text); padding:18px 16px; border-radius:10px; overflow-x:auto; font-family:Consolas,"Cascadia Code",Menlo,monospace; font-size:13.5px; line-height:1.7; border:1px solid var(--border);}
+  pre code{white-space:pre;}
+  .copybtn{position:absolute; top:10px; right:10px; background:var(--primary); color:#1A1530; border:none; padding:6px 12px; border-radius:6px; font-size:12px; cursor:pointer; font-weight:600;}
+  .copybtn:hover{background:var(--secondary);}
+  .explain-list{list-style:none; padding:0; margin:14px 0;}
+  .explain-list li{background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:10px 14px; margin-bottom:6px; font-size:14.5px;}
+  .explain-list code{background:var(--surface2); padding:2px 6px; border-radius:5px; color:var(--secondary); font-weight:600;}
+  details{background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:12px 16px; margin:10px 0;}
+  details summary{cursor:pointer; font-weight:600; color:var(--secondary);}
+  .diagram{background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:20px; margin:16px 0; overflow-x:auto;}
+  .flow{display:flex; flex-wrap:wrap; align-items:center; gap:10px; font-size:13.5px;}
+  .flow .box{background:var(--surface2); border:2px solid var(--secondary); border-radius:8px; padding:8px 14px; font-weight:600; color:var(--secondary);}
+  .flow .arrow{color:var(--primary); font-size:18px;}
+  .steps{counter-reset:step;}
+  .steps .step{position:relative; padding-left:44px; margin-bottom:18px;}
+  .steps .step::before{counter-increment:step; content:counter(step); position:absolute; left:0; top:0; background:var(--primary); color:#1A1530; width:30px; height:30px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:700;}
+  .grid2{display:grid; grid-template-columns:1fr 1fr; gap:16px;}
+  @media(max-width:900px){.grid2{grid-template-columns:1fr;} nav.sidebar{display:none;} section{padding:26px 20px;} .cover{padding:36px 22px;}}
+  footer{padding:30px 48px; background:var(--surface); color:var(--muted); font-size:13px;}
+  code{color:var(--secondary);}
+</style>
+</head>
+<body>
+
+<div class="layout">
+  <nav class="sidebar">
+    <div id="progressWrap">
+      <div id="progressLabel">Reading progress</div>
+      <div id="progressBar"><div id="progressFill"></div></div>
+    </div>
+    <h3>Project 20</h3>
+    <a href="#cover">Cover</a>
+    <a href="#recap1">Recap: Projects 1–19</a>
+    <a href="#story">The Story</a>
+    <a href="#concepts">Concepts First</a>
+    <a href="#lab">Hands-On Lab</a>
+    <a href="#script">Full Script</a>
+    <a href="#linebyline">Line-by-Line</a>
+    <a href="#architecture">Architecture</a>
+    <a href="#incident">Production Incident</a>
+    <a href="#troubleshoot">Troubleshooting</a>
+    <a href="#security">Security Notes</a>
+    <a href="#recap">Key Learnings</a>
+    <a href="#interview">Interview Prep</a>
+    <a href="#challenges">Coding Challenges</a>
+    <a href="#resume">Resume Points</a>
+    <a href="#assignment">Practice Assignment</a>
+    <a href="#next">Next Project</a>
+  </nav>
+
+  <main id="top">
+    <div class="cover" id="cover">
+      <span class="badge">PROJECT 20</span><span class="badge">INTERMEDIATE</span><span class="badge">BFSI TRACK</span>
+      <h1>Certificate Expiry Monitoring</h1>
+      <p class="sub">Turn Project 19's raw inventory into a real monitoring script with Warning/Critical thresholds — the same pattern from Project 2's disk space monitor, applied to certificate expiry.</p>
+      <div class="cover-meta">
+        <div><span>Difficulty</span><strong>Intermediate</strong></div>
+        <div><span>Estimated Lab Time</span><strong>65–80 min</strong></div>
+        <div><span>Concepts</span><strong>7 core concepts</strong></div>
+        <div><span>Track</span><strong>20 of 40</strong></div>
+      </div>
+    </div>
+
+    <section id="recap1">
+      <h2>Quick Recap of Projects 1–19</h2>
+      <p>Project 19 gave us a complete certificate inventory. This project adds exactly what Project 2 added to raw
+      disk data: <b>Warning and Critical thresholds</b>, so the inventory becomes an actionable monitoring script
+      instead of just a list. If Project 2 clicked for you, this project should feel very familiar.</p>
+    </section>
+
+    <section id="story">
+      <h2>The Story — Why We're Building This</h2>
+      <div class="story">
+        With the certificate inventory now built, our manager wants the obvious next step: <i>"A list is nice, but
+        I want to know which certificates need attention THIS month versus which ones we don't need to think about
+        for another year. Give me Warning and Critical levels, just like the disk space monitor."</i>
+      </div>
+    </section>
+
+    <section id="concepts">
+      <h2>Concepts First — Before We Touch Code</h2>
+
+      <h3>1. Why Certificates Need Different Thresholds Than Disk Space</h3>
+      <div class="callout note"><span class="lbl">Different problem, different time scale</span>Disk space can fill
+      up in hours; certificate renewal is a slower process that often involves a certificate authority, approval
+      steps, and deployment scheduling. Certificate expiry thresholds are typically measured in <b>weeks</b>
+      (Warning: 30-60 days) rather than the tighter percentages used for disk space — the threshold should match how
+      much lead time the underlying fix actually needs.</div>
+
+      <h3>2. Reusing the Exact Classification Pattern from Project 2</h3>
+      <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code>function Get-CertStatus {
+    param([int]$DaysRemaining, [int]$WarnDays, [int]$CritDays)
+    if ($DaysRemaining -lt $CritDays) { return "CRITICAL" }
+    elseif ($DaysRemaining -lt $WarnDays) { return "WARNING" }
+    else { return "HEALTHY" }
+}</code></pre></div>
+      <p>This is structurally identical to Project 2's <code>Get-DiskStatus</code> function — same shape, same
+      logic, different unit (days instead of percent). Recognizing this kind of reusable shape is exactly what makes
+      you faster at building new monitoring scripts over time.</p>
+
+      <h3>3. Handling Already-Expired Certificates as a Fourth State</h3>
+      <div class="callout warn"><span class="lbl">A case Project 2 didn't need to handle</span>Disk space can't go
+      negative, but a certificate's days-remaining absolutely can — an already-expired certificate needs its own
+      distinct, most-severe status, checked before CRITICAL, not lumped in with it.</div>
+
+      <h3>4. Filtering Down to What Actually Matters</h3>
+      <p>Root CA certificates (from Project 19) often have decades of validity remaining — including them in an
+      "urgent attention" report would be noise. This monitoring layer should focus specifically on certificates that
+      actually have a private key (meaning they're deployable and in active use).</p>
+    </section>
+
+    <section id="lab">
+      <h2>Hands-On Lab — Build It Yourself</h2>
+      <div class="steps">
+        <div class="step"><b>Create the project folder:</b>
+          <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code>New-Item -ItemType Directory -Path "C:\PS-Masterclass\Project20\reports" -Force
+Set-Location "C:\PS-Masterclass\Project20"</code></pre></div>
+        </div>
+        <div class="step"><b>Create <code>Watch-CertificateExpiry.ps1</code></b> and paste the full script below.</div>
+        <div class="step"><b>Run it:</b>
+          <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code>.\Watch-CertificateExpiry.ps1</code></pre></div>
+        </div>
+        <div class="step"><b>Validate:</b> confirm certificates are color-coded by status, and that root CAs with
+        decades of remaining validity don't clutter the "needs attention" summary.</div>
+      </div>
+    </section>
+
+    <section id="script">
+      <h2>Full Script — Watch-CertificateExpiry.ps1</h2>
+      <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code># =====================================================================
+# Watch-CertificateExpiry.ps1
+# ABC Bank - Windows Infrastructure Automation Team
+# Purpose: Classify certificates by expiry urgency (Warning/Critical thresholds)
+# =====================================================================
+
+$WarningDays  = 60                                             # Below this many days remaining = WARNING
+$CriticalDays = 30                                              # Below this many days remaining = CRITICAL
+
+# ---------------------------------------------------------------
+# FUNCTION: Classify a certificate's status (Project 2's Get-DiskStatus pattern, reused)
+# ---------------------------------------------------------------
+function Get-CertStatus {
+    param(
+        [int]$DaysRemaining,
+        [int]$WarnLevel,
+        [int]$CritLevel
+    )
+    if ($DaysRemaining -lt 0) { return "EXPIRED" }               # New fourth state - Project 2 never needed this
+    elseif ($DaysRemaining -lt $CritLevel) { return "CRITICAL" }
+    elseif ($DaysRemaining -lt $WarnLevel) { return "WARNING" }
+    else { return "HEALTHY" }
+}
+
+Write-Host "`n=== CERTIFICATE EXPIRY MONITOR ===" -ForegroundColor Magenta
+
+# ---------------------------------------------------------------
+# STEP 1: Gather certificates - only from My, and only ones with private keys (Project 19's HasPrivateKey filter)
+# ---------------------------------------------------------------
+$Certificates = Get-ChildItem -Path "Cert:\LocalMachine\My" -ErrorAction SilentlyContinue |
+    Where-Object { $_.HasPrivateKey }                              # Only actively deployable certificates matter for this monitor
+
+$Results = @()
+
+foreach ($Cert in $Certificates) {                                # Loops through each deployable certificate
+
+    $DaysRemaining = ($Cert.NotAfter - (Get-Date)).Days              # Same calculation from Project 19
+    $Status = Get-CertStatus -DaysRemaining $DaysRemaining -WarnLevel $WarningDays -CritLevel $CriticalDays
+
+    $Results += [PSCustomObject]@{
+        Subject        = $Cert.Subject
+        Thumbprint     = $Cert.Thumbprint
+        NotAfter       = $Cert.NotAfter
+        DaysRemaining  = $DaysRemaining
+        Status         = $Status
+    }
+}
+
+# ---------------------------------------------------------------
+# STEP 2: Color-coded console output, sorted most urgent first
+# ---------------------------------------------------------------
+$Results = $Results | Sort-Object DaysRemaining                   # Most urgent (soonest/most negative) first
+
+foreach ($Result in $Results) {
+    $Color = switch ($Result.Status) {                              # Project 3's status-to-color switch, reused
+        "EXPIRED"  { "Red" }
+        "CRITICAL" { "Red" }
+        "WARNING"  { "Yellow" }
+        default     { "Green" }
+    }
+    Write-Host "  [$($Result.Status)] $($Result.Subject) - $($Result.DaysRemaining) days" -ForegroundColor $Color
+}
+
+# ---------------------------------------------------------------
+# STEP 3: Export and summarize
+# ---------------------------------------------------------------
+if (-not (Test-Path ".\reports")) { New-Item -ItemType Directory -Path ".\reports" | Out-Null }
+$Timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
+$Results | Export-Csv -Path ".\reports\CertExpiry_$Timestamp.csv" -NoTypeInformation
+
+$NeedsAttention = ($Results | Where-Object { $_.Status -in @("EXPIRED","CRITICAL","WARNING") }).Count
+Write-Host "`nSummary: $NeedsAttention of $($Results.Count) deployable certificate(s) need attention." -ForegroundColor Cyan
+Write-Host "Report saved to .\reports\" -ForegroundColor Green
+</code></pre></div>
+      </div>
+    </section>
+
+    <section id="linebyline">
+      <h2>Line-by-Line Explanation</h2>
+
+      <h3><code>if ($DaysRemaining -lt 0) { return "EXPIRED" }</code></h3>
+      <ul class="explain-list">
+        <li>Checked <i>first</i>, before CRITICAL — an expired certificate is a different, more severe category than
+        "about to expire soon," and deserves its own label so a report reader immediately understands the
+        difference between "act now" and "this already broke."</li>
+      </ul>
+
+      <h3><code>Where-Object { $_.HasPrivateKey }</code></h3>
+      <ul class="explain-list">
+        <li>Filters out certificates without a private key <i>before</i> any classification happens — reusing
+        Project 19's discovery to focus this monitor's attention only on certificates that could actually be
+        causing a real outage if they expire, rather than every certificate that happens to be present.</li>
+      </ul>
+
+      <h3><code>$Results = $Results | Sort-Object DaysRemaining</code></h3>
+      <ul class="explain-list">
+        <li>Ascending sort (Project 19's pattern), so the most urgent — including already-negative, expired
+        entries — appear first, both in the console and implicitly in the exported CSV.</li>
+      </ul>
+    </section>
+
+    <section id="architecture">
+      <h2>Architecture &amp; Classification Flow</h2>
+      <div class="diagram">
+        <div class="flow">
+          <div class="box">Cert:\LocalMachine\My</div><div class="arrow">→</div>
+          <div class="box">Filter: HasPrivateKey</div><div class="arrow">→</div>
+          <div class="box">Get-CertStatus (per cert)</div><div class="arrow">→</div>
+          <div class="box">Sorted, Color-Coded Report</div>
+        </div>
+      </div>
+      <p>This project is a clean, direct example of the "collect → filter to what matters → classify → report"
+      shape that's run through nearly every monitoring project since Project 2 — proof that a small number of solid
+      patterns cover a surprising amount of real automation work once you've internalized them.</p>
+    </section>
+
+    <section id="incident">
+      <h2>Production Incident Walkthrough</h2>
+      <div class="story">
+        This script, run weekly, catches a certificate at 45 days remaining — WARNING status. Operations has plenty
+        of time to request renewal through the normal certificate authority process. Compare this to the original
+        incident that started this whole mini-track: an expiry nobody caught until the outage itself. The difference
+        is entirely due to having a threshold-based check running proactively instead of discovering problems
+        reactively.
+      </div>
+      <ul class="explain-list">
+        <li><b>Why is 60/30 days a reasonable starting threshold, rather than something tighter like Project 2's percentages?</b>
+        Certificate renewal has a real lead time — requesting, approving, and deploying a new certificate isn't an
+        instant fix the way restarting a service is, so the warning threshold needs enough runway for that whole
+        process to happen calmly rather than urgently.</li>
+      </ul>
+    </section>
+
+    <section id="troubleshoot">
+      <h2>Troubleshooting Cheat Sheet</h2>
+      <table>
+        <tr><th>Symptom</th><th>Likely Root Cause</th><th>Fix</th></tr>
+        <tr><td>No certificates show up at all</td><td>No certificates with private keys exist in LocalMachine\My on this practice machine</td><td>Expected on many personal machines; the logic is still valid and will work on a real server</td></tr>
+        <tr><td>Everything shows HEALTHY even for a cert you know is old</td><td>WarningDays/CriticalDays set lower than the cert's actual remaining days</td><td>Print $DaysRemaining directly for that certificate to confirm the real value</td></tr>
+        <tr><td>EXPIRED certificates don't sort first</td><td>Sort-Object was accidentally changed to -Descending</td><td>Confirm ascending sort (no -Descending) so negative/small numbers come first</td></tr>
+      </table>
+    </section>
+
+    <section id="security">
+      <h2>Security &amp; Best Practices</h2>
+      <div class="callout tip"><span class="lbl">Best practice reinforced here</span>Filtering to only
+      private-key-bearing certificates before classification avoids wasting review attention on certificates that
+      can't actually cause a service outage if they expire — precision in what gets monitored matters as much as the
+      monitoring itself.</div>
+      <div class="callout security"><span class="lbl">Still read-only</span>This script only reports; it never
+      renews, replaces, or removes anything — that's Project 21's territory, and even there, remains carefully
+      scoped.</div>
+    </section>
+
+    <section id="recap">
+      <h2>Key Learnings &amp; Recap</h2>
+      <div class="grid2">
+        <div>
+          <h3>Commands/Syntax Learned</h3>
+          <ul class="explain-list">
+            <li>Reused: Cert: drive, threshold functions, status-to-color switch</li>
+          </ul>
+        </div>
+        <div>
+          <h3>Concepts Learned</h3>
+          <ul class="explain-list">
+            <li>Choosing thresholds based on how much lead time a fix actually needs</li>
+            <li>Handling "already past the threshold" as its own distinct state</li>
+            <li>Filtering to what's actually actionable before classifying</li>
+            <li>Recognizing and directly reusing a proven pattern (Project 2) in a new domain</li>
+          </ul>
+        </div>
+      </div>
+      <h3>Common Mistakes to Avoid</h3>
+      <ul class="explain-list">
+        <li>Using disk-space-style tight thresholds for something with a much longer real-world fix time.</li>
+        <li>Lumping EXPIRED in with CRITICAL instead of treating it as more severe.</li>
+        <li>Monitoring every certificate in the store instead of just the deployable ones.</li>
+      </ul>
+    </section>
+
+    <section id="interview">
+      <h2>Interview Preparation</h2>
+      <details><summary>Q1. Why are certificate expiry thresholds typically set in weeks/months rather than the tighter percentages used for disk space?</summary>
+        <p><b>Answer:</b> The underlying fix (certificate renewal) has a real process and lead time — requesting,
+        approving, and deploying a new certificate — so the threshold needs to give enough runway for that process,
+        unlike disk space where the fix (freeing space or expanding a volume) can often happen almost immediately.</p>
+        <p><b>Follow-up:</b> "How might thresholds differ between an internal tool's certificate and a customer-facing one?"
+        — Answer: a customer-facing certificate likely warrants longer lead time / earlier warning thresholds, given
+        the higher visibility and business impact of it expiring compared to an internal-only tool.</p>
+      </details>
+      <details><summary>Q2. Why check for EXPIRED as a separate condition before CRITICAL, rather than just treating a very negative number as CRITICAL too?</summary>
+        <p><b>Answer:</b> "About to expire" and "already expired" represent meaningfully different situations for
+        whoever's responding — one is a warning to act soon, the other means something may already be broken right
+        now. Distinguishing them in the report avoids underselling the urgency of an already-failed certificate.</p>
+        <p><b>Follow-up:</b> "Would you ever want EXPIRED certificates to trigger an entirely different response
+        than CRITICAL ones?" — Answer: yes, quite plausibly — EXPIRED might warrant immediate paging/escalation while
+        CRITICAL (still valid but soon expiring) might only need a next-business-day ticket.</p>
+      </details>
+      <details><summary>Q3. Why filter to HasPrivateKey certificates before applying expiry classification, rather than after?</summary>
+        <p><b>Answer:</b> Filtering first means classification logic only runs on certificates that could actually
+        matter operationally, keeping the report focused — classifying everything and filtering afterward would work
+        too, but doing the irrelevant work first is simply wasteful and risks accidentally leaving noise in if the
+        later filter step is ever forgotten.</p>
+        <p><b>Follow-up:</b> "Is there a case where you'd want to monitor expiry on certificates WITHOUT a private key too?"
+        — Answer: trusted root/intermediate CA certificates do eventually expire and matter for validating other
+        certificates — a separate, longer-horizon monitor for those could be a reasonable addition, just not mixed
+        into this deployable-certificate-focused one.</p>
+      </details>
+    </section>
+
+    <section id="challenges">
+      <h2>Coding Challenges</h2>
+      <details><summary>Challenge 1: Add a fourth threshold tier "NOTICE" at 90 days, below HEALTHY but above WARNING</summary>
+        <details><summary>Show answer</summary>
+        <pre><code>if ($DaysRemaining -lt 0) { return "EXPIRED" }
+elseif ($DaysRemaining -lt $CritLevel) { return "CRITICAL" }
+elseif ($DaysRemaining -lt $WarnLevel) { return "WARNING" }
+elseif ($DaysRemaining -lt 90) { return "NOTICE" }
+else { return "HEALTHY" }</code></pre>
+        </details>
+      </details>
+      <details><summary>Challenge 2: Extract just the CN from Subject for a cleaner report (reusing Project 19's Challenge 3 technique)</summary>
+        <details><summary>Show answer</summary>
+        <pre><code>if ($Cert.Subject -match "CN=([^,]+)") { $CommonName = $Matches[1] } else { $CommonName = $Cert.Subject }
+# Add CommonName as its own property in the result object</code></pre>
+        </details>
+      </details>
+      <details><summary>Challenge 3: Export only certificates needing attention to a separate "action needed" CSV</summary>
+        <details><summary>Show answer</summary>
+        <pre><code>$Results | Where-Object { $_.Status -ne "HEALTHY" } |
+    Export-Csv -Path ".\reports\ActionNeeded_$Timestamp.csv" -NoTypeInformation</code></pre>
+        </details>
+      </details>
+    </section>
+
+    <section id="resume">
+      <h2>Resume Points</h2>
+      <ul class="explain-list">
+        <li>Built a PowerShell certificate expiry monitoring script with Warning/Critical/Expired threshold classification.</li>
+        <li>Applied a reusable status-classification pattern across two different monitoring domains (disk space and certificates).</li>
+        <li>Filtered monitoring scope to deployable, private-key-bearing certificates to keep alerts operationally relevant.</li>
+      </ul>
+    </section>
+
+    <section id="assignment">
+      <h2>Practice Assignment</h2>
+      <div class="callout note">
+        Adjust <code>$WarningDays</code> and <code>$CriticalDays</code> to values that would flag most of the
+        certificates on your machine (even root CAs, temporarily, by removing the HasPrivateKey filter), re-run, and
+        observe the sorted output — then restore the original filter and thresholds.
+      </div>
+    </section>
+
+    <section id="next">
+      <h2>Next Project Prerequisites</h2>
+      <p>Project 21 (Windows Certificate Store Management) moves from monitoring to safe, ShouldProcess-protected
+      certificate store operations — importing new certificates and removing expired ones, following the same
+      careful remediation discipline from Projects 10 and 13. Be comfortable with the threshold-classification
+      pattern before moving on. When ready, say <b>"Next Project."</b></p>
+    </section>
+
+    <footer>
+      PowerShell Masterclass — ABC Bank Automation Track · Project 20 of 40 · Generated for offline, self-contained use.
+    </footer>
+  </main>
+</div>
+
+<script>
+function copyCode(btn){
+  const code = btn.parentElement.querySelector('pre').innerText;
+  navigator.clipboard.writeText(code).then(()=>{
+    const old = btn.innerText; btn.innerText = "Copied!";
+    setTimeout(()=>btn.innerText = old, 1200);
+  });
+}
+window.addEventListener('scroll', ()=>{
+  const h = document.documentElement;
+  const pct = (h.scrollTop) / (h.scrollHeight - h.clientHeight) * 100;
+  document.getElementById('progressFill').style.width = pct + '%';
+  document.getElementById('progressLabel').innerText = 'Reading progress: ' + Math.round(pct) + '%';
+});
+</script>
+</body>
+</html>

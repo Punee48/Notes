@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Project 3 — Multi-Tier Application Deployment Automation on OpenShift</title>
+<style>
+:root{
+  --blue:#5b9dff; --blue-bg:#132038;
+  --purple:#b58aff; --purple-bg:#221a3a;
+  --green:#3ed67f; --green-bg:#11301f;
+  --orange:#ffb15c; --orange-bg:#3a2712;
+  --red:#ff6b6b; --red-bg:#3a1616;
+  --teal:#4fd8e0; --teal-bg:#0f2f31;
+  --ink:#e7ecf5; --sub:#9aa7bd; --line:#2a3345; --bg:#0d1117; --card:#141b26;
+  --code-bg:#0a0e14; --code-ink:#dfe7f5;
+}
+*{box-sizing:border-box;}
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--ink);line-height:1.65;}
+a{color:var(--blue);}
+.progress{position:fixed;top:0;left:0;height:4px;background:linear-gradient(90deg,var(--blue),var(--teal));z-index:999;width:0%;transition:width .1s;}
+header.cover{background:linear-gradient(135deg,#101a30 0%,#241a3d 100%);color:#fff;padding:56px 24px 40px;text-align:center;border-bottom:1px solid var(--line);}
+header.cover .badge{display:inline-block;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);padding:6px 14px;border-radius:20px;font-size:13px;letter-spacing:.5px;margin-bottom:14px;}
+header.cover h1{margin:8px auto;max-width:900px;font-size:32px;}
+header.cover p.sub{max-width:750px;margin:10px auto 0;opacity:.85;font-size:16px;}
+.meta-grid{display:flex;flex-wrap:wrap;gap:12px;justify-content:center;margin-top:26px;}
+.meta-chip{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.18);padding:8px 16px;border-radius:8px;font-size:13px;}
+nav.toc{position:sticky;top:0;background:#0f151f;border-bottom:1px solid var(--line);z-index:100;padding:10px 16px;overflow-x:auto;white-space:nowrap;}
+nav.toc a{color:var(--sub);text-decoration:none;font-size:13px;margin-right:18px;padding:6px 10px;border-radius:6px;}
+nav.toc a:hover{background:var(--blue-bg);color:var(--blue);}
+main{max-width:980px;margin:0 auto;padding:30px 20px 80px;}
+section{margin-bottom:46px;}
+h2{font-size:24px;border-left:5px solid var(--blue);padding-left:12px;margin-top:10px;color:#fff;}
+h3{font-size:19px;color:var(--purple);margin-top:28px;}
+h4{font-size:16px;color:#fff;margin-top:20px;}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:20px 22px;margin:16px 0;}
+.box{border-radius:10px;padding:16px 18px;margin:14px 0;border-left:5px solid;}
+.box.concept{background:var(--blue-bg);border-color:var(--blue);}
+.box.arch{background:var(--purple-bg);border-color:var(--purple);}
+.box.success{background:var(--green-bg);border-color:var(--green);}
+.box.warning{background:var(--orange-bg);border-color:var(--orange);}
+.box.fail{background:var(--red-bg);border-color:var(--red);}
+.box.best{background:var(--teal-bg);border-color:var(--teal);}
+.box strong.tag{display:block;font-size:12px;text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px;opacity:.85;}
+details{background:var(--card);border:1px solid var(--line);border-radius:10px;margin:12px 0;padding:4px 16px;}
+details summary{cursor:pointer;font-weight:600;padding:12px 0;color:var(--blue);}
+table{width:100%;border-collapse:collapse;margin:14px 0;font-size:14px;}
+th,td{border:1px solid var(--line);padding:9px 12px;text-align:left;vertical-align:top;}
+th{background:var(--blue-bg);color:var(--blue);}
+tr:nth-child(even){background:#101623;}
+.codewrap{position:relative;margin:14px 0;}
+pre{background:var(--code-bg);color:var(--code-ink);padding:18px;border-radius:10px;overflow-x:auto;font-size:13px;line-height:1.6;font-family:"SF Mono",Menlo,Consolas,monospace;border:1px solid var(--line);}
+pre .c{color:#6fd18a;}
+.copy-btn{position:absolute;top:10px;right:10px;background:#22304a;color:#fff;border:1px solid var(--line);padding:6px 12px;border-radius:6px;font-size:12px;cursor:pointer;}
+.copy-btn:hover{background:#2c3d5e;}
+.cmd-label{font-size:12px;color:var(--sub);text-transform:uppercase;letter-spacing:.5px;margin:14px 0 4px;}
+.flow{background:var(--purple-bg);border:1px dashed var(--purple);border-radius:10px;padding:16px;font-family:monospace;white-space:pre;font-size:13px;overflow-x:auto;color:var(--ink);}
+.qa{margin:14px 0;padding:14px 16px;background:var(--card);border:1px solid var(--line);border-radius:8px;}
+.qa .q{font-weight:600;color:var(--purple);}
+.badge-diff{display:inline-block;padding:3px 10px;border-radius:12px;font-size:12px;font-weight:600;}
+.badge-diff.mid{background:var(--orange-bg);color:var(--orange);}
+.steps{counter-reset:step;}
+.step{position:relative;padding:14px 16px 14px 52px;margin:10px 0;background:var(--card);border:1px solid var(--line);border-radius:10px;}
+.step::before{counter-increment:step;content:counter(step);position:absolute;left:14px;top:14px;width:26px;height:26px;background:var(--blue);color:#0d1117;font-weight:700;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;}
+footer{text-align:center;padding:30px;color:var(--sub);font-size:13px;}
+</style>
+</head>
+<body>
+<div class="progress" id="progressBar"></div>
+
+<header class="cover">
+  <div class="badge">OPENSHIFT + ANSIBLE MASTERCLASS · PROJECT 3 OF ~28</div>
+  <h1>Multi-Tier Application Deployment Automation on OpenShift</h1>
+  <p class="sub">Deploying a realistic Frontend → Backend API → PostgreSQL + Redis stack using Ansible-driven Deployments, Services, Secrets, PersistentVolumeClaims, probes, and Routes — on top of the namespace + RBAC baseline from Projects 1 and 2.</p>
+  <div class="meta-grid">
+    <div class="meta-chip">Difficulty: <span class="badge-diff mid">Intermediate-Advanced</span></div>
+    <div class="meta-chip">Domain: Telecom / Application Platform</div>
+    <div class="meta-chip">OpenShift: 4.14+</div>
+    <div class="meta-chip">Ansible Core: 2.16 · kubernetes.core 3.x</div>
+    <div class="meta-chip">Lab Time: ~4 hrs</div>
+    <div class="meta-chip">Infra Cost: $0 (CRC / existing cluster)</div>
+  </div>
+</header>
+
+<nav class="toc">
+  <a href="#story">Story</a>
+  <a href="#device">Run On Your Device</a>
+  <a href="#architecture">Architecture</a>
+  <a href="#repo">Repo</a>
+  <a href="#playbooks">Playbooks</a>
+  <a href="#run">Execution</a>
+  <a href="#incident">Incident</a>
+  <a href="#breakfix">Break-Fix</a>
+  <a href="#security">Security</a>
+  <a href="#interview">Interview</a>
+  <a href="#resume">Resume</a>
+  <a href="#cheatsheet">Cheat Sheet</a>
+  <a href="#summary">Key Learnings</a>
+</nav>
+
+<main>
+
+<section id="story">
+<h2>1. The Production Story</h2>
+<div class="box concept">
+<strong class="tag">Scenario</strong>
+The <code>payment-api</code> namespace baseline (Project 1) and RBAC (Project 2) are in place. Now the application team asks platform engineering to help them stand up their actual stack: a React frontend, a backend API, a PostgreSQL database, and a Redis cache — consistently across DEV/QA/STAGE/PROD, with zero manual <code>oc apply</code> commands.
+</div>
+<div class="box warning">
+<strong class="tag">Business Problem</strong>
+Previously, each environment's stack was deployed slightly differently — one environment was missing readiness probes, another had the database Secret checked into a plaintext YAML file in Git. We need one Ansible-driven definition of "the stack" that's safe to run in every environment.
+</div>
+<div class="box best">
+<strong class="tag">Our Mandate</strong>
+Automate the full multi-tier deployment: Deployments, Services, ConfigMaps, Vault-encrypted Secrets, PersistentVolumeClaims for the database, resource limits, liveness/readiness probes, and a Route exposing the frontend.
+</div>
+</section>
+
+<section id="device">
+<h2>2. Run This On Your Device</h2>
+<div class="box concept"><strong class="tag">Builds on Projects 1 &amp; 2</strong>Use the same cluster login and Ansible/oc setup from Project 2, Section 2. This project adds Ansible Vault, so one extra tool step is needed.</div>
+<div class="steps">
+<div class="step"><strong>Confirm your existing setup still works.</strong>
+<div class="codewrap"><pre>oc whoami
+ansible --version
+ansible-galaxy collection list | grep kubernetes.core</pre></div>
+</div>
+<div class="step"><strong>Create a Vault password file (keep this OUT of Git).</strong>
+<div class="codewrap"><pre>echo "MyLocalLabVaultPassword" &gt; ~/.vault_pass.txt
+chmod 600 ~/.vault_pass.txt</pre></div>
+</div>
+<div class="step"><strong>Create the project folders and files from Section 4/5 below.</strong>
+<div class="codewrap"><pre>mkdir -p payment-stack/{roles/{postgres,redis,backend,frontend}/tasks,playbooks,group_vars}
+cd payment-stack</pre></div>
+</div>
+<div class="step"><strong>Create the encrypted database credentials.</strong>
+<div class="codewrap"><pre>ansible-vault create group_vars/vault.yml --vault-password-file ~/.vault_pass.txt
+<span class="c"># opens an editor -- paste:
+# db_user: payment_app
+# db_password: <a strong generated password></span></pre></div>
+</div>
+<div class="step"><strong>Run the deployment.</strong>
+<div class="codewrap"><pre>ansible-playbook playbooks/site.yml \
+  --vault-password-file ~/.vault_pass.txt \
+  -e app_name=payment-api -e environment=dev</pre></div>
+</div>
+<div class="step"><strong>Watch the rollout live.</strong>
+<div class="codewrap"><pre>oc get pods -n payment-api-dev -w</pre></div>
+</div>
+<div class="step"><strong>Get the Route URL and test in a browser.</strong>
+<div class="codewrap"><pre>oc get route payment-frontend -n payment-api-dev -o jsonpath='{.spec.host}'</pre></div>
+</div>
+</div>
+</section>
+
+<section id="architecture">
+<h2>3. Architecture</h2>
+<div class="flow">        [User Browser]
+              │
+              ▼
+        OpenShift Route (TLS edge)
+              │
+              ▼
+     ┌────────────────────┐
+     │   Frontend Service   │  (ClusterIP)
+     └────────┬────────────┘
+              ▼
+     ┌────────────────────┐
+     │  Backend API Service │  (ClusterIP)
+     └────┬───────────┬────┘
+          ▼           ▼
+  ┌───────────────┐ ┌───────────┐
+  │ PostgreSQL Svc │ │ Redis Svc │
+  │  + PVC (data)  │ │ (cache)   │
+  └───────────────┘ └───────────┘</div>
+<table>
+<tr><th>Tier</th><th>OpenShift objects</th><th>Notes</th></tr>
+<tr><td>Frontend</td><td>Deployment, Service, Route</td><td>Only externally reachable tier</td></tr>
+<tr><td>Backend API</td><td>Deployment, Service, ConfigMap, Secret (DB creds)</td><td>ClusterIP only — never a Route</td></tr>
+<tr><td>PostgreSQL</td><td>Deployment (or StatefulSet), Service, PVC, Secret</td><td>Persistent storage required</td></tr>
+<tr><td>Redis</td><td>Deployment, Service</td><td>Ephemeral — no PVC needed for cache</td></tr>
+</table>
+</section>
+
+<section id="repo">
+<h2>4. Repository Structure</h2>
+<div class="codewrap"><pre>payment-stack/
+├── group_vars/
+│   ├── all.yml
+│   └── vault.yml                  <span class="c"># ansible-vault encrypted: db_user, db_password</span>
+├── roles/
+│   ├── postgres/tasks/main.yml
+│   ├── redis/tasks/main.yml
+│   ├── backend/tasks/main.yml
+│   └── frontend/tasks/main.yml
+├── playbooks/
+│   └── site.yml
+└── ansible.cfg</pre></div>
+</section>
+
+<section id="playbooks">
+<h2>5. The Playbooks — Fully Commented</h2>
+
+<h3>5.1 roles/postgres/tasks/main.yml</h3>
+<div class="cmd-label">roles/postgres/tasks/main.yml</div>
+<div class="codewrap"><pre><span class="c">---
+# PostgreSQL needs a PVC because its data must survive pod restarts
+# and rescheduling -- unlike the stateless frontend/backend tiers.</span>
+
+- name: Create Secret with vaulted DB credentials                 <span class="c"># stores creds -- never plaintext in Git</span>
+  kubernetes.core.k8s:                                             <span class="c"># declarative apply module</span>
+    state: present                                                 <span class="c"># create-or-update</span>
+    definition:
+      apiVersion: v1                                                <span class="c"># core API group</span>
+      kind: Secret                                                  <span class="c"># Secret object type</span>
+      metadata:
+        name: "{{ app_name }}-db-secret"                              <span class="c"># e.g. payment-api-db-secret</span>
+        namespace: "{{ app_name }}-{{ environment }}"                  <span class="c"># app namespace only</span>
+      type: Opaque                                                   <span class="c"># generic key/value secret type</span>
+      stringData:                                                    <span class="c"># plaintext here -- module base64-encodes it server-side</span>
+        POSTGRES_USER: "{{ db_user }}"                                 <span class="c"># from vault.yml, decrypted at runtime only</span>
+        POSTGRES_PASSWORD: "{{ db_password }}"                         <span class="c"># never printed in logs (no_log below)</span>
+  no_log: true                                                       <span class="c"># suppresses task output so the password never hits the log</span>
+
+- name: Claim persistent storage for PostgreSQL data                <span class="c"># request durable disk from the cluster's StorageClass</span>
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: PersistentVolumeClaim                                    <span class="c"># request object; cluster's CSI driver provisions the actual volume</span>
+      metadata:
+        name: "{{ app_name }}-db-pvc"
+        namespace: "{{ app_name }}-{{ environment }}"
+      spec:
+        accessModes: [ReadWriteOnce]                                  <span class="c"># one node can mount read-write at a time -- correct for a single DB pod</span>
+        resources:
+          requests:
+            storage: "{{ db_storage_size | default('5Gi') }}"           <span class="c"># env-tunable size, default 5Gi for dev/lab</span>
+
+- name: Deploy PostgreSQL                                            <span class="c"># the actual database workload</span>
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: apps/v1                                             <span class="c"># Deployment lives in the apps API group</span>
+      kind: Deployment
+      metadata:
+        name: "{{ app_name }}-postgres"
+        namespace: "{{ app_name }}-{{ environment }}"
+      spec:
+        replicas: 1                                                    <span class="c"># single instance -- PVC ReadWriteOnce means we can't scale this naively</span>
+        selector:
+          matchLabels: {app: "{{ app_name }}-postgres"}                 <span class="c"># must match template labels below exactly</span>
+        template:
+          metadata:
+            labels: {app: "{{ app_name }}-postgres"}                    <span class="c"># Service will select pods using this label</span>
+          spec:
+            containers:
+              - name: postgres
+                image: "registry.redhat.io/rhel9/postgresql-15:latest"   <span class="c"># pinning a real tag is a PROD best practice, 'latest' is for lab only</span>
+                envFrom:
+                  - secretRef: {name: "{{ app_name }}-db-secret"}         <span class="c"># injects POSTGRES_USER/PASSWORD as env vars</span>
+                ports:
+                  - containerPort: 5432                                   <span class="c"># standard PostgreSQL port</span>
+                volumeMounts:
+                  - name: data
+                    mountPath: /var/lib/pgsql/data                        <span class="c"># where the image expects its data directory</span>
+                resources:                                                <span class="c"># prevents this pod from starving the namespace quota (Project 1)</span>
+                  requests: {cpu: 250m, memory: 512Mi}
+                  limits: {cpu: 1, memory: 1Gi}
+                readinessProbe:                                          <span class="c"># pod only receives traffic once this passes</span>
+                  exec: {command: ["pg_isready", "-U", "{{ db_user }}"]}
+                  initialDelaySeconds: 10                                  <span class="c"># give postgres time to initialize before first check</span>
+                livenessProbe:                                            <span class="c"># restarts the container if it becomes unresponsive</span>
+                  exec: {command: ["pg_isready", "-U", "{{ db_user }}"]}
+                  initialDelaySeconds: 30
+            volumes:
+              - name: data
+                persistentVolumeClaim: {claimName: "{{ app_name }}-db-pvc"} <span class="c"># binds the PVC created above into the pod</span>
+
+- name: Expose PostgreSQL internally only                             <span class="c"># ClusterIP -- never a Route for a database</span>
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Service
+      metadata:
+        name: "{{ app_name }}-postgres"
+        namespace: "{{ app_name }}-{{ environment }}"
+      spec:
+        selector: {app: "{{ app_name }}-postgres"}                       <span class="c"># routes traffic to pods with this label</span>
+        ports:
+          - port: 5432
+            targetPort: 5432</pre></div>
+
+<h3>5.2 roles/backend/tasks/main.yml (key excerpt)</h3>
+<div class="cmd-label">roles/backend/tasks/main.yml</div>
+<div class="codewrap"><pre><span class="c">---
+# Backend API tier: stateless, talks to Postgres + Redis internally,
+# never exposed via a Route directly.</span>
+
+- name: Deploy backend API                                           <span class="c"># stateless workload -- safe to run multiple replicas</span>
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: "{{ app_name }}-backend"
+        namespace: "{{ app_name }}-{{ environment }}"
+      spec:
+        replicas: "{{ backend_replicas | default(2) }}"                  <span class="c"># 2+ for basic HA even in dev</span>
+        selector:
+          matchLabels: {app: "{{ app_name }}-backend"}
+        template:
+          metadata:
+            labels: {app: "{{ app_name }}-backend"}
+          spec:
+            containers:
+              - name: backend
+                image: "{{ backend_image }}"                              <span class="c"># passed in per environment/build</span>
+                envFrom:
+                  - secretRef: {name: "{{ app_name }}-db-secret"}          <span class="c"># same DB creds, read-only usage here</span>
+                  - configMapRef: {name: "{{ app_name }}-baseline"}        <span class="c"># ENVIRONMENT/TEAM from Project 1's baseline</span>
+                ports: [{containerPort: 8080}]
+                resources:
+                  requests: {cpu: 200m, memory: 256Mi}
+                  limits: {cpu: 500m, memory: 512Mi}
+                readinessProbe:                                           <span class="c"># HTTP check -- only serve traffic once DB connection is healthy</span>
+                  httpGet: {path: /healthz, port: 8080}
+                  initialDelaySeconds: 5
+                livenessProbe:
+                  httpGet: {path: /healthz, port: 8080}
+                  initialDelaySeconds: 15</pre></div>
+
+<h3>5.3 roles/frontend/tasks/main.yml (Route excerpt)</h3>
+<div class="cmd-label">roles/frontend/tasks/main.yml</div>
+<div class="codewrap"><pre><span class="c"># Only the frontend gets a Route -- this is the single ingress
+# point for the whole stack.</span>
+- name: Expose frontend externally via Route with TLS edge termination
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: route.openshift.io/v1                                 <span class="c"># OpenShift-specific Route API</span>
+      kind: Route
+      metadata:
+        name: "{{ app_name }}-frontend"
+        namespace: "{{ app_name }}-{{ environment }}"
+      spec:
+        to: {kind: Service, name: "{{ app_name }}-frontend"}              <span class="c"># backing Service for this Route</span>
+        tls:
+          termination: edge                                              <span class="c"># TLS ends at the router; HTTP internally -- simplest, most common pattern</span>
+          insecureEdgeTerminationPolicy: Redirect                         <span class="c"># force HTTP -&gt; HTTPS redirect</span></pre></div>
+</section>
+
+<section id="run">
+<h2>6. Execution &amp; Idempotency</h2>
+<div class="codewrap"><pre>ansible-playbook playbooks/site.yml --vault-password-file ~/.vault_pass.txt \
+  -e app_name=payment-api -e environment=dev</pre></div>
+<div class="box success"><strong class="tag">First run</strong><pre style="background:#0f2b1c;border-color:#1a4a2c;">PLAY RECAP *** ok=14 changed=12 failed=0</pre></div>
+<div class="box success"><strong class="tag">Second run</strong><pre style="background:#0f2b1c;border-color:#1a4a2c;">PLAY RECAP *** ok=14 changed=0 failed=0</pre></div>
+</section>
+
+<section id="incident">
+<h2>7. Live Incident — Backend CrashLoopBackOff</h2>
+<div class="box fail"><strong class="tag">Report</strong>After deploying to STAGE, the backend pods are stuck restarting.</div>
+<div class="codewrap"><pre>oc get pods -n payment-api-stage
+NAME                        READY   STATUS             RESTARTS
+payment-api-backend-6f-x1   0/1     CrashLoopBackOff   6
+
+oc logs payment-api-backend-6f-x1 -n payment-api-stage
+FATAL: password authentication failed for user "payment_app"</pre></div>
+<p><strong>Investigate:</strong> the backend Secret reference is correct, but STAGE's <code>vault.yml</code> was never created — Ansible fell back to an undefined variable that rendered as an empty string.</p>
+<div class="codewrap"><pre>oc get secret payment-api-db-secret -n payment-api-stage -o jsonpath='{.data.POSTGRES_PASSWORD}' | base64 -d
+<span class="c"># empty output</span></pre></div>
+<div class="box fail"><strong class="tag">Root cause</strong>Missing environment-specific <code>group_vars/stage/vault.yml</code> — the DB password variable was undefined, Ansible defaulted it to an empty string instead of failing.</div>
+<p><strong>Fix:</strong> create the vaulted file for STAGE, add an <code>assert</code> that <code>db_password | length &gt; 0</code> before deploying, re-run.</p>
+<div class="codewrap"><pre><span class="c"># Add near the top of postgres/tasks/main.yml:</span>
+- name: Ensure DB password is actually set                          <span class="c"># fail loudly instead of deploying a broken secret</span>
+  ansible.builtin.assert:
+    that:
+      - db_password is defined
+      - db_password | length &gt; 0
+    fail_msg: "db_password is missing -- check group_vars/{{ environment }}/vault.yml"</pre></div>
+</section>
+
+<section id="breakfix">
+<h2>8. Additional Break-Fix Labs</h2>
+<details><summary>Break-Fix — PVC stuck Pending</summary>
+<div class="codewrap"><pre>oc get pvc -n payment-api-dev
+NAME                STATUS    VOLUME   CAPACITY
+payment-api-db-pvc  Pending
+
+oc describe pvc payment-api-db-pvc -n payment-api-dev
+Events: no persistent volumes available for this claim and no storage class is set</pre></div>
+<p><strong>Root cause:</strong> no default StorageClass on the cluster. <strong>Fix:</strong> set <code>storageClassName</code> explicitly in the PVC definition or configure a cluster default StorageClass.</p>
+</details>
+<details><summary>Break-Fix — readiness probe failing, Service has no endpoints</summary>
+<div class="codewrap"><pre>oc get endpoints payment-api-backend -n payment-api-dev
+NAME                   ENDPOINTS
+payment-api-backend    &lt;none&gt;</pre></div>
+<p><strong>Root cause:</strong> pods are Running but never pass readiness, so the Service never adds them as endpoints. <strong>Fix:</strong> check <code>/healthz</code> path matches the actual app route; check the app can reach Postgres/Redis from inside the pod with <code>oc rsh</code>.</p>
+</details>
+</section>
+
+<section id="security">
+<h2>9. Security Review</h2>
+<table>
+<tr><th>Control</th><th>Detail</th></tr>
+<tr><td>Secrets never in plaintext Git</td><td><code>ansible-vault</code> encrypts <code>vault.yml</code>; <code>no_log: true</code> on the Secret task</td></tr>
+<tr><td>Database not externally reachable</td><td>ClusterIP Service only, no Route</td></tr>
+<tr><td>TLS enforced for users</td><td>Edge-terminated Route with forced HTTPS redirect</td></tr>
+<tr><td>Blast radius containment</td><td>Resource requests/limits on every container respect Project 1's quota</td></tr>
+</table>
+</section>
+
+<section id="interview">
+<h2>10. Interview Preparation</h2>
+<div class="qa"><div class="q">Interviewer: "How do you handle secrets in your Ansible-driven OpenShift deployments?"</div>
+<p><strong>Answer:</strong> Sensitive values live in an Ansible Vault-encrypted file, never in plaintext in the repo. The playbook reads them at runtime and writes them into a Kubernetes Secret, with <code>no_log: true</code> on that task so the value never appears in Ansible's own output or CI logs.</p></div>
+<div class="qa"><div class="q">Interviewer: "Backend pods are CrashLoopBackOff after a deploy to a new environment — how do you approach it?"</div>
+<p><strong>Answer:</strong> <code>oc logs</code> first — that's almost always the fastest signal. In this case it showed a DB auth failure, which pointed me at the Secret's actual decoded value, which was empty because that environment's vault file didn't exist. I added an explicit assert so this fails at plan time, not at pod-crash time.</p></div>
+</section>
+
+<section id="resume">
+<h2>11. Resume Points</h2>
+<div class="box best"><ul>
+<li>Automated deployment of a 4-tier application stack (frontend, backend API, PostgreSQL, Redis) on OpenShift using Ansible, including Vault-encrypted credential management and persistent storage provisioning.</li>
+<li>Implemented readiness/liveness probes and resource governance across all tiers to align with namespace quota policy.</li>
+<li>Diagnosed and resolved a CrashLoopBackOff incident caused by a missing environment-specific secret, adding fail-fast validation to prevent recurrence.</li>
+</ul></div>
+</section>
+
+<section id="cheatsheet">
+<h2>12. Troubleshooting Cheat Sheet</h2>
+<table>
+<tr><th>Symptom</th><th>Check</th></tr>
+<tr><td>CrashLoopBackOff</td><td><code>oc logs &lt;pod&gt;</code> first, then <code>oc describe pod</code> for events</td></tr>
+<tr><td>PVC Pending</td><td><code>oc describe pvc</code> — StorageClass availability</td></tr>
+<tr><td>Service has no endpoints</td><td>Readiness probe failing, or label selector mismatch</td></tr>
+<tr><td>Secret value empty</td><td>Missing vault file for that environment / undefined variable</td></tr>
+</table>
+</section>
+
+<section id="summary">
+<h2>13. Key Learnings</h2>
+<div class="card">
+<h4>OpenShift concepts</h4><p>Multi-tier app topology, PVC/StorageClass, readiness vs liveness probes, edge TLS Routes, Service endpoint mechanics.</p>
+<h4>Ansible concepts</h4><p>Ansible Vault, <code>no_log</code>, environment-specific vaulted variable files, fail-fast asserts on secret values.</p>
+<h4>Commands learned</h4><p><code>oc logs</code>, <code>oc describe pvc</code>, <code>oc get endpoints</code>, <code>ansible-vault create/edit</code>.</p>
+<h4>Next project prerequisites</h4><p>Keep this stack — Project 4 dives into Routes, TLS termination modes, and traffic-layer troubleshooting for the frontend Route built here.</p>
+</div>
+</section>
+
+</main>
+<footer>OpenShift + Ansible Masterclass — Project 3 of ~28.</footer>
+<script>
+window.addEventListener('scroll', function(){
+  var h = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+  var p = h ? (window.scrollY / h) * 100 : 0;
+  document.getElementById('progressBar').style.width = p + '%';
+});
+document.querySelectorAll('pre').forEach(function(pre){
+  if(pre.parentElement.classList.contains('codewrap')){
+    var btn = document.createElement('button');
+    btn.className = 'copy-btn'; btn.textContent = 'Copy';
+    btn.onclick = function(){
+      navigator.clipboard.writeText(pre.innerText);
+      btn.textContent = 'Copied!';
+      setTimeout(function(){ btn.textContent = 'Copy'; }, 1500);
+    };
+    pre.parentElement.appendChild(btn);
+  }
+});
+</script>
+</body>
+</html>

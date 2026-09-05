@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Project 12: Terraform Module Versioning and Private Module Registry Strategy</title>
+<style>
+  :root { --bg:#0d1117; --bg-panel:#161b22; --bg-code:#0a0e14; --border:#30363d; --text:#c9d1d9; --text-dim:#8b949e; --accent:#58a6ff; --accent2:#79c0ff; --green:#7ee787; --orange:#ffa657; --pink:#ff7b72; --purple:#d2a8ff; --yellow:#e3b341; }
+  * { box-sizing: border-box; }
+  body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; line-height: 1.65; margin: 0; padding: 0; }
+  .wrap { max-width: 980px; margin: 0 auto; padding: 40px 24px 100px; }
+  header.hero { border-bottom: 1px solid var(--border); padding-bottom: 28px; margin-bottom: 36px; }
+  .kicker { color: var(--accent); text-transform: uppercase; letter-spacing: 2px; font-size: 13px; font-weight: 600; }
+  h1 { font-size: 32px; margin: 10px 0 12px; color: #fff; line-height: 1.25; }
+  .subtitle { color: var(--text-dim); font-size: 16px; }
+  .badges { margin-top: 18px; display: flex; flex-wrap: wrap; gap: 8px; }
+  .badge { background: var(--bg-panel); border: 1px solid var(--border); color: var(--accent2); font-size: 12.5px; padding: 4px 10px; border-radius: 999px; }
+  h2 { color: #fff; font-size: 23px; margin-top: 52px; margin-bottom: 16px; padding-bottom: 10px; border-bottom: 1px solid var(--border); }
+  h2 .num { color: var(--accent); font-family: "SFMono-Regular", Consolas, monospace; margin-right: 10px; }
+  h3 { color: var(--accent2); font-size: 18px; margin-top: 28px; }
+  p { margin: 12px 0; }
+  a { color: var(--accent); }
+  .story { background: linear-gradient(135deg, #1a1f2b, #14181f); border-left: 3px solid var(--orange); padding: 20px 22px; border-radius: 6px; font-size: 15.5px; color: #dcdfe4; }
+  .story .tag { color: var(--orange); font-weight: 700; font-size: 12px; letter-spacing: 1.5px; text-transform: uppercase; display: block; margin-bottom: 8px; }
+  .callout { background: var(--bg-panel); border: 1px solid var(--border); border-left: 3px solid var(--accent); padding: 16px 20px; border-radius: 6px; margin: 18px 0; }
+  .callout.warn { border-left-color: var(--pink); }
+  .callout .label { font-weight: 700; font-size: 12px; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 6px; display: block; }
+  .callout.warn .label { color: var(--pink); }
+  pre { background: var(--bg-code); border: 1px solid var(--border); border-radius: 8px; padding: 18px 20px; overflow-x: auto; font-size: 13.2px; line-height: 1.55; margin: 16px 0; }
+  code { font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace; }
+  .filename { font-family: "SFMono-Regular", Consolas, monospace; color: var(--yellow); font-size: 12.5px; background: var(--bg-panel); display: inline-block; padding: 4px 10px; border: 1px solid var(--border); border-bottom: none; border-radius: 6px 6px 0 0; margin-top: 16px; }
+  .filename + pre { margin-top: 0; border-radius: 0 6px 6px 6px; }
+  .kw { color: var(--pink); } .str { color: var(--green); } .cmt { color: var(--text-dim); font-style: italic; } .type { color: var(--purple); } .fn { color: var(--accent2); }
+  .walkthrough { background: var(--bg-panel); border: 1px solid var(--border); border-radius: 6px; padding: 18px 20px; margin: 16px 0; }
+  .walkthrough h4 { margin-top: 0; color: var(--accent2); font-size: 14px; text-transform: uppercase; letter-spacing: 1px; }
+  ul, ol { padding-left: 22px; } li { margin: 8px 0; }
+  table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 14px; }
+  th, td { border: 1px solid var(--border); padding: 10px 14px; text-align: left; }
+  th { background: var(--bg-panel); color: var(--accent2); font-size: 12.5px; text-transform: uppercase; letter-spacing: 0.5px; }
+  tr:nth-child(even) td { background: #12161d; }
+  .diagram { background: var(--bg-code); border: 1px solid var(--border); border-radius: 8px; padding: 20px; font-family: "SFMono-Regular", Consolas, monospace; font-size: 12.5px; color: var(--accent2); white-space: pre; overflow-x: auto; line-height: 1.4; }
+  .interview-q { background: var(--bg-panel); border-radius: 6px; padding: 14px 18px; margin: 10px 0; border: 1px solid var(--border); }
+  .interview-q .q { color: var(--yellow); font-weight: 600; margin-bottom: 6px; }
+  footer { margin-top: 60px; padding-top: 20px; border-top: 1px solid var(--border); color: var(--text-dim); font-size: 13px; text-align: center; }
+  .progress { display: flex; gap: 4px; margin-top: 18px; }
+  .progress .seg { height: 5px; flex: 1; background: var(--border); border-radius: 3px; }
+  .progress .seg.done { background: var(--accent); }
+  .resume-box { background: linear-gradient(135deg, #131a12, #0f150f); border: 1px solid #24361f; border-left: 3px solid var(--green); border-radius: 8px; padding: 24px 26px; margin-top: 18px; }
+  .resume-box h3 { margin-top: 0; color: var(--green); }
+  .resume-sub { color: var(--text-dim); font-size: 13px; margin-bottom: 18px; }
+  .resume-block { margin-bottom: 22px; }
+  .resume-block .rb-label { font-size: 11.5px; text-transform: uppercase; letter-spacing: 1px; color: var(--accent2); font-weight: 700; margin-bottom: 8px; }
+  .resume-bullets { list-style: none; padding-left: 0; }
+  .resume-bullets li { padding-left: 20px; position: relative; margin: 9px 0; font-size: 14.5px; color: #dcdfe4; }
+  .resume-bullets li::before { content: "▸"; position: absolute; left: 0; color: var(--green); }
+  .copy-hint { display: inline-block; margin-top: 4px; font-size: 11.5px; color: var(--text-dim); font-style: italic; }
+  .skill-pills { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+  .skill-pill { background: #172013; border: 1px solid #2b3a24; color: var(--green); font-size: 12px; padding: 3px 10px; border-radius: 999px; font-family: "SFMono-Regular", Consolas, monospace; }
+  .linkedin-box { background: var(--bg-code); border: 1px solid var(--border); border-radius: 6px; padding: 14px 16px; font-size: 13.5px; color: #dcdfe4; font-style: italic; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="hero">
+  <span class="kicker">Terraform on AWS &middot; Project 12 of 25</span>
+  <h1>Terraform Module Versioning and Private Module Registry Strategy</h1>
+  <p class="subtitle">Intermediate-Advanced &middot; Turning the modules built in Projects 2, 4, and 11 into a versioned product other teams can safely consume.</p>
+  <div class="badges">
+    <span class="badge">Semantic Versioning</span>
+    <span class="badge">Private Registry</span>
+    <span class="badge">Module Source Pinning</span>
+    <span class="badge">Git Tag Releases</span>
+    <span class="badge">Breaking Change Policy</span>
+  </div>
+  <div class="progress" title="Handbook progress: Project 12 of 25">
+    <div class="seg done"></div><div class="seg done"></div><div class="seg done"></div><div class="seg done"></div><div class="seg done"></div><div class="seg done"></div><div class="seg done"></div><div class="seg done"></div><div class="seg done"></div><div class="seg done"></div><div class="seg done"></div><div class="seg done"></div>
+    <div class="seg"></div><div class="seg"></div><div class="seg"></div><div class="seg"></div><div class="seg"></div><div class="seg"></div><div class="seg"></div><div class="seg"></div><div class="seg"></div><div class="seg"></div><div class="seg"></div><div class="seg"></div><div class="seg"></div>
+  </div>
+</header>
+
+<h2><span class="num">01</span>The Enterprise Problem This Solves</h2>
+<p>
+The VPC module from Project 2 and the IAM role module from Project 4 have been referenced so far with a plain
+relative path (<code>source = "../../modules/vpc"</code>) — fine within a single repo, but it means every
+environment always gets whatever the module's code currently looks like on disk, with no way to adopt a change
+deliberately or roll one back. As soon as more than one team, or more than one repo, needs to consume the same
+module, an unpinned relative path stops being viable. This project turns those modules into versioned,
+independently releasable artifacts — consumed by explicit version constraint, published through a private module
+registry, with an explicit policy for what counts as a breaking change.
+</p>
+
+<h2><span class="num">02</span>The Story: The Module Update That Broke Three Teams at Once</h2>
+<div class="story">
+<span class="tag">Production Incident Replay</span>
+The platform team improves the shared VPC module — adding the <code>one_nat_per_az</code> option from Project 2 as
+a genuinely good, backward-compatible enhancement. But in the same change, they also rename an output from
+<code>subnet_ids</code> to <code>private_subnet_ids</code> because the old name was ambiguous, reasoning that
+"it's a small cleanup, barely worth mentioning." Because every consuming team's root module referenced the shared
+module via an unpinned Git branch reference (<code>source = "git::https://github.com/acme/modules.git//vpc?ref=main"</code>),
+the very next <code>terraform init</code> any of those three teams runs — regardless of whether they intended to
+pick up any change at all — pulls in the renamed output and breaks their code with a cryptic "output not found"
+error, on three unrelated teams' unrelated deploys, on the same afternoon. Nothing about their own code changed;
+the ground moved under them. The fix isn't just "communicate changes better" — it's making it structurally
+impossible for a consumer to receive a breaking change without asking for it: explicit semantic version pinning,
+plus a documented policy for what triggers a major version bump.
+</div>
+
+<h2><span class="num">03</span>Deep Technical Explanation</h2>
+
+<h3>Semantic versioning as a contract, not a formality</h3>
+<p>
+Semantic versioning (<code>MAJOR.MINOR.PATCH</code>) is a promise consumers rely on structurally: a
+<strong>patch</strong> release fixes a bug with no interface change; a <strong>minor</strong> release adds
+functionality in a backward-compatible way (a new optional variable with a sensible default, like
+<code>one_nat_per_az</code>); a <strong>major</strong> release contains any breaking change — a renamed or removed
+output, a variable that becomes required, a changed resource type that would force a destroy/recreate. The
+renamed output in this project's story should have been a major version bump, communicated as a deliberate,
+opt-in upgrade — not silently delivered to every consumer on a branch reference.
+</p>
+
+<h3>Version-pinned module sources instead of branch references</h3>
+<p>
+Terraform's module <code>source</code> argument supports a <code>version</code> constraint when sourcing from a
+registry (private or public), resolved against published, immutable releases — fundamentally different from a Git
+branch reference, which by definition points at whatever the branch's HEAD currently is. Pinning to
+<code>version = "~> 2.1"</code> means a consumer only ever receives 2.x patch/minor updates, and must deliberately
+change that constraint to receive anything in a new major version.
+</p>
+
+<h3>Private module registry mechanics</h3>
+<p>
+A private registry (Terraform Cloud's built-in registry, or a self-hosted equivalent) expects modules published as
+tagged Git releases following the naming convention <code>terraform-&lt;PROVIDER&gt;-&lt;NAME&gt;</code>, and
+resolves a <code>source = "app.terraform.io/acme-org/vpc/aws"</code> reference against those published version
+tags — giving consumers a searchable catalog of available modules and versions instead of needing to know exact
+Git repo URLs and paths.
+</p>
+
+<h2><span class="num">04</span>Architecture</h2>
+<div class="diagram">
+   modules repo: acme/terraform-modules
+   ┌─────────────────────────────────────────────┐
+   │ modules/vpc/          ──► tagged: vpc/v2.1.0    │
+   │ modules/iam-role/      ──► tagged: iam-role/v1.4.0 │
+   │ modules/eks/            ──► tagged: eks/v1.0.0     │
+   └──────────────────┬────────────────────────┘
+                      │ git tag push triggers publish
+                      ▼
+   ┌─────────────────────────────────────────────┐
+   │ Private Module Registry                          │
+   │  acme-org/vpc/aws          → v1.x, v2.x available   │
+   │  acme-org/iam-role/aws     → v1.x available          │
+   └──────────────────┬────────────────────────┘
+                      │ consumed by explicit version constraint
+        ┌─────────────┼─────────────┐
+        ▼             ▼             ▼
+   Team A (checkout)  Team B (payments)  Team C (platform)
+   source = "app.terraform.io/acme-org/vpc/aws"
+   version = "~> 2.1"     version = "~> 1.9"   version = "~> 2.1"
+   (upgraded already)     (still on v1, by      (upgraded already)
+                            deliberate choice)
+</div>
+
+<h2><span class="num">05</span>Step-by-Step Implementation</h2>
+
+<h3>5.1 — Consuming a versioned module from the registry</h3>
+<span class="filename">envs/prod/main.tf</span>
+<pre><code><span class="kw">module</span> <span class="str">"network"</span> {
+  source  = <span class="str">"app.terraform.io/acme-org/vpc/aws"</span> <span class="cmt"># registry address, not a relative path or Git URL</span>
+  version = <span class="str">"~&gt; 2.1"</span> <span class="cmt"># accepts 2.1.x and 2.2.x, but never 3.x — a deliberate upgrade is required for that</span>
+
+  name           = <span class="str">"acme-prod"</span>
+  vpc_cidr       = <span class="str">"10.1.0.0/16"</span>
+  azs            = [<span class="str">"us-east-1a"</span>, <span class="str">"us-east-1b"</span>, <span class="str">"us-east-1c"</span>]
+  one_nat_per_az = <span class="kw">true</span>
+}
+</code></pre>
+
+<h3>5.2 — Release automation for the modules repo</h3>
+<span class="filename">.github/workflows/release-module.yml (excerpt)</span>
+<pre><code><span class="kw">on</span>:
+  push:
+    tags: [<span class="str">'vpc/v*'</span>, <span class="str">'iam-role/v*'</span>, <span class="str">'eks/v*'</span>] <span class="cmt"># per-module tag prefixes — one repo, independently versioned modules</span>
+
+<span class="kw">jobs</span>:
+  validate-and-publish:
+    <span class="kw">runs-on</span>: ubuntu-latest
+    <span class="kw">steps</span>:
+      - <span class="kw">uses</span>: actions/checkout@v4
+
+      - <span class="kw">name</span>: Determine module + version from tag
+        <span class="kw">run</span>: |
+          <span class="cmt"># tag looks like "vpc/v2.1.0" — split on "/" to get module name + version</span>
+          MODULE=$(echo <span class="fn">$GITHUB_REF_NAME</span> | cut -d/ -f1)
+          echo <span class="str">"MODULE=$MODULE"</span> &gt;&gt; <span class="fn">$GITHUB_ENV</span>
+
+      - <span class="kw">name</span>: terraform validate the tagged module
+        <span class="kw">run</span>: |
+          <span class="fn">cd</span> modules/<span class="fn">$MODULE</span>
+          terraform init -backend=false
+          terraform validate <span class="cmt"># fail the release before it's ever published if the module itself is broken</span>
+
+      <span class="cmt"># The registry auto-discovers new tags matching its naming convention;</span>
+      <span class="cmt"># this job's real job is to gate the tag on validation passing first.</span>
+</code></pre>
+
+<div class="walkthrough">
+<h4>Plain-English walkthrough</h4>
+<p>
+The <code>~> 2.1</code> constraint operator is doing the entire job that would have prevented this project's
+story: it allows Terraform to automatically pick up any 2.1.x or 2.x.x release, but a 3.0.0 release — where the
+output rename would live — requires a human to explicitly edit the version constraint, turning a silent breaking
+change into a deliberate, reviewed decision. Tagging each module independently
+(<code>vpc/v2.1.0</code> vs. <code>iam-role/v1.4.0</code>) inside one shared repo means the VPC module's major
+version bump doesn't force every other module in the repo to bump in lockstep — each module's version history
+reflects only its own changes. The release workflow validating the module before publish is a small but
+important detail: it means a broken module tag can never even become resolvable through the registry in the
+first place.
+</p>
+</div>
+
+<h2><span class="num">06</span>Failure Scenarios — What Breaks in Real Life</h2>
+
+<div class="callout warn">
+<span class="label">Failure: a "minor" release accidentally contains a breaking change</span>
+An engineer tags a change as a minor version bump, genuinely believing it's backward-compatible, but a variable's
+default value changed in a way that alters existing consumers' behavior without their code changing at all.
+<strong>Debug:</strong> maintain a checklist (renamed/removed outputs, new required variables, resource replacement)
+that must be reviewed before any tag is pushed, and treat "would this break someone silently" as the actual test —
+not just "did I add or remove a whole variable."
+</div>
+
+<div class="callout warn">
+<span class="label">Failure: teams never upgrade because there's no forcing function</span>
+Version pinning protects consumers from unwanted change, but taken to an extreme, some teams pin to an old
+major version indefinitely and never migrate, accumulating security and maintenance debt in old module versions.
+<strong>Debug:</strong> pair version pinning with a documented deprecation policy — old major versions get a
+defined support window, and the platform team tracks which teams are on which version to drive migration
+proactively rather than assuming it happens on its own.
+</div>
+
+<div class="callout warn">
+<span class="label">Failure: registry publish succeeds but the module has an undetected logic bug</span>
+<code>terraform validate</code> only catches syntax and type errors, not logic errors (like Project 2's
+mid-list AZ insertion issue) — a tag can pass validation and still ship a real behavioral bug.
+<strong>Debug:</strong> this is exactly why module releases benefit from the same policy-as-code and automated
+testing discipline (Terratest, or the compliance scanning from Project 22) applied before a version tag is ever
+pushed, not just a syntax check.
+</div>
+
+<h2><span class="num">07</span>Interview Talking Points</h2>
+<div class="interview-q">
+<div class="q">"How do you manage shared Terraform modules across multiple teams without breaking their pipelines?"</div>
+Describe semantic versioning as an enforced contract, version-pinned consumption via
+<code>~></code> constraints, and a documented policy for what counts as a breaking change — framed around a real
+incident where an unpinned branch reference broke three teams simultaneously.
+</div>
+<div class="interview-q">
+<div class="q">"What's your process for releasing a new version of an internal module?"</div>
+Walk through tag-triggered validation before publish, the independent per-module versioning inside a shared
+modules repo, and how a deprecation policy prevents version pinning from becoming an excuse to never upgrade.
+</div>
+
+<h2><span class="num">08</span>Skills Gained Checklist</h2>
+<table>
+<tr><th>Skill</th><th>YOE-Equivalent Signal</th></tr>
+<tr><td>Semantic versioning discipline for infrastructure modules</td><td>Treats internal modules as a real product with a stability contract</td></tr>
+<tr><td>Private module registry publishing</td><td>Enables safe multi-team module reuse at organizational scale</td></tr>
+<tr><td>Version-pinned module consumption</td><td>Prevents silent breaking changes from reaching production pipelines</td></tr>
+<tr><td>Release automation with pre-publish validation</td><td>Catches broken releases before they're ever consumable</td></tr>
+</table>
+
+<h2><span class="num">09</span>Resume &amp; Portfolio Section</h2>
+<div class="resume-box">
+<h3>📌 Showcase This Project</h3>
+<p class="resume-sub">Ready-to-use bullets and framing for your resume, LinkedIn, and portfolio site.</p>
+<div class="resume-block">
+  <div class="rb-label">Resume Bullet Points</div>
+  <ul class="resume-bullets">
+    <li>Established a semantic versioning and private module registry strategy for shared Terraform modules, eliminating unpinned branch-reference consumption across multiple engineering teams.</li>
+    <li>Migrated internal VPC, IAM, and EKS modules to independently versioned, registry-published releases with automated pre-publish validation, preventing broken or breaking module changes from silently reaching consumers.</li>
+    <li>Authored a breaking-change policy and version-pinning standard that eliminated an entire class of incident where unrelated teams' pipelines broke from an unreviewed shared-module update.</li>
+  </ul>
+  <span class="copy-hint">Copy any of these directly into a resume "Experience" or "Projects" section.</span>
+</div>
+<div class="resume-block">
+  <div class="rb-label">LinkedIn Project / Featured Post Blurb</div>
+  <div class="linkedin-box">
+    "Moved our shared Terraform modules off unpinned Git branch references and onto a versioned private registry
+    with semantic versioning and enforced version constraints — so a platform team's module update can no longer
+    silently break three unrelated teams' pipelines on the same afternoon."
+  </div>
+</div>
+<div class="resume-block">
+  <div class="rb-label">Skills to Tag / Add to Resume Skills Section</div>
+  <div class="skill-pills">
+    <span class="skill-pill">Terraform Module Design</span>
+    <span class="skill-pill">Semantic Versioning</span>
+    <span class="skill-pill">Private Module Registry</span>
+    <span class="skill-pill">Release Engineering</span>
+    <span class="skill-pill">Platform Engineering</span>
+  </div>
+</div>
+<div class="resume-block">
+  <div class="rb-label">Interview-Ready Project Summary (30-second version)</div>
+  <p style="margin:0; color:#dcdfe4; font-size:14.5px;">
+  "I turned our shared Terraform modules into versioned, registry-published releases with an enforced breaking-
+  change policy, after an unpinned branch reference broke three teams' pipelines from a single, well-intentioned
+  update. Now every consumer pins an explicit version constraint and opts into major version upgrades
+  deliberately."
+  </p>
+</div>
+</div>
+
+<footer>
+Project 12 of 25 &middot; HashiCorp Terraform on AWS Handbook &middot; Say <strong>"next project"</strong> to generate Project 13: Multi-Account AWS Landing Zone with Terraform.
+</footer>
+
+</div>
+</body>
+</html>

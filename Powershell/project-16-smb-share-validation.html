@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Project 16 — SMB Share Validation | PowerShell Masterclass</title>
+<style>
+  :root{
+    --primary:#6D28D9; --secondary:#7C3AED; --light-purple:#EDE9FE; --xlight-purple:#F5F3FF;
+    --bg:#FFFFFF; --text:#1F2937; --muted:#6B7280; --border:#E5E1F5;
+    --success:#15803D; --warn:#B45309; --danger:#B91C1C;
+    --code-bg:#1E1B2E; --code-text:#E9E4FF;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0; font-family:"Segoe UI",Calibri,Roboto,Arial,sans-serif; background:var(--bg); color:var(--text); line-height:1.65;}
+  a{color:var(--primary);}
+  .layout{display:flex; max-width:1400px; margin:0 auto;}
+  nav.sidebar{width:270px; flex-shrink:0; position:sticky; top:0; height:100vh; overflow-y:auto; background:var(--xlight-purple); border-right:1px solid var(--border); padding:22px 16px;}
+  nav.sidebar h3{color:var(--primary); font-size:13px; text-transform:uppercase; letter-spacing:.06em; margin:18px 0 8px;}
+  nav.sidebar a{display:block; padding:7px 10px; border-radius:8px; color:var(--text); text-decoration:none; font-size:14px; margin-bottom:2px;}
+  nav.sidebar a:hover{background:var(--light-purple); color:var(--primary);}
+  #progressWrap{background:var(--light-purple); border-radius:10px; padding:10px; margin-bottom:8px;}
+  #progressBar{height:8px; background:var(--border); border-radius:6px; overflow:hidden;}
+  #progressFill{height:100%; width:0%; background:linear-gradient(90deg,var(--primary),var(--secondary)); transition:width .2s;}
+  #progressLabel{font-size:12px; color:var(--muted); margin-top:6px;}
+  main{flex:1; min-width:0; padding:0;}
+  .cover{background:linear-gradient(135deg,var(--primary),var(--secondary)); color:#fff; padding:60px 48px; position:relative; overflow:hidden;}
+  .cover::after{content:"";position:absolute;right:-80px;top:-80px;width:300px;height:300px;border-radius:50%;background:rgba(255,255,255,.08);}
+  .badge{display:inline-block; background:rgba(255,255,255,.18); padding:5px 14px; border-radius:20px; font-size:12px; letter-spacing:.05em; margin-right:8px; margin-bottom:14px;}
+  .cover h1{font-size:34px; margin:6px 0 10px; max-width:760px;}
+  .cover p.sub{font-size:16px; opacity:.92; max-width:640px;}
+  .cover-meta{display:flex; gap:28px; margin-top:26px; flex-wrap:wrap;}
+  .cover-meta div{background:rgba(255,255,255,.12); padding:12px 18px; border-radius:10px; min-width:140px;}
+  .cover-meta span{display:block; font-size:12px; opacity:.85;}
+  .cover-meta strong{font-size:16px;}
+  section{padding:34px 48px; border-bottom:1px solid var(--border);}
+  section h2{color:var(--primary); font-size:24px; border-left:5px solid var(--primary); padding-left:14px; margin-top:0;}
+  section h3{color:var(--secondary); font-size:18px; margin-top:26px;}
+  .story{background:var(--xlight-purple); border-left:5px solid var(--primary); padding:20px 24px; border-radius:0 10px 10px 0; font-size:15px;}
+  .story b{color:var(--primary);}
+  .callout{border-radius:10px; padding:16px 18px; margin:16px 0; font-size:14.5px;}
+  .callout.tip{background:#F0FDF4; border-left:5px solid var(--success);}
+  .callout.note{background:var(--xlight-purple); border-left:5px solid var(--secondary);}
+  .callout.warn{background:#FFFBEB; border-left:5px solid var(--warn);}
+  .callout.security{background:#FEF2F2; border-left:5px solid var(--danger);}
+  .callout .lbl{font-weight:700; display:block; margin-bottom:4px;}
+  table{width:100%; border-collapse:collapse; margin:16px 0; font-size:14px;}
+  th,td{border:1px solid var(--border); padding:9px 12px; text-align:left; vertical-align:top;}
+  th{background:var(--light-purple); color:var(--primary);}
+  tr:nth-child(even){background:var(--xlight-purple);}
+  .codewrap{position:relative; margin:16px 0;}
+  pre{background:var(--code-bg); color:var(--code-text); padding:18px 16px; border-radius:10px; overflow-x:auto; font-family:Consolas,"Cascadia Code",Menlo,monospace; font-size:13.5px; line-height:1.7;}
+  pre code{white-space:pre;}
+  .copybtn{position:absolute; top:10px; right:10px; background:var(--secondary); color:#fff; border:none; padding:6px 12px; border-radius:6px; font-size:12px; cursor:pointer;}
+  .copybtn:hover{background:var(--primary);}
+  .explain-list{list-style:none; padding:0; margin:14px 0;}
+  .explain-list li{background:var(--xlight-purple); border-radius:8px; padding:10px 14px; margin-bottom:6px; font-size:14.5px;}
+  .explain-list code{background:var(--light-purple); padding:2px 6px; border-radius:5px; color:var(--primary); font-weight:600;}
+  details{background:var(--xlight-purple); border-radius:10px; padding:12px 16px; margin:10px 0;}
+  details summary{cursor:pointer; font-weight:600; color:var(--primary);}
+  .diagram{background:var(--xlight-purple); border-radius:12px; padding:20px; margin:16px 0; overflow-x:auto;}
+  .flow{display:flex; flex-wrap:wrap; align-items:center; gap:10px; font-size:13.5px;}
+  .flow .box{background:#fff; border:2px solid var(--secondary); border-radius:8px; padding:8px 14px; font-weight:600; color:var(--primary);}
+  .flow .arrow{color:var(--secondary); font-size:18px;}
+  .steps{counter-reset:step;}
+  .steps .step{position:relative; padding-left:44px; margin-bottom:18px;}
+  .steps .step::before{counter-increment:step; content:counter(step); position:absolute; left:0; top:0; background:var(--primary); color:#fff; width:30px; height:30px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:700;}
+  .grid2{display:grid; grid-template-columns:1fr 1fr; gap:16px;}
+  @media(max-width:900px){.grid2{grid-template-columns:1fr;} nav.sidebar{display:none;} section{padding:26px 20px;} .cover{padding:36px 22px;}}
+  footer{padding:30px 48px; background:var(--xlight-purple); color:var(--muted); font-size:13px;}
+</style>
+</head>
+<body>
+
+<div class="layout">
+  <nav class="sidebar">
+    <div id="progressWrap">
+      <div id="progressLabel">Reading progress</div>
+      <div id="progressBar"><div id="progressFill"></div></div>
+    </div>
+    <h3>Project 16</h3>
+    <a href="#cover">Cover</a>
+    <a href="#recap1">Recap: Projects 1–15</a>
+    <a href="#story">The Story</a>
+    <a href="#concepts">Concepts First</a>
+    <a href="#lab">Hands-On Lab</a>
+    <a href="#script">Full Script</a>
+    <a href="#linebyline">Line-by-Line</a>
+    <a href="#architecture">Architecture</a>
+    <a href="#incident">Production Incident</a>
+    <a href="#troubleshoot">Troubleshooting</a>
+    <a href="#security">Security Notes</a>
+    <a href="#recap">Key Learnings</a>
+    <a href="#interview">Interview Prep</a>
+    <a href="#challenges">Coding Challenges</a>
+    <a href="#resume">Resume Points</a>
+    <a href="#assignment">Practice Assignment</a>
+    <a href="#next">Next Project</a>
+  </nav>
+
+  <main id="top">
+    <div class="cover" id="cover">
+      <span class="badge">PROJECT 16</span><span class="badge">INTERMEDIATE</span><span class="badge">BFSI TRACK</span>
+      <h1>SMB Share Validation</h1>
+      <p class="sub">Understand the "double gate" of share permissions plus NTFS permissions, and audit SMB shares for risky share-level access grants.</p>
+      <div class="cover-meta">
+        <div><span>Difficulty</span><strong>Intermediate</strong></div>
+        <div><span>Estimated Lab Time</span><strong>70–85 min</strong></div>
+        <div><span>Concepts</span><strong>8 core concepts</strong></div>
+        <div><span>Track</span><strong>16 of 40</strong></div>
+      </div>
+    </div>
+
+    <section id="recap1">
+      <h2>Quick Recap of Projects 1–15</h2>
+      <p>Project 15 audited NTFS permissions on folders. This project audits a different, related layer: <b>SMB
+      shares</b> — the network-facing doorway into those same folders. We'll reuse the associated-object query
+      pattern from Project 14 (share, then its access rules, as separate linked objects) and the detection-only
+      philosophy from Project 15.</p>
+    </section>
+
+    <section id="story">
+      <h2>The Story — Why We're Building This</h2>
+      <div class="story">
+        Following up on the NTFS permission incident from Project 15, the security team asks a related question:
+        <i>"NTFS looked bad on that folder — but what about the network share pointing at it? Is the share itself
+        also wide open?"</i> This reveals a gap in most people's understanding: a folder's NTFS permissions and its
+        SMB <b>share</b> permissions are two separate, independent gates. Our manager wants a script that audits
+        share-level permissions specifically, since a share can be misconfigured even when the underlying folder's
+        NTFS permissions are perfectly fine.
+      </div>
+    </section>
+
+    <section id="concepts">
+      <h2>Concepts First — Before We Touch Code</h2>
+
+      <h3>1. The "Double Gate" — Share Permissions AND NTFS Permissions</h3>
+      <div class="diagram">
+        <div class="flow">
+          <div class="box">Network User</div><div class="arrow">→</div>
+          <div class="box">Share Permission Gate</div><div class="arrow">→</div>
+          <div class="box">NTFS Permission Gate</div><div class="arrow">→</div>
+          <div class="box">Actual File Access</div>
+        </div>
+      </div>
+      <div class="callout warn"><span class="lbl">The single most important concept in this project</span>When a
+      file is accessed over the network via a share, <b>both</b> the share permission and the underlying NTFS
+      permission apply, and the <b>more restrictive</b> of the two always wins. A share set to "Everyone: Full
+      Control" is not automatically a problem <i>if</i> the underlying NTFS permissions are properly locked down —
+      but it removes a layer of defense, and in practice, share permissions are very often left wide open "because
+      NTFS handles the real security," which is exactly the kind of assumption worth verifying rather than trusting.</div>
+
+      <h3>2. Get-SmbShare — Listing Shares</h3>
+      <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code>Get-SmbShare | Select-Object Name, Path, Description</code></pre></div>
+      <p>Lists configured shares on the local machine — the network-visible names (like <code>\\SERVER\Statements</code>)
+      and which local folder path each one actually points to.</p>
+
+      <h3>3. Get-SmbShareAccess — The Associated Permission Object</h3>
+      <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code>Get-SmbShareAccess -Name "Statements"</code></pre></div>
+      <div class="callout note"><span class="lbl">Same pattern as Project 14</span>Just like a firewall rule's port
+      details lived on a separate, associated <code>Get-NetFirewallPortFilter</code> object, a share's permissions
+      live on a separate <code>Get-SmbShareAccess</code> result rather than directly on the
+      <code>Get-SmbShare</code> object — recognizing this recurring "main object + associated details object"
+      pattern makes learning new Windows administration modules faster over time.</div>
+      <table>
+        <tr><th>Property</th><th>Meaning</th></tr>
+        <tr><td><code>AccountName</code></td><td>Who this share-level permission applies to</td></tr>
+        <tr><td><code>AccessRight</code></td><td>Full, Change, or Read</td></tr>
+        <tr><td><code>AccessControlType</code></td><td>Allow or Deny</td></tr>
+      </table>
+
+      <h3>4. Share-Level Rights Are Simpler Than NTFS Rights</h3>
+      <p>Unlike NTFS's many combinable <code>FileSystemRights</code> flags (Project 15), share permissions only have
+      three levels: <b>Read</b>, <b>Change</b> (read/write/delete), and <b>Full</b> (Change plus permission
+      management) — a much smaller, simpler set to reason about.</p>
+
+      <h3>5. Comparing the Two Layers Together</h3>
+      <p>A genuinely useful audit checks <i>both</i> layers for the same share and reports them side by side —
+      revealing cases where the share is wide open even though NTFS is locked down (a partially-mitigated risk worth
+      knowing about) versus cases where both layers are wide open (the real emergency).</p>
+
+      <h3>6. Still Detection-Only</h3>
+      <p>Same reasoning as Project 15 — changing share or NTFS permissions can break legitimate access in ways that
+      aren't obvious from the permission data alone, so this script reports and never modifies.</p>
+    </section>
+
+    <section id="lab">
+      <h2>Hands-On Lab — Build It Yourself</h2>
+      <div class="steps">
+        <div class="step"><b>Create the project structure and a test folder:</b>
+          <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code>New-Item -ItemType Directory -Path "C:\PS-Masterclass\Project16\reports" -Force
+New-Item -ItemType Directory -Path "C:\PS-Masterclass\Project16\TestShareFolder" -Force
+Set-Location "C:\PS-Masterclass\Project16"</code></pre></div>
+        </div>
+        <div class="step"><b>Create a test share with intentionally broad permissions</b> (run as Administrator):
+          <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code>New-SmbShare -Name "ABCTestShare" -Path "C:\PS-Masterclass\Project16\TestShareFolder" -FullAccess "Everyone"</code></pre></div>
+        </div>
+        <div class="step"><b>Create <code>Test-SmbShareCompliance.ps1</code></b> and paste the full script below.</div>
+        <div class="step"><b>Run it:</b>
+          <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code>.\Test-SmbShareCompliance.ps1</code></pre></div>
+        </div>
+        <div class="step"><b>Validate:</b> confirm "ABCTestShare" is flagged with "Everyone: Full" at the share
+        level, and the report also shows the underlying folder's NTFS status side by side.</div>
+        <div class="step"><b>Clean up when done</b> (run as Administrator):
+          <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code>Remove-SmbShare -Name "ABCTestShare" -Force</code></pre></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="script">
+      <h2>Full Script — Test-SmbShareCompliance.ps1</h2>
+      <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code># =====================================================================
+# Test-SmbShareCompliance.ps1
+# ABC Bank - Windows Infrastructure Automation Team
+# Purpose: Audit SMB share AND underlying NTFS permissions together (read-only)
+# =====================================================================
+
+$HighRiskGroups = @("Everyone", "Authenticated Users", "BUILTIN\Users")   # Same risky identity list as Project 15
+$Findings = @()
+
+Write-Host "`n=== SMB SHARE COMPLIANCE AUDIT (READ-ONLY) ===" -ForegroundColor Magenta
+
+# ---------------------------------------------------------------
+# STEP 1: Get every share on this machine, excluding Windows' built-in admin shares
+# ---------------------------------------------------------------
+$Shares = Get-SmbShare | Where-Object { $_.Name -notlike "*$" }   # Admin shares like C$, ADMIN$ end in $ - not relevant here
+
+foreach ($Share in $Shares) {                                       # $Share is one share object
+
+    Write-Host "`nAuditing share '$($Share.Name)' -> $($Share.Path)" -ForegroundColor Cyan
+
+    # -------------------------------------------------------
+    # STEP 2: Get the SHARE-level permissions (associated object, Project 14 pattern)
+    # -------------------------------------------------------
+    $ShareAccess = Get-SmbShareAccess -Name $Share.Name
+
+    foreach ($Access in $ShareAccess) {                                # Loops through each share-level permission entry
+
+        $IsHighRiskIdentity = $HighRiskGroups | Where-Object { $Access.AccountName -like "*$_*" }
+        $IsBroadRight       = $Access.AccessRight -in @("Full", "Change")   # Read-only grants are lower priority
+        $ShareFlagged       = ($IsHighRiskIdentity -and $IsBroadRight -and $Access.AccessControlType -eq "Allow")
+
+        # -----------------------------------------------------
+        # STEP 3: Cross-check against the underlying NTFS permissions (Project 15's technique, reused)
+        # -----------------------------------------------------
+        $NtfsFlagged = $false
+        if (Test-Path $Share.Path) {                                    # Confirms the underlying folder is actually reachable
+            $Acl = Get-Acl -Path $Share.Path
+            foreach ($Ace in $Acl.Access) {
+                $NtfsIsHighRisk = $HighRiskGroups | Where-Object { $Ace.IdentityReference.ToString() -like "*$_*" }
+                $NtfsIsRisky    = $Ace.FileSystemRights.ToString() -match "Modify|FullControl|Write"
+                if ($NtfsIsHighRisk -and $NtfsIsRisky -and $Ace.AccessControlType -eq "Allow") {
+                    $NtfsFlagged = $true                                     # At least one risky NTFS grant also exists
+                }
+            }
+        }
+
+        # -----------------------------------------------------
+        # STEP 4: Combine both layers into one overall risk picture
+        # -----------------------------------------------------
+        $OverallRisk = if ($ShareFlagged -and $NtfsFlagged) { "CRITICAL (both layers open)" }
+                       elseif ($ShareFlagged) { "MODERATE (share open, NTFS may mitigate)" }
+                       elseif ($NtfsFlagged) { "MODERATE (NTFS open, share may mitigate)" }
+                       else { "Normal" }
+
+        $Findings += [PSCustomObject]@{
+            ShareName    = $Share.Name
+            SharePath    = $Share.Path
+            Identity     = $Access.AccountName
+            ShareRight   = $Access.AccessRight
+            ShareFlagged = $ShareFlagged
+            NtfsFlagged  = $NtfsFlagged
+            OverallRisk  = $OverallRisk
+        }
+
+        if ($OverallRisk -ne "Normal") {
+            $Color = if ($OverallRisk -like "CRITICAL*") { "Red" } else { "Yellow" }
+            Write-Host "  $OverallRisk - '$($Access.AccountName)': Share=$($Access.AccessRight)" -ForegroundColor $Color
+        }
+    }
+}
+
+# ---------------------------------------------------------------
+# Export and summarize
+# ---------------------------------------------------------------
+if (-not (Test-Path ".\reports")) { New-Item -ItemType Directory -Path ".\reports" | Out-Null }
+$Timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
+$Findings | Export-Csv -Path ".\reports\SmbAudit_$Timestamp.csv" -NoTypeInformation
+
+$CriticalCount = ($Findings | Where-Object { $_.OverallRisk -like "CRITICAL*" }).Count
+Write-Host "`nSummary: $CriticalCount critical (both-layer) finding(s) across $($Shares.Count) share(s)." -ForegroundColor Cyan
+Write-Host "REMINDER: No permissions were changed. Review and remediate manually." -ForegroundColor Yellow
+</code></pre></div>
+      </div>
+    </section>
+
+    <section id="linebyline">
+      <h2>Line-by-Line Explanation</h2>
+
+      <h3><code>$Shares = Get-SmbShare | Where-Object { $_.Name -notlike "*$" }</code></h3>
+      <ul class="explain-list">
+        <li>Windows automatically creates administrative shares (<code>C$</code>, <code>ADMIN$</code>, <code>IPC$</code>)
+        on every machine, all ending in a dollar sign — filtering these out with <code>-notlike "*$"</code> keeps
+        the audit focused on shares someone actually created intentionally for a business purpose.</li>
+      </ul>
+
+      <h3><code>$IsBroadRight = $Access.AccessRight -in @("Full", "Change")</code></h3>
+      <ul class="explain-list">
+        <li>Reusing the <code>-in</code> operator from Project 4, here checking against share-level rights (which,
+        unlike NTFS's combinable flags, are always exactly one of Read/Change/Full) — a simpler check than Project
+        15's flags-based rights matching, precisely because share rights are a simpler model.</li>
+      </ul>
+
+      <h3><code>$OverallRisk = if ($ShareFlagged -and $NtfsFlagged) {...} elseif ($ShareFlagged) {...} elseif ($NtfsFlagged) {...} else {...}</code></h3>
+      <ul class="explain-list">
+        <li>This four-branch chain is the "double gate" concept translated directly into code: both layers open is
+        the worst case (CRITICAL), either layer alone being open is still worth knowing about but is potentially
+        mitigated by the other layer (MODERATE), and only when <i>neither</i> layer shows a risky grant do we call
+        it Normal.</li>
+      </ul>
+
+      <h3><code>if (Test-Path $Share.Path) { ... }</code> before the NTFS check</h3>
+      <ul class="explain-list">
+        <li>A share's configured path could theoretically point at a folder that no longer exists (moved, deleted,
+        or on disconnected removable storage) — checking first prevents <code>Get-Acl</code> from erroring out and
+        stopping the whole audit over one broken share.</li>
+      </ul>
+    </section>
+
+    <section id="architecture">
+      <h2>Architecture &amp; Two-Layer Audit Flow</h2>
+      <div class="diagram">
+        <div class="flow">
+          <div class="box">Get-SmbShare</div><div class="arrow">→</div>
+          <div class="box">Get-SmbShareAccess</div><div class="arrow">→</div>
+          <div class="box">Share-Layer Risk Check</div>
+        </div>
+        <div class="flow" style="margin-top:12px;">
+          <div class="box">Share.Path</div><div class="arrow">→</div>
+          <div class="box">Get-Acl (Project 15 reused)</div><div class="arrow">→</div>
+          <div class="box">NTFS-Layer Risk Check</div>
+        </div>
+        <div class="flow" style="margin-top:12px;">
+          <div class="box">Both Layer Results</div><div class="arrow">→</div>
+          <div class="box">Combined Risk Verdict</div><div class="arrow">→</div>
+          <div class="box">Report</div>
+        </div>
+      </div>
+      <p>This script is architecturally a <b>merge</b> of two independent checks (share permissions, NTFS
+      permissions) into one combined verdict — the same "check separately, report together" shape first seen in
+      Project 7's System+Application log correlation, applied here to two permission layers instead of two logs.</p>
+    </section>
+
+    <section id="incident">
+      <h2>Production Incident Walkthrough</h2>
+      <div class="story">
+        Our audit reveals the customer statements share has "Everyone: Full" at the share level — but the underlying
+        NTFS permissions turn out to be properly locked down to just the finance team's security group. The overall
+        risk shows MODERATE rather than CRITICAL: the share layer is technically wrong, but the NTFS layer is
+        actually preventing real unauthorized access.
+      </div>
+      <ul class="explain-list">
+        <li><b>Why still flag and fix the share-level issue if NTFS already protects the data?</b> Defense in depth —
+        relying on a single layer of protection means one future NTFS misconfiguration (exactly like Project 15's
+        incident) would immediately become fully exploitable with no share-level backstop at all. Both layers should
+        independently reflect least-privilege, not just whichever one happens to currently be doing the real work.</li>
+        <li><b>Why does this matter enough to build a whole separate audit instead of just relying on the Project 15 NTFS audit?</b>
+        Because share and NTFS permissions are configured through completely different tools and often by different
+        people at different times — nothing guarantees they stay in sync, which is exactly why they need independent
+        verification.</li>
+      </ul>
+    </section>
+
+    <section id="troubleshoot">
+      <h2>Troubleshooting Cheat Sheet</h2>
+      <table>
+        <tr><th>Symptom</th><th>Likely Root Cause</th><th>Fix</th></tr>
+        <tr><td>"Access is denied" on Get-SmbShareAccess</td><td>Terminal not running as Administrator</td><td>Re-open as Administrator</td></tr>
+        <tr><td>No shares found at all</td><td>No shares configured on your practice machine besides admin shares</td><td>Confirm the lab's New-SmbShare step ran successfully with Get-SmbShare</td></tr>
+        <tr><td>OverallRisk always shows Normal despite the test share</td><td>-FullAccess "Everyone" wasn't actually applied, or AccountName format doesn't match the wildcard check</td><td>Run Get-SmbShareAccess -Name "ABCTestShare" directly and inspect AccountName's exact text</td></tr>
+        <tr><td>NTFS layer always shows unflagged even on a folder you know is risky</td><td>Share.Path and the folder you set permissions on don't actually match</td><td>Confirm $Share.Path with Get-SmbShare and compare to where you ran Set-Acl/icacls</td></tr>
+      </table>
+    </section>
+
+    <section id="security">
+      <h2>Security &amp; Best Practices</h2>
+      <div class="callout security"><span class="lbl">Defense in depth, made concrete</span>This project is a
+      direct, hands-on illustration of defense in depth: two independent layers of protection are both worth getting
+      right, even when one alone would technically be "enough" — because layers fail independently, and relying on
+      just one turns a single future mistake into a full exposure.</div>
+      <div class="callout tip"><span class="lbl">Best practice reinforced here</span>Filtering out administrative
+      shares (<code>C$</code>, <code>ADMIN$</code>) keeps the audit's signal-to-noise ratio high — a report cluttered
+      with expected, standard Windows shares would bury the handful of findings that actually matter.</div>
+    </section>
+
+    <section id="recap">
+      <h2>Key Learnings &amp; Recap</h2>
+      <div class="grid2">
+        <div>
+          <h3>Commands/Syntax Learned</h3>
+          <ul class="explain-list">
+            <li><code>Get-SmbShare</code> / <code>Get-SmbShareAccess</code></li>
+            <li><code>New-SmbShare</code> / <code>Remove-SmbShare</code></li>
+            <li><code>-notlike</code></li>
+          </ul>
+        </div>
+        <div>
+          <h3>Concepts Learned</h3>
+          <ul class="explain-list">
+            <li>The "double gate": share permissions AND NTFS permissions both apply, most restrictive wins</li>
+            <li>Share rights are simpler (Read/Change/Full) than NTFS's combinable flags</li>
+            <li>Merging two independent audits into one combined risk verdict</li>
+            <li>Defense in depth as a concrete, code-level pattern</li>
+          </ul>
+        </div>
+      </div>
+      <h3>Common Mistakes to Avoid</h3>
+      <ul class="explain-list">
+        <li>Assuming a locked-down NTFS folder means the share permissions don't matter.</li>
+        <li>Including built-in administrative shares in a business-focused audit, adding noise.</li>
+        <li>Treating "both layers open" the same as "one layer open" — they represent very different risk levels.</li>
+      </ul>
+    </section>
+
+    <section id="interview">
+      <h2>Interview Preparation</h2>
+      <details><summary>Q1. If a share is set to "Everyone: Full Control," does that mean anyone can do anything to the files?</summary>
+        <p><b>Answer:</b> Not necessarily — the underlying NTFS permissions on the folder still apply independently,
+        and the more restrictive of the two layers wins. A wide-open share pointing at a folder with properly locked
+        NTFS permissions is still meaningfully protected, though it's still a best-practice violation worth fixing.</p>
+        <p><b>Follow-up:</b> "So why fix it if NTFS is already protecting the data?" — Answer: defense in depth —
+        relying on only one layer means a single future NTFS mistake becomes immediately and fully exploitable,
+        with no share-level backstop at all.</p>
+      </details>
+      <details><summary>Q2. Why does share-level access use a simpler rights model (Read/Change/Full) than NTFS?</summary>
+        <p><b>Answer:</b> Share permissions were designed as a coarser, network-level gate, historically simpler by
+        design; NTFS permissions offer much finer-grained control (individual rights like Delete, Take Ownership,
+        etc., combinable as flags) because they operate at the file system level where more precise control is
+        useful.</p>
+        <p><b>Follow-up:</b> "Given NTFS is more granular, why not just set share permissions wide open everywhere and rely entirely on NTFS?"
+        — Answer: that's a common real-world practice, but it removes a layer of protection and depends entirely on
+        NTFS always being configured correctly — exactly the assumption Project 15's incident showed can fail.</p>
+      </details>
+      <details><summary>Q3. Why check Test-Path on the share's underlying folder before running the NTFS audit portion?</summary>
+        <p><b>Answer:</b> A share's configured path isn't guaranteed to still exist — the folder could have been
+        moved, deleted, or be on disconnected storage — checking first avoids an error that would otherwise stop the
+        audit partway through instead of gracefully skipping just that one broken share.</p>
+        <p><b>Follow-up:</b> "Should a share pointing at a non-existent path itself be flagged as a finding?" —
+        Answer: arguably yes — it likely represents stale configuration worth cleaning up, even though it's a
+        different kind of issue (broken config) rather than a security exposure.</p>
+      </details>
+    </section>
+
+    <section id="challenges">
+      <h2>Coding Challenges</h2>
+      <details><summary>Challenge 1: Flag shares whose underlying path no longer exists as a separate "STALE" finding</summary>
+        <details><summary>Show answer</summary>
+        <pre><code>if (-not (Test-Path $Share.Path)) {
+    Write-Host "  STALE: Share '$($Share.Name)' points to a missing path: $($Share.Path)" -ForegroundColor DarkYellow
+}</code></pre>
+        </details>
+      </details>
+      <details><summary>Challenge 2: Only report CRITICAL findings in the console, keeping MODERATE ones in the CSV only</summary>
+        <details><summary>Show answer</summary>
+        <pre><code>if ($OverallRisk -like "CRITICAL*") {
+    Write-Host "  $OverallRisk - '$($Access.AccountName)'" -ForegroundColor Red
+}
+# MODERATE findings still get added to $Findings and exported, just not printed</code></pre>
+        </details>
+      </details>
+      <details><summary>Challenge 3: Count how many shares have NO explicit access restriction at all (Everyone is the ONLY entry)</summary>
+        <details><summary>Show answer</summary>
+        <pre><code>$Shares | Where-Object {
+    $Access = Get-SmbShareAccess -Name $_.Name
+    $Access.Count -eq 1 -and $Access[0].AccountName -like "*Everyone*"
+}</code></pre>
+        </details>
+      </details>
+    </section>
+
+    <section id="resume">
+      <h2>Resume Points</h2>
+      <ul class="explain-list">
+        <li>Built a PowerShell SMB share compliance audit correlating share-level and NTFS-level permissions into one combined risk assessment.</li>
+        <li>Applied defense-in-depth analysis to distinguish critical (both-layer) exposures from partially-mitigated single-layer findings.</li>
+        <li>Extended the associated-object query pattern (Get-SmbShareAccess) and detection-only design philosophy across a new Windows subsystem.</li>
+      </ul>
+    </section>
+
+    <section id="assignment">
+      <h2>Practice Assignment</h2>
+      <div class="callout note">
+        Before removing the test share, run <code>icacls</code> or the Security tab to lock down the underlying
+        <code>TestShareFolder</code>'s NTFS permissions to just your own account, re-run the audit, and confirm the
+        finding downgrades from CRITICAL to MODERATE — proving the two-layer logic responds correctly to a real
+        change in just one layer.
+      </div>
+    </section>
+
+    <section id="next">
+      <h2>Next Project Prerequisites</h2>
+      <p>Project 17 (Windows Patch Readiness) shifts from security auditing to operational readiness — combining
+      disk space checks (Project 2), service checks (Project 4), and a brand-new pending-reboot detection into one
+      "is this server ready to be patched?" verdict. Be comfortable with the share/NTFS double-gate concept before
+      moving on. When ready, say <b>"Next Project."</b></p>
+    </section>
+
+    <footer>
+      PowerShell Masterclass — ABC Bank Automation Track · Project 16 of 40 · Generated for offline, self-contained use.
+    </footer>
+  </main>
+</div>
+
+<script>
+function copyCode(btn){
+  const code = btn.parentElement.querySelector('pre').innerText;
+  navigator.clipboard.writeText(code).then(()=>{
+    const old = btn.innerText; btn.innerText = "Copied!";
+    setTimeout(()=>btn.innerText = old, 1200);
+  });
+}
+window.addEventListener('scroll', ()=>{
+  const h = document.documentElement;
+  const pct = (h.scrollTop) / (h.scrollHeight - h.clientHeight) * 100;
+  document.getElementById('progressFill').style.width = pct + '%';
+  document.getElementById('progressLabel').innerText = 'Reading progress: ' + Math.round(pct) + '%';
+});
+</script>
+</body>
+</html>

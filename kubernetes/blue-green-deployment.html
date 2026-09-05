@@ -1,0 +1,774 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Use Case 4: Blue-Green Deployment | ShopNow Retail</title>
+<style>
+  :root{
+    --bg:#0b0f14; --panel:#111823; --panel2:#0e1420; --border:#1f2b3a;
+    --text:#dbe6f0; --muted:#8aa0b4; --accent:#3fb6a8; --accent2:#e8a33d;
+    --code-bg:#0a0e14; --good:#5ec98f; --bad:#e35d5d; --blue:#3a7bd5; --green:#3fb87a;
+  }
+  *{box-sizing:border-box}
+  body{background:var(--bg);color:var(--text);font-family:'Segoe UI',Roboto,Helvetica,Arial,sans-serif;line-height:1.65;margin:0;padding:0}
+  .wrap{max-width:980px;margin:0 auto;padding:32px 24px 120px}
+  h1{font-size:2rem;color:#fff;border-bottom:3px solid var(--accent);padding-bottom:12px;margin-top:0}
+  h2{color:var(--accent);font-size:1.5rem;margin-top:56px;border-left:5px solid var(--accent);padding-left:14px}
+  h3{color:var(--accent2);font-size:1.2rem;margin-top:32px}
+  h4{color:#fff;font-size:1.02rem;margin-top:22px;background:var(--panel2);padding:6px 10px;border-radius:4px;border-left:3px solid var(--muted)}
+  p{color:#c6d3df}
+  .story{background:linear-gradient(135deg,#132030,#0e1622);border:1px solid var(--border);border-radius:10px;padding:18px 22px;margin:18px 0;font-style:italic;color:#b9c9d8}
+  .story b{color:var(--accent2);font-style:normal}
+  .callout{background:#152a24;border:1px solid #235c4c;border-radius:8px;padding:14px 18px;margin:16px 0}
+  .callout.warn{background:#2a1f14;border-color:#6b4a1d}
+  .callout.why{background:#101b2c;border-color:#254268}
+  .step{background:var(--panel);border:1px solid var(--border);border-left:4px solid var(--accent);border-radius:6px;padding:12px 18px;margin:14px 0}
+  .step b.n{display:inline-block;background:var(--accent);color:#04120f;border-radius:50%;width:24px;height:24px;text-align:center;line-height:24px;font-size:.8rem;margin-right:10px}
+  pre{background:var(--code-bg);border:1px solid var(--border);border-radius:8px;padding:16px;overflow-x:auto;font-size:.85rem}
+  code{font-family:'Fira Code',Consolas,monospace;color:#c9d9e3}
+  .cmt{color:#5c7a8a}
+  .k{color:#e8a33d} .s{color:#7fd1a7} .v{color:#5aa9e6}
+  table{width:100%;border-collapse:collapse;margin:16px 0}
+  th,td{border:1px solid var(--border);padding:8px 12px;text-align:left;font-size:.9rem}
+  th{background:var(--panel2);color:var(--accent2)}
+  .toc{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:20px 26px}
+  .toc a{color:var(--accent);text-decoration:none}
+  .toc li{margin:6px 0}
+  .divider{border:none;border-top:1px solid var(--border);margin:40px 0}
+  .bg-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:16px 0}
+  .env-box{border-radius:10px;padding:16px}
+  .env-box.blue{background:#0f2440;border:2px solid var(--blue)}
+  .env-box.green{background:#0f3324;border:2px solid var(--green)}
+  .env-box h4{margin-top:0;background:none;padding:0;border:none}
+  .env-box.blue h4{color:var(--blue)}
+  .env-box.green h4{color:var(--green)}
+  .badge{display:inline-block;font-size:.72rem;font-weight:700;padding:3px 10px;border-radius:20px;color:#04120f}
+  .badge.blue{background:var(--blue);color:#fff}
+  .badge.green{background:var(--green);color:#04160c}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>Use Case 4: Blue-Green Deployment for Production Applications</h1>
+<p><b>Company:</b> ShopNow Retail Pvt Ltd (fictional mid-size e-commerce company) &nbsp;|&nbsp; <b>Your role:</b> DevOps/Cloud Engineer &nbsp;|&nbsp; <b>Level:</b> 4+ years, resume-ready production project</p>
+
+<div class="toc">
+<b>What this document covers, start to finish:</b>
+<ol>
+<li><a href="#scenario">The Business Scenario</a></li>
+<li><a href="#concept">The Core Idea — Blue-Green vs Rolling Update</a></li>
+<li><a href="#apparch">Application Architecture</a></li>
+<li><a href="#awsarch">AWS Architecture</a></li>
+<li><a href="#eks">EKS Cluster Design</a></li>
+<li><a href="#vpc">VPC and Networking</a></li>
+<li><a href="#iam">IAM Roles and IRSA</a></li>
+<li><a href="#manifests">Blue and Green Deployments — Full Manifests</a></li>
+<li><a href="#svc">The Service Switch — How Traffic Actually Moves</a></li>
+<li><a href="#validate">Validating Green Before the Switch</a></li>
+<li><a href="#pdb">PodDisruptionBudget for Both Environments</a></li>
+<li><a href="#config">ConfigMaps and Secrets</a></li>
+<li><a href="#ingress">Ingress with AWS Load Balancer Controller</a></li>
+<li><a href="#hpa">HPA and Autoscaling</a></li>
+<li><a href="#netpol">NetworkPolicies</a></li>
+<li><a href="#ecr">ECR Integration</a></li>
+<li><a href="#pipeline">Jenkins and GitHub Actions Pipelines</a></li>
+<li><a href="#argocd">Argo CD GitOps for Blue-Green</a></li>
+<li><a href="#monitoring">Prometheus and Grafana</a></li>
+<li><a href="#cloudwatch">CloudWatch Logging</a></li>
+<li><a href="#workflow">Running the Code — Full End-to-End Workflow</a></li>
+<li><a href="#failure">Failure Testing</a></li>
+<li><a href="#rollback">Rollback Strategy — The Instant Switch Back</a></li>
+<li><a href="#troubleshoot">Troubleshooting Scenarios</a></li>
+<li><a href="#ansible">Ansible Automation</a></li>
+<li><a href="#report">HTML Deployment/Job Report</a></li>
+<li><a href="#email">Email Notification</a></li>
+<li><a href="#resume">How to Present This on Your Resume</a></li>
+</ol>
+</div>
+
+<h2 id="scenario">1. The Business Scenario — Why This Project Exists</h2>
+<div class="story">
+ShopNow Retail's Payment Service (the .NET service from Use Case 1) processes real money. A rolling update, even a perfect zero-downtime one, still means for a few minutes there are <b>two different versions of the Payment Service running side by side</b>, each potentially interpreting a transaction slightly differently if the new version changed how it talks to the payment gateway. Last quarter, a rolling update introduced a rounding difference in tax calculation, and for the six minutes both versions were live, roughly 40 orders were charged two different ways — a support and finance nightmare that took two weeks to fully reconcile.
+</div>
+<p>Ramesh's ask this time is specific: <i>"For anything touching money, I don't want a gradual mix of old and new pods ever again. I want the new version fully tested in production-like conditions, completely isolated from customers, and then flipped on for everyone in one atomic switch — and if anything looks wrong, I want to flip back in seconds, not minutes."</i></p>
+<p>This is the exact business justification for <b>Blue-Green Deployment</b>, and it's a different tool from Use Case 3's rolling update — not a better one, a different one for a different problem. Knowing when to reach for which is exactly the kind of judgment call a senior engineer is expected to make, and exactly what this document will let you explain with confidence.</p>
+
+<h2 id="concept">2. The Core Idea — Blue-Green vs Rolling Update</h2>
+<div class="bg-grid">
+<div class="env-box blue"><h4>BLUE — Current Production</h4>Full set of pods running the currently-live version. 100% of real customer traffic goes here right now.</div>
+<div class="env-box green"><h4>GREEN — New Version</h4>A completely separate, fully-scaled set of pods running the new version. Deployed and running, but receiving <b>zero</b> real customer traffic — reachable only internally for testing.</div>
+</div>
+<p>Once Green passes every validation check, one single change — updating which environment the Service's <code>selector</code> points to — instantly moves 100% of traffic from Blue to Green. There is no in-between state where both versions serve real customers at once. That is the single sentence that separates Blue-Green from everything in Use Case 3.</p>
+<table>
+<tr><th></th><th>Rolling Update (Use Case 3)</th><th>Blue-Green (this use case)</th></tr>
+<tr><td>Old and new versions serving real traffic simultaneously?</td><td>Yes, briefly, by design</td><td>Never — it's one or the other, atomically</td></tr>
+<tr><td>Extra compute cost during deploy?</td><td>Small (1 extra pod via maxSurge)</td><td>Large (a full second fleet running in parallel)</td></tr>
+<tr><td>Can you fully test the new version under real-like load before any customer sees it?</td><td>Not really — it takes live traffic as soon as it's Ready</td><td>Yes — Green can be smoke-tested and load-tested while fully isolated</td></tr>
+<tr><td>Rollback speed</td><td>Seconds to minutes (reverse rolling update)</td><td>Instant (flip the selector back)</td></tr>
+<tr><td>Best fit</td><td>Most stateless services, frequent deploys</td><td>Payment, checkout, anything where a mixed-version window is unacceptable</td></tr>
+</table>
+<div class="callout why"><b>Why not use Blue-Green for everything, then?</b> Cost and complexity — running two full-scale fleets simultaneously means doubling your compute bill for the duration of every deploy, and database schema changes become much harder to reason about when two full versions might both be writing. This is why ShopNow uses Rolling Update for Cart Service and Catalog Service, but Blue-Green specifically for Payment Service — matching the deployment strategy to the actual risk of the workload is the senior-level judgment call here.</div>
+
+<h2 id="apparch">3. Application Architecture</h2>
+<pre><code><span class="cmt">                     Customer Browser
+                             |
+                   ALB (Ingress) - shopnow.com
+                             |
+              Kubernetes Service: payment-service-svc
+                    selector: version=blue   <span class="cmt">&larr; the ONE line that decides everything</span>
+                        /            \
+              [BLUE pods, live]   [GREEN pods, isolated]
+              version=blue         version=green
+              3 replicas            3 replicas
+                    |                    |
+              Real customer         payment-service-green-svc (internal only)
+              transactions          used ONLY by QA/smoke tests, never by real users
+</span></code></pre>
+<p>The application itself is the same Payment Service (.NET 8) from Use Case 1 — Blue-Green is not a different application architecture, it's a different <b>deployment</b> architecture layered on top of the same service.</p>
+
+<h2 id="awsarch">4. AWS Architecture</h2>
+<table>
+<tr><th>AWS Service</th><th>Role in this project</th></tr>
+<tr><td>EKS</td><td>Runs both Blue and Green ReplicaSets simultaneously in the same namespace, distinguished by the <code>version</code> label</td></tr>
+<tr><td>ALB</td><td>Single external entry point — it never knows Blue/Green exists, it only ever talks to one stable Service name</td></tr>
+<tr><td>ECR</td><td>Two image tags live at once during a deployment window — e.g. <code>payment-service:blue-v1.4.2</code> and <code>payment-service:green-v1.5.0</code></td></tr>
+<tr><td>RDS PostgreSQL</td><td>One database, shared by both Blue and Green — this is the detail requiring the most care (see the callout below)</td></tr>
+<tr><td>CloudWatch</td><td>Separate log streams for Blue and Green pods so validation logs never mix with production logs</td></tr>
+</table>
+<div class="callout warn"><b>The hardest part of Blue-Green in real systems: the database.</b> Both Blue and Green pods usually connect to the <i>same</i> RDS instance, because running two separate databases and keeping them in sync is its own huge problem. This means any database schema change deployed with Green must be <b>backward-compatible</b> with Blue — for example, adding a new nullable column is safe, but renaming or dropping a column Blue still reads from will break Blue while Green is being validated. This is exactly the kind of "gotcha" interviewers probe for when they ask "what's hard about Blue-Green in practice."</div>
+
+<h2 id="eks">5. EKS Cluster Design</h2>
+<pre><code><span class="k">apiVersion</span>: eksctl.io/v1alpha5
+<span class="k">kind</span>: ClusterConfig
+<span class="k">metadata</span>:
+  <span class="k">name</span>: shopnow-cluster
+  <span class="k">region</span>: ap-south-1
+  <span class="k">version</span>: <span class="s">"1.29"</span>
+<span class="k">managedNodeGroups</span>:
+  <span class="k">- name</span>: ng-payment-secure
+    <span class="k">instanceType</span>: m5.large
+    <span class="k">desiredCapacity</span>: 4      <span class="cmt"># sized for BOTH Blue and Green running together, not just Blue alone</span>
+    <span class="k">minSize</span>: 4
+    <span class="k">maxSize</span>: 8
+    <span class="k">labels</span>: { workload: payment-secure }
+    <span class="k">taints</span>:
+      <span class="k">- key</span>: <span class="s">"dedicated"</span>
+        <span class="k">value</span>: <span class="s">"payment"</span>
+        <span class="k">effect</span>: <span class="s">"NoSchedule"</span>
+</code></pre>
+<p>Note the node group is deliberately sized larger than Use Case 1's version — with 3 Blue replicas and 3 Green replicas both scheduled at once during a deployment window, you need headroom for 6 payment pods simultaneously, not 3. Under-sizing this is one of the most common Blue-Green mistakes: Green pods stuck <code>Pending</code> because nobody accounted for the doubled capacity need.</p>
+
+<h2 id="vpc">6. VPC and Networking</h2>
+<p>Same VPC and subnet layout as the earlier use cases — Blue and Green pods both run in the same private subnets, on the same tainted secure node group. There is no network-level separation between Blue and Green; the isolation is entirely at the <b>Service selector</b> layer, which is exactly what section 9 explains in detail.</p>
+
+<h2 id="iam">7. IAM Roles and IRSA</h2>
+<pre><code><span class="cmt"># Both Blue and Green pods use the SAME IRSA service account and the SAME permissions —
+# they are the same application, just two versions, so there is no security reason to split IAM roles</span>
+eksctl create iamserviceaccount --cluster shopnow-cluster --namespace prod \
+  --name payment-service-sa \
+  --attach-policy-arn arn:aws:iam::111122223333:policy/payment-service-policy --approve
+</code></pre>
+
+<h2 id="manifests">8. Blue and Green Deployments — Full Manifests</h2>
+<p>Two separate Deployment objects, never one — this is the key structural difference from a rolling update, which uses a single Deployment. Each carries a distinct <code>version</code> label that the Service (section 9) will target.</p>
+<pre><code><span class="cmt"># payment-service-blue-deployment.yaml — the CURRENT production version</span>
+<span class="k">apiVersion</span>: apps/v1
+<span class="k">kind</span>: Deployment
+<span class="k">metadata</span>:
+  <span class="k">name</span>: payment-service-blue
+  <span class="k">namespace</span>: prod
+  <span class="k">labels</span>: { app: payment-service, version: blue }
+<span class="k">spec</span>:
+  <span class="k">replicas</span>: 3
+  <span class="k">selector</span>:
+    <span class="k">matchLabels</span>: { app: payment-service, version: blue }
+  <span class="k">template</span>:
+    <span class="k">metadata</span>:
+      <span class="k">labels</span>: { app: payment-service, version: blue }
+    <span class="k">spec</span>:
+      <span class="k">serviceAccountName</span>: payment-service-sa
+      <span class="k">nodeSelector</span>: { workload: payment-secure }
+      <span class="k">tolerations</span>:
+        <span class="k">- key</span>: <span class="s">"dedicated"</span>
+          <span class="k">operator</span>: <span class="s">"Equal"</span>
+          <span class="k">value</span>: <span class="s">"payment"</span>
+          <span class="k">effect</span>: <span class="s">"NoSchedule"</span>
+      <span class="k">containers</span>:
+        <span class="k">- name</span>: payment-service
+          <span class="k">image</span>: 111122223333.dkr.ecr.ap-south-1.amazonaws.com/payment-service:blue-v1.4.2
+          <span class="k">ports</span>: [{ containerPort: 8081 }]
+          <span class="k">envFrom</span>:
+            <span class="k">- configMapRef</span>: { name: payment-service-config }
+            <span class="k">- secretRef</span>: { name: payment-service-secret }
+          <span class="k">resources</span>:
+            <span class="k">requests</span>: { cpu: <span class="s">"200m"</span>, memory: <span class="s">"384Mi"</span> }
+            <span class="k">limits</span>:   { cpu: <span class="s">"500m"</span>, memory: <span class="s">"768Mi"</span> }
+          <span class="k">readinessProbe</span>: { httpGet: { path: /health/ready, port: 8081 }, initialDelaySeconds: 15, periodSeconds: 10 }
+          <span class="k">livenessProbe</span>:  { httpGet: { path: /health/live,  port: 8081 }, initialDelaySeconds: 20, periodSeconds: 20 }
+</code></pre>
+<pre><code><span class="cmt"># payment-service-green-deployment.yaml — the NEW version, identical shape, different label + image</span>
+<span class="k">apiVersion</span>: apps/v1
+<span class="k">kind</span>: Deployment
+<span class="k">metadata</span>:
+  <span class="k">name</span>: payment-service-green
+  <span class="k">namespace</span>: prod
+  <span class="k">labels</span>: { app: payment-service, version: green }
+<span class="k">spec</span>:
+  <span class="k">replicas</span>: 3
+  <span class="k">selector</span>:
+    <span class="k">matchLabels</span>: { app: payment-service, version: green }
+  <span class="k">template</span>:
+    <span class="k">metadata</span>:
+      <span class="k">labels</span>: { app: payment-service, version: green }
+    <span class="k">spec</span>:
+      <span class="k">serviceAccountName</span>: payment-service-sa
+      <span class="k">nodeSelector</span>: { workload: payment-secure }
+      <span class="k">tolerations</span>:
+        <span class="k">- key</span>: <span class="s">"dedicated"</span>
+          <span class="k">operator</span>: <span class="s">"Equal"</span>
+          <span class="k">value</span>: <span class="s">"payment"</span>
+          <span class="k">effect</span>: <span class="s">"NoSchedule"</span>
+      <span class="k">containers</span>:
+        <span class="k">- name</span>: payment-service
+          <span class="k">image</span>: 111122223333.dkr.ecr.ap-south-1.amazonaws.com/payment-service:green-v1.5.0
+          <span class="k">ports</span>: [{ containerPort: 8081 }]
+          <span class="k">envFrom</span>:
+            <span class="k">- configMapRef</span>: { name: payment-service-config }
+            <span class="k">- secretRef</span>: { name: payment-service-secret }
+          <span class="k">resources</span>:
+            <span class="k">requests</span>: { cpu: <span class="s">"200m"</span>, memory: <span class="s">"384Mi"</span> }
+            <span class="k">limits</span>:   { cpu: <span class="s">"500m"</span>, memory: <span class="s">"768Mi"</span> }
+          <span class="k">readinessProbe</span>: { httpGet: { path: /health/ready, port: 8081 }, initialDelaySeconds: 15, periodSeconds: 10 }
+          <span class="k">livenessProbe</span>:  { httpGet: { path: /health/live,  port: 8081 }, initialDelaySeconds: 20, periodSeconds: 20 }
+</code></pre>
+<p>Notice both Deployments' pod templates are almost byte-for-byte identical except for <code>version: green</code> vs <code>version: blue</code> and the image tag — this is deliberate. Any other difference between them (different resource limits, different node placement) would mean you aren't really testing Green under the same conditions Blue runs in, defeating the purpose of the validation step in section 10.</p>
+
+<h2 id="svc">9. The Service Switch — How Traffic Actually Moves</h2>
+<pre><code><span class="cmt"># payment-service-svc.yaml — THE Service real customer traffic hits, via the ALB</span>
+<span class="k">apiVersion</span>: v1
+<span class="k">kind</span>: Service
+<span class="k">metadata</span>: { name: payment-service-svc, namespace: prod }
+<span class="k">spec</span>:
+  <span class="k">selector</span>:
+    <span class="k">app</span>: payment-service
+    <span class="k">version</span>: blue    <span class="cmt"># <-- THIS LINE is the entire switch. Change to "green" to cut over.</span>
+  <span class="k">ports</span>: [{ port: 80, targetPort: 8081 }]
+---
+<span class="cmt"># payment-service-green-svc.yaml — INTERNAL ONLY, used purely for validating Green before cutover</span>
+<span class="k">apiVersion</span>: v1
+<span class="k">kind</span>: Service
+<span class="k">metadata</span>: { name: payment-service-green-svc, namespace: prod }
+<span class="k">spec</span>:
+  <span class="k">selector</span>: { app: payment-service, version: green }
+  <span class="k">ports</span>: [{ port: 80, targetPort: 8081 }]
+  <span class="k">type</span>: ClusterIP    <span class="cmt"># never attached to the Ingress/ALB</span>
+</code></pre>
+<p>The switch itself, once Green is validated, is one command:</p>
+<pre><code>kubectl patch service payment-service-svc -n prod \
+  -p <span class="s">'{"spec":{"selector":{"app":"payment-service","version":"green"}}}'</span>
+</code></pre>
+<div class="callout why"><b>Why is this instant, with zero pod restarts?</b> Nothing about the pods changes at all — Green's 3 pods were already running, already Ready, already warmed up before this command runs. All that changes is which pods the Service's internal iptables/IPVS rules point new connections to. This is the mechanical reason Blue-Green rollback (section 22) can be instant: flipping the selector back to <code>blue</code> is the same one-line patch, and Blue's pods never stopped running in the first place.</div>
+
+<h2 id="validate">10. Validating Green Before the Switch</h2>
+<p>This is the step that actually earns the trust to flip traffic — Green is fully deployed and Ready, but only reachable through the internal-only <code>payment-service-green-svc</code>, so you can hammer it exactly like production without any real customer ever touching it.</p>
+<pre><code><span class="cmt"># smoke_test_green.py — runs a realistic transaction flow against Green only</span>
+<span class="k">import</span> requests, sys
+
+<span class="k">GREEN_URL</span> = <span class="s">"http://payment-service-green-svc.prod.svc.cluster.local"</span>
+
+<span class="k">def</span> run_smoke_tests():
+    checks = []
+
+    r = requests.get(f<span class="s">"{GREEN_URL}/health/ready"</span>)
+    checks.append((<span class="s">"health check"</span>, r.status_code == 200))
+
+    r = requests.post(f<span class="s">"{GREEN_URL}/api/payments/authorize"</span>, json={
+        <span class="s">"amount"</span>: 499.00, <span class="s">"currency"</span>: <span class="s">"INR"</span>, <span class="s">"card_test_token"</span>: <span class="s">"tok_test_visa"</span>
+    })
+    checks.append((<span class="s">"test authorization"</span>, r.status_code == 200 <span class="k">and</span> r.json().get(<span class="s">"status"</span>) == <span class="s">"authorized"</span>))
+
+    r = requests.post(f<span class="s">"{GREEN_URL}/api/payments/refund"</span>, json={<span class="s">"transaction_id"</span>: r.json().get(<span class="s">"transaction_id"</span>)})
+    checks.append((<span class="s">"test refund"</span>, r.status_code == 200))
+
+    failed = [name <span class="k">for</span> name, ok <span class="k">in</span> checks <span class="k">if</span> <span class="k">not</span> ok]
+    <span class="k">if</span> failed:
+        print(<span class="s">"SMOKE TEST FAILED:"</span>, failed)
+        sys.exit(1)
+    print(<span class="s">"ALL SMOKE TESTS PASSED — Green is safe to promote"</span>)
+
+<span class="k">if</span> __name__ == <span class="s">"__main__"</span>:
+    run_smoke_tests()
+</code></pre>
+<pre><code><span class="cmt"># Also load test Green in isolation before trusting it with real traffic volume</span>
+kubectl run load-test --image=williamyeh/hey --restart=Never -n prod -- \
+  -z 2m -c 30 http://payment-service-green-svc.prod.svc.cluster.local/api/payments/authorize
+</code></pre>
+<div class="callout"><b>Manual UAT gate:</b> beyond automated smoke tests, ShopNow's process requires the QA lead to manually test 5 real-world scenarios (successful payment, declined card, timeout from the gateway, refund, partial refund) against <code>payment-service-green-svc</code> using a port-forward, and sign off in the pipeline's approval step before anyone is allowed to flip the Service selector.</div>
+
+<h2 id="pdb">11. PodDisruptionBudget for Both Environments</h2>
+<pre><code><span class="k">apiVersion</span>: policy/v1
+<span class="k">kind</span>: PodDisruptionBudget
+<span class="k">metadata</span>: { name: payment-service-blue-pdb, namespace: prod }
+<span class="k">spec</span>:
+  <span class="k">minAvailable</span>: 2
+  <span class="k">selector</span>: { matchLabels: { app: payment-service, version: blue } }
+---
+<span class="k">apiVersion</span>: policy/v1
+<span class="k">kind</span>: PodDisruptionBudget
+<span class="k">metadata</span>: { name: payment-service-green-pdb, namespace: prod }
+<span class="k">spec</span>:
+  <span class="k">minAvailable</span>: 2
+  <span class="k">selector</span>: { matchLabels: { app: payment-service, version: green } }
+</code></pre>
+<p>Both get their own PDB, scoped by the <code>version</code> label, because a node drain during the validation window shouldn't be allowed to wipe out Green mid-testing any more than it should be allowed to wipe out live Blue traffic.</p>
+
+<h2 id="config">12. ConfigMaps and Secrets</h2>
+<pre><code><span class="cmt"># Both Blue and Green read from the SAME ConfigMap and Secret — they are the
+# same application talking to the same database and the same payment gateway,
+# just different code versions</span>
+<span class="k">apiVersion</span>: v1
+<span class="k">kind</span>: ConfigMap
+<span class="k">metadata</span>: { name: payment-service-config, namespace: prod }
+<span class="k">data</span>:
+  <span class="k">DB_HOST</span>: <span class="s">"shopnow-payment-prod.abcxyz.ap-south-1.rds.amazonaws.com"</span>
+  <span class="k">GATEWAY_URL</span>: <span class="s">"https://live.paygateway.com"</span>
+  <span class="k">LOG_LEVEL</span>: <span class="s">"info"</span>
+</code></pre>
+
+<h2 id="ingress">13. Ingress with AWS Load Balancer Controller</h2>
+<pre><code><span class="k">apiVersion</span>: networking.k8s.io/v1
+<span class="k">kind</span>: Ingress
+<span class="k">metadata</span>:
+  <span class="k">name</span>: payment-service-ingress
+  <span class="k">namespace</span>: prod
+  <span class="k">annotations</span>:
+    <span class="k">kubernetes.io/ingress.class</span>: alb
+    <span class="k">alb.ingress.kubernetes.io/scheme</span>: internet-facing
+    <span class="k">alb.ingress.kubernetes.io/target-type</span>: ip
+    <span class="k">alb.ingress.kubernetes.io/certificate-arn</span>: arn:aws:acm:ap-south-1:111122223333:certificate/xxxx
+<span class="k">spec</span>:
+  <span class="k">rules</span>:
+    <span class="k">- host</span>: shopnow.com
+      <span class="k">http</span>:
+        <span class="k">paths</span>:
+          <span class="k">- path</span>: /api/payments
+            <span class="k">pathType</span>: Prefix
+            <span class="k">backend</span>:
+              <span class="k">service</span>: { name: payment-service-svc, port: { number: 80 } }
+</code></pre>
+<p>The Ingress only ever points at <code>payment-service-svc</code> — the single stable Service name from section 9. It has no idea Blue or Green exist; the entire Blue-Green mechanism is invisible above the Service layer, which is exactly why the switch is safe and instant.</p>
+
+<h2 id="hpa">14. HPA and Autoscaling</h2>
+<pre><code><span class="cmt"># Each version gets its own HPA, scoped by version label, since only ONE of them
+# is ever actually serving real load at a given moment</span>
+<span class="k">apiVersion</span>: autoscaling/v2
+<span class="k">kind</span>: HorizontalPodAutoscaler
+<span class="k">metadata</span>: { name: payment-service-blue-hpa, namespace: prod }
+<span class="k">spec</span>:
+  <span class="k">scaleTargetRef</span>: { apiVersion: apps/v1, kind: Deployment, name: payment-service-blue }
+  <span class="k">minReplicas</span>: 3
+  <span class="k">maxReplicas</span>: 10
+  <span class="k">metrics</span>: [{ type: Resource, resource: { name: cpu, target: { type: Utilization, averageUtilization: 65 } } }]
+---
+<span class="k">apiVersion</span>: autoscaling/v2
+<span class="k">kind</span>: HorizontalPodAutoscaler
+<span class="k">metadata</span>: { name: payment-service-green-hpa, namespace: prod }
+<span class="k">spec</span>:
+  <span class="k">scaleTargetRef</span>: { apiVersion: apps/v1, kind: Deployment, name: payment-service-green }
+  <span class="k">minReplicas</span>: 3
+  <span class="k">maxReplicas</span>: 10
+  <span class="k">metrics</span>: [{ type: Resource, resource: { name: cpu, target: { type: Utilization, averageUtilization: 65 } } }]
+</code></pre>
+
+<h2 id="netpol">15. NetworkPolicies</h2>
+<pre><code><span class="cmt"># Only the ALB target group and Order Service may reach whichever version is LIVE
+# — the policy targets the app label, not the version label, so it automatically
+# applies to whichever color is currently receiving real traffic</span>
+<span class="k">apiVersion</span>: networking.k8s.io/v1
+<span class="k">kind</span>: NetworkPolicy
+<span class="k">metadata</span>: { name: allow-order-and-alb-to-payment, namespace: prod }
+<span class="k">spec</span>:
+  <span class="k">podSelector</span>: { matchLabels: { app: payment-service } }
+  <span class="k">policyTypes</span>: [Ingress]
+  <span class="k">ingress</span>:
+    <span class="k">- from</span>: [{ podSelector: { matchLabels: { app: order-service } } }, {}]
+      <span class="k">ports</span>: [{ protocol: TCP, port: 8081 }]
+</code></pre>
+
+<h2 id="ecr">16. ECR Integration</h2>
+<pre><code><span class="cmt"># One repository, two tags in flight during a deploy window</span>
+docker build -t payment-service:green-$TAG .
+docker tag payment-service:green-$TAG 111122223333.dkr.ecr.ap-south-1.amazonaws.com/payment-service:green-$TAG
+docker push 111122223333.dkr.ecr.ap-south-1.amazonaws.com/payment-service:green-$TAG
+
+<span class="cmt"># After a successful promotion, Green becomes the new "blue" for the NEXT deploy —
+# tag it accordingly so the naming stays meaningful</span>
+docker tag 111122223333.dkr.ecr.ap-south-1.amazonaws.com/payment-service:green-$TAG \
+           111122223333.dkr.ecr.ap-south-1.amazonaws.com/payment-service:blue-$TAG
+docker push 111122223333.dkr.ecr.ap-south-1.amazonaws.com/payment-service:blue-$TAG
+</code></pre>
+
+<h2 id="pipeline">17. CI/CD Pipeline — Jenkins and GitHub Actions</h2>
+<pre><code><span class="cmt">// Jenkinsfile — Blue-Green pipeline for Payment Service</span>
+pipeline {
+  agent any
+  environment {
+    ECR_REPO = <span class="s">"111122223333.dkr.ecr.ap-south-1.amazonaws.com/payment-service"</span>
+    GREEN_TAG = <span class="s">"green-${GIT_COMMIT.take(7)}"</span>
+  }
+  stages {
+    stage(<span class="s">'Test'</span>) { steps { sh <span class="s">'dotnet test'</span> } }
+
+    stage(<span class="s">'Build & Push Green Image'</span>) {
+      steps {
+        sh <span class="s">'''
+          docker build -t $ECR_REPO:$GREEN_TAG .
+          aws ecr get-login-password | docker login --username AWS --password-stdin $ECR_REPO
+          docker push $ECR_REPO:$GREEN_TAG
+        '''</span>
+      }
+    }
+
+    stage(<span class="s">'Deploy Green (isolated, no live traffic)'</span>) {
+      steps {
+        sh <span class="s">'''
+          kubectl set image deployment/payment-service-green payment-service=$ECR_REPO:$GREEN_TAG -n prod
+          kubectl rollout status deployment/payment-service-green -n prod --timeout=180s
+        '''</span>
+      }
+    }
+
+    stage(<span class="s">'Smoke Test Green'</span>) {
+      steps { sh <span class="s">'python3 smoke_test_green.py'</span> }
+    }
+
+    stage(<span class="s">'Manual UAT Sign-off'</span>) {
+      steps {
+        timeout(time: 60, unit: <span class="s">'MINUTES'</span>) {
+          input message: <span class="s">'QA lead: has Green passed manual UAT? Approve to switch traffic.'</span>, submitter: <span class="s">'qa-leads'</span>
+        }
+      }
+    }
+
+    stage(<span class="s">'Switch Traffic to Green'</span>) {
+      steps {
+        sh <span class="s">'kubectl patch service payment-service-svc -n prod -p \\'{"spec":{"selector":{"app":"payment-service","version":"green"}}}\\''</span>
+      }
+    }
+
+    stage(<span class="s">'Post-Switch Verification'</span>) {
+      steps { sh <span class="s">'python3 verify_live_traffic.py --url https://shopnow.com/api/payments/health --duration 120'</span> }
+    }
+
+    stage(<span class="s">'Report & Notify'</span>) {
+      steps {
+        sh <span class="s">'python3 generate_report.py --service payment-service --status success --build ${BUILD_NUMBER}'</span>
+        sh <span class="s">'python3 send_email.py --service payment-service --report report.html'</span>
+      }
+    }
+  }
+  post {
+    failure {
+      sh <span class="s">'''
+        echo "Switching back to Blue due to pipeline failure"
+        kubectl patch service payment-service-svc -n prod -p '{"spec":{"selector":{"app":"payment-service","version":"blue"}}}'
+      '''</span>
+      sh <span class="s">'python3 send_email.py --service payment-service --status FAILED --build ${BUILD_NUMBER}'</span>
+    }
+  }
+}
+</code></pre>
+<pre><code><span class="cmt"># .github/workflows/blue-green-deploy.yml</span>
+<span class="k">name</span>: Payment Service Blue-Green Deploy
+<span class="k">on</span>: { workflow_dispatch: {} }
+<span class="k">jobs</span>:
+  <span class="k">deploy-green</span>:
+    <span class="k">runs-on</span>: ubuntu-latest
+    <span class="k">environment</span>: production
+    <span class="k">steps</span>:
+      <span class="k">- uses</span>: actions/checkout@v4
+      <span class="k">- uses</span>: aws-actions/configure-aws-credentials@v4
+        <span class="k">with</span>: { role-to-assume: arn:aws:iam::111122223333:role/gha-eks-deploy, aws-region: ap-south-1 }
+      <span class="k">- name</span>: Update kubeconfig
+        <span class="k">run</span>: aws eks update-kubeconfig --name shopnow-cluster --region ap-south-1
+      <span class="k">- name</span>: Deploy Green
+        <span class="k">run</span>: |
+          kubectl set image deployment/payment-service-green payment-service=$ECR_REGISTRY/payment-service:green-${{ github.sha }} -n prod
+          kubectl rollout status deployment/payment-service-green -n prod --timeout=180s
+      <span class="k">- name</span>: Smoke test Green
+        <span class="k">run</span>: python3 smoke_test_green.py
+  <span class="k">switch-traffic</span>:
+    <span class="k">needs</span>: deploy-green
+    <span class="k">runs-on</span>: ubuntu-latest
+    <span class="k">environment</span>: production-switch   <span class="cmt"># separate GitHub Environment holding the required-reviewer rule</span>
+    <span class="k">steps</span>:
+      <span class="k">- name</span>: Flip selector to Green
+        <span class="k">run</span>: kubectl patch service payment-service-svc -n prod -p '{"spec":{"selector":{"app":"payment-service","version":"green"}}}'
+</code></pre>
+
+<h2 id="argocd">18. Argo CD GitOps for Blue-Green</h2>
+<pre><code><span class="cmt"># Two Argo CD Applications so Green can be synced/deployed independently of Blue</span>
+<span class="k">apiVersion</span>: argoproj.io/v1alpha1
+<span class="k">kind</span>: Application
+<span class="k">metadata</span>: { name: payment-service-blue, namespace: argocd }
+<span class="k">spec</span>:
+  <span class="k">project</span>: default
+  <span class="k">source</span>: { repoURL: https://github.com/shopnow/gitops-repo.git, targetRevision: main, path: services/payment-service/blue }
+  <span class="k">destination</span>: { server: https://kubernetes.default.svc, namespace: prod }
+  <span class="k">syncPolicy</span>: {}
+---
+<span class="k">apiVersion</span>: argoproj.io/v1alpha1
+<span class="k">kind</span>: Application
+<span class="k">metadata</span>: { name: payment-service-green, namespace: argocd }
+<span class="k">spec</span>:
+  <span class="k">project</span>: default
+  <span class="k">source</span>: { repoURL: https://github.com/shopnow/gitops-repo.git, targetRevision: main, path: services/payment-service/green }
+  <span class="k">destination</span>: { server: https://kubernetes.default.svc, namespace: prod }
+  <span class="k">syncPolicy</span>: { automated: { prune: true, selfHeal: false } }   <span class="cmt"># Green auto-deploys since it's isolated and safe to update freely</span>
+</code></pre>
+<p>The Service selector patch from section 9 is deliberately kept <b>outside</b> of Argo CD's automated sync — it's the one manual, deliberate action in this whole pipeline, executed only after the human UAT sign-off, which is why it's a separate pipeline stage rather than something Argo CD does on its own.</p>
+
+<h2 id="monitoring">19. Prometheus and Grafana</h2>
+<pre><code><span class="k">apiVersion</span>: monitoring.coreos.com/v1
+<span class="k">kind</span>: ServiceMonitor
+<span class="k">metadata</span>: { name: payment-service-monitor, namespace: prod }
+<span class="k">spec</span>:
+  <span class="k">selector</span>: { matchLabels: { app: payment-service } }
+  <span class="k">endpoints</span>: [{ port: metrics, path: /metrics, interval: 15s }]
+</code></pre>
+<p>The Grafana dashboard has a <code>$version</code> template variable (blue/green) so you can watch Green's error rate and latency in complete isolation from Blue's live production numbers during the validation window — then, right after the traffic switch, watch the same panel filtered to <code>version=green</code> flip from "test traffic only" to "100% of production" and confirm the numbers stay healthy under real load.</p>
+
+<h2 id="cloudwatch">20. CloudWatch Logging</h2>
+<pre><code><span class="k">apiVersion</span>: v1
+<span class="k">kind</span>: ConfigMap
+<span class="k">metadata</span>: { name: fluent-bit-config, namespace: amazon-cloudwatch }
+<span class="k">data</span>:
+  <span class="k">output.conf</span>: |
+    [OUTPUT]
+        Name                cloudwatch_logs
+        Match               kube.*
+        region              ap-south-1
+        log_group_name      /eks/shopnow/payment-service-${kubernetes['labels']['version']}
+        log_stream_prefix   ${kubernetes['pod_name']}-
+        auto_create_group   true
+</code></pre>
+<p>Separate log groups per color — <code>/eks/shopnow/payment-service-blue</code> and <code>/eks/shopnow/payment-service-green</code> — mean a support engineer investigating a live production issue never has to filter out noisy Green validation-test logs, and vice versa.</p>
+
+<h2 id="workflow">21. Running the Code — Full End-to-End Workflow</h2>
+
+<h3>Step 1 — Confirm Blue is currently live and healthy</h3>
+<pre><code>kubectl get deployment payment-service-blue -n prod
+kubectl get service payment-service-svc -n prod -o jsonpath=<span class="s">'{.spec.selector}'</span>
+<span class="cmt"># Expect: {"app":"payment-service","version":"blue"}</span>
+curl -s https://shopnow.com/api/payments/health
+</code></pre>
+
+<h3>Step 2 — Deploy Green with the new version, fully isolated</h3>
+<pre><code>kubectl apply -f payment-service-green-deployment.yaml
+kubectl apply -f payment-service-green-svc.yaml
+kubectl apply -f payment-service-green-hpa.yaml
+kubectl apply -f payment-service-green-pdb.yaml
+
+kubectl rollout status deployment/payment-service-green -n prod --timeout=180s
+kubectl get pods -n prod -l version=green
+<span class="cmt"># Expect: 3/3 Running, 3/3 Ready — and note NONE of this affects real traffic yet</span>
+</code></pre>
+
+<h3>Step 3 — Validate Green from inside the cluster only</h3>
+<pre><code><span class="cmt"># Port-forward for manual QA testing</span>
+kubectl port-forward svc/payment-service-green-svc -n prod 8081:80
+<span class="cmt"># now hit http://localhost:8081/api/payments/... from Postman for manual UAT</span>
+
+<span class="cmt"># Automated smoke test</span>
+kubectl run smoke-test --image=python:3.11-slim --restart=Never -n prod --rm -it -- \
+  sh -c "pip install requests -q && python3 -c \"$(cat smoke_test_green.py)\""
+
+<span class="cmt"># Load test Green in isolation</span>
+kubectl run load-test --image=williamyeh/hey --restart=Never -n prod --rm -- \
+  -z 2m -c 30 http://payment-service-green-svc.prod.svc.cluster.local/api/payments/authorize
+</code></pre>
+
+<h3>Step 4 — Get sign-off, then switch traffic</h3>
+<pre><code><span class="cmt"># Only after smoke tests pass AND QA lead approves in the pipeline's manual gate:</span>
+kubectl patch service payment-service-svc -n prod \
+  -p <span class="s">'{"spec":{"selector":{"app":"payment-service","version":"green"}}}'</span>
+
+<span class="cmt"># Confirm the switch took effect immediately</span>
+kubectl get service payment-service-svc -n prod -o jsonpath=<span class="s">'{.spec.selector}'</span>
+<span class="cmt"># Expect: {"app":"payment-service","version":"green"}</span>
+
+kubectl get endpoints payment-service-svc -n prod
+<span class="cmt"># Confirm the endpoint IPs now match Green's pod IPs, not Blue's</span>
+</code></pre>
+
+<h3>Step 5 — Watch real traffic on Green immediately after the switch</h3>
+<pre><code>python3 verify_live_traffic.py --url https://shopnow.com/api/payments/health --duration 120
+<span class="cmt"># Same style script as Use Case 3's zero-downtime checker — confirms the switch
+# itself introduced no failed requests</span>
+
+kubectl logs -n prod -l version=green -f --tail=50
+<span class="cmt"># Watch real production traffic hitting Green pods live, for the first time</span>
+</code></pre>
+
+<h3>Step 6 — Once confident, decommission old Blue (after a safe soak period)</h3>
+<pre><code><span class="cmt"># ShopNow's policy: keep old Blue running, unused, for 24 hours before deleting —
+# it's the fastest possible rollback path if a subtle issue surfaces after the switch</span>
+sleep 86400
+kubectl delete deployment payment-service-blue -n prod
+kubectl delete hpa payment-service-blue-hpa -n prod
+kubectl delete pdb payment-service-blue-pdb -n prod
+
+<span class="cmt"># Rename Green's manifests to become the new "Blue" baseline for the next release cycle
+# (this is a Git-side rename in the GitOps repo, not a cluster action)</span>
+</code></pre>
+
+<h2 id="failure">22. Failure Testing</h2>
+<pre><code><span class="cmt"># Test 1: Confirm switching back is truly instant</span>
+time kubectl patch service payment-service-svc -n prod -p '{"spec":{"selector":{"app":"payment-service","version":"blue"}}}'
+<span class="cmt"># Expect: patch command returns in well under 1 second; Endpoints update within a few seconds</span>
+
+<span class="cmt"># Test 2: Deliberately deploy a broken Green and confirm it NEVER reaches real customers</span>
+kubectl set image deployment/payment-service-green payment-service=...:broken-build -n prod
+kubectl rollout status deployment/payment-service-green -n prod --timeout=60s
+<span class="cmt"># Expected: rollout fails/times out, but curl https://shopnow.com/api/payments/health
+# still returns healthy — because the Service selector never left "blue"</span>
+
+<span class="cmt"># Test 3: Kill Green pods mid-validation, confirm Blue (live) is completely unaffected</span>
+kubectl delete pod -n prod -l version=green --field-selector status.phase=Running
+curl -s https://shopnow.com/api/payments/health   <span class="cmt"># still 200 OK — Green chaos never touches Blue</span>
+</code></pre>
+
+<h2 id="rollback">23. Rollback Strategy — The Instant Switch Back</h2>
+<pre><code><span class="cmt"># The entire rollback, start to finish, if something looks wrong after the switch:</span>
+kubectl patch service payment-service-svc -n prod \
+  -p <span class="s">'{"spec":{"selector":{"app":"payment-service","version":"blue"}}}'</span>
+
+<span class="cmt"># That's it. Blue's 3 pods never stopped running, so this is a live cutover back,
+# not a redeploy — typically complete in under 5 seconds end to end.</span>
+</code></pre>
+<div class="callout why"><b>This is the headline benefit stated back in section 1:</b> compare this one-line, sub-5-second rollback to the rolling-update rollback in Use Case 3, which — while also safe — still has to run an actual reverse rollout across every pod. Blue-Green rollback has no rollout to run at all, because the old version was never taken down.</div>
+
+<h2 id="troubleshoot">24. Troubleshooting Scenarios</h2>
+<table>
+<tr><th>Symptom</th><th>Likely Cause</th><th>Diagnostic Commands</th></tr>
+<tr><td>Green pods stuck Pending</td><td>Secure node group undersized for 6 concurrent payment pods (Blue + Green)</td><td><code>kubectl describe pod &lt;green-pod&gt; -n prod</code>, check node capacity</td></tr>
+<tr><td>Switched to Green but customers still hitting old behavior</td><td>ALB target group deregistration delay, or client-side caching</td><td><code>kubectl get endpoints payment-service-svc -n prod</code> to confirm IPs actually changed</td></tr>
+<tr><td>Green passes smoke tests but fails under real load post-switch</td><td>Load test in section 10 didn't match real traffic shape/volume</td><td>Compare Grafana panels pre- and post-switch, filtered by <code>version</code></td></tr>
+<tr><td>Database errors only on Green, never on Blue</td><td>Green's schema expectations incompatible with what Blue also still needs</td><td>Review recent migrations for backward-compatibility, see section 4 callout</td></tr>
+<tr><td>Rollback patch succeeds but traffic still going to Green</td><td>Client connection keep-alive holding an old connection open</td><td>Confirm with fresh curl requests, not a browser tab left open</td></tr>
+</table>
+
+<h2 id="ansible">25. Ansible Automation</h2>
+<pre><code><span class="cmt"># bootstrap-blue-green.yml — scaffolds a fresh Blue-Green pair for any service that needs it</span>
+<span class="k">- name</span>: Set up Blue-Green deployment scaffolding for a service
+  <span class="k">hosts</span>: localhost
+  <span class="k">gather_facts</span>: false
+  <span class="k">vars</span>:
+    <span class="k">service_name</span>: <span class="s">"{{ svc }}"</span>
+
+  <span class="k">tasks</span>:
+    <span class="k">- name</span>: Render Blue Deployment (copy of current production)
+      <span class="k">template</span>: { src: templates/deployment.yaml.j2, dest: <span class="s">"gitops-repo/services/{{ service_name }}/blue/deployment.yaml"</span> }
+      <span class="k">vars</span>: { version_label: blue }
+
+    <span class="k">- name</span>: Render Green Deployment
+      <span class="k">template</span>: { src: templates/deployment.yaml.j2, dest: <span class="s">"gitops-repo/services/{{ service_name }}/green/deployment.yaml"</span> }
+      <span class="k">vars</span>: { version_label: green }
+
+    <span class="k">- name</span>: Render the stable Service pointing at Blue by default
+      <span class="k">template</span>: { src: templates/service.yaml.j2, dest: <span class="s">"gitops-repo/services/{{ service_name }}/service.yaml"</span> }
+      <span class="k">vars</span>: { active_version: blue }
+
+    <span class="k">- name</span>: Render the internal Green-only validation Service
+      <span class="k">template</span>: { src: templates/green-service.yaml.j2, dest: <span class="s">"gitops-repo/services/{{ service_name }}/green-service.yaml"</span> }
+
+    <span class="k">- name</span>: Apply everything
+      <span class="k">kubernetes.core.k8s</span>: { state: present, src: <span class="s">"gitops-repo/services/{{ service_name }}/"</span> }
+</code></pre>
+<pre><code>ansible-playbook bootstrap-blue-green.yml -e <span class="s">"svc=payment-service"</span>
+</code></pre>
+
+<h2 id="report">26. HTML Deployment/Job Report</h2>
+<pre><code><span class="cmt"># generate_report.py — shows both colors side by side, plus which one is currently live</span>
+<span class="k">import</span> argparse, subprocess, json, datetime
+
+<span class="k">def</span> get_active_version(service_svc, ns=<span class="s">"prod"</span>):
+    out = subprocess.run([<span class="s">"kubectl"</span>, <span class="s">"get"</span>, <span class="s">"svc"</span>, service_svc, <span class="s">"-n"</span>, ns, <span class="s">"-o"</span>, <span class="s">"json"</span>], capture_output=<span class="k">True</span>, text=<span class="k">True</span>)
+    <span class="k">return</span> json.loads(out.stdout)[<span class="s">"spec"</span>][<span class="s">"selector"</span>].get(<span class="s">"version"</span>, <span class="s">"unknown"</span>)
+
+<span class="k">def</span> build_report(service, build_no, status):
+    active = get_active_version(f<span class="s">"{service}-svc"</span>)
+    color = <span class="s">"#5ec98f"</span> <span class="k">if</span> status == <span class="s">"success"</span> <span class="k">else</span> <span class="s">"#e35d5d"</span>
+    active_color = <span class="s">"#3a7bd5"</span> <span class="k">if</span> active == <span class="s">"blue"</span> <span class="k">else</span> <span class="s">"#3fb87a"</span>
+    html = f<span class="s">"""&lt;html&gt;&lt;body style="font-family:Arial;background:#0b0f14;color:#dbe6f0;padding:24px"&gt;
+    &lt;h2 style="color:{color}"&gt;ShopNow Blue-Green Deploy Report — {service} (Build #{build_no})&lt;/h2&gt;
+    &lt;p&gt;Time: {datetime.datetime.now()} | Status: {status.upper()}&lt;/p&gt;
+    &lt;h3 style="color:{active_color}"&gt;Currently LIVE: {active.upper()}&lt;/h3&gt;
+    &lt;/body&gt;&lt;/html&gt;"""</span>
+    <span class="k">with</span> open(<span class="s">"report.html"</span>, <span class="s">"w"</span>) <span class="k">as</span> f:
+        f.write(html)
+
+<span class="k">if</span> __name__ == <span class="s">"__main__"</span>:
+    parser = argparse.ArgumentParser()
+    parser.add_argument(<span class="s">"--service"</span>, required=<span class="k">True</span>)
+    parser.add_argument(<span class="s">"--status"</span>, default=<span class="s">"success"</span>)
+    parser.add_argument(<span class="s">"--build"</span>, required=<span class="k">True</span>)
+    args = parser.parse_args()
+    build_report(args.service, args.build, args.status)
+</code></pre>
+
+<h2 id="email">27. Email Notification</h2>
+<pre><code><span class="cmt"># send_email.py</span>
+<span class="k">import</span> argparse, smtplib, os
+<span class="k">from</span> email.mime.multipart <span class="k">import</span> MIMEMultipart
+<span class="k">from</span> email.mime.text <span class="k">import</span> MIMEText
+<span class="k">from</span> email.mime.application <span class="k">import</span> MIMEApplication
+
+<span class="k">def</span> send(service, status, build_no, report_path=<span class="s">"report.html"</span>):
+    msg = MIMEMultipart()
+    msg[<span class="s">"Subject"</span>] = f<span class="s">"[ShopNow] {service} Blue-Green switch - Build #{build_no} - {status.upper()}"</span>
+    msg[<span class="s">"From"</span>] = <span class="s">"devops-bot@shopnow.com"</span>
+    msg[<span class="s">"To"</span>] = <span class="s">"release-managers@shopnow.com, payments-team@shopnow.com"</span>
+    msg.attach(MIMEText(f<span class="s">"Service: {service}\nBuild: #{build_no}\nStatus: {status}\n\nRollback command if needed:\nkubectl patch service {service}-svc -n prod -p '{{\\"spec\\":{{\\"selector\\":{{\\"version\\":\\"blue\\"}}}}}}'"</span>, <span class="s">"plain"</span>))
+    <span class="k">if</span> os.path.exists(report_path):
+        <span class="k">with</span> open(report_path, <span class="s">"rb"</span>) <span class="k">as</span> f:
+            part = MIMEApplication(f.read(), Name=<span class="s">"report.html"</span>)
+        part[<span class="s">"Content-Disposition"</span>] = <span class="s">'attachment; filename="report.html"'</span>
+        msg.attach(part)
+    <span class="k">with</span> smtplib.SMTP(<span class="s">"email-smtp.ap-south-1.amazonaws.com"</span>, 587) <span class="k">as</span> server:
+        server.starttls()
+        server.login(os.environ[<span class="s">"SES_USER"</span>], os.environ[<span class="s">"SES_PASS"</span>])
+        server.send_message(msg)
+
+<span class="k">if</span> __name__ == <span class="s">"__main__"</span>:
+    parser = argparse.ArgumentParser()
+    parser.add_argument(<span class="s">"--service"</span>, required=<span class="k">True</span>)
+    parser.add_argument(<span class="s">"--status"</span>, default=<span class="s">"success"</span>)
+    parser.add_argument(<span class="s">"--build"</span>, required=<span class="k">True</span>)
+    parser.add_argument(<span class="s">"--report"</span>, default=<span class="s">"report.html"</span>)
+    args = parser.parse_args()
+    send(args.service, args.status, args.build, args.report)
+</code></pre>
+<p>Notice the rollback command is included directly in the email body — the goal is that anyone on the payments team who sees a problem right after a switch doesn't need to go find documentation, the exact command to undo it is sitting in their inbox.</p>
+
+<hr class="divider">
+<h2 id="resume">28. How to Present This on Your Resume</h2>
+<div class="callout why">
+<b>Resume bullet (use as-is or adapt):</b><br>
+"Implemented Blue-Green deployment for a production payments service on Amazon EKS, running fully isolated Blue and Green environments with an internal-only validation Service, automated smoke tests, and a manual QA sign-off gate before an atomic traffic switch via Kubernetes Service selector patching; reduced rollback time from minutes to under 5 seconds by keeping the previous version warm during a 24-hour soak period; designed the CI/CD pipeline (Jenkins/GitHub Actions) to automatically revert traffic on any post-switch failure."
+</div>
+<table>
+<tr><th>Likely question</th><th>Section to re-read before the call</th></tr>
+<tr><td>"What's the difference between Blue-Green and Rolling Update, and when do you pick each?"</td><td>Section 2</td></tr>
+<tr><td>"How does the traffic switch actually work under the hood?"</td><td>Section 9</td></tr>
+<tr><td>"How do you validate the new version before real users see it?"</td><td>Section 10</td></tr>
+<tr><td>"What's the hardest part of Blue-Green in a real system?"</td><td>Section 4 callout (shared database)</td></tr>
+<tr><td>"How fast can you roll back, and why?"</td><td>Section 23</td></tr>
+</table>
+
+<div class="story" style="margin-top:40px">The next Payment Service release, the QA lead runs all five UAT scenarios against Green in eleven minutes, signs off in the pipeline, and the traffic switch completes before she's even closed her testing tab. Two hours later, a subtle rounding issue does show up — this time, instead of a two-week reconciliation, one engineer runs a single <code>kubectl patch</code> command, and the incident is over in under five seconds, with zero customers ever having placed an order against the flawed version at scale. That's the difference this use case buys ShopNow, and it's the exact story you can now tell.</div>
+
+</div>
+</body>
+</html>

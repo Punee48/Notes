@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Project 17 — GitOps with Argo CD: Ansible-Driven vs Git-Native Deployment</title>
+<style>
+:root{
+  --blue:#5b9dff; --blue-bg:#132038;
+  --purple:#b58aff; --purple-bg:#221a3a;
+  --green:#3ed67f; --green-bg:#11301f;
+  --orange:#ffb15c; --orange-bg:#3a2712;
+  --red:#ff6b6b; --red-bg:#3a1616;
+  --teal:#4fd8e0; --teal-bg:#0f2f31;
+  --ink:#e7ecf5; --sub:#9aa7bd; --line:#2a3345; --bg:#0d1117; --card:#141b26;
+  --code-bg:#0a0e14; --code-ink:#dfe7f5;
+}
+*{box-sizing:border-box;}
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--ink);line-height:1.65;}
+a{color:var(--blue);}
+.progress{position:fixed;top:0;left:0;height:4px;background:linear-gradient(90deg,var(--blue),var(--teal));z-index:999;width:0%;transition:width .1s;}
+header.cover{background:linear-gradient(135deg,#101a30 0%,#241a3d 100%);color:#fff;padding:56px 24px 40px;text-align:center;border-bottom:1px solid var(--line);}
+header.cover .badge{display:inline-block;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);padding:6px 14px;border-radius:20px;font-size:13px;letter-spacing:.5px;margin-bottom:14px;}
+header.cover h1{margin:8px auto;max-width:900px;font-size:32px;}
+header.cover p.sub{max-width:750px;margin:10px auto 0;opacity:.85;font-size:16px;}
+.meta-grid{display:flex;flex-wrap:wrap;gap:12px;justify-content:center;margin-top:26px;}
+.meta-chip{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.18);padding:8px 16px;border-radius:8px;font-size:13px;}
+nav.toc{position:sticky;top:0;background:#0f151f;border-bottom:1px solid var(--line);z-index:100;padding:10px 16px;overflow-x:auto;white-space:nowrap;}
+nav.toc a{color:var(--sub);text-decoration:none;font-size:13px;margin-right:18px;padding:6px 10px;border-radius:6px;}
+nav.toc a:hover{background:var(--blue-bg);color:var(--blue);}
+main{max-width:980px;margin:0 auto;padding:30px 20px 80px;}
+section{margin-bottom:46px;}
+h2{font-size:24px;border-left:5px solid var(--blue);padding-left:12px;margin-top:10px;color:#fff;}
+h3{font-size:19px;color:var(--purple);margin-top:28px;}
+h4{font-size:16px;color:#fff;margin-top:20px;}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:20px 22px;margin:16px 0;}
+.box{border-radius:10px;padding:16px 18px;margin:14px 0;border-left:5px solid;}
+.box.concept{background:var(--blue-bg);border-color:var(--blue);}
+.box.arch{background:var(--purple-bg);border-color:var(--purple);}
+.box.success{background:var(--green-bg);border-color:var(--green);}
+.box.warning{background:var(--orange-bg);border-color:var(--orange);}
+.box.fail{background:var(--red-bg);border-color:var(--red);}
+.box.best{background:var(--teal-bg);border-color:var(--teal);}
+.box strong.tag{display:block;font-size:12px;text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px;opacity:.85;}
+details{background:var(--card);border:1px solid var(--line);border-radius:10px;margin:12px 0;padding:4px 16px;}
+details summary{cursor:pointer;font-weight:600;padding:12px 0;color:var(--blue);}
+table{width:100%;border-collapse:collapse;margin:14px 0;font-size:14px;}
+th,td{border:1px solid var(--line);padding:9px 12px;text-align:left;vertical-align:top;}
+th{background:var(--blue-bg);color:var(--blue);}
+tr:nth-child(even){background:#101623;}
+.codewrap{position:relative;margin:14px 0;}
+pre{background:var(--code-bg);color:var(--code-ink);padding:18px;border-radius:10px;overflow-x:auto;font-size:13px;line-height:1.6;font-family:"SF Mono",Menlo,Consolas,monospace;border:1px solid var(--line);}
+pre .c{color:#6fd18a;}
+.copy-btn{position:absolute;top:10px;right:10px;background:#22304a;color:#fff;border:1px solid var(--line);padding:6px 12px;border-radius:6px;font-size:12px;cursor:pointer;}
+.copy-btn:hover{background:#2c3d5e;}
+.cmd-label{font-size:12px;color:var(--sub);text-transform:uppercase;letter-spacing:.5px;margin:14px 0 4px;}
+.flow{background:var(--purple-bg);border:1px dashed var(--purple);border-radius:10px;padding:16px;font-family:monospace;white-space:pre;font-size:13px;overflow-x:auto;color:var(--ink);}
+.qa{margin:14px 0;padding:14px 16px;background:var(--card);border:1px solid var(--line);border-radius:8px;}
+.qa .q{font-weight:600;color:var(--purple);}
+.badge-diff{display:inline-block;padding:3px 10px;border-radius:12px;font-size:12px;font-weight:600;}
+.badge-diff.mid{background:var(--orange-bg);color:var(--orange);}
+.steps{counter-reset:step;}
+.step{position:relative;padding:14px 16px 14px 52px;margin:10px 0;background:var(--card);border:1px solid var(--line);border-radius:10px;}
+.step::before{counter-increment:step;content:counter(step);position:absolute;left:14px;top:14px;width:26px;height:26px;background:var(--blue);color:#0d1117;font-weight:700;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;}
+footer{text-align:center;padding:30px;color:var(--sub);font-size:13px;}
+</style>
+</head>
+<body>
+<div class="progress" id="progressBar"></div>
+
+<header class="cover">
+  <div class="badge">OPENSHIFT + ANSIBLE MASTERCLASS · PROJECT 17 OF ~28</div>
+  <h1>GitOps with Argo CD: Ansible-Driven vs Git-Native Deployment</h1>
+  <p class="sub">Standing up Argo CD, migrating payment-api's manifests to a Git-synced Application, and understanding exactly where Ansible's job ends and GitOps' continuous reconciliation begins — including a live drift-correction incident.</p>
+  <div class="meta-grid">
+    <div class="meta-chip">Difficulty: <span class="badge-diff mid">Advanced</span></div>
+    <div class="meta-chip">Domain: Telecom / Platform Engineering</div>
+    <div class="meta-chip">OpenShift: 4.14+</div>
+    <div class="meta-chip">Ansible Core: 2.16 · kubernetes.core 3.x</div>
+    <div class="meta-chip">Lab Time: ~3.5 hrs</div>
+    <div class="meta-chip">Infra Cost: $0 (CRC / existing cluster)</div>
+  </div>
+</header>
+
+<nav class="toc">
+  <a href="#story">Story</a>
+  <a href="#device">Run On Your Device</a>
+  <a href="#architecture">Ansible vs GitOps</a>
+  <a href="#playbooks">Playbooks</a>
+  <a href="#run">Execution</a>
+  <a href="#incident">Incident</a>
+  <a href="#breakfix">Break-Fix</a>
+  <a href="#security">Security</a>
+  <a href="#interview">Interview</a>
+  <a href="#resume">Resume</a>
+  <a href="#cheatsheet">Cheat Sheet</a>
+  <a href="#summary">Key Learnings</a>
+</nav>
+
+<main>
+
+<section id="story">
+<h2>1. The Production Story</h2>
+<div class="box concept">
+<strong class="tag">Scenario</strong>
+Sixteen projects of Ansible automation later, the app team asks a fair question: "why do WE have to ping platform engineering and ask someone to run a playbook every time we want to change a ConfigMap value?" They want self-service, Git-driven deploys — push to Git, see it applied automatically — without losing any of the governance (RBAC, quota, NetworkPolicy) platform engineering has built.
+</div>
+<div class="box warning">
+<strong class="tag">Business Problem</strong>
+Ansible-driven deployment (what we've built so far) requires someone to actually run <code>ansible-playbook</code>. There's no continuous reconciliation — if someone manually changes something in the cluster, nothing corrects it until the next manual run (exactly the drift problems from Projects 2 and 12).
+</div>
+<div class="box best">
+<strong class="tag">Our Mandate</strong>
+Introduce Argo CD for the application layer (Deployments, Services, Routes, ConfigMaps) while KEEPING Ansible for platform-governed baseline (namespace, quota, RBAC, NetworkPolicy) — the two tools solving different problems, not competing.
+</div>
+</section>
+
+<section id="device">
+<h2>2. Run This On Your Device</h2>
+<div class="steps">
+<div class="step"><strong>Install the OpenShift GitOps Operator (reuses Project 7's pattern).</strong>
+<div class="codewrap"><pre>ansible-playbook playbooks/gitops_operator.yml</pre></div>
+</div>
+<div class="step"><strong>Confirm Argo CD is running.</strong>
+<div class="codewrap"><pre>oc get pods -n openshift-gitops</pre></div>
+</div>
+<div class="step"><strong>Create a Git repo (or a local folder for CRC lab purposes) with the app manifests exported from Project 3.</strong>
+<div class="codewrap"><pre>mkdir -p gitops-payment-api/base
+oc get deployment,service,route -n payment-api-dev -o yaml --export=false \
+  > gitops-payment-api/base/app.yaml   <span class="c"># starting point -- clean up owner references before committing</span>
+git init gitops-payment-api &amp;&amp; cd gitops-payment-api &amp;&amp; git add -A &amp;&amp; git commit -m "initial"</pre></div>
+</div>
+<div class="step"><strong>Apply the Argo CD Application object via Ansible.</strong>
+<div class="codewrap"><pre>ansible-playbook playbooks/argocd_app.yml -e app_name=payment-api -e environment=dev \
+  -e git_repo_url=https://github.com/yourorg/gitops-payment-api.git</pre></div>
+</div>
+<div class="step"><strong>Watch it sync in the Argo CD UI or CLI.</strong>
+<div class="codewrap"><pre>oc get application payment-api-dev -n openshift-gitops</pre></div>
+</div>
+</div>
+</section>
+
+<section id="architecture">
+<h2>3. Ansible-Driven vs GitOps-Driven — Where Each Fits</h2>
+<div class="flow">ANSIBLE-DRIVEN (Projects 1-16):
+  Engineer runs playbook → k8s API → object created/updated
+  Reconciliation: ONLY when someone runs the playbook again
+  Best for: platform baseline, RBAC, one-time/scheduled operations,
+            operator lifecycle, upgrades, backup/restore
+
+GITOPS-DRIVEN (this project):
+  Engineer commits to Git → Argo CD detects change → syncs to cluster
+  Reconciliation: CONTINUOUS -- Argo CD constantly compares Git vs
+                  live state and can auto-correct drift
+  Best for: application manifests that change frequently, multi-
+            environment promotion via Git branches/directories,
+            teams wanting self-service without direct cluster access</div>
+<table>
+<tr><th>Dimension</th><th>Ansible-driven</th><th>GitOps (Argo CD)</th></tr>
+<tr><td>Trigger</td><td>Someone runs a playbook</td><td>Git commit (push-based intent, pull-based sync)</td></tr>
+<tr><td>Drift correction</td><td>Only on next manual/scheduled run</td><td>Continuous — can auto-heal within seconds</td></tr>
+<tr><td>Audit trail</td><td>Ansible run logs / Automation Controller job history</td><td>Git commit history — arguably clearer for app changes</td></tr>
+<tr><td>Good fit</td><td>RBAC, quota, Operators, upgrades, DR — governed, infrequent, complex logic</td><td>App Deployments/ConfigMaps/Routes — frequent, simple, team self-service</td></tr>
+<tr><td>Our decision</td><td>Keep for Projects 1-2 (baseline/RBAC), 5-14 (ops)</td><td>Adopt for Project 3's app-layer objects only</td></tr>
+</table>
+</section>
+
+<section id="playbooks">
+<h2>4. The Playbooks — Fully Commented</h2>
+
+<h3>4.1 playbooks/gitops_operator.yml</h3>
+<div class="cmd-label">playbooks/gitops_operator.yml</div>
+<div class="codewrap"><pre><span class="c">---
+# Installs the OpenShift GitOps Operator, reusing Project 7's
+# operator_install role -- no new installation logic needed.</span>
+- name: Install OpenShift GitOps Operator
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  roles:
+    - role: operator_install                                          <span class="c"># the exact reusable role from Project 7</span>
+      vars:
+        operator_name: openshift-gitops-operator                         <span class="c"># overrides the variable that role expects</span>
+        operator_channel: latest                                          <span class="c"># GitOps operator's own channel naming convention</span>
+        <span class="c"># NOTE: OpenShift GitOps auto-creates its own Argo CD instance
+        # named 'openshift-gitops' in the 'openshift-gitops' namespace --
+        # no separate ArgoCD CR needed for the default instance.</span></pre></div>
+
+<h3>4.2 playbooks/argocd_app.yml</h3>
+<div class="cmd-label">playbooks/argocd_app.yml</div>
+<div class="codewrap"><pre><span class="c">---
+# Creates an Argo CD Application object -- this is the ONE-TIME
+# Ansible action that hands ongoing reconciliation off to Argo CD.
+# After this runs, further app-layer changes go through Git, not
+# through re-running Ansible.</span>
+- name: Register payment-api as an Argo CD Application
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  tasks:
+    - name: Create the Argo CD Application object                        <span class="c"># the actual GitOps registration</span>
+      kubernetes.core.k8s:
+        state: present                                                    <span class="c"># idempotent -- re-running with same Git ref makes no change</span>
+        definition:
+          apiVersion: argoproj.io/v1alpha1                                  <span class="c"># Argo CD's own CRD API group</span>
+          kind: Application
+          metadata:
+            name: "{{ app_name }}-{{ environment }}"                         <span class="c"># one Application per app/environment pair</span>
+            namespace: openshift-gitops                                      <span class="c"># Applications live in the Argo CD instance's namespace</span>
+          spec:
+            project: default                                                  <span class="c"># Argo CD's built-in project; use scoped AppProjects for real multi-tenant setups</span>
+            source:
+              repoURL: "{{ git_repo_url }}"                                    <span class="c"># the Git repo holding manifests -- Git is now the source of truth</span>
+              targetRevision: "{{ git_branch | default('main') }}"              <span class="c"># which branch/tag to track</span>
+              path: "base"                                                      <span class="c"># subfolder within the repo containing this app's manifests</span>
+            destination:
+              server: "https://kubernetes.default.svc"                          <span class="c"># in-cluster destination -- same cluster Argo CD runs on</span>
+              namespace: "{{ app_name }}-{{ environment }}"                      <span class="c"># the SAME namespace Ansible's baseline role (Project 1) already created</span>
+            syncPolicy:
+              automated:
+                prune: true                                                       <span class="c"># remove cluster objects no longer defined in Git</span>
+                selfHeal: true                                                     <span class="c"># THE key behavior difference from Ansible -- auto-corrects manual drift</span>
+              syncOptions:
+                - CreateNamespace=false                                            <span class="c"># explicitly false -- namespace lifecycle stays owned by Ansible/Project 1, never Argo CD</span>
+      register: app_result                                                          <span class="c"># capture for assert</span>
+
+    - name: Assert Application registration succeeded                                <span class="c"># fail fast on API rejection</span>
+      ansible.builtin.assert:
+        that: [app_result is succeeded]
+        fail_msg: "Failed to register Argo CD Application for {{ app_name }}-{{ environment }}"
+
+    - name: Wait for initial sync to reach Synced/Healthy                             <span class="c"># confirms the handoff actually worked, not just that the object was created</span>
+      kubernetes.core.k8s_info:
+        kind: Application
+        api_version: argoproj.io/v1alpha1
+        name: "{{ app_name }}-{{ environment }}"
+        namespace: openshift-gitops
+      register: sync_status                                                           <span class="c"># holds live .status.sync and .status.health</span>
+      until: >
+        sync_status.resources[0].status.sync.status == "Synced" and
+        sync_status.resources[0].status.health.status == "Healthy"                     <span class="c"># both conditions required for a true success</span>
+      retries: 20                                                                       <span class="c"># initial sync is usually fast, generous margin anyway</span>
+      delay: 15</pre></div>
+</section>
+
+<section id="run">
+<h2>5. Execution &amp; Idempotency</h2>
+<div class="codewrap"><pre>ansible-playbook playbooks/gitops_operator.yml
+ansible-playbook playbooks/argocd_app.yml -e app_name=payment-api -e environment=dev \
+  -e git_repo_url=https://github.com/yourorg/gitops-payment-api.git</pre></div>
+<div class="box success"><strong class="tag">First run</strong><pre style="background:#0f2b1c;border-color:#1a4a2c;">PLAY RECAP *** ok=5 changed=3 failed=0</pre></div>
+<div class="box success"><strong class="tag">Second run</strong><pre style="background:#0f2b1c;border-color:#1a4a2c;">PLAY RECAP *** ok=5 changed=0 failed=0</pre></div>
+<div class="box concept"><strong class="tag">Important distinction</strong>Ansible's idempotency here only covers the Application REGISTRATION object. Once registered, changes to the actual Deployment/Service/Route manifests happen via Git commits, and Argo CD — not Ansible — is what applies and reconciles those.</div>
+</section>
+
+<section id="incident">
+<h2>6. Live Incident — Manual Drift Auto-Corrected (and one that wasn't)</h2>
+<div class="box fail"><strong class="tag">Report</strong>An engineer, under pressure during a different incident, manually scales the backend Deployment from 3 to 10 replicas with <code>oc scale</code> directly, forgetting this app is now Argo CD-managed.</div>
+
+<div class="cmd-label">Step 1 — within seconds, Argo CD reverts it</div>
+<div class="codewrap"><pre>oc get application payment-api-dev -n openshift-gitops
+NAME               SYNC STATUS   HEALTH STATUS
+payment-api-dev    OutOfSync     Healthy
+
+<span class="c"># moments later, selfHeal kicks in:</span>
+oc get deployment payment-api-backend -n payment-api-dev
+NAME                   READY   UP-TO-DATE
+payment-api-backend    3/3     3          <span class="c"># back to 3 -- Git's value -- automatically</span></pre></div>
+<div class="box success"><strong class="tag">This is GitOps working as designed</strong>Unlike Projects 2 and 12's incidents — where manual drift silently persisted until someone noticed — <code>selfHeal: true</code> corrected this within seconds, with zero human intervention. This is the exact problem class GitOps is best at solving.</div>
+
+<div class="cmd-label">Step 2 — but a SEPARATE manual change to the NAMESPACE itself is NOT reverted</div>
+<div class="codewrap"><pre>oc label namespace payment-api-dev team=wrong-team --overwrite
+oc get namespace payment-api-dev --show-labels
+<span class="c"># the incorrect label PERSISTS -- Argo CD never touches this object</span></pre></div>
+<div class="box warning"><strong class="tag">Why this one wasn't caught</strong>We deliberately set <code>CreateNamespace=false</code> and scoped Argo CD's destination to app-layer objects only (Section 4.2) — the namespace itself remains Ansible-governed (Project 1). This drift needs Project 2's RBAC/baseline audit playbook, not Argo CD, which is exactly the intended division of responsibility.</p>
+
+<div class="cmd-label">Step 3 — fix the namespace drift the Ansible way</div>
+<div class="codewrap"><pre>ansible-playbook playbooks/site.yml -e app_name=payment-api -e environment=dev</pre></div>
+<div class="box success"><strong class="tag">Resolved</strong>Both drift types corrected — one automatically by Argo CD, one manually via the Ansible baseline playbook — because each tool owns exactly the objects it's responsible for.</div>
+</section>
+
+<section id="breakfix">
+<h2>7. Additional Break-Fix Labs</h2>
+<details><summary>Break-Fix — Application stuck OutOfSync, won't self-heal</summary>
+<div class="codewrap"><pre>oc get application payment-api-dev -n openshift-gitops
+SYNC STATUS: OutOfSync
+HEALTH STATUS: Degraded
+
+oc describe application payment-api-dev -n openshift-gitops
+Message: ComparisonError: rpc error: repository not found</pre></div>
+<p><strong>Root cause:</strong> Git repo URL typo or a private repo with no credentials configured in Argo CD. <strong>Fix:</strong> verify <code>git_repo_url</code>, and for private repos, register a Repository credential Secret before creating the Application.</p>
+</details>
+<details><summary>Break-Fix — prune deleted something that shouldn't have been Argo-managed</summary>
+<div class="box fail"><strong class="tag">Break</strong>A ConfigMap created manually (not in Git) inside the app namespace gets deleted by Argo CD's <code>prune: true</code>.</div>
+<p><strong>Root cause:</strong> once a namespace is an Argo CD destination, <code>prune: true</code> removes ANY object type it manages that isn't declared in Git — including things created outside the GitOps flow entirely. <strong>Fix:</strong> everything in an Argo-managed namespace must go through Git; this is a feature, not a bug, but it means the team needs to fully commit to the workflow, not mix manual and GitOps changes.</p>
+</details>
+</section>
+
+<section id="security">
+<h2>8. Security Review</h2>
+<table>
+<tr><th>Control</th><th>Detail</th></tr>
+<tr><td>Clear ownership boundary</td><td>Namespace/RBAC/quota stay Ansible-governed; only app manifests are Argo CD-governed — no ambiguity about who can change what</td></tr>
+<tr><td>Git as audit trail</td><td>Every app-layer change has a commit author, message, and diff — arguably better traceability than ad hoc <code>oc apply</code></td></tr>
+<tr><td>selfHeal as a security control</td><td>Automatically reverts unauthorized manual changes to app-layer objects within seconds</td></tr>
+</table>
+</section>
+
+<section id="interview">
+<h2>9. Interview Preparation</h2>
+<div class="qa"><div class="q">Interviewer: "When would you choose Ansible over GitOps, or vice versa, for OpenShift deployments?"</div>
+<p><strong>Answer:</strong> I use them for different jobs, not as competitors. Ansible fits governed, infrequent, or logic-heavy operations — namespace/RBAC baseline, Operator lifecycle, upgrades, backup/restore — where a human or pipeline deliberately triggers a run. GitOps fits frequently-changing application manifests where continuous reconciliation and Git-based audit trail matter more, and where you want app teams to self-serve via pull requests instead of needing direct cluster access or platform team involvement.</p></div>
+<div class="qa"><div class="q">Interviewer: "What's the risk of GitOps' self-healing behavior?"</div>
+<p><strong>Answer:</strong> Anything not declared in Git inside a pruning-enabled Argo CD destination gets deleted, and anything manually changed gets silently reverted — which is great for catching drift but means the whole namespace has to commit to the GitOps workflow. Mixing manual changes with GitOps management in the same objects leads to confusing fights between a human's change and Argo CD's reconciliation loop.</p></div>
+</section>
+
+<section id="resume">
+<h2>10. Resume Points</h2>
+<div class="box best"><ul>
+<li>Introduced Argo CD/GitOps for application-layer deployment while retaining Ansible for platform-governed baseline, RBAC, and operational workflows — establishing a clear ownership boundary between the two.</li>
+<li>Demonstrated GitOps drift self-healing in production, automatically reverting an unauthorized manual scaling change within seconds versus the silent, undetected drift seen in earlier Ansible-only incidents.</li>
+</ul></div>
+</section>
+
+<section id="cheatsheet">
+<h2>11. Troubleshooting Cheat Sheet</h2>
+<table>
+<tr><th>Symptom</th><th>Check</th></tr>
+<tr><td>Application OutOfSync</td><td><code>oc describe application</code> — repo access, path, or manifest errors</td></tr>
+<tr><td>Manual change reverted unexpectedly</td><td>Expected behavior if <code>selfHeal: true</code> — the fix belongs in Git, not the cluster</td></tr>
+<tr><td>Object deleted unexpectedly</td><td><code>prune: true</code> removed something not declared in Git</td></tr>
+<tr><td>Namespace-level drift not caught</td><td>Namespace stays Ansible-governed by design — use Project 2's audit playbook, not Argo CD</td></tr>
+</table>
+</section>
+
+<section id="summary">
+<h2>12. Key Learnings</h2>
+<div class="card">
+<h4>OpenShift concepts</h4><p>Argo CD Application/sync/health model, <code>selfHeal</code> and <code>prune</code> semantics, deliberate ownership boundaries between GitOps and imperative/declarative automation.</p>
+<h4>Ansible concepts</h4><p>Using Ansible for a one-time "handoff" registration rather than ongoing management, waiting on multiple nested status conditions simultaneously (<code>sync.status</code> AND <code>health.status</code>).</p>
+<h4>Commands learned</h4><p><code>oc get application</code>, <code>oc describe application</code>, reading Argo CD sync/health status fields.</p>
+<h4>Next project prerequisites</h4><p>Keep this repo — Project 18 builds a full CI/CD pipeline (Jenkins/GitHub Actions + Ansible + OpenShift) tying the image build stage into the GitOps flow established here.</p>
+</div>
+</section>
+
+</main>
+<footer>OpenShift + Ansible Masterclass — Project 17 of ~28.</footer>
+<script>
+window.addEventListener('scroll', function(){
+  var h = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+  var p = h ? (window.scrollY / h) * 100 : 0;
+  document.getElementById('progressBar').style.width = p + '%';
+});
+document.querySelectorAll('pre').forEach(function(pre){
+  if(pre.parentElement.classList.contains('codewrap')){
+    var btn = document.createElement('button');
+    btn.className = 'copy-btn'; btn.textContent = 'Copy';
+    btn.onclick = function(){
+      navigator.clipboard.writeText(pre.innerText);
+      btn.textContent = 'Copied!';
+      setTimeout(function(){ btn.textContent = 'Copy'; }, 1500);
+    };
+    pre.parentElement.appendChild(btn);
+  }
+});
+</script>
+</body>
+</html>

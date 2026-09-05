@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Project 19 — SSL Certificate Discovery | PowerShell Masterclass</title>
+<style>
+  :root{
+    --primary:#A78BFA; --secondary:#C4B5FD; --surface:#1A1530; --surface2:#221B3D;
+    --bg:#0F0B1E; --text:#EDE9FE; --muted:#9CA3AF; --border:#332B57;
+    --success:#4ADE80; --warn:#FBBF24; --danger:#F87171;
+    --code-bg:#0A0716; --code-text:#E9E4FF;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0; font-family:"Segoe UI",Calibri,Roboto,Arial,sans-serif; background:var(--bg); color:var(--text); line-height:1.65;}
+  a{color:var(--secondary);}
+  .layout{display:flex; max-width:1400px; margin:0 auto;}
+  nav.sidebar{width:270px; flex-shrink:0; position:sticky; top:0; height:100vh; overflow-y:auto; background:var(--surface); border-right:1px solid var(--border); padding:22px 16px;}
+  nav.sidebar h3{color:var(--secondary); font-size:13px; text-transform:uppercase; letter-spacing:.06em; margin:18px 0 8px;}
+  nav.sidebar a{display:block; padding:7px 10px; border-radius:8px; color:var(--text); text-decoration:none; font-size:14px; margin-bottom:2px;}
+  nav.sidebar a:hover{background:var(--surface2); color:var(--secondary);}
+  #progressWrap{background:var(--surface2); border-radius:10px; padding:10px; margin-bottom:8px;}
+  #progressBar{height:8px; background:var(--border); border-radius:6px; overflow:hidden;}
+  #progressFill{height:100%; width:0%; background:linear-gradient(90deg,var(--primary),var(--secondary)); transition:width .2s;}
+  #progressLabel{font-size:12px; color:var(--muted); margin-top:6px;}
+  main{flex:1; min-width:0; padding:0;}
+  .cover{background:linear-gradient(135deg,#3B2A6B,#5B3FA0); color:#fff; padding:60px 48px; position:relative; overflow:hidden; border-bottom:1px solid var(--border);}
+  .cover::after{content:"";position:absolute;right:-80px;top:-80px;width:300px;height:300px;border-radius:50%;background:rgba(255,255,255,.06);}
+  .badge{display:inline-block; background:rgba(255,255,255,.14); padding:5px 14px; border-radius:20px; font-size:12px; letter-spacing:.05em; margin-right:8px; margin-bottom:14px;}
+  .cover h1{font-size:34px; margin:6px 0 10px; max-width:760px;}
+  .cover p.sub{font-size:16px; opacity:.92; max-width:640px;}
+  .cover-meta{display:flex; gap:28px; margin-top:26px; flex-wrap:wrap;}
+  .cover-meta div{background:rgba(255,255,255,.10); padding:12px 18px; border-radius:10px; min-width:140px;}
+  .cover-meta span{display:block; font-size:12px; opacity:.85;}
+  .cover-meta strong{font-size:16px;}
+  section{padding:34px 48px; border-bottom:1px solid var(--border);}
+  section h2{color:var(--secondary); font-size:24px; border-left:5px solid var(--primary); padding-left:14px; margin-top:0;}
+  section h3{color:var(--primary); font-size:18px; margin-top:26px;}
+  .story{background:var(--surface); border-left:5px solid var(--primary); padding:20px 24px; border-radius:0 10px 10px 0; font-size:15px;}
+  .story b{color:var(--secondary);}
+  .callout{border-radius:10px; padding:16px 18px; margin:16px 0; font-size:14.5px; border:1px solid var(--border);}
+  .callout.tip{background:#132A1E; border-left:5px solid var(--success);}
+  .callout.note{background:var(--surface); border-left:5px solid var(--secondary);}
+  .callout.warn{background:#2E2410; border-left:5px solid var(--warn);}
+  .callout.security{background:#2E1616; border-left:5px solid var(--danger);}
+  .callout .lbl{font-weight:700; display:block; margin-bottom:4px;}
+  table{width:100%; border-collapse:collapse; margin:16px 0; font-size:14px;}
+  th,td{border:1px solid var(--border); padding:9px 12px; text-align:left; vertical-align:top;}
+  th{background:var(--surface2); color:var(--secondary);}
+  tr:nth-child(even){background:var(--surface);}
+  .codewrap{position:relative; margin:16px 0;}
+  pre{background:var(--code-bg); color:var(--code-text); padding:18px 16px; border-radius:10px; overflow-x:auto; font-family:Consolas,"Cascadia Code",Menlo,monospace; font-size:13.5px; line-height:1.7; border:1px solid var(--border);}
+  pre code{white-space:pre;}
+  .copybtn{position:absolute; top:10px; right:10px; background:var(--primary); color:#1A1530; border:none; padding:6px 12px; border-radius:6px; font-size:12px; cursor:pointer; font-weight:600;}
+  .copybtn:hover{background:var(--secondary);}
+  .explain-list{list-style:none; padding:0; margin:14px 0;}
+  .explain-list li{background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:10px 14px; margin-bottom:6px; font-size:14.5px;}
+  .explain-list code{background:var(--surface2); padding:2px 6px; border-radius:5px; color:var(--secondary); font-weight:600;}
+  details{background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:12px 16px; margin:10px 0;}
+  details summary{cursor:pointer; font-weight:600; color:var(--secondary);}
+  .diagram{background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:20px; margin:16px 0; overflow-x:auto;}
+  .flow{display:flex; flex-wrap:wrap; align-items:center; gap:10px; font-size:13.5px;}
+  .flow .box{background:var(--surface2); border:2px solid var(--secondary); border-radius:8px; padding:8px 14px; font-weight:600; color:var(--secondary);}
+  .flow .arrow{color:var(--primary); font-size:18px;}
+  .steps{counter-reset:step;}
+  .steps .step{position:relative; padding-left:44px; margin-bottom:18px;}
+  .steps .step::before{counter-increment:step; content:counter(step); position:absolute; left:0; top:0; background:var(--primary); color:#1A1530; width:30px; height:30px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:700;}
+  .grid2{display:grid; grid-template-columns:1fr 1fr; gap:16px;}
+  .milestone{background:linear-gradient(135deg,var(--surface2),var(--surface)); border:2px dashed var(--secondary); border-radius:12px; padding:22px 24px; margin:18px 0;}
+  @media(max-width:900px){.grid2{grid-template-columns:1fr;} nav.sidebar{display:none;} section{padding:26px 20px;} .cover{padding:36px 22px;}}
+  footer{padding:30px 48px; background:var(--surface); color:var(--muted); font-size:13px;}
+  code{color:var(--secondary);}
+</style>
+</head>
+<body>
+
+<div class="layout">
+  <nav class="sidebar">
+    <div id="progressWrap">
+      <div id="progressLabel">Reading progress</div>
+      <div id="progressBar"><div id="progressFill"></div></div>
+    </div>
+    <h3>Project 19</h3>
+    <a href="#cover">Cover</a>
+    <a href="#milestone">Certificate/IIS Track Begins</a>
+    <a href="#recap1">Recap: Projects 1–18</a>
+    <a href="#story">The Story</a>
+    <a href="#concepts">Concepts First</a>
+    <a href="#lab">Hands-On Lab</a>
+    <a href="#script">Full Script</a>
+    <a href="#linebyline">Line-by-Line</a>
+    <a href="#architecture">Architecture</a>
+    <a href="#incident">Production Incident</a>
+    <a href="#troubleshoot">Troubleshooting</a>
+    <a href="#security">Security Notes</a>
+    <a href="#recap">Key Learnings</a>
+    <a href="#interview">Interview Prep</a>
+    <a href="#challenges">Coding Challenges</a>
+    <a href="#resume">Resume Points</a>
+    <a href="#assignment">Practice Assignment</a>
+    <a href="#next">Next Project</a>
+  </nav>
+
+  <main id="top">
+    <div class="cover" id="cover">
+      <span class="badge">PROJECT 19</span><span class="badge">INTERMEDIATE</span><span class="badge">BFSI TRACK</span>
+      <h1>SSL Certificate Discovery</h1>
+      <p class="sub">Explore the certificate store as yet another PowerShell drive, and build a full certificate inventory — the foundation for expiry monitoring next.</p>
+      <div class="cover-meta">
+        <div><span>Difficulty</span><strong>Intermediate</strong></div>
+        <div><span>Estimated Lab Time</span><strong>70–85 min</strong></div>
+        <div><span>Concepts</span><strong>8 core concepts</strong></div>
+        <div><span>Track</span><strong>19 of 40 — Certificate/IIS Track Begins</strong></div>
+      </div>
+    </div>
+
+    <section id="milestone">
+      <h2>🔐 A New Mini-Track: Certificates &amp; IIS</h2>
+      <div class="milestone">
+        <p>Projects 19–25 focus on certificates and IIS — a common, high-stakes area in banking infrastructure,
+        since an expired certificate on a customer-facing service is a highly visible, easily preventable outage.
+        We start with <b>discovery</b> (this project) before building expiry monitoring, deployment, and IIS
+        integration on top of it.</p>
+      </div>
+    </section>
+
+    <section id="recap1">
+      <h2>Quick Recap of Projects 1–18</h2>
+      <p>Project 13 showed us the registry exposed as a PowerShell drive (<code>HKLM:</code>). This project
+      introduces another one: <code>Cert:</code> — the certificate store, browsable exactly like a file system.
+      Same underlying idea, brand-new subject matter.</p>
+    </section>
+
+    <section id="story">
+      <h2>The Story — Why We're Building This</h2>
+      <div class="story">
+        A customer-facing banking portal went down for eleven minutes last quarter because its SSL certificate
+        expired and nobody had it on a calendar. The root cause report's first recommendation: <i>"We don't even
+        have a complete list of every certificate installed across our servers, let alone their expiry dates."</i>
+        Our manager wants that list built first, before we can monitor anything — a full <b>certificate
+        inventory</b> across the local certificate store.
+      </div>
+    </section>
+
+    <section id="concepts">
+      <h2>Concepts First — Before We Touch Code</h2>
+
+      <h3>1. The Certificate Store as a PowerShell Drive</h3>
+      <div class="callout note"><span class="lbl">The same pattern as HKLM: and HKCU:</span>Just as Project 13
+      showed the registry exposed as <code>HKLM:</code>/<code>HKCU:</code>, Windows' certificate store is exposed as
+      the <code>Cert:</code> drive — browsable with the exact same <code>Get-ChildItem</code> you'd use on real
+      files or registry keys.</div>
+      <table>
+        <tr><th>Path</th><th>Contains</th></tr>
+        <tr><td><code>Cert:\LocalMachine\My</code></td><td>Machine-level certificates with their private keys — where server/SSL certificates usually live</td></tr>
+        <tr><td><code>Cert:\LocalMachine\Root</code></td><td>Trusted root certificate authorities</td></tr>
+        <tr><td><code>Cert:\CurrentUser\My</code></td><td>Certificates specific to the current user's profile</td></tr>
+      </table>
+
+      <h3>2. Browsing Certificates with Get-ChildItem</h3>
+      <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code>Get-ChildItem -Path "Cert:\LocalMachine\My"</code></pre></div>
+      <p>Returns every certificate in that store location as an <code>X509Certificate2</code> object — a real .NET
+      type, not something PowerShell invented, which is why certificate objects have such rich built-in properties.</p>
+
+      <h3>3. Key Certificate Properties</h3>
+      <table>
+        <tr><th>Property</th><th>Meaning</th></tr>
+        <tr><td><code>Subject</code></td><td>Who/what the certificate identifies (e.g. <code>CN=portal.abcbank.internal</code>)</td></tr>
+        <tr><td><code>Issuer</code></td><td>Who issued/signed the certificate</td></tr>
+        <tr><td><code>NotBefore</code> / <code>NotAfter</code></td><td>The certificate's valid date range</td></tr>
+        <tr><td><code>Thumbprint</code></td><td>A unique fingerprint identifying this exact certificate</td></tr>
+        <tr><td><code>HasPrivateKey</code></td><td>Whether the private key is present — required for a certificate to actually be usable for HTTPS/TLS on this server</td></tr>
+      </table>
+
+      <h3>4. Calculating Days Until Expiry</h3>
+      <p>Same date-subtraction-produces-a-TimeSpan technique from Projects 1, 6, and 17 — here applied to
+      <code>NotAfter</code> instead of uptime or file age.</p>
+      <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code>$DaysUntilExpiry = ($Cert.NotAfter - (Get-Date)).Days</code></pre></div>
+      <div class="callout warn"><span class="lbl">Order matters here</span>Notice the subtraction is
+      <code>NotAfter - Now</code>, not <code>Now - NotAfter</code> (the reverse of Project 1's uptime calculation) —
+      because we want a <i>positive</i> number of days remaining for a certificate that hasn't expired yet. Getting
+      this backwards produces a negative number that reads confusingly.</div>
+
+      <h3>5. Why HasPrivateKey Matters</h3>
+      <div class="callout note"><span class="lbl">A subtle but important distinction</span>A certificate <i>without</i>
+      its private key can still appear in the store (e.g. exported for trust purposes) but cannot actually be used to
+      terminate HTTPS/TLS connections on that server. An inventory that doesn't check this could misleadingly list a
+      certificate as "available" when it's not actually deployable there.</div>
+
+      <h3>6. Building a Complete Inventory Across Multiple Store Locations</h3>
+      <p>A thorough discovery checks more than just <code>My</code> — different certificate types and purposes live
+      in different store locations, so a complete inventory needs to enumerate each relevant location separately.</p>
+    </section>
+
+    <section id="lab">
+      <h2>Hands-On Lab — Build It Yourself</h2>
+      <div class="steps">
+        <div class="step"><b>Create the project folder:</b>
+          <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code>New-Item -ItemType Directory -Path "C:\PS-Masterclass\Project19\reports" -Force
+Set-Location "C:\PS-Masterclass\Project19"</code></pre></div>
+        </div>
+        <div class="step"><b>Create <code>Get-CertificateInventory.ps1</code></b> and paste the full script below.</div>
+        <div class="step"><b>Run it:</b>
+          <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code>.\Get-CertificateInventory.ps1</code></pre></div>
+        </div>
+        <div class="step"><b>Validate:</b> confirm you see every certificate in <code>LocalMachine\My</code> and
+        <code>LocalMachine\Root</code> (your machine likely has several root CAs and possibly one or two personal
+        certificates), with expiry countdowns and a CSV export.</div>
+      </div>
+    </section>
+
+    <section id="script">
+      <h2>Full Script — Get-CertificateInventory.ps1</h2>
+      <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code># =====================================================================
+# Get-CertificateInventory.ps1
+# ABC Bank - Windows Infrastructure Automation Team
+# Purpose: Build a complete inventory of certificates across store locations
+# =====================================================================
+
+$ComputerName  = $env:COMPUTERNAME
+$StoreLocations = @(                                            # Which certificate store paths to inventory
+    "Cert:\LocalMachine\My",                                      # Server/SSL certificates with private keys
+    "Cert:\LocalMachine\Root"                                      # Trusted root certificate authorities
+)
+
+$Inventory = @()   # Will hold one record per certificate found
+
+Write-Host "`n=== CERTIFICATE INVENTORY: $ComputerName ===" -ForegroundColor Magenta
+
+foreach ($StorePath in $StoreLocations) {                         # Loops through each store location we care about
+
+    Write-Host "`nScanning $StorePath..." -ForegroundColor Cyan
+    $Certificates = Get-ChildItem -Path $StorePath -ErrorAction SilentlyContinue   # Lists every cert in this location
+
+    foreach ($Cert in $Certificates) {                               # Loops through each certificate found
+
+        $DaysUntilExpiry = ($Cert.NotAfter - (Get-Date)).Days          # Positive = still valid, negative = already expired
+
+        $Inventory += [PSCustomObject]@{
+            StoreLocation    = $StorePath
+            Subject          = $Cert.Subject
+            Issuer           = $Cert.Issuer
+            Thumbprint       = $Cert.Thumbprint
+            NotBefore        = $Cert.NotBefore
+            NotAfter         = $Cert.NotAfter
+            DaysUntilExpiry  = $DaysUntilExpiry
+            HasPrivateKey    = $Cert.HasPrivateKey
+        }
+    }
+
+    Write-Host "  Found $($Certificates.Count) certificate(s)." -ForegroundColor Cyan
+}
+
+# ---------------------------------------------------------------
+# Show a quick summary sorted by expiry, soonest first
+# ---------------------------------------------------------------
+Write-Host "`n=== CERTIFICATES SORTED BY EXPIRY (SOONEST FIRST) ===" -ForegroundColor Magenta
+$Inventory | Sort-Object DaysUntilExpiry | Select-Object -First 10 |
+    Format-Table Subject, DaysUntilExpiry, HasPrivateKey -AutoSize
+
+# ---------------------------------------------------------------
+# Export the full inventory
+# ---------------------------------------------------------------
+if (-not (Test-Path ".\reports")) { New-Item -ItemType Directory -Path ".\reports" | Out-Null }
+$Timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
+$Inventory | Export-Csv -Path ".\reports\CertInventory_$Timestamp.csv" -NoTypeInformation
+
+Write-Host "`nTotal certificates inventoried: $($Inventory.Count)" -ForegroundColor Cyan
+Write-Host "Report saved to .\reports\" -ForegroundColor Green
+</code></pre></div>
+      </div>
+    </section>
+
+    <section id="linebyline">
+      <h2>Line-by-Line Explanation</h2>
+
+      <h3><code>$Certificates = Get-ChildItem -Path $StorePath -ErrorAction SilentlyContinue</code></h3>
+      <ul class="explain-list">
+        <li>The exact same cmdlet used on real folders since Project 6, here browsing a certificate store instead —
+        the strongest illustration yet of how consistently PowerShell's provider model lets one cmdlet work across
+        completely different underlying data sources.</li>
+      </ul>
+
+      <h3><code>$DaysUntilExpiry = ($Cert.NotAfter - (Get-Date)).Days</code></h3>
+      <ul class="explain-list">
+        <li><code>.Days</code> instead of <code>.TotalDays</code> (used in earlier projects) — <code>.Days</code>
+        gives the whole-number day component of a TimeSpan, which is what we want for a simple "days remaining"
+        display; <code>.TotalDays</code> would give a more precise decimal, useful in different contexts like
+        Project 3's uptime percentage calculations.</li>
+      </ul>
+
+      <h3><code>$Inventory | Sort-Object DaysUntilExpiry | Select-Object -First 10</code></h3>
+      <ul class="explain-list">
+        <li>Notice this sorts <b>ascending</b> (the default, no <code>-Descending</code> needed) — for expiry dates,
+        the smallest/most-urgent number should come first, the opposite of Project 5's Top-N-by-resource-usage
+        pattern which wanted the largest values first.</li>
+      </ul>
+
+      <h3><code>StoreLocation = $StorePath</code> as a recorded property</h3>
+      <ul class="explain-list">
+        <li>Recording which store location each certificate came from (rather than just merging everything into one
+        undifferentiated list) preserves useful context — a certificate found in <code>My</code> vs
+        <code>Root</code> means very different things and would be handled differently by whoever reviews this
+        report.</li>
+      </ul>
+    </section>
+
+    <section id="architecture">
+      <h2>Architecture &amp; Discovery Flow</h2>
+      <div class="diagram">
+        <div class="flow">
+          <div class="box">Cert:\LocalMachine\My</div><div class="arrow">+</div>
+          <div class="box">Cert:\LocalMachine\Root</div><div class="arrow">→</div>
+          <div class="box">Get-ChildItem (each)</div><div class="arrow">→</div>
+          <div class="box">Combined $Inventory</div>
+        </div>
+        <div class="flow" style="margin-top:12px;">
+          <div class="box">$Inventory</div><div class="arrow">→</div>
+          <div class="box">Sort by DaysUntilExpiry</div><div class="arrow">→</div>
+          <div class="box">Console Preview + Full CSV Export</div>
+        </div>
+      </div>
+      <p>This project is deliberately scoped to <b>discovery only</b> — no thresholds, no alerting, no
+      classification of "urgent" vs "fine" yet. That's Project 20's job. Building a clean, complete inventory first
+      is the right foundation to layer monitoring logic on top of, rather than trying to do both at once.</p>
+    </section>
+
+    <section id="incident">
+      <h2>Production Incident Walkthrough</h2>
+      <div class="story">
+        Running this inventory script across ABC Bank's application servers for the first time surfaces something
+        nobody expected: a certificate for an internal reporting tool that expired <b>eight months ago</b>, sitting
+        unnoticed in <code>LocalMachine\My</code> the whole time, because that particular tool happened to still
+        accept the connection anyway with a browser warning nobody who used it thought to report.
+      </div>
+      <ul class="explain-list">
+        <li><b>Why would a script built purely for "discovery" surface a real problem before any monitoring logic exists?</b>
+        Simply having a complete, visible list of every certificate — including expiry dates — is often enough to
+        reveal a problem a human can spot immediately, even before any automated threshold logic is layered on top.
+        Good inventories have value on their own, not just as input to more automation.</li>
+      </ul>
+    </section>
+
+    <section id="troubleshoot">
+      <h2>Troubleshooting Cheat Sheet</h2>
+      <table>
+        <tr><th>Symptom</th><th>Likely Root Cause</th><th>Fix</th></tr>
+        <tr><td>"Access is denied" browsing Cert:\LocalMachine\My</td><td>Terminal not running as Administrator - LocalMachine store locations typically need elevation to fully enumerate</td><td>Re-open as Administrator</td></tr>
+        <tr><td>Very few or zero certificates found</td><td>Normal on a fresh personal machine with no server certificates installed</td><td>Check Cert:\LocalMachine\Root instead, which almost always has many entries (trusted CAs)</td></tr>
+        <tr><td>DaysUntilExpiry shows a huge number for root CA certificates</td><td>Expected - root certificates are often issued with very long validity periods (10-25+ years)</td><td>Not a bug; this is normal for root/trust certificates specifically</td></tr>
+        <tr><td>HasPrivateKey shows $false for a certificate you expected to be usable</td><td>The certificate was imported without its private key, or exported in a format that excluded it</td><td>A real, meaningful finding - that certificate can't be used for TLS termination on this server as-is</td></tr>
+      </table>
+    </section>
+
+    <section id="security">
+      <h2>Security &amp; Best Practices</h2>
+      <div class="callout security"><span class="lbl">Private keys are sensitive</span>This script only reads
+      metadata (Subject, expiry, thumbprint) — it never exports or handles the actual private key material, which
+      should always be treated as highly sensitive and never casually copied, logged, or included in a report.</div>
+      <div class="callout tip"><span class="lbl">Best practice reinforced here</span>Recording <code>HasPrivateKey</code>
+      as a distinct, visible column rather than silently assuming every certificate is usable prevents a false sense
+      of coverage — "we have a certificate for this" and "we have a certificate we can actually deploy" are
+      different claims, and this inventory is honest about which one applies to each entry.</div>
+    </section>
+
+    <section id="recap">
+      <h2>Key Learnings &amp; Recap</h2>
+      <div class="grid2">
+        <div>
+          <h3>Commands/Syntax Learned</h3>
+          <ul class="explain-list">
+            <li><code>Cert:</code> PSDrive and its store locations</li>
+            <li><code>Get-ChildItem -Path Cert:\...</code></li>
+            <li>Key certificate properties: Subject, Issuer, NotAfter, Thumbprint, HasPrivateKey</li>
+          </ul>
+        </div>
+        <div>
+          <h3>Concepts Learned</h3>
+          <ul class="explain-list">
+            <li>The certificate store as yet another PowerShell drive (alongside file system and registry)</li>
+            <li>Why HasPrivateKey matters for whether a certificate is actually usable</li>
+            <li>Sorting ascending vs descending depending on what "worst first" means for the data</li>
+            <li>Discovery as its own valuable step, separate from monitoring/alerting logic</li>
+          </ul>
+        </div>
+      </div>
+      <h3>Common Mistakes to Avoid</h3>
+      <ul class="explain-list">
+        <li>Subtracting dates in the wrong order and getting a confusing negative "days until expiry."</li>
+        <li>Only checking one store location and missing certificates that live elsewhere.</li>
+        <li>Assuming every listed certificate is deployable without checking HasPrivateKey.</li>
+        <li>Treating a long-dated root CA certificate's expiry the same way as a short-lived server certificate.</li>
+      </ul>
+    </section>
+
+    <section id="interview">
+      <h2>Interview Preparation</h2>
+      <details><summary>Q1. Why does this script check both LocalMachine\My and LocalMachine\Root instead of just one?</summary>
+        <p><b>Answer:</b> They serve different purposes — <code>My</code> holds the server's own identity
+        certificates (typically with private keys, used for things like HTTPS), while <code>Root</code> holds
+        trusted certificate authorities used to validate other certificates. A complete inventory needs to account
+        for both, since they represent different kinds of risk if something's wrong.</p>
+        <p><b>Follow-up:</b> "What other store locations might a truly complete audit also check?" — Answer:
+        <code>Cert:\LocalMachine\CA</code> (intermediate certificate authorities) and
+        <code>Cert:\LocalMachine\WebHosting</code> (used specifically by IIS on newer Windows versions) are common
+        additional locations worth including.</p>
+      </details>
+      <details><summary>Q2. Why does HasPrivateKey matter for a certificate inventory?</summary>
+        <p><b>Answer:</b> A certificate without its private key present can be viewed and its metadata inspected,
+        but cannot actually be used to terminate TLS/HTTPS connections on that server — an inventory that doesn't
+        distinguish this could misleadingly suggest a certificate is ready to use when it isn't.</p>
+        <p><b>Follow-up:</b> "How would a certificate end up in the store without its private key?" — Answer: it can
+        happen when a certificate is exported and imported in a format (like a .cer rather than a .pfx) that
+        deliberately excludes the private key, often done intentionally for trust/distribution purposes rather than
+        for actual TLS use on that machine.</p>
+      </details>
+      <details><summary>Q3. Why build this as a pure discovery/inventory script instead of adding expiry alerting directly in this project?</summary>
+        <p><b>Answer:</b> Separating "find everything" from "decide what's urgent" keeps each piece focused and
+        independently testable/reusable — the same "collect, then decide" separation used since Project 2's disk
+        space classification. A clean inventory is also useful on its own, immediately, even before any threshold
+        logic exists on top of it.</p>
+        <p><b>Follow-up:</b> "What would you need to add to turn this into a monitoring script?" — Answer: exactly
+        what Project 20 will build — warning/critical day thresholds and status classification, following the same
+        pattern established back in Project 2's disk space monitor.</p>
+      </details>
+    </section>
+
+    <section id="challenges">
+      <h2>Coding Challenges</h2>
+      <details><summary>Challenge 1: Add Cert:\LocalMachine\CA (intermediate authorities) as a third store location</summary>
+        <details><summary>Show answer</summary>
+        <pre><code>$StoreLocations = @("Cert:\LocalMachine\My", "Cert:\LocalMachine\Root", "Cert:\LocalMachine\CA")</code></pre>
+        </details>
+      </details>
+      <details><summary>Challenge 2: Only include certificates that actually have a private key in the summary table (the deployable ones)</summary>
+        <details><summary>Show answer</summary>
+        <pre><code>$Inventory | Where-Object { $_.HasPrivateKey } | Sort-Object DaysUntilExpiry |
+    Format-Table Subject, DaysUntilExpiry -AutoSize</code></pre>
+        </details>
+      </details>
+      <details><summary>Challenge 3: Extract just the Common Name (CN) from the Subject field into its own column</summary>
+        <details><summary>Show answer</summary>
+        <pre><code># Subject looks like "CN=portal.abcbank.internal, O=ABC Bank" - extract just the CN part
+if ($Cert.Subject -match "CN=([^,]+)") { $CommonName = $Matches[1] } else { $CommonName = $Cert.Subject }
+# $Matches is an automatic variable populated by a successful -match, containing captured groups</code></pre>
+        </details>
+      </details>
+    </section>
+
+    <section id="resume">
+      <h2>Resume Points</h2>
+      <ul class="explain-list">
+        <li>Built a PowerShell certificate discovery tool inventorying certificates across multiple certificate store locations.</li>
+        <li>Implemented expiry-date analysis and private-key availability checks to distinguish deployable from non-deployable certificates.</li>
+        <li>Established a clean, exportable certificate inventory as the foundation for downstream expiry monitoring.</li>
+      </ul>
+    </section>
+
+    <section id="assignment">
+      <h2>Practice Assignment</h2>
+      <div class="callout note">
+        Open the exported CSV in Excel or a text editor, sort by <code>DaysUntilExpiry</code>, and identify the
+        certificate expiring soonest on your machine. Look up its <code>Subject</code> field and write one sentence
+        about what it appears to be used for, based on the name.
+      </div>
+    </section>
+
+    <section id="next">
+      <h2>Next Project Prerequisites</h2>
+      <p>Project 20 (Certificate Expiry Monitoring) takes this inventory and adds exactly the kind of
+      threshold-based classification built in Project 2 — Warning and Critical day counts, color-coded status, and
+      alerting logic. Be comfortable with the Cert: drive and date-math direction before moving on. When ready, say
+      <b>"Next Project."</b></p>
+    </section>
+
+    <footer>
+      PowerShell Masterclass — ABC Bank Automation Track · Project 19 of 40 · Generated for offline, self-contained use.
+    </footer>
+  </main>
+</div>
+
+<script>
+function copyCode(btn){
+  const code = btn.parentElement.querySelector('pre').innerText;
+  navigator.clipboard.writeText(code).then(()=>{
+    const old = btn.innerText; btn.innerText = "Copied!";
+    setTimeout(()=>btn.innerText = old, 1200);
+  });
+}
+window.addEventListener('scroll', ()=>{
+  const h = document.documentElement;
+  const pct = (h.scrollTop) / (h.scrollHeight - h.clientHeight) * 100;
+  document.getElementById('progressFill').style.width = pct + '%';
+  document.getElementById('progressLabel').innerText = 'Reading progress: ' + Math.round(pct) + '%';
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,1006 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Project 07 — Health Checks, Monitoring & Cluster Observability | Enterprise Ansible Masterclass</title>
+<style>
+  :root {
+    --bg:          #0B1120;
+    --bg2:         #111827;
+    --card:        #1E293B;
+    --border:      #2D3E55;
+    --accent:      #14B8A6;
+    --accent2:     #22D3EE;
+    --accent3:     #F59E0B;
+    --text:        #F8FAFC;
+    --muted:       #94A3B8;
+    --success:     #22C55E;
+    --warning:     #F59E0B;
+    --error:       #EF4444;
+    --code-bg:     #020617;
+    --code-border: #134E4A;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; font-size: 15px; line-height: 1.7; }
+  .layout { display: flex; min-height: 100vh; }
+  .sidebar { width: 260px; flex-shrink: 0; background: var(--bg2); border-right: 1px solid var(--border); position: sticky; top: 0; height: 100vh; overflow-y: auto; padding: 24px 0; }
+  .sidebar-logo { padding: 0 20px 20px; border-bottom: 1px solid var(--border); margin-bottom: 16px; }
+  .sidebar-logo .series { font-size: 10px; text-transform: uppercase; letter-spacing: 2px; color: var(--muted); margin-bottom: 4px; }
+  .sidebar-logo .title { font-size: 13px; font-weight: 700; color: var(--accent); line-height: 1.3; }
+  .toc-section { padding: 8px 20px 4px; font-size: 10px; text-transform: uppercase; letter-spacing: 1.5px; color: var(--muted); font-weight: 600; margin-top: 8px; }
+  .toc-item { display: block; padding: 6px 20px; font-size: 12.5px; color: var(--muted); text-decoration: none; border-left: 2px solid transparent; transition: all 0.2s; }
+  .toc-item:hover { color: var(--text); border-left-color: var(--accent); background: rgba(20,184,166,0.06); }
+  .toc-item.active { color: var(--accent); border-left-color: var(--accent); background: rgba(20,184,166,0.1); }
+  .main { flex: 1; max-width: 960px; padding: 48px 56px; overflow-x: hidden; }
+  .cover { background: linear-gradient(135deg, #134E4A 0%, #0F766E 50%, #0B1120 100%); border: 1px solid var(--border); border-radius: 16px; padding: 48px; margin-bottom: 48px; position: relative; overflow: hidden; }
+  .cover::before { content: ''; position: absolute; top: -60px; right: -60px; width: 300px; height: 300px; background: radial-gradient(circle, rgba(20,184,166,0.15) 0%, transparent 70%); pointer-events: none; }
+  .cover-badge { display: inline-flex; align-items: center; gap: 8px; background: rgba(20,184,166,0.15); border: 1px solid rgba(20,184,166,0.3); border-radius: 99px; padding: 4px 14px; font-size: 11px; font-weight: 600; color: var(--accent); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 20px; }
+  .cover-badge .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+  .cover h1 { font-size: 32px; font-weight: 800; line-height: 1.2; margin-bottom: 12px; }
+  .cover h1 span { background: linear-gradient(90deg, var(--accent2), var(--accent3)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+  .cover-sub { font-size: 16px; color: var(--muted); margin-bottom: 32px; max-width: 600px; }
+  .cover-meta { display: flex; flex-wrap: wrap; gap: 24px; }
+  .meta-item { display: flex; flex-direction: column; gap: 2px; }
+  .meta-label { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); }
+  .meta-value { font-size: 14px; font-weight: 600; color: var(--text); }
+  .meta-value.teal { color: var(--accent); }
+  h2.section-title { font-size: 22px; font-weight: 700; margin: 48px 0 20px; padding-bottom: 12px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 12px; }
+  h2.section-title .num { width: 32px; height: 32px; background: linear-gradient(135deg, var(--accent), var(--accent2)); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 800; color: #fff; flex-shrink: 0; }
+  h3.sub-title { font-size: 17px; font-weight: 700; margin: 28px 0 12px; color: var(--accent2); }
+  h4.mini-title { font-size: 14px; font-weight: 700; margin: 20px 0 8px; color: var(--accent3); text-transform: uppercase; letter-spacing: 0.5px; }
+  p { margin-bottom: 14px; color: var(--text); }
+  strong { color: var(--text); font-weight: 700; }
+  em { color: var(--accent); font-style: normal; font-weight: 600; }
+  .callout { border-radius: 10px; padding: 16px 20px; margin: 20px 0; border-left: 4px solid; display: flex; gap: 12px; }
+  .callout-icon { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
+  .callout-body { flex: 1; }
+  .callout-title { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; }
+  .callout p { margin-bottom: 0; font-size: 14px; }
+  .callout.info { background: rgba(20,184,166,0.07); border-color: var(--accent); }
+  .callout.info .callout-title { color: var(--accent); }
+  .callout.warn { background: rgba(245,158,11,0.07); border-color: var(--warning); }
+  .callout.warn .callout-title { color: var(--warning); }
+  .callout.success { background: rgba(34,197,94,0.07); border-color: var(--success); }
+  .callout.success .callout-title { color: var(--success); }
+  .story-box { background: linear-gradient(135deg, #134E4A 0%, #0B1120 100%); border: 1px solid rgba(20,184,166,0.3); border-radius: 12px; padding: 24px 28px; margin: 24px 0; position: relative; }
+  .story-box::before { content: '"'; position: absolute; top: -10px; left: 20px; font-size: 60px; color: rgba(20,184,166,0.3); font-family: Georgia, serif; line-height: 1; }
+  .story-box p { color: #CBD5E1; font-size: 14.5px; line-height: 1.8; margin-bottom: 8px; }
+  .story-box .story-tag { font-size: 10px; text-transform: uppercase; letter-spacing: 2px; color: var(--accent); font-weight: 700; margin-bottom: 12px; }
+  .code-wrapper { margin: 20px 0; border-radius: 10px; overflow: hidden; border: 1px solid var(--code-border); }
+  .code-header { display: flex; justify-content: space-between; align-items: center; background: #0D1117; padding: 10px 16px; border-bottom: 1px solid var(--code-border); }
+  .code-lang { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--accent); }
+  .code-filename { font-size: 11px; color: var(--muted); font-family: 'Courier New', monospace; }
+  .copy-btn { background: rgba(20,184,166,0.15); border: 1px solid rgba(20,184,166,0.3); color: var(--accent); border-radius: 5px; padding: 3px 10px; font-size: 11px; cursor: pointer; transition: all 0.2s; }
+  .copy-btn:hover { background: rgba(20,184,166,0.3); }
+  pre { background: var(--code-bg); padding: 20px; overflow-x: auto; font-family: 'Courier New', 'Consolas', 'Fira Code', monospace; font-size: 13px; line-height: 1.65; margin: 0; }
+  pre code { color: #E2E8F0; }
+  .sy-comment { color: #4A5568; font-style: italic; }
+  .sy-key { color: #5EEAD4; }
+  .sy-string { color: #86EFAC; }
+  .sy-var { color: #FBBF24; }
+  .sy-module { color: #67E8F9; }
+  .sy-bool { color: #A78BFA; }
+  .sy-num { color: #FBBF24; }
+  .sy-keyword { color: #34D399; font-weight: bold; }
+  .diagram { background: var(--code-bg); border: 1px solid var(--code-border); border-radius: 10px; padding: 28px 32px; margin: 20px 0; font-family: 'Courier New', monospace; font-size: 12.5px; line-height: 1.8; color: #94A3B8; overflow-x: auto; }
+  .diagram .d-title { color: var(--accent); font-weight: 700; font-size: 11px; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 16px; }
+  .diagram .d-box { color: var(--text); }
+  .diagram .d-arrow { color: var(--accent2); }
+  .diagram .d-label { color: var(--success); }
+  .diagram .d-note { color: var(--warning); font-style: italic; }
+  .tag { display: inline-block; border-radius: 4px; padding: 2px 8px; font-size: 11px; font-weight: 600; margin: 2px; }
+  .tag.teal  { background: #134E4A; color: #5EEAD4; }
+  .tag.cyan  { background: #164E63; color: #67E8F9; }
+  .tag.amber { background: #78350F; color: #FCD34D; }
+  .tag.green { background: #14532D; color: #4ADE80; }
+  .card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px,1fr)); gap: 16px; margin: 20px 0; }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 20px; transition: border-color 0.2s; }
+  .card:hover { border-color: var(--accent); }
+  .card-icon { font-size: 24px; margin-bottom: 10px; }
+  .card-title { font-size: 13px; font-weight: 700; margin-bottom: 6px; color: var(--text); }
+  .card-desc { font-size: 12px; color: var(--muted); line-height: 1.6; }
+  .table-wrap { overflow-x: auto; margin: 20px 0; border-radius: 10px; border: 1px solid var(--border); }
+  table { width: 100%; border-collapse: collapse; }
+  th { background: var(--card); padding: 12px 16px; text-align: left; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); border-bottom: 1px solid var(--border); }
+  td { padding: 12px 16px; font-size: 13px; border-bottom: 1px solid rgba(45,62,85,0.5); vertical-align: top; }
+  tr:last-child td { border-bottom: none; }
+  .step-list { list-style: none; margin: 16px 0; }
+  .step-list li { display: flex; gap: 16px; margin-bottom: 16px; align-items: flex-start; }
+  .step-num { width: 28px; height: 28px; border-radius: 50%; background: linear-gradient(135deg, var(--accent), var(--accent2)); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 800; color: #fff; flex-shrink: 0; }
+  .step-content { flex: 1; }
+  .step-content strong { display: block; font-size: 14px; margin-bottom: 4px; }
+  .step-content span { font-size: 13px; color: var(--muted); }
+  .explain-block { background: #0D2626; border: 1px solid var(--code-border); border-radius: 10px; padding: 20px 24px; margin: 16px 0; }
+  .explain-block .explain-title { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--accent); margin-bottom: 12px; }
+  .explain-row { display: flex; gap: 16px; padding: 8px 0; border-bottom: 1px solid rgba(45,62,85,0.4); font-size: 13px; }
+  .explain-row:last-child { border-bottom: none; }
+  .explain-term { color: var(--accent2); font-family: monospace; min-width: 180px; flex-shrink: 0; }
+  .explain-def { color: #CBD5E1; }
+  .qa-block { background: var(--card); border: 1px solid var(--border); border-radius: 10px; margin: 16px 0; overflow: hidden; }
+  .qa-q { padding: 14px 18px; background: #0D2626; font-size: 13.5px; font-weight: 600; color: var(--accent); border-bottom: 1px solid var(--border); }
+  .qa-q::before { content: 'Q: '; color: var(--accent); }
+  .qa-a { padding: 14px 18px; font-size: 13px; color: #CBD5E1; line-height: 1.7; }
+  .qa-a::before { content: 'A: '; color: var(--success); font-weight: 700; }
+  .challenge { background: linear-gradient(135deg, #134E4A 0%, #0B1120 100%); border: 1px solid rgba(20,184,166,0.3); border-radius: 10px; padding: 20px 24px; margin: 16px 0; }
+  .challenge-num { font-size: 10px; text-transform: uppercase; letter-spacing: 2px; color: var(--accent); font-weight: 700; margin-bottom: 8px; }
+  .challenge p { font-size: 13.5px; color: var(--text); margin-bottom: 10px; }
+  details { margin-top: 10px; }
+  summary { cursor: pointer; color: var(--accent); font-size: 12px; font-weight: 600; padding: 6px 0; user-select: none; }
+  summary:hover { color: var(--text); }
+  details[open] summary { color: var(--text); }
+  details .answer { margin-top: 10px; }
+  .resume-box { background: var(--card); border: 1px solid var(--border); border-left: 4px solid var(--success); border-radius: 10px; padding: 20px 24px; margin: 16px 0; }
+  .resume-box h4 { font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: var(--success); margin-bottom: 12px; }
+  .resume-box ul { list-style: none; }
+  .resume-box li { font-size: 13px; color: #CBD5E1; padding: 6px 0; border-bottom: 1px solid rgba(45,62,85,0.3); padding-left: 16px; position: relative; line-height: 1.6; }
+  .resume-box li::before { content: '▸'; position: absolute; left: 0; color: var(--success); }
+  .resume-box li:last-child { border-bottom: none; }
+  .progress-wrap { margin: 24px 0; }
+  .progress-label { font-size: 11px; color: var(--muted); margin-bottom: 6px; display: flex; justify-content: space-between; }
+  .progress-bar { height: 6px; background: var(--card); border-radius: 99px; overflow: hidden; }
+  .progress-fill { height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent2)); border-radius: 99px; }
+  .footer { margin-top: 64px; padding-top: 24px; border-top: 1px solid var(--border); font-size: 12px; color: var(--muted); text-align: center; }
+  @media (max-width: 900px) { .sidebar { display: none; } .main { padding: 24px 20px; } .cover { padding: 28px 24px; } .cover h1 { font-size: 24px; } }
+  code.inline { background: #0D1117; border: 1px solid var(--code-border); border-radius: 4px; padding: 1px 7px; font-family: 'Courier New', monospace; font-size: 12.5px; color: #FBBF24; }
+  .concepts { display: flex; flex-wrap: wrap; gap: 8px; margin: 16px 0; }
+  .health-status { display: inline-block; padding: 3px 10px; border-radius: 99px; font-size: 12px; font-weight: 700; }
+  .hs-green { background: rgba(34,197,94,0.15); color: #4ADE80; border: 1px solid rgba(34,197,94,0.3); }
+  .hs-yellow { background: rgba(245,158,11,0.15); color: #FCD34D; border: 1px solid rgba(245,158,11,0.3); }
+  .hs-red { background: rgba(239,68,68,0.15); color: #FCA5A5; border: 1px solid rgba(239,68,68,0.3); }
+  .metric-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin: 20px 0; }
+  .metric-card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 20px; text-align: center; }
+  .metric-value { font-size: 36px; font-weight: 800; color: var(--accent); line-height: 1; margin-bottom: 6px; }
+  .metric-label { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; }
+  .metric-sub { font-size: 11px; color: var(--success); margin-top: 4px; }
+</style>
+</head>
+<body>
+
+<div class="layout">
+
+<!-- SIDEBAR -->
+<nav class="sidebar">
+  <div class="sidebar-logo">
+    <div class="series">Enterprise Ansible Masterclass</div>
+    <div class="title">OpenShift Automation with RHAAP</div>
+  </div>
+
+  <div class="toc-section">Project Navigation</div>
+  <a href="#cover"         class="toc-item active">Project Overview</a>
+  <a href="#story"         class="toc-item">Enterprise Scenario</a>
+  <a href="#observability" class="toc-item">Observability Pillars</a>
+  <a href="#probe-types"   class="toc-item">Probe Architecture</a>
+  <a href="#startup-probe" class="toc-item">Startup Probe</a>
+  <a href="#events"        class="toc-item">Kubernetes Events</a>
+  <a href="#resource-mon"  class="toc-item">Resource Monitoring</a>
+  <a href="#conditions"    class="toc-item">Pod Conditions</a>
+  <a href="#role-impl"     class="toc-item">Role: Health Framework</a>
+  <a href="#report"        class="toc-item">HTML Health Report</a>
+  <a href="#alerts"        class="toc-item">Alerting & Notification</a>
+  <a href="#trouble"       class="toc-item">Troubleshooting</a>
+  <a href="#interview"     class="toc-item">Interview Questions</a>
+  <a href="#challenges"    class="toc-item">Coding Challenges</a>
+  <a href="#resume"        class="toc-item">Resume Points</a>
+  <a href="#assignment"    class="toc-item">Practice Assignment</a>
+
+  <div class="toc-section">Course Progress</div>
+  <div style="padding:0 20px">
+    <div class="progress-wrap">
+      <div class="progress-label"><span>Project 7 of 35</span><span>20%</span></div>
+      <div class="progress-bar"><div class="progress-fill" style="width:20%"></div></div>
+    </div>
+  </div>
+</nav>
+
+<!-- MAIN CONTENT -->
+<main class="main">
+
+  <!-- COVER -->
+  <div class="cover" id="cover">
+    <div class="cover-badge"><span class="dot"></span>Project 07 of 35 — Foundation Stage (Final)</div>
+    <h1>Health Checks, Monitoring & <span>Cluster Observability</span></h1>
+    <p class="cover-sub">Complete the Foundation Stage by mastering cluster-wide observability. Build a comprehensive health-check framework using Ansible — querying pod conditions, node capacity, events, and resource metrics. Generate executive HTML dashboards, configure automated alerting, and establish the monitoring baseline that underpins every advanced project ahead.</p>
+    <div class="cover-meta">
+      <div class="meta-item"><span class="meta-label">Difficulty</span><span class="meta-value teal">Foundation (Capstone)</span></div>
+      <div class="meta-item"><span class="meta-label">Estimated Time</span><span class="meta-value">8–10 Hours</span></div>
+      <div class="meta-item"><span class="meta-label">Ticket</span><span class="meta-value">INFRA-1007</span></div>
+      <div class="meta-item"><span class="meta-label">Domain</span><span class="meta-label">Observability · Probes · Events · Metrics · Alerting</span></div>
+    </div>
+  </div>
+
+  <h4 class="mini-title">Concepts Introduced in Project 07</h4>
+  <div class="concepts">
+    <span class="tag teal">Startup probe</span>
+    <span class="tag teal">Pod conditions (PodReady, ContainersReady)</span>
+    <span class="tag teal">Kubernetes Events API</span>
+    <span class="tag cyan">Resource metrics (oc top)</span>
+    <span class="tag cyan">Node capacity vs allocatable</span>
+    <span class="tag cyan">Pod restart counts</span>
+    <span class="tag cyan">OOMKilled detection</span>
+    <span class="tag amber">Health score calculation</span>
+    <span class="tag amber">Multi-namespace scan</span>
+    <span class="tag amber">HTML dashboard template</span>
+    <span class="tag green">Email + Slack alerting</span>
+    <span class="tag green">Scheduled health jobs (RHAAP)</span>
+    <span class="tag green">block/rescue/always pattern</span>
+  </div>
+
+  <!-- STORY -->
+  <h2 class="section-title" id="story"><span class="num">01</span> The Manager's Seventh Ticket — INFRA-1007</h2>
+
+  <div class="story-box">
+    <div class="story-tag">🏢 ABC Bank OpenShift Platform Team — Week 7 — Foundation Capstone</div>
+    <p>Six weeks in. You've built the foundation: connectivity, namespaces, inventory, config, secrets, networking, deployments. Rajesh now brings the unifying ticket:</p>
+    <p><em>"I need a daily health report that tells me: Is every pod healthy? Are any nodes near capacity? Have there been any OOMKilled pods? Any crash loops? How long have critical services been running? I need this as an HTML report emailed every morning at 7 AM before the trading day starts. If anything is critical, I need a Slack alert immediately — don't wait for the morning email. Can you build this as a single Ansible framework that covers all namespaces?"</em></p>
+    <p>This is the foundation capstone. Everything you've learned — k8s_info queries, Jinja2 templates, block/rescue/always, email notifications, RHAAP scheduling — comes together in one production health-check framework.</p>
+  </div>
+
+  <h4 class="mini-title">Acceptance Criteria</h4>
+  <ul class="step-list">
+    <li><span class="step-num">1</span><div class="step-content"><strong>Multi-namespace pod health scan</strong><span>Query all pods across all namespaces. Count running, pending, failed, CrashLoopBackOff, OOMKilled. Build per-namespace summary.</span></div></li>
+    <li><span class="step-num">2</span><div class="step-content"><strong>Node capacity and pressure check</strong><span>Query nodes: CPU/memory allocatable vs requested. Flag nodes above 80% threshold. Detect disk, memory, PID pressure conditions.</span></div></li>
+    <li><span class="step-num">3</span><div class="step-content"><strong>Kubernetes Events query</strong><span>Query Warning events in last 1 hour. Categorise: BackOff, FailedScheduling, OOMKilling, NodeNotReady. Include in report.</span></div></li>
+    <li><span class="step-num">4</span><div class="step-content"><strong>Health score calculation</strong><span>Calculate cluster health score 0–100. Deduct points for: failed pods, high-pressure nodes, restart loops, Warning events.</span></div></li>
+    <li><span class="step-num">5</span><div class="step-content"><strong>HTML executive dashboard</strong><span>Dark-themed report: traffic-light status indicators, metric cards, namespace table, events list, trend sparklines.</span></div></li>
+    <li><span class="step-num">6</span><div class="step-content"><strong>Dual alerting: email + Slack</strong><span>Email report every morning. If health score below threshold, fire immediate Slack webhook alert with critical details.</span></div></li>
+  </ul>
+
+  <!-- OBSERVABILITY PILLARS -->
+  <h2 class="section-title" id="observability"><span class="num">02</span> The Three Pillars of Observability</h2>
+
+  <div class="card-grid">
+    <div class="card">
+      <div class="card-icon">📜</div>
+      <div class="card-title">Logs</div>
+      <div class="card-desc">What happened. Pod stdout/stderr. Application error messages. Container crash output. Query with: <code class="inline">oc logs</code>. Ansible: <code class="inline">k8s_log</code> module.</div>
+    </div>
+    <div class="card">
+      <div class="card-icon">📊</div>
+      <div class="card-title">Metrics</div>
+      <div class="card-desc">How much. CPU/memory usage over time. Request rate, error rate, latency. Query with: <code class="inline">oc top</code>, Prometheus. Ansible: <code class="inline">command: oc top</code>.</div>
+    </div>
+    <div class="card">
+      <div class="card-icon">🔍</div>
+      <div class="card-title">Traces</div>
+      <div class="card-desc">Where it went. Request path through microservices. Distributed tracing (Jaeger, Tempo). Shows which service caused latency.</div>
+    </div>
+    <div class="card">
+      <div class="card-icon">📅</div>
+      <div class="card-title">Events (Kubernetes)</div>
+      <div class="card-desc">What Kubernetes noticed. Pod OOMKilled, FailedScheduling, BackOff. Short-lived (1 hour default). Critical for diagnosing issues.</div>
+    </div>
+    <div class="card">
+      <div class="card-icon">💓</div>
+      <div class="card-title">Health Probes</div>
+      <div class="card-desc">Is it alive and ready? Liveness (restart), Readiness (traffic), Startup (boot time). Pod conditions reflect probe status.</div>
+    </div>
+    <div class="card">
+      <div class="card-icon">📈</div>
+      <div class="card-title">Conditions</div>
+      <div class="card-desc">Resource state flags. PodScheduled, Initialized, ContainersReady, Ready. Node: MemoryPressure, DiskPressure, Ready.</div>
+    </div>
+  </div>
+
+  <!-- PROBE ARCHITECTURE -->
+  <h2 class="section-title" id="probe-types"><span class="num">03</span> Complete Probe Architecture — All Three Probes</h2>
+
+  <p>Project 06 introduced liveness and readiness probes. Project 07 completes the picture with the startup probe — and explains exactly how all three interact to protect your application.</p>
+
+  <div class="explain-block">
+    <div class="explain-title">Three Probe Lifecycle</div>
+    <div class="explain-row">
+      <span class="explain-term">Startup Probe</span>
+      <span class="explain-def">Runs FIRST, after container starts. Disables liveness/readiness until it passes. Use for slow-starting apps (JVM, model loading). Only runs once at startup.</span>
+    </div>
+    <div class="explain-row">
+      <span class="explain-term">Readiness Probe</span>
+      <span class="explain-def">Runs after startup probe passes. Continuous. Controls Service traffic. Fails → pod removed from load balancer. Passes → pod gets traffic. Keeps checking forever.</span>
+    </div>
+    <div class="explain-row">
+      <span class="explain-term">Liveness Probe</span>
+      <span class="explain-def">Runs after startup probe passes. Continuous. Controls pod restart. Fails → Kubernetes kills and restarts pod. Keeps checking forever.</span>
+    </div>
+  </div>
+
+  <div class="diagram">
+    <div class="d-title">Probe Execution Order</div>
+    <br>
+    <span class="d-label">Container Starts</span><br>
+    <span class="d-arrow">    ↓</span><br>
+    <span class="d-box">    [STARTUP PROBE runs]</span><br>
+    <span class="d-note">    → fails: wait and retry (failureThreshold × periodSeconds)</span><br>
+    <span class="d-note">    → exceeds threshold: pod killed (CrashLoopBackOff)</span><br>
+    <span class="d-arrow">    ↓ passes</span><br>
+    <span class="d-box">    [READINESS PROBE + LIVENESS PROBE run in parallel, continuously]</span><br>
+    <span class="d-note">    readiness fails → removed from Service (no traffic) → checks again</span><br>
+    <span class="d-note">    liveness fails 3× → pod RESTARTED by kubelet</span><br>
+    <span class="d-arrow">    ↓ both pass</span><br>
+    <span class="d-label">    Pod serving traffic normally</span>
+  </div>
+
+  <!-- STARTUP PROBE -->
+  <h2 class="section-title" id="startup-probe"><span class="num">04</span> Startup Probe — Protecting Slow-Starting Applications</h2>
+
+  <div class="code-wrapper">
+    <div class="code-header">
+      <span class="code-lang">yaml</span>
+      <span class="code-filename">All Three Probes — Complete Example</span>
+      <button class="copy-btn" onclick="navigator.clipboard.writeText(this.closest('.code-wrapper').querySelector('pre').innerText)">Copy</button>
+    </div>
+    <pre><code><span class="sy-comment">---
+# Complete probe configuration: startup + readiness + liveness
+# Scenario: JVM-based payment service takes up to 90s to start
+</span>
+<span class="sy-key">containers:</span>
+  - <span class="sy-key">name:</span> <span class="sy-string">payment-api</span>
+    <span class="sy-key">image:</span> <span class="sy-string">payment-api:v2</span>
+
+    <span class="sy-comment"># STARTUP PROBE: Allow up to 90s for boot (30 retries × 3s = 90s)</span>
+    <span class="sy-comment"># Liveness/readiness DISABLED until this passes</span>
+    <span class="sy-key">startupProbe:</span>
+      <span class="sy-key">httpGet:</span>
+        <span class="sy-key">path:</span> <span class="sy-string">/actuator/health/liveness</span>
+        <span class="sy-key">port:</span> <span class="sy-num">8080</span>
+      <span class="sy-key">failureThreshold:</span> <span class="sy-num">30</span>         <span class="sy-comment"># Retry 30 times</span>
+      <span class="sy-key">periodSeconds:</span> <span class="sy-num">3</span>            <span class="sy-comment"># Every 3 seconds = 90s max startup</span>
+      <span class="sy-comment"># If 30 retries fail → pod killed → CrashLoopBackOff</span>
+
+    <span class="sy-comment"># READINESS PROBE: Traffic control — runs continuously after startup</span>
+    <span class="sy-key">readinessProbe:</span>
+      <span class="sy-key">httpGet:</span>
+        <span class="sy-key">path:</span> <span class="sy-string">/actuator/health/readiness</span>
+        <span class="sy-key">port:</span> <span class="sy-num">8080</span>
+      <span class="sy-key">initialDelaySeconds:</span> <span class="sy-num">0</span>     <span class="sy-comment"># Start immediately after startup probe passes</span>
+      <span class="sy-key">periodSeconds:</span> <span class="sy-num">5</span>            <span class="sy-comment"># Check every 5 seconds</span>
+      <span class="sy-key">failureThreshold:</span> <span class="sy-num">3</span>         <span class="sy-comment"># 3 failures = remove from Service</span>
+      <span class="sy-key">successThreshold:</span> <span class="sy-num">1</span>         <span class="sy-comment"># 1 success = add back to Service</span>
+
+    <span class="sy-comment"># LIVENESS PROBE: Restart control — runs continuously after startup</span>
+    <span class="sy-key">livenessProbe:</span>
+      <span class="sy-key">httpGet:</span>
+        <span class="sy-key">path:</span> <span class="sy-string">/actuator/health/liveness</span>
+        <span class="sy-key">port:</span> <span class="sy-num">8080</span>
+      <span class="sy-key">initialDelaySeconds:</span> <span class="sy-num">0</span>
+      <span class="sy-key">periodSeconds:</span> <span class="sy-num">10</span>           <span class="sy-comment"># Check every 10s (less frequent)</span>
+      <span class="sy-key">failureThreshold:</span> <span class="sy-num">3</span>         <span class="sy-comment"># 3 failures = RESTART pod</span>
+      <span class="sy-key">timeoutSeconds:</span> <span class="sy-num">5</span>          <span class="sy-comment"># Fail if no response in 5s</span></code></pre>
+  </div>
+
+  <!-- KUBERNETES EVENTS -->
+  <h2 class="section-title" id="events"><span class="num">05</span> Kubernetes Events — The Early Warning System</h2>
+
+  <p>Kubernetes Events are the most underutilised observability tool. They capture everything the control plane does: pod scheduling, OOMKilling, image pulls, node conditions. Events expire after ~1 hour by default, making scheduled collection critical.</p>
+
+  <h3 class="sub-title">Querying Events with Ansible</h3>
+
+  <div class="code-wrapper">
+    <div class="code-header">
+      <span class="code-lang">yaml</span>
+      <span class="code-filename">Query Warning Events Across All Namespaces</span>
+      <button class="copy-btn" onclick="navigator.clipboard.writeText(this.closest('.code-wrapper').querySelector('pre').innerText)">Copy</button>
+    </div>
+    <pre><code><span class="sy-comment">---
+# Collect Warning events across all namespaces
+</span>
+- <span class="sy-key">name:</span> <span class="sy-string">"[EVENTS] Query all Warning events"</span>
+  <span class="sy-module">kubernetes.core.k8s_info:</span>
+    <span class="sy-key">api_version:</span> <span class="sy-string">v1</span>
+    <span class="sy-key">kind:</span> <span class="sy-string">Event</span>
+    <span class="sy-key">field_selectors:</span>
+      - <span class="sy-string">type=Warning</span>               <span class="sy-comment"># Only Warning events (not Normal)</span>
+    <span class="sy-key">host:</span> <span class="sy-string">"{{ ocp_api_url }}"</span>
+    <span class="sy-key">api_key:</span> <span class="sy-string">"{{ ocp_token }}"</span>
+  <span class="sy-key">register:</span> <span class="sy-string">all_warning_events</span>
+
+<span class="sy-comment"># Filter to last 1 hour only</span>
+- <span class="sy-key">name:</span> <span class="sy-string">"[EVENTS] Filter recent events (last hour)"</span>
+  <span class="sy-key">ansible.builtin.set_fact:</span>
+    <span class="sy-key">recent_events:</span> <span class="sy-string">"{{ all_warning_events.resources | selectattr('lastTimestamp', 'defined')
+      | selectattr('lastTimestamp', 'gt', (ansible_date_time.iso8601 | to_datetime('%Y-%m-%dT%H:%M:%SZ') - timedelta(hours=1)).strftime('%Y-%m-%dT%H:%M:%SZ'))
+      | list }}"</span>
+
+<span class="sy-comment"># Categorise events by reason</span>
+- <span class="sy-key">name:</span> <span class="sy-string">"[EVENTS] Categorise by reason"</span>
+  <span class="sy-key">ansible.builtin.set_fact:</span>
+    <span class="sy-key">oom_events:</span>     <span class="sy-string">"{{ recent_events | selectattr('reason', 'eq', 'OOMKilling') | list }}"</span>
+    <span class="sy-key">backoff_events:</span> <span class="sy-string">"{{ recent_events | selectattr('reason', 'in', ['BackOff','CrashLoopBackOff']) | list }}"</span>
+    <span class="sy-key">sched_events:</span>   <span class="sy-string">"{{ recent_events | selectattr('reason', 'eq', 'FailedScheduling') | list }}"</span>
+    <span class="sy-key">node_events:</span>    <span class="sy-string">"{{ recent_events | selectattr('reason', 'eq', 'NodeNotReady') | list }}"</span>
+
+- <span class="sy-key">name:</span> <span class="sy-string">"[EVENTS] Log event summary"</span>
+  <span class="sy-module">ansible.builtin.debug:</span>
+    <span class="sy-key">msg:</span>
+      - <span class="sy-string">"Total Warning Events (last hour): {{ recent_events | length }}"</span>
+      - <span class="sy-string">"OOMKilling: {{ oom_events | length }}"</span>
+      - <span class="sy-string">"CrashLoop/BackOff: {{ backoff_events | length }}"</span>
+      - <span class="sy-string">"FailedScheduling: {{ sched_events | length }}"</span>
+      - <span class="sy-string">"NodeNotReady: {{ node_events | length }}"</span></code></pre>
+  </div>
+
+  <!-- RESOURCE MONITORING -->
+  <h2 class="section-title" id="resource-mon"><span class="num">06</span> Resource Monitoring — Node Capacity & Pod Usage</h2>
+
+  <h3 class="sub-title">Node Capacity vs Allocatable</h3>
+
+  <div class="explain-block">
+    <div class="explain-title">Node Resource Concepts</div>
+    <div class="explain-row">
+      <span class="explain-term">capacity</span>
+      <span class="explain-def">Total physical resources on node. CPU cores, RAM bytes. What hardware provides.</span>
+    </div>
+    <div class="explain-row">
+      <span class="explain-term">allocatable</span>
+      <span class="explain-def">Capacity minus system overhead (kubelet, OS, DaemonSets). What pods can actually request. Always use this for planning.</span>
+    </div>
+    <div class="explain-row">
+      <span class="explain-term">requests (sum)</span>
+      <span class="explain-def">Sum of all pod requests on node. Scheduler uses this to decide if pod fits. requests ≤ allocatable = scheduled.</span>
+    </div>
+    <div class="explain-row">
+      <span class="explain-term">limits (sum)</span>
+      <span class="explain-def">Sum of all pod limits. Can exceed allocatable (overcommit). If all pods hit limits simultaneously → memory pressure.</span>
+    </div>
+    <div class="explain-row">
+      <span class="explain-term">Pressure conditions</span>
+      <span class="explain-def">MemoryPressure: node running low on memory. DiskPressure: low disk. PIDPressure: too many processes. All cause scheduling to stop.</span>
+    </div>
+  </div>
+
+  <div class="code-wrapper">
+    <div class="code-header">
+      <span class="code-lang">yaml</span>
+      <span class="code-filename">Node Health Check — Capacity & Pressure</span>
+      <button class="copy-btn" onclick="navigator.clipboard.writeText(this.closest('.code-wrapper').querySelector('pre').innerText)">Copy</button>
+    </div>
+    <pre><code><span class="sy-comment">---
+# Query nodes and check health conditions
+</span>
+- <span class="sy-key">name:</span> <span class="sy-string">"[NODES] Query all nodes"</span>
+  <span class="sy-module">kubernetes.core.k8s_info:</span>
+    <span class="sy-key">kind:</span> <span class="sy-string">Node</span>
+    <span class="sy-key">host:</span> <span class="sy-string">"{{ ocp_api_url }}"</span>
+    <span class="sy-key">api_key:</span> <span class="sy-string">"{{ ocp_token }}"</span>
+  <span class="sy-key">register:</span> <span class="sy-string">all_nodes</span>
+
+<span class="sy-comment"># Parse each node's conditions and capacity</span>
+- <span class="sy-key">name:</span> <span class="sy-string">"[NODES] Build node health summary"</span>
+  <span class="sy-key">ansible.builtin.set_fact:</span>
+    <span class="sy-key">node_health:</span> <span class="sy-string">"{{ node_health | default([]) + [node_entry] }}"</span>
+  <span class="sy-key">vars:</span>
+    <span class="sy-key">node_conditions:</span> <span class="sy-string">"{{ item.status.conditions | default([]) }}"</span>
+    <span class="sy-key">ready_condition:</span> <span class="sy-string">"{{ node_conditions | selectattr('type','eq','Ready') | first | default({}) }}"</span>
+    <span class="sy-key">mem_pressure:</span> <span class="sy-string">"{{ (node_conditions | selectattr('type','eq','MemoryPressure') | first | default({'status':'False'})).status == 'True' }}"</span>
+    <span class="sy-key">disk_pressure:</span> <span class="sy-string">"{{ (node_conditions | selectattr('type','eq','DiskPressure') | first | default({'status':'False'})).status == 'True' }}"</span>
+    <span class="sy-key">node_entry:</span>
+      <span class="sy-key">name:</span> <span class="sy-string">"{{ item.metadata.name }}"</span>
+      <span class="sy-key">ready:</span> <span class="sy-string">"{{ ready_condition.status | default('Unknown') }}"</span>
+      <span class="sy-key">memory_pressure:</span> <span class="sy-string">"{{ mem_pressure }}"</span>
+      <span class="sy-key">disk_pressure:</span> <span class="sy-string">"{{ disk_pressure }}"</span>
+      <span class="sy-key">allocatable_cpu:</span> <span class="sy-string">"{{ item.status.allocatable.cpu | default('0') }}"</span>
+      <span class="sy-key">allocatable_memory:</span> <span class="sy-string">"{{ item.status.allocatable.memory | default('0') }}"</span>
+  <span class="sy-key">loop:</span> <span class="sy-string">"{{ all_nodes.resources }}"</span>
+  <span class="sy-key">loop_control:</span>
+    <span class="sy-key">label:</span> <span class="sy-string">"{{ item.metadata.name }}"</span>
+
+<span class="sy-comment"># Identify unhealthy nodes</span>
+- <span class="sy-key">name:</span> <span class="sy-string">"[NODES] Flag unhealthy nodes"</span>
+  <span class="sy-key">ansible.builtin.set_fact:</span>
+    <span class="sy-key">unhealthy_nodes:</span> <span class="sy-string">"{{ node_health | selectattr('ready','ne','True') | list
+      + node_health | selectattr('memory_pressure','eq',true) | list
+      + node_health | selectattr('disk_pressure','eq',true) | list }}"</span></code></pre>
+  </div>
+
+  <!-- POD CONDITIONS -->
+  <h2 class="section-title" id="conditions"><span class="num">07</span> Pod Conditions — Deep Health Introspection</h2>
+
+  <div class="code-wrapper">
+    <div class="code-header">
+      <span class="code-lang">yaml</span>
+      <span class="code-filename">Multi-Namespace Pod Scan with Health Classification</span>
+      <button class="copy-btn" onclick="navigator.clipboard.writeText(this.closest('.code-wrapper').querySelector('pre').innerText)">Copy</button>
+    </div>
+    <pre><code><span class="sy-comment">---
+# Comprehensive pod health scan across namespaces
+</span>
+- <span class="sy-key">name:</span> <span class="sy-string">"[PODS] Query all pods across all namespaces"</span>
+  <span class="sy-module">kubernetes.core.k8s_info:</span>
+    <span class="sy-key">kind:</span> <span class="sy-string">Pod</span>
+    <span class="sy-key">host:</span> <span class="sy-string">"{{ ocp_api_url }}"</span>
+    <span class="sy-key">api_key:</span> <span class="sy-string">"{{ ocp_token }}"</span>
+  <span class="sy-key">register:</span> <span class="sy-string">all_pods</span>
+
+<span class="sy-comment"># Classify pods by health status</span>
+- <span class="sy-key">name:</span> <span class="sy-string">"[PODS] Classify pod health"</span>
+  <span class="sy-key">ansible.builtin.set_fact:</span>
+    <span class="sy-key">pods_running:</span>  <span class="sy-string">"{{ all_pods.resources | selectattr('status.phase','eq','Running') | list }}"</span>
+    <span class="sy-key">pods_pending:</span>  <span class="sy-string">"{{ all_pods.resources | selectattr('status.phase','eq','Pending') | list }}"</span>
+    <span class="sy-key">pods_failed:</span>   <span class="sy-string">"{{ all_pods.resources | selectattr('status.phase','eq','Failed') | list }}"</span>
+    <span class="sy-key">pods_oom:</span>      <span class="sy-string">"{{ all_pods.resources | selectattr('status.containerStatuses','defined')
+      | selectattr('status.containerStatuses[0].lastState.terminated.reason','defined')
+      | selectattr('status.containerStatuses[0].lastState.terminated.reason','eq','OOMKilled') | list }}"</span>
+    <span class="sy-key">pods_crashloop:</span> <span class="sy-string">"{{ all_pods.resources | selectattr('status.containerStatuses','defined')
+      | selectattr('status.containerStatuses[0].state.waiting.reason','defined')
+      | selectattr('status.containerStatuses[0].state.waiting.reason','eq','CrashLoopBackOff') | list }}"</span>
+    <span class="sy-key">pods_high_restarts:</span> <span class="sy-string">"{{ all_pods.resources | selectattr('status.containerStatuses','defined')
+      | selectattr('status.containerStatuses[0].restartCount','gt', restart_threshold | default(10)) | list }}"</span>
+
+<span class="sy-comment"># Calculate cluster health score (0-100)</span>
+- <span class="sy-key">name:</span> <span class="sy-string">"[SCORE] Calculate cluster health score"</span>
+  <span class="sy-key">ansible.builtin.set_fact:</span>
+    <span class="sy-key">health_score:</span> <span class="sy-string">"{{ [100
+      - (pods_failed | length * 5)
+      - (pods_crashloop | length * 10)
+      - (pods_oom | length * 8)
+      - (unhealthy_nodes | length * 20)
+      - (oom_events | length * 3)
+      - (backoff_events | length * 2),
+      0] | max }}"</span>
+
+- <span class="sy-key">name:</span> <span class="sy-string">"[SCORE] Set health status label"</span>
+  <span class="sy-key">ansible.builtin.set_fact:</span>
+    <span class="sy-key">health_status:</span> <span class="sy-string">"{{ 'HEALTHY' if health_score | int >= 80
+      else ('DEGRADED' if health_score | int >= 60
+      else 'CRITICAL') }}"</span></code></pre>
+  </div>
+
+  <!-- ROLE IMPLEMENTATION -->
+  <h2 class="section-title" id="role-impl"><span class="num">08</span> Role Implementation — Complete Health Framework</h2>
+
+  <h3 class="sub-title">Role Structure</h3>
+
+  <div class="code-wrapper">
+    <div class="code-header"><span class="code-lang">text</span><span class="code-filename">roles/openshift_health_check/</span></div>
+    <pre><code>openshift_health_check/
+├── defaults/
+│   └── main.yml              <span class="sy-comment"># Thresholds: restart_threshold, cpu_threshold, etc.</span>
+├── tasks/
+│   ├── main.yml              <span class="sy-comment"># Orchestration: include all sub-tasks in order</span>
+│   ├── check_pods.yml        <span class="sy-comment"># Pod scan, classify, OOM, crashloop</span>
+│   ├── check_nodes.yml       <span class="sy-comment"># Node conditions, capacity, pressure</span>
+│   ├── check_events.yml      <span class="sy-comment"># Warning events, categorise by reason</span>
+│   ├── calculate_score.yml   <span class="sy-comment"># Health score, status label</span>
+│   ├── generate_report.yml   <span class="sy-comment"># HTML dashboard template</span>
+│   └── send_alerts.yml       <span class="sy-comment"># Email + Slack notification</span>
+├── templates/
+│   └── health_report.html.j2 <span class="sy-comment"># Dark-themed executive dashboard</span>
+└── vars/
+    └── main.yml</code></pre>
+  </div>
+
+  <h3 class="sub-title">Main Playbook — Block/Rescue/Always Pattern</h3>
+
+  <div class="code-wrapper">
+    <div class="code-header">
+      <span class="code-lang">yaml</span>
+      <span class="code-filename">playbooks/cluster_health_framework.yml</span>
+      <button class="copy-btn" onclick="navigator.clipboard.writeText(this.closest('.code-wrapper').querySelector('pre').innerText)">Copy</button>
+    </div>
+    <pre><code><span class="sy-comment">---
+# Cluster Health Framework — Production Playbook
+# Runs daily at 07:00 via RHAAP scheduler
+</span>
+- <span class="sy-key">name:</span> <span class="sy-string">"ABC Bank OpenShift Health Framework"</span>
+  <span class="sy-key">hosts:</span> <span class="sy-string">localhost</span>
+  <span class="sy-key">gather_facts:</span> <span class="sy-bool">true</span>             <span class="sy-comment"># Need ansible_date_time for timestamps</span>
+  <span class="sy-key">vars_files:</span>
+    - <span class="sy-string">"vars/secrets.yml"</span>            <span class="sy-comment"># Ansible Vault: API token, SMTP creds, Slack URL</span>
+    - <span class="sy-string">"vars/thresholds.yml"</span>         <span class="sy-comment"># Health score thresholds, restart limits</span>
+  <span class="sy-key">tasks:</span>
+
+    - <span class="sy-key">name:</span> <span class="sy-string">"Health Framework — block/rescue/always"</span>
+      <span class="sy-key">block:</span>
+
+        - <span class="sy-key">name:</span> <span class="sy-string">"[INIT] Log framework start"</span>
+          <span class="sy-module">ansible.builtin.debug:</span>
+            <span class="sy-key">msg:</span> <span class="sy-string">"Health Framework started: {{ ansible_date_time.iso8601 }}"</span>
+
+        - <span class="sy-key">name:</span> <span class="sy-string">"[PODS] Pod health scan"</span>
+          <span class="sy-module">ansible.builtin.include_role:</span>
+            <span class="sy-key">name:</span> <span class="sy-string">openshift_health_check</span>
+            <span class="sy-key">tasks_from:</span> <span class="sy-string">check_pods.yml</span>
+
+        - <span class="sy-key">name:</span> <span class="sy-string">"[NODES] Node condition scan"</span>
+          <span class="sy-module">ansible.builtin.include_role:</span>
+            <span class="sy-key">name:</span> <span class="sy-string">openshift_health_check</span>
+            <span class="sy-key">tasks_from:</span> <span class="sy-string">check_nodes.yml</span>
+
+        - <span class="sy-key">name:</span> <span class="sy-string">"[EVENTS] Warning event scan"</span>
+          <span class="sy-module">ansible.builtin.include_role:</span>
+            <span class="sy-key">name:</span> <span class="sy-string">openshift_health_check</span>
+            <span class="sy-key">tasks_from:</span> <span class="sy-string">check_events.yml</span>
+
+        - <span class="sy-key">name:</span> <span class="sy-string">"[SCORE] Calculate health score"</span>
+          <span class="sy-module">ansible.builtin.include_role:</span>
+            <span class="sy-key">name:</span> <span class="sy-string">openshift_health_check</span>
+            <span class="sy-key">tasks_from:</span> <span class="sy-string">calculate_score.yml</span>
+
+        - <span class="sy-key">name:</span> <span class="sy-string">"[REPORT] Generate HTML dashboard"</span>
+          <span class="sy-module">ansible.builtin.include_role:</span>
+            <span class="sy-key">name:</span> <span class="sy-string">openshift_health_check</span>
+            <span class="sy-key">tasks_from:</span> <span class="sy-string">generate_report.yml</span>
+
+        - <span class="sy-key">name:</span> <span class="sy-string">"[ALERT] Send email and Slack alerts"</span>
+          <span class="sy-module">ansible.builtin.include_role:</span>
+            <span class="sy-key">name:</span> <span class="sy-string">openshift_health_check</span>
+            <span class="sy-key">tasks_from:</span> <span class="sy-string">send_alerts.yml</span>
+
+      <span class="sy-keyword">rescue:</span>
+        - <span class="sy-key">name:</span> <span class="sy-string">"[RESCUE] Health framework failed — send critical alert"</span>
+          <span class="sy-module">community.general.slack:</span>
+            <span class="sy-key">token:</span> <span class="sy-string">"{{ vault_slack_token }}"</span>
+            <span class="sy-key">channel:</span> <span class="sy-string">"#openshift-alerts"</span>
+            <span class="sy-key">color:</span> <span class="sy-string">danger</span>
+            <span class="sy-key">msg:</span> <span class="sy-string">"⚠️ HEALTH FRAMEWORK FAILED on {{ inventory_hostname }} at {{ ansible_date_time.iso8601 }}. Manual check required."</span>
+
+      <span class="sy-keyword">always:</span>
+        - <span class="sy-key">name:</span> <span class="sy-string">"[ALWAYS] Log framework completion"</span>
+          <span class="sy-module">ansible.builtin.debug:</span>
+            <span class="sy-key">msg:</span> <span class="sy-string">"Health Framework completed: {{ ansible_date_time.iso8601 }}"</span></code></pre>
+  </div>
+
+  <!-- HTML REPORT -->
+  <h2 class="section-title" id="report"><span class="num">09</span> HTML Health Dashboard — Executive Report Template</h2>
+
+  <div class="code-wrapper">
+    <div class="code-header">
+      <span class="code-lang">jinja2</span>
+      <span class="code-filename">roles/openshift_health_check/templates/health_report.html.j2 (excerpt)</span>
+      <button class="copy-btn" onclick="navigator.clipboard.writeText(this.closest('.code-wrapper').querySelector('pre').innerText)">Copy</button>
+    </div>
+    <pre><code>&lt;!DOCTYPE html&gt;
+&lt;html&gt;
+&lt;head&gt;
+  &lt;title&gt;Cluster Health Report — {{ ansible_date_time.date }}&lt;/title&gt;
+  &lt;style&gt;
+    body { background: #0B1120; color: #F8FAFC; font-family: 'Segoe UI', sans-serif; }
+    .score-badge {
+      font-size: 72px; font-weight: 900;
+      color: {% if health_score | int >= 80 %}#22C55E{% elif health_score | int >= 60 %}#F59E0B{% else %}#EF4444{% endif %};
+    }
+    .status-pill {
+      display: inline-block; padding: 4px 16px; border-radius: 99px; font-weight: 700;
+      background: {% if health_status == 'HEALTHY' %}rgba(34,197,94,0.2){% elif health_status == 'DEGRADED' %}rgba(245,158,11,0.2){% else %}rgba(239,68,68,0.2){% endif %};
+      color: {% if health_status == 'HEALTHY' %}#4ADE80{% elif health_status == 'DEGRADED' %}#FCD34D{% else %}#FCA5A5{% endif %};
+    }
+  &lt;/style&gt;
+&lt;/head&gt;
+&lt;body&gt;
+  &lt;h1&gt;ABC Bank OpenShift Health Report&lt;/h1&gt;
+  &lt;p&gt;Generated: {{ ansible_date_time.iso8601 }} | Cluster: {{ ocp_api_url }}&lt;/p&gt;
+
+  &lt;!-- Health Score --&gt;
+  &lt;div class="score-badge"&gt;{{ health_score }}/100&lt;/div&gt;
+  &lt;span class="status-pill"&gt;{{ health_status }}&lt;/span&gt;
+
+  &lt;!-- Metric Cards --&gt;
+  &lt;div class="metrics"&gt;
+    &lt;div class="card"&gt;{{ all_pods.resources | length }} Total Pods&lt;/div&gt;
+    &lt;div class="card"&gt;{{ pods_running | length }} Running&lt;/div&gt;
+    &lt;div class="card warn"&gt;{{ pods_failed | length }} Failed&lt;/div&gt;
+    &lt;div class="card danger"&gt;{{ pods_crashloop | length }} CrashLoop&lt;/div&gt;
+    &lt;div class="card danger"&gt;{{ pods_oom | length }} OOMKilled&lt;/div&gt;
+  &lt;/div&gt;
+
+  &lt;!-- Node Health Table --&gt;
+  &lt;table&gt;
+    &lt;tr&gt;&lt;th&gt;Node&lt;/th&gt;&lt;th&gt;Ready&lt;/th&gt;&lt;th&gt;Memory Pressure&lt;/th&gt;&lt;th&gt;Disk Pressure&lt;/th&gt;&lt;/tr&gt;
+    {% for node in node_health %}
+    &lt;tr&gt;
+      &lt;td&gt;{{ node.name }}&lt;/td&gt;
+      &lt;td&gt;{{ '✅' if node.ready == 'True' else '❌' }}&lt;/td&gt;
+      &lt;td&gt;{{ '⚠️' if node.memory_pressure else '✅' }}&lt;/td&gt;
+      &lt;td&gt;{{ '⚠️' if node.disk_pressure else '✅' }}&lt;/td&gt;
+    &lt;/tr&gt;
+    {% endfor %}
+  &lt;/table&gt;
+
+  &lt;!-- Warning Events --&gt;
+  &lt;h2&gt;Warning Events (last hour)&lt;/h2&gt;
+  {% if recent_events | length == 0 %}
+    &lt;p&gt;✅ No warning events in the last hour.&lt;/p&gt;
+  {% else %}
+    {% for event in recent_events | sort(attribute='lastTimestamp', reverse=True) | list %}
+    &lt;p&gt;{{ event.lastTimestamp }} | {{ event.involvedObject.namespace }}/{{ event.involvedObject.name }}
+       | {{ event.reason }}: {{ event.message }}&lt;/p&gt;
+    {% endfor %}
+  {% endif %}
+&lt;/body&gt;
+&lt;/html&gt;</code></pre>
+  </div>
+
+  <!-- ALERTS -->
+  <h2 class="section-title" id="alerts"><span class="num">10</span> Alerting & Notification — Email + Slack</h2>
+
+  <div class="code-wrapper">
+    <div class="code-header">
+      <span class="code-lang">yaml</span>
+      <span class="code-filename">roles/openshift_health_check/tasks/send_alerts.yml</span>
+      <button class="copy-btn" onclick="navigator.clipboard.writeText(this.closest('.code-wrapper').querySelector('pre').innerText)">Copy</button>
+    </div>
+    <pre><code><span class="sy-comment">---
+# Send alerts: always email report, Slack only if critical
+</span>
+
+<span class="sy-comment"># 1. Send HTML report via email (always)</span>
+- <span class="sy-key">name:</span> <span class="sy-string">"[EMAIL] Send morning health report"</span>
+  <span class="sy-module">community.general.mail:</span>
+    <span class="sy-key">host:</span> <span class="sy-string">"{{ smtp_host }}"</span>
+    <span class="sy-key">port:</span> <span class="sy-num">587</span>
+    <span class="sy-key">username:</span> <span class="sy-string">"{{ vault_smtp_user }}"</span>
+    <span class="sy-key">password:</span> <span class="sy-string">"{{ vault_smtp_password }}"</span>
+    <span class="sy-key">to:</span>       <span class="sy-string">["platform-team@abcbank.com", "rajesh@abcbank.com"]</span>
+    <span class="sy-key">subject:</span>  <span class="sy-string">"[{{ health_status }}] OpenShift Health Report — {{ ansible_date_time.date }}"</span>
+    <span class="sy-key">body:</span>     <span class="sy-string">"{{ lookup('template', 'health_report.html.j2') }}"</span>
+    <span class="sy-key">subtype:</span>  <span class="sy-string">html</span>
+  <span class="sy-key">no_log:</span> <span class="sy-bool">true</span>
+
+<span class="sy-comment"># 2. Slack alert ONLY if score below threshold (critical)</span>
+- <span class="sy-key">name:</span> <span class="sy-string">"[SLACK] Send critical alert if health degraded"</span>
+  <span class="sy-module">community.general.slack:</span>
+    <span class="sy-key">token:</span>   <span class="sy-string">"{{ vault_slack_token }}"</span>
+    <span class="sy-key">channel:</span> <span class="sy-string">"#openshift-critical"</span>
+    <span class="sy-key">color:</span>   <span class="sy-string">"{{ 'danger' if health_status == 'CRITICAL' else 'warning' }}"</span>
+    <span class="sy-key">msg:</span> <span class="sy-string">|
+      *OpenShift Health Alert — {{ ansible_date_time.date }}*
+      Status: *{{ health_status }}* | Score: *{{ health_score }}/100*
+      Failed Pods: {{ pods_failed | length }} | CrashLoop: {{ pods_crashloop | length }} | OOMKilled: {{ pods_oom | length }}
+      Unhealthy Nodes: {{ unhealthy_nodes | length }} | Warning Events (1h): {{ recent_events | length }}
+      Action Required: Check OpenShift console for details.</span>
+  <span class="sy-key">when:</span> <span class="sy-string">health_score | int &lt; alert_threshold | default(80)</span>
+
+<span class="sy-comment"># 3. Log health score to file for trending</span>
+- <span class="sy-key">name:</span> <span class="sy-string">"[LOG] Append health score to trend file"</span>
+  <span class="sy-module">ansible.builtin.lineinfile:</span>
+    <span class="sy-key">path:</span>   <span class="sy-string">"{{ health_log_path | default('/var/log/openshift-health.log') }}"</span>
+    <span class="sy-key">line:</span>   <span class="sy-string">"{{ ansible_date_time.iso8601 }},{{ health_score }},{{ health_status }},{{ pods_failed | length }},{{ pods_crashloop | length }}"</span>
+    <span class="sy-key">create:</span> <span class="sy-bool">true</span></code></pre>
+  </div>
+
+  <!-- TROUBLESHOOTING -->
+  <h2 class="section-title" id="trouble"><span class="num">11</span> Troubleshooting Guide</h2>
+
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Symptom</th><th>Error/Observation</th><th>Root Cause</th><th>Fix</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>Pods stuck in Pending</td>
+          <td>Events: FailedScheduling</td>
+          <td>Insufficient CPU/memory on nodes, or node selector mismatch</td>
+          <td>Check <code class="inline">oc describe pod</code>. Free node resources or adjust requests.</td>
+        </tr>
+        <tr>
+          <td>OOMKilled pods</td>
+          <td>Events: OOMKilling, lastState.terminated.reason=OOMKilled</td>
+          <td>Pod memory usage exceeds memory limit</td>
+          <td>Increase memory limit. Investigate app memory leak. Profile with JVM heap dumps.</td>
+        </tr>
+        <tr>
+          <td>CrashLoopBackOff</td>
+          <td>Restart count keeps growing, pod state=Waiting</td>
+          <td>App crashes on start. Config error, missing env var, DB unreachable.</td>
+          <td>Check <code class="inline">oc logs pod --previous</code> for last crash output.</td>
+        </tr>
+        <tr>
+          <td>Events API empty</td>
+          <td>No events returned</td>
+          <td>Events older than 1 hour expired, or querying wrong namespace</td>
+          <td>Query without namespace filter. Check event TTL: default 1h. Deploy event archiver.</td>
+        </tr>
+        <tr>
+          <td>Health score always 100</td>
+          <td>Score not reflecting real issues</td>
+          <td>Pod label selectors not matching correctly, filtering wrong pods</td>
+          <td>Debug: print <code class="inline">all_pods.resources | length</code> to verify pods returned.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- INTERVIEW -->
+  <h2 class="section-title" id="interview"><span class="num">12</span> Interview Questions</h2>
+
+  <div class="qa-block">
+    <div class="qa-q">Explain the three types of Kubernetes probes and when you'd use each.</div>
+    <div class="qa-a">Startup probe: fires first, protects slow-starting apps (JVM, ML models). Disables liveness/readiness until it passes. If it keeps failing (failureThreshold × period), pod killed. Readiness probe: continuous after startup, controls Service traffic. Fail → pod removed from load balancer. Recover → pod added back. Use for: "I'm temporarily busy". Liveness probe: continuous, controls restart. Fail 3× → pod killed and restarted. Use for: "I'm broken and need a restart".</div>
+  </div>
+
+  <div class="qa-block">
+    <div class="qa-q">What are Kubernetes Events? Why are they important for observability?</div>
+    <div class="qa-a">Events are objects that capture what Kubernetes did or noticed: pod scheduled, image pulled, OOMKilled, BackOff. Two types: Normal (informational) and Warning (problems). They expire after ~1 hour by default. Critical for diagnosing: why pod won't start (FailedScheduling), why pod died (OOMKilling), why deployment is stuck (BackOff). The most common thing missing from monitoring setups: Events are transient so you need to collect them continuously or they disappear.</div>
+  </div>
+
+  <div class="qa-block">
+    <div class="qa-q">What is the difference between node capacity and allocatable?</div>
+    <div class="qa-a">Capacity: total physical resources (CPU cores, RAM) on the node. Allocatable: capacity minus system overhead (kubelet, OS, kube-system DaemonSets). Allocatable is always less than capacity. Pods are scheduled against allocatable, not capacity. Example: 16 CPU node might have 15.5 allocatable. Always use allocatable for capacity planning. Scheduler sums all pod requests on a node and compares against allocatable to decide if a new pod fits.</div>
+  </div>
+
+  <div class="qa-block">
+    <div class="qa-q">How would you detect OOMKilled pods programmatically with Ansible?</div>
+    <div class="qa-a">Query all pods with k8s_info. Filter: <code class="inline">status.containerStatuses[0].lastState.terminated.reason == 'OOMKilled'</code>. This field only exists if pod was killed for exceeding memory limit. Also check Events for reason=OOMKilling. Both signals together confirm OOM. Solution: increase memory limit, optimise app memory, or investigate leak. Then alert via Slack and include in HTML report.</div>
+  </div>
+
+  <div class="qa-block">
+    <div class="qa-q">Describe your approach to building a health score from 0 to 100.</div>
+    <div class="qa-a">Start at 100. Deduct weighted penalties: each failed pod -5, each CrashLoop pod -10, each OOMKilled pod -8, each unhealthy node -20, each recent OOM event -3. Floor at 0. Classify: 80-100 = HEALTHY (green), 60-79 = DEGRADED (yellow), 0-59 = CRITICAL (red). Store score in log file for trending. Alert on Slack if below threshold. Adjust weights based on business criticality — unhealthy node costs more than a single failed pod.</div>
+  </div>
+
+  <!-- CHALLENGES -->
+  <h2 class="section-title" id="challenges"><span class="num">13</span> Coding Challenges</h2>
+
+  <div class="challenge">
+    <div class="challenge-num">Challenge 1 of 3</div>
+    <p>Write a task that identifies pods with a restart count greater than 5, and for each such pod runs <code class="inline">oc logs --previous</code> to capture the last crash output. Store each pod's crash logs in a dict keyed by pod name.</p>
+    <details>
+      <summary>▶ Show Answer</summary>
+      <div class="answer">
+        <div class="code-wrapper">
+          <div class="code-header"><span class="code-lang">yaml</span><span class="code-filename">Crash log collector</span></div>
+          <pre><code>- name: "Find high-restart pods"
+  ansible.builtin.set_fact:
+    crashing_pods: "{{ all_pods.resources
+      | selectattr('status.containerStatuses', 'defined')
+      | selectattr('status.containerStatuses[0].restartCount', 'gt', 5)
+      | list }}"
+
+- name: "Collect previous logs from crashing pods"
+  ansible.builtin.command:
+    cmd: "oc logs {{ item.metadata.name }} -n {{ item.metadata.namespace }} --previous"
+  environment:
+    KUBECONFIG: "{{ kubeconfig_path }}"
+  register: crash_log_results
+  loop: "{{ crashing_pods }}"
+  loop_control:
+    label: "{{ item.metadata.namespace }}/{{ item.metadata.name }}"
+  ignore_errors: true
+
+- name: "Build crash log dictionary"
+  ansible.builtin.set_fact:
+    crash_logs: "{{ crash_logs | default({}) | combine(
+      { item.item.metadata.namespace + '/' + item.item.metadata.name: item.stdout_lines[-20:] }
+    ) }}"
+  loop: "{{ crash_log_results.results }}"
+  when: item.rc == 0</code></pre>
+        </div>
+      </div>
+    </details>
+  </div>
+
+  <div class="challenge">
+    <div class="challenge-num">Challenge 2 of 3</div>
+    <p>Implement a startup probe for an application that typically starts in 30 seconds but could take up to 120 seconds under load. Ensure the liveness and readiness probes don't interfere with slow startups.</p>
+    <details>
+      <summary>▶ Show Answer</summary>
+      <div class="answer">
+        <div class="code-wrapper">
+          <div class="code-header"><span class="code-lang">yaml</span><span class="code-filename">Startup-protected probes</span></div>
+          <pre><code">containers:
+  - name: api
+    image: heavy-app:latest
+    # Allow up to 120s startup (40 × 3s)
+    startupProbe:
+      httpGet:
+        path: /health
+        port: 8080
+      failureThreshold: 40     # 40 × 3s = 120s max
+      periodSeconds: 3
+      timeoutSeconds: 2
+    # Only runs after startupProbe succeeds
+    readinessProbe:
+      httpGet:
+        path: /ready
+        port: 8080
+      periodSeconds: 5
+      failureThreshold: 3
+    livenessProbe:
+      httpGet:
+        path: /health
+        port: 8080
+      periodSeconds: 10
+      failureThreshold: 3</code></pre>
+        </div>
+      </div>
+    </details>
+  </div>
+
+  <div class="challenge">
+    <div class="challenge-num">Challenge 3 of 3</div>
+    <p>Write a Jinja2 template snippet that renders a per-namespace summary table. For each namespace show: pod count, running count, failed count, and a traffic-light emoji (🟢/🟡/🔴) based on whether any pods are failed.</p>
+    <details>
+      <summary>▶ Show Answer</summary>
+      <div class="answer">
+        <div class="code-wrapper">
+          <div class="code-header"><span class="code-lang">jinja2</span><span class="code-filename">Per-namespace health table</span></div>
+          <pre><code">&lt;table&gt;
+  &lt;thead&gt;
+    &lt;tr&gt;
+      &lt;th&gt;Namespace&lt;/th&gt;&lt;th&gt;Status&lt;/th&gt;
+      &lt;th&gt;Total&lt;/th&gt;&lt;th&gt;Running&lt;/th&gt;&lt;th&gt;Failed&lt;/th&gt;
+    &lt;/tr&gt;
+  &lt;/thead&gt;
+  &lt;tbody&gt;
+  {% set namespaces = all_pods.resources | map(attribute='metadata.namespace') | unique | list %}
+  {% for ns in namespaces | sort %}
+    {% set ns_pods = all_pods.resources | selectattr('metadata.namespace','eq',ns) | list %}
+    {% set ns_running = ns_pods | selectattr('status.phase','eq','Running') | list %}
+    {% set ns_failed  = ns_pods | selectattr('status.phase','eq','Failed') | list %}
+    {% set status_icon = '🔴' if ns_failed | length > 0
+       else ('🟡' if ns_running | length &lt; ns_pods | length
+       else '🟢') %}
+    &lt;tr&gt;
+      &lt;td&gt;{{ ns }}&lt;/td&gt;
+      &lt;td&gt;{{ status_icon }}&lt;/td&gt;
+      &lt;td&gt;{{ ns_pods | length }}&lt;/td&gt;
+      &lt;td&gt;{{ ns_running | length }}&lt;/td&gt;
+      &lt;td&gt;{{ ns_failed | length }}&lt;/td&gt;
+    &lt;/tr&gt;
+  {% endfor %}
+  &lt;/tbody&gt;
+&lt;/table&gt;</code></pre>
+        </div>
+      </div>
+    </details>
+  </div>
+
+  <!-- RESUME -->
+  <h2 class="section-title" id="resume"><span class="num">14</span> Resume Points</h2>
+
+  <div class="resume-box">
+    <h4>Project 07 — Resume Bullets</h4>
+    <ul>
+      <li>Architected enterprise cluster observability framework scanning all pods and nodes across namespaces, classifying OOMKilled, CrashLoopBackOff, FailedScheduling and NodePressure conditions.</li>
+      <li>Implemented algorithmic health scoring (0–100) with weighted deductions for critical conditions, enabling automated triage and executive-level cluster status reporting.</li>
+      <li>Built Kubernetes Events collection pipeline querying Warning events with automated expiry-aware scheduling, capturing transient signals (OOMKilling, BackOff) before 1-hour TTL expiry.</li>
+      <li>Designed dark-themed executive HTML dashboard generated by Jinja2 templates, integrating traffic-light status indicators, per-namespace breakdowns, and event timelines.</li>
+      <li>Implemented dual-channel alerting: scheduled morning email with full HTML report, and immediate Slack webhook alerts on health degradation, using block/rescue/always for guaranteed delivery.</li>
+    </ul>
+  </div>
+
+  <!-- ASSIGNMENT -->
+  <h2 class="section-title" id="assignment"><span class="num">15</span> Practice Assignment — INFRA-1007-EXT</h2>
+
+  <ol style="margin-left:20px;line-height:2.2;color:var(--muted)">
+    <li><strong style="color:var(--text)">Event Archiver</strong> — Build a playbook that collects all Warning events every 30 minutes and appends to a persistent JSON file. Implement rotation to keep last 30 days. Query archived events for trend analysis.</li>
+    <li><strong style="color:var(--text)">Health Score Trending</strong> — Read the health log CSV (from send_alerts.yml). Calculate 7-day average score, detect deteriorating trends (3-day downward slope). Alert if trend is declining even if today's score is acceptable.</li>
+    <li><strong style="color:var(--text)">Per-App SLA Report</strong> — Define SLA for critical apps (payment-api: 99.9% uptime). Calculate actual uptime from restart counts and pod age. Generate SLA compliance report showing actual vs target.</li>
+    <li><strong style="color:var(--text)">Prometheus Integration</strong> — Extend health check to query Prometheus for CPU/memory actual usage. Compare actual vs requested. Flag pods where actual is consistently near limit (memory leak risk).</li>
+    <li><strong style="color:var(--text)">RHAAP Scheduled Workflow</strong> — Configure RHAAP Workflow with two Job Templates: (1) Health check at 07:00, (2) Conditional job that runs remediation playbook if score below 60. Add approval gate before remediation in PROD.</li>
+  </ol>
+
+  <!-- FOUNDATION COMPLETE -->
+  <div class="callout success" style="margin-top:40px">
+    <div class="callout-icon">🎓</div>
+    <div class="callout-body">
+      <div class="callout-title">Foundation Stage Complete — Projects 01–07</div>
+      <p>You have completed all 7 Foundation projects. You can now: validate cluster connectivity, provision namespaces, generate inventory reports, manage ConfigMaps and Secrets, expose services with Routes and TLS, orchestrate rolling deployments with rollbacks, and build a full observability health framework. The next stage — <strong>Intermediate (Projects 08–18)</strong> — builds on all of this with parameterised deployments, environment-specific pipelines, advanced rollout patterns, PVCs, RBAC, and ServiceAccounts.</p>
+    </div>
+  </div>
+
+  <div class="footer">
+    <p>Enterprise Ansible Masterclass — OpenShift Automation with RHAAP</p>
+    <p style="margin-top:8px">Project 07 of 35 · Foundation Stage Complete · INFRA-1007</p>
+    <p style="margin-top:8px;color:var(--success)">Say <strong>"Next Project"</strong> to begin the <strong>Intermediate Stage — Project 08: Parameterised Deployments</strong></p>
+  </div>
+
+</main>
+</div>
+
+<script>
+const sections = document.querySelectorAll('[id]');
+const tocItems = document.querySelectorAll('.toc-item');
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      tocItems.forEach(i => i.classList.remove('active'));
+      const a = document.querySelector(`.toc-item[href="#${entry.target.id}"]`);
+      if (a) a.classList.add('active');
+    }
+  });
+}, { threshold: 0.3 });
+sections.forEach(s => observer.observe(s));
+</script>
+</body>
+</html>

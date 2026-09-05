@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Project 26 — AD User Provisioning | PowerShell Masterclass</title>
+<style>
+  :root{
+    --primary:#A78BFA; --secondary:#C4B5FD; --surface:#1A1530; --surface2:#221B3D;
+    --bg:#0F0B1E; --text:#EDE9FE; --muted:#9CA3AF; --border:#332B57;
+    --success:#4ADE80; --warn:#FBBF24; --danger:#F87171;
+    --code-bg:#0A0716; --code-text:#E9E4FF;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0; font-family:"Segoe UI",Calibri,Roboto,Arial,sans-serif; background:var(--bg); color:var(--text); line-height:1.65;}
+  a{color:var(--secondary);}
+  .layout{display:flex; max-width:1400px; margin:0 auto;}
+  nav.sidebar{width:270px; flex-shrink:0; position:sticky; top:0; height:100vh; overflow-y:auto; background:var(--surface); border-right:1px solid var(--border); padding:22px 16px;}
+  nav.sidebar h3{color:var(--secondary); font-size:13px; text-transform:uppercase; letter-spacing:.06em; margin:18px 0 8px;}
+  nav.sidebar a{display:block; padding:7px 10px; border-radius:8px; color:var(--text); text-decoration:none; font-size:14px; margin-bottom:2px;}
+  nav.sidebar a:hover{background:var(--surface2); color:var(--secondary);}
+  #progressWrap{background:var(--surface2); border-radius:10px; padding:10px; margin-bottom:8px;}
+  #progressBar{height:8px; background:var(--border); border-radius:6px; overflow:hidden;}
+  #progressFill{height:100%; width:0%; background:linear-gradient(90deg,var(--primary),var(--secondary)); transition:width .2s;}
+  #progressLabel{font-size:12px; color:var(--muted); margin-top:6px;}
+  main{flex:1; min-width:0; padding:0;}
+  .cover{background:linear-gradient(135deg,#3B2A6B,#5B3FA0); color:#fff; padding:60px 48px; position:relative; overflow:hidden; border-bottom:1px solid var(--border);}
+  .cover::after{content:"";position:absolute;right:-80px;top:-80px;width:300px;height:300px;border-radius:50%;background:rgba(255,255,255,.06);}
+  .badge{display:inline-block; background:rgba(255,255,255,.14); padding:5px 14px; border-radius:20px; font-size:12px; letter-spacing:.05em; margin-right:8px; margin-bottom:14px;}
+  .cover h1{font-size:34px; margin:6px 0 10px; max-width:760px;}
+  .cover p.sub{font-size:16px; opacity:.92; max-width:640px;}
+  .cover-meta{display:flex; gap:28px; margin-top:26px; flex-wrap:wrap;}
+  .cover-meta div{background:rgba(255,255,255,.10); padding:12px 18px; border-radius:10px; min-width:140px;}
+  .cover-meta span{display:block; font-size:12px; opacity:.85;}
+  .cover-meta strong{font-size:16px;}
+  section{padding:34px 48px; border-bottom:1px solid var(--border);}
+  section h2{color:var(--secondary); font-size:24px; border-left:5px solid var(--primary); padding-left:14px; margin-top:0;}
+  section h3{color:var(--primary); font-size:18px; margin-top:26px;}
+  .story{background:var(--surface); border-left:5px solid var(--primary); padding:20px 24px; border-radius:0 10px 10px 0; font-size:15px;}
+  .story b{color:var(--secondary);}
+  .callout{border-radius:10px; padding:16px 18px; margin:16px 0; font-size:14.5px; border:1px solid var(--border);}
+  .callout.tip{background:#132A1E; border-left:5px solid var(--success);}
+  .callout.note{background:var(--surface); border-left:5px solid var(--secondary);}
+  .callout.warn{background:#2E2410; border-left:5px solid var(--warn);}
+  .callout.security{background:#2E1616; border-left:5px solid var(--danger);}
+  .callout .lbl{font-weight:700; display:block; margin-bottom:4px;}
+  table{width:100%; border-collapse:collapse; margin:16px 0; font-size:14px;}
+  th,td{border:1px solid var(--border); padding:9px 12px; text-align:left; vertical-align:top;}
+  th{background:var(--surface2); color:var(--secondary);}
+  tr:nth-child(even){background:var(--surface);}
+  .codewrap{position:relative; margin:16px 0;}
+  pre{background:var(--code-bg); color:var(--code-text); padding:18px 16px; border-radius:10px; overflow-x:auto; font-family:Consolas,"Cascadia Code",Menlo,monospace; font-size:13.5px; line-height:1.7; border:1px solid var(--border);}
+  pre code{white-space:pre;}
+  .copybtn{position:absolute; top:10px; right:10px; background:var(--primary); color:#1A1530; border:none; padding:6px 12px; border-radius:6px; font-size:12px; cursor:pointer; font-weight:600;}
+  .copybtn:hover{background:var(--secondary);}
+  .explain-list{list-style:none; padding:0; margin:14px 0;}
+  .explain-list li{background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:10px 14px; margin-bottom:6px; font-size:14.5px;}
+  .explain-list code{background:var(--surface2); padding:2px 6px; border-radius:5px; color:var(--secondary); font-weight:600;}
+  details{background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:12px 16px; margin:10px 0;}
+  details summary{cursor:pointer; font-weight:600; color:var(--secondary);}
+  .diagram{background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:20px; margin:16px 0; overflow-x:auto;}
+  .flow{display:flex; flex-wrap:wrap; align-items:center; gap:10px; font-size:13.5px;}
+  .flow .box{background:var(--surface2); border:2px solid var(--secondary); border-radius:8px; padding:8px 14px; font-weight:600; color:var(--secondary);}
+  .flow .arrow{color:var(--primary); font-size:18px;}
+  .steps{counter-reset:step;}
+  .steps .step{position:relative; padding-left:44px; margin-bottom:18px;}
+  .steps .step::before{counter-increment:step; content:counter(step); position:absolute; left:0; top:0; background:var(--primary); color:#1A1530; width:30px; height:30px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:700;}
+  .grid2{display:grid; grid-template-columns:1fr 1fr; gap:16px;}
+  .milestone{background:linear-gradient(135deg,var(--surface2),var(--surface)); border:2px dashed var(--secondary); border-radius:12px; padding:22px 24px; margin:18px 0;}
+  @media(max-width:900px){.grid2{grid-template-columns:1fr;} nav.sidebar{display:none;} section{padding:26px 20px;} .cover{padding:36px 22px;}}
+  footer{padding:30px 48px; background:var(--surface); color:var(--muted); font-size:13px;}
+  code{color:var(--secondary);}
+</style>
+</head>
+<body>
+
+<div class="layout">
+  <nav class="sidebar">
+    <div id="progressWrap">
+      <div id="progressLabel">Reading progress</div>
+      <div id="progressBar"><div id="progressFill"></div></div>
+    </div>
+    <h3>Project 26</h3>
+    <a href="#cover">Cover</a>
+    <a href="#milestone">AD Track Begins</a>
+    <a href="#recap1">Recap: Projects 1–25</a>
+    <a href="#story">The Story</a>
+    <a href="#concepts">Concepts First</a>
+    <a href="#lab">Hands-On Lab</a>
+    <a href="#script">Full Script</a>
+    <a href="#linebyline">Line-by-Line</a>
+    <a href="#architecture">Architecture</a>
+    <a href="#incident">Production Incident</a>
+    <a href="#troubleshoot">Troubleshooting</a>
+    <a href="#security">Security Notes</a>
+    <a href="#recap">Key Learnings</a>
+    <a href="#interview">Interview Prep</a>
+    <a href="#challenges">Coding Challenges</a>
+    <a href="#resume">Resume Points</a>
+    <a href="#assignment">Practice Assignment</a>
+    <a href="#next">Next Project</a>
+  </nav>
+
+  <main id="top">
+    <div class="cover" id="cover">
+      <span class="badge">PROJECT 26</span><span class="badge">INTERMEDIATE</span><span class="badge">BFSI TRACK</span>
+      <h1>AD User Provisioning</h1>
+      <p class="sub">CSV-driven, idempotent Active Directory user creation — the same config-driven, safe-remediation discipline built since Project 9, now applied to AD.</p>
+      <div class="cover-meta">
+        <div><span>Difficulty</span><strong>Intermediate</strong></div>
+        <div><span>Estimated Lab Time</span><strong>80–100 min</strong></div>
+        <div><span>Concepts</span><strong>9 core concepts</strong></div>
+        <div><span>Track</span><strong>26 of 40 — Active Directory Track Begins</strong></div>
+      </div>
+    </div>
+
+    <section id="milestone">
+      <h2>🗂️ A New Mini-Track: Active Directory</h2>
+      <div class="milestone">
+        <p>Projects 26-30 cover Active Directory — user provisioning, group audits, inactive account detection,
+        password expiration reporting, and privileged account audits. AD requires a real domain to practice against,
+        so each project in this track clearly separates what you can explore conceptually versus what genuinely
+        needs a lab domain controller (see the Local Practice Lab note below).</p>
+      </div>
+    </section>
+
+    <section id="recap1">
+      <h2>Quick Recap of Projects 1–25</h2>
+      <p>We now have a full toolkit: config-driven automation (Project 9), idempotency and ShouldProcess (Projects
+      10, 13, 21), and structured logging. This project applies all of it to a new target — Active Directory user
+      accounts — provisioning new hires from a CSV, safely and without duplicating anyone who already exists.</p>
+    </section>
+
+    <section id="story">
+      <h2>The Story — Why We're Building This</h2>
+      <div class="story">
+        ABC Bank's HR team sends a spreadsheet of new hires to IT every week. Currently, someone manually creates
+        each Active Directory account by hand — a slow, error-prone process during busy onboarding weeks, and one
+        where a typo'd username or a skipped account has caused real first-day problems for new employees. Our
+        manager wants a script that reads a CSV of new hires and provisions their AD accounts automatically, safely
+        skipping anyone who (intentionally or by CSV error) already has an account.
+      </div>
+    </section>
+
+    <section id="concepts">
+      <h2>Concepts First — Before We Touch Code</h2>
+
+      <div class="callout warn"><span class="lbl">Local Practice Lab vs Enterprise</span>Active Directory cmdlets
+      require the <b>ActiveDirectory PowerShell module</b> (part of RSAT - Remote Server Administration Tools) and a
+      real domain to connect to — there's no meaningful way to practice AD user creation on a standalone laptop.
+      If you want fully hands-on practice: install RSAT's AD tools (<code>Add-WindowsCapability -Online -Name
+      Rsat.ActiveDirectory.DS-LDS.Tools~~~~0.0.1.0</code>), and either use an existing test/lab domain if your
+      organization has one, or build a small lab domain controller in a VM (a common, well-documented setup: a
+      Windows Server evaluation VM with the AD DS role installed, promoted to a new forest). If that's not practical
+      right now, read through this project closely — the exact same script would run unmodified against a real
+      domain once you have access to one.</div>
+
+      <h3>1. The ActiveDirectory Module</h3>
+      <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code>Import-Module ActiveDirectory
+Get-ADUser -Filter *   # Lists every user in the domain</code></pre></div>
+      <p>Like <code>WebAdministration</code> (Project 22), this module must be explicitly imported before its
+      cmdlets and the <code>AD:</code> drive become available.</p>
+
+      <h3>2. Idempotency by SamAccountName</h3>
+      <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code>$Existing = Get-ADUser -Filter "SamAccountName -eq '$Username'" -ErrorAction SilentlyContinue</code></pre></div>
+      <div class="callout note"><span class="lbl">Why SamAccountName specifically</span>A person's display name
+      might not be unique (two "John Smith"s aren't impossible at a large bank), but
+      <code>SamAccountName</code> (the login name, like <code>jsmith</code>) is guaranteed unique across the domain
+      — exactly the same "use the truly unique identifier" lesson from Project 21's Thumbprint-based checks, applied
+      here to people instead of certificates.</div>
+
+      <h3>3. New-ADUser and Its Key Parameters</h3>
+      <table>
+        <tr><th>Parameter</th><th>Purpose</th></tr>
+        <tr><td><code>-Name</code></td><td>The full display name</td></tr>
+        <tr><td><code>-SamAccountName</code></td><td>The unique login name</td></tr>
+        <tr><td><code>-UserPrincipalName</code></td><td>The login name in email format (user@domain.com)</td></tr>
+        <tr><td><code>-Path</code></td><td>Which Organizational Unit (OU) to create the account in</td></tr>
+        <tr><td><code>-AccountPassword</code></td><td>A SecureString initial password</td></tr>
+        <tr><td><code>-Enabled</code></td><td>Whether the account is active immediately</td></tr>
+        <tr><td><code>-ChangePasswordAtLogon</code></td><td>Forces the new hire to set their own password on first login</td></tr>
+      </table>
+
+      <h3>4. Never Hardcode a Real Initial Password</h3>
+      <div class="callout security"><span class="lbl">Building on every prior security note</span>Just like Project
+      21's PFX password, an initial AD account password must never be typed as plain text in a script. We'll
+      generate a random temporary password and immediately force a change at first logon — nobody, including the
+      script's author, should ever know a real user's actual working password.</div>
+
+      <h3>5. Organizational Units (OUs) — Where an Account Lives</h3>
+      <p>AD organizes accounts into a hierarchy of OUs (e.g. <code>OU=Employees,OU=Banking,DC=abcbank,DC=internal</code>)
+      — specifying the correct <code>-Path</code> ensures new accounts land in the right place for whatever Group
+      Policy and permission structures apply to that OU.</p>
+
+      <h3>6. CSV-Driven Bulk Provisioning — Reusing Project 9's Pattern</h3>
+      <p>Same shape as Project 9's server list: read structured rows from a CSV, loop through them, act on each —
+      just with new-hire details instead of server names.</p>
+    </section>
+
+    <section id="lab">
+      <h2>Hands-On Lab — Build It Yourself</h2>
+      <div class="steps">
+        <div class="step"><b>Confirm the ActiveDirectory module is available</b> (requires RSAT and a domain
+        connection — see the callout above):
+          <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code>Get-Module -ListAvailable ActiveDirectory</code></pre></div>
+        </div>
+        <div class="step"><b>Create the project structure:</b>
+          <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code>New-Item -ItemType Directory -Path "C:\PS-Masterclass\Project26\config" -Force
+New-Item -ItemType Directory -Path "C:\PS-Masterclass\Project26\logs" -Force
+Set-Location "C:\PS-Masterclass\Project26"</code></pre></div>
+        </div>
+        <div class="step"><b>Create <code>config\new-hires.csv</code></b> (adjust the OU path to match your test domain):
+          <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code>FirstName,LastName,Username,Department,OuPath
+Jane,Doe,jdoe,Finance,"OU=Employees,DC=abcbank,DC=internal"
+Sam,Lee,slee,IT,"OU=Employees,DC=abcbank,DC=internal"</code></pre></div>
+        </div>
+        <div class="step"><b>Create <code>New-AdUserFromCsv.ps1</code></b> (as a domain-joined admin against your
+        test domain) and paste the full script below.</div>
+        <div class="step"><b>Preview first:</b>
+          <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code>.\New-AdUserFromCsv.ps1</code></pre></div>
+        </div>
+        <div class="step"><b>Provision for real:</b>
+          <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code>.\New-AdUserFromCsv.ps1 -WhatIf:$false</code></pre></div>
+        </div>
+        <div class="step"><b>Validate:</b> confirm both accounts exist via <code>Get-ADUser</code>, re-run the
+        script, and confirm it reports both as already existing instead of erroring or duplicating.</div>
+      </div>
+    </section>
+
+    <section id="script">
+      <h2>Full Script — New-AdUserFromCsv.ps1</h2>
+      <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code># =====================================================================
+# New-AdUserFromCsv.ps1
+# ABC Bank - Windows Infrastructure Automation Team
+# Purpose: Idempotently provision AD user accounts from a CSV of new hires
+# =====================================================================
+
+[CmdletBinding(SupportsShouldProcess)]
+param(
+    [switch]$WhatIf = $true
+)
+
+Import-Module ActiveDirectory -ErrorAction Stop
+$NewHires = Import-Csv -Path ".\config\new-hires.csv"
+
+$LogPath = ".\logs\Provisioning.log"
+function Write-Log {
+    param([string]$Message, [string]$Status = "INFO")
+    $Line = "{0} | {1} | {2}" -f (Get-Date -Format "yyyy-MM-dd HH:mm:ss"), $Status, $Message
+    Add-Content -Path $LogPath -Value $Line
+}
+
+Write-Host "`n=== AD USER PROVISIONING ===" -ForegroundColor Magenta
+$Results = @()
+
+foreach ($Hire in $NewHires) {                                    # $Hire is one row from new-hires.csv
+
+    Write-Host "`nProcessing $($Hire.FirstName) $($Hire.LastName) ($($Hire.Username))..." -ForegroundColor Cyan
+
+    # ---------------------------------------------------------------
+    # STEP 1: Idempotency check by SamAccountName - the unique identifier
+    # ---------------------------------------------------------------
+    $Existing = Get-ADUser -Filter "SamAccountName -eq '$($Hire.Username)'" -ErrorAction SilentlyContinue
+
+    if ($Existing) {
+        Write-Host "  Account already exists - skipping." -ForegroundColor Yellow
+        Write-Log -Status "INFO" -Message "$($Hire.Username) already exists - no action taken"
+        $Results += [PSCustomObject]@{ Username = $Hire.Username; Action = "SKIPPED (already exists)" }
+        continue                                                     # Moves to the next hire without attempting creation
+    }
+
+    # ---------------------------------------------------------------
+    # STEP 2: Generate a random temporary password - never hardcoded
+    # ---------------------------------------------------------------
+    $TempPasswordPlain = -join ((65..90) + (97..122) + (48..57) | Get-Random -Count 16 | ForEach-Object { [char]$_ })
+    $SecurePassword = ConvertTo-SecureString -String $TempPasswordPlain -AsPlainText -Force   # Immediately converted, never logged or displayed
+
+    # ---------------------------------------------------------------
+    # STEP 3: Create the account, respecting -WhatIf
+    # ---------------------------------------------------------------
+    if ($PSCmdlet.ShouldProcess($Hire.Username, "Create AD User Account")) {
+
+        try {
+            New-ADUser `
+                -Name "$($Hire.FirstName) $($Hire.LastName)" `
+                -GivenName $Hire.FirstName `
+                -Surname $Hire.LastName `
+                -SamAccountName $Hire.Username `
+                -UserPrincipalName "$($Hire.Username)@abcbank.internal" `
+                -Path $Hire.OuPath `
+                -AccountPassword $SecurePassword `
+                -Enabled $true `
+                -ChangePasswordAtLogon $true `                        # Forces the new hire to set their own real password
+                -Department $Hire.Department `
+                -ErrorAction Stop
+
+            Write-Log -Status "SUCCESS" -Message "Created account for $($Hire.Username) in $($Hire.OuPath)"
+            Write-Host "  Account created." -ForegroundColor Green
+            $Results += [PSCustomObject]@{ Username = $Hire.Username; Action = "CREATED" }
+        }
+        catch {
+            Write-Log -Status "ERROR" -Message "Failed to create $($Hire.Username): $($_.Exception.Message)"
+            Write-Host "  FAILED: $($_.Exception.Message)" -ForegroundColor Red
+            $Results += [PSCustomObject]@{ Username = $Hire.Username; Action = "FAILED" }
+        }
+    }
+    else {
+        Write-Host "  PREVIEW: Would create account for $($Hire.Username)" -ForegroundColor Yellow
+        $Results += [PSCustomObject]@{ Username = $Hire.Username; Action = "PREVIEWED (WhatIf)" }
+    }
+}
+
+# ---------------------------------------------------------------
+# Export and summarize
+# ---------------------------------------------------------------
+if (-not (Test-Path ".\reports")) { New-Item -ItemType Directory -Path ".\reports" | Out-Null }
+$Timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
+$Results | Export-Csv -Path ".\reports\Provisioning_$Timestamp.csv" -NoTypeInformation
+
+Write-Host "`nAudit log: $LogPath" -ForegroundColor Cyan
+Write-Host "REMINDER: Temporary passwords were never logged or displayed - each new hire must change their password at first logon." -ForegroundColor Yellow
+</code></pre></div>
+      </div>
+    </section>
+
+    <section id="linebyline">
+      <h2>Line-by-Line Explanation</h2>
+
+      <h3><code>$Existing = Get-ADUser -Filter "SamAccountName -eq '$($Hire.Username)'" -ErrorAction SilentlyContinue</code></h3>
+      <ul class="explain-list">
+        <li>Unlike <code>Get-ADUser -Identity</code> (which throws if the account doesn't exist),
+        <code>-Filter</code> simply returns nothing if no match is found — combined with
+        <code>-ErrorAction SilentlyContinue</code>, this gives us a clean <code>$null</code>/not-<code>$null</code>
+        check without needing try/catch for what's an entirely normal, expected first-run scenario.</li>
+      </ul>
+
+      <h3><code>$TempPasswordPlain = -join ((65..90) + (97..122) + (48..57) | Get-Random -Count 16 | ForEach-Object { [char]$_ })</code></h3>
+      <ul class="explain-list">
+        <li><code>(65..90) + (97..122) + (48..57)</code> — three ranges of ASCII character codes (uppercase letters,
+        lowercase letters, digits), combined into one array using <code>+</code> on arrays (which concatenates them,
+        rather than adding numbers, since both sides are arrays here).</li>
+        <li><code>Get-Random -Count 16</code> — picks 16 random values from that combined pool, without repeats
+        being guaranteed excluded but with genuine randomness per character.</li>
+        <li><code>[char]$_</code> — converts each numeric ASCII code back into its actual character.</li>
+        <li><code>-join</code> — the join operator, here used with no explicit separator (defaulting to none),
+        combining the array of individual characters into one continuous password string.</li>
+      </ul>
+
+      <h3><code>$SecurePassword = ConvertTo-SecureString -String $TempPasswordPlain -AsPlainText -Force</code></h3>
+      <ul class="explain-list">
+        <li>The plaintext password exists in memory only briefly, purely to be immediately converted — it's never
+        written to the log, never displayed with <code>Write-Host</code>, and the variable holding it isn't included
+        in anything exported to CSV. Compare this to the explicit warning in the original course requirements: this
+        line alone doesn't "make it safe" — the discipline of never displaying or persisting
+        <code>$TempPasswordPlain</code> anywhere else in the script is what actually matters.</li>
+      </ul>
+
+      <h3><code>-ChangePasswordAtLogon $true</code></h3>
+      <ul class="explain-list">
+        <li>This is the real safety mechanism for the temporary password: since the new hire is forced to set their
+        own password immediately, the random one we generated only ever needs to work for a single first login —
+        nobody needs to know or communicate it securely afterward.</li>
+      </ul>
+
+      <h3><code>continue</code> after logging a SKIPPED result</h3>
+      <ul class="explain-list">
+        <li>Reused from Project 15's Challenge 2 — immediately moves to the next CSV row once we know this one needs
+        no action, keeping the rest of the loop's creation logic from running unnecessarily.</li>
+      </ul>
+    </section>
+
+    <section id="architecture">
+      <h2>Architecture &amp; Provisioning Flow</h2>
+      <div class="diagram">
+        <div class="flow">
+          <div class="box">new-hires.csv</div><div class="arrow">→</div>
+          <div class="box">foreach Hire</div><div class="arrow">→</div>
+          <div class="box">Get-ADUser (exists?)</div>
+        </div>
+        <div class="flow" style="margin-top:12px;">
+          <div class="box">Exists → Skip + Log</div>
+        </div>
+        <div class="flow" style="margin-top:12px;">
+          <div class="box">Doesn't Exist</div><div class="arrow">→</div>
+          <div class="box">Generate Random Password</div><div class="arrow">→</div>
+          <div class="box">ShouldProcess</div><div class="arrow">→</div>
+          <div class="box">New-ADUser</div><div class="arrow">→</div>
+          <div class="box">Log + Report</div>
+        </div>
+      </div>
+      <p>This is fundamentally the same "loop through config, check idempotency, act if needed, log everything"
+      shape from Projects 9 and 14 — the domain (people instead of servers or firewall rules) is new, but the
+      structural pattern is now thoroughly familiar.</p>
+    </section>
+
+    <section id="incident">
+      <h2>Production Incident Walkthrough</h2>
+      <div class="story">
+        HR accidentally sends the same new-hires CSV twice in one week due to a scheduling mix-up. Because the
+        script checks SamAccountName before creating anything, the second run correctly identifies every account
+        from the first run as already existing and skips them cleanly — no duplicate accounts, no errors, no manual
+        cleanup needed, and the audit log clearly shows both runs and exactly what each one did.
+      </div>
+      <ul class="explain-list">
+        <li><b>Why does idempotency matter especially for user provisioning, more than say a one-off certificate task?</b>
+        Provisioning scripts often run on a recurring schedule against a data source (HR's export) that isn't fully
+        under IT's control — the same person's data might appear in more than one export by mistake, and the script
+        needs to handle that gracefully rather than assuming every run starts from a clean slate.</li>
+      </ul>
+    </section>
+
+    <section id="troubleshoot">
+      <h2>Troubleshooting Cheat Sheet</h2>
+      <table>
+        <tr><th>Symptom</th><th>Likely Root Cause</th><th>Fix</th></tr>
+        <tr><td>"The term 'New-ADUser' is not recognized"</td><td>ActiveDirectory module not installed or not imported</td><td>Confirm RSAT AD tools are installed and Import-Module ActiveDirectory succeeds standalone</td></tr>
+        <tr><td>New-ADUser fails with "path specified is not valid"</td><td>OuPath in the CSV doesn't match a real OU's distinguished name in your test domain</td><td>Confirm the exact OU path with Get-ADOrganizationalUnit -Filter * | Select DistinguishedName</td></tr>
+        <tr><td>"Access is denied" creating the account</td><td>The account running the script lacks permission to create users in that OU</td><td>Confirm you're running as a domain account with appropriate delegated rights</td></tr>
+        <tr><td>Account created but UserPrincipalName looks wrong</td><td>Domain suffix hardcoded as "abcbank.internal" doesn't match your actual test domain name</td><td>Update the UPN suffix in the script to match your lab domain</td></tr>
+      </table>
+    </section>
+
+    <section id="security">
+      <h2>Security &amp; Best Practices</h2>
+      <div class="callout security"><span class="lbl">The core lesson of this project</span>A temporary password
+      that's randomly generated, immediately converted to SecureString, never displayed or logged, and paired with
+      a mandatory first-logon change is the correct pattern for any script that needs to set an initial credential —
+      contrast this with the explicitly banned <code>$Password = "MyPassword123"</code> pattern warned against since
+      the very beginning of this course.</div>
+      <div class="callout tip"><span class="lbl">Best practice reinforced here</span>Checking SamAccountName
+      (the guaranteed-unique identifier) rather than a person's name for idempotency avoids an entire class of
+      mistakes, the same principle as Project 21's Thumbprint-based certificate checks.</div>
+    </section>
+
+    <section id="recap">
+      <h2>Key Learnings &amp; Recap</h2>
+      <div class="grid2">
+        <div>
+          <h3>Commands/Syntax Learned</h3>
+          <ul class="explain-list">
+            <li><code>Import-Module ActiveDirectory</code></li>
+            <li><code>Get-ADUser -Filter</code> / <code>New-ADUser</code></li>
+            <li>Random password generation with <code>Get-Random</code> and character code ranges</li>
+            <li><code>-join</code> operator</li>
+          </ul>
+        </div>
+        <div>
+          <h3>Concepts Learned</h3>
+          <ul class="explain-list">
+            <li>SamAccountName as the unique identifier for idempotency</li>
+            <li>Never hardcoding a real initial password; generate, convert, force a change</li>
+            <li>Organizational Units and why -Path matters</li>
+            <li>The local-practice-vs-enterprise-lab distinction, first flagged back in Project 8</li>
+          </ul>
+        </div>
+      </div>
+      <h3>Common Mistakes to Avoid</h3>
+      <ul class="explain-list">
+        <li>Checking for an existing account by display name instead of SamAccountName.</li>
+        <li>Hardcoding, logging, or displaying a real temporary password anywhere.</li>
+        <li>Forgetting -ChangePasswordAtLogon, leaving a script-generated password as someone's permanent one.</li>
+      </ul>
+    </section>
+
+    <section id="interview">
+      <h2>Interview Preparation</h2>
+      <details><summary>Q1. Why check for an existing account using SamAccountName rather than the person's full name?</summary>
+        <p><b>Answer:</b> Full names aren't guaranteed unique across an organization, while SamAccountName is
+        enforced unique by Active Directory itself — checking against the truly unique identifier avoids both false
+        positives (two different "John Smith"s treated as the same person) and false negatives (missing a genuine
+        duplicate because of a formatting difference in how the name was typed).</p>
+        <p><b>Follow-up:</b> "What would you do if two new hires in the same CSV batch would generate the same
+        SamAccountName?" — Answer: the script should detect that collision before attempting creation and flag it for
+        manual resolution (e.g. a numbered suffix), rather than letting AD's own uniqueness constraint cause an
+        unhandled error mid-batch.</p>
+      </details>
+      <details><summary>Q2. Why generate a random temporary password instead of using a company-standard default password for new accounts?</summary>
+        <p><b>Answer:</b> A shared or predictable default password is a well-known security weakness — anyone who
+        knows the pattern could access any newly-provisioned account before the real user logs in for the first
+        time. A unique random password combined with a mandatory change at first logon eliminates that window of
+        vulnerability.</p>
+        <p><b>Follow-up:</b> "How would the new hire actually receive this temporary password if it's never displayed or logged?"
+        — Answer: in a real implementation, it would typically be communicated through a separate secure channel
+        (e.g. directly to the hiring manager or IT helpdesk via an established secure process) — this script
+        intentionally does not solve that distribution problem, since doing so safely is a distinct concern from
+        account creation itself.</p>
+      </details>
+      <details><summary>Q3. This script's structure is very similar to Project 14's firewall rule provisioning. Why?</summary>
+        <p><b>Answer:</b> Both are "read desired state from config, check if it already exists, create only what's
+        missing" workflows — the same underlying pattern applies regardless of whether the resource being managed is
+        a firewall rule or an AD user account. Recognizing this recurring shape is what lets you approach a new kind
+        of provisioning task quickly, rather than starting from scratch each time.</p>
+        <p><b>Follow-up:</b> "What's genuinely different about provisioning people versus provisioning infrastructure?"
+        — Answer: the security stakes around credentials (this project's password handling) and the downstream human
+        impact of getting it wrong (a new hire unable to work on day one) — the core automation pattern is similar,
+        but the safety considerations around identity data are meaningfully higher.</p>
+      </details>
+    </section>
+
+    <section id="challenges">
+      <h2>Coding Challenges</h2>
+      <details><summary>Challenge 1: Add the new hire to a department-specific AD group automatically after account creation</summary>
+        <details><summary>Show answer</summary>
+        <pre><code>if ($Hire.Department -eq "Finance") {
+    Add-ADGroupMember -Identity "Finance-Team" -Members $Hire.Username
+}</code></pre>
+        </details>
+      </details>
+      <details><summary>Challenge 2: Validate the CSV has no duplicate Usernames within itself before processing anything</summary>
+        <details><summary>Show answer</summary>
+        <pre><code>$Duplicates = $NewHires | Group-Object Username | Where-Object { $_.Count -gt 1 }
+if ($Duplicates) {
+    Write-Host "ERROR: Duplicate usernames found in CSV: $($Duplicates.Name -join ', ')" -ForegroundColor Red
+    return   # Stops before processing anything, given the input itself is invalid
+}</code></pre>
+        </details>
+      </details>
+      <details><summary>Challenge 3: Set an account expiration date 90 days out for contractor-type new hires</summary>
+        <details><summary>Show answer</summary>
+        <pre><code># Add -AccountExpirationDate to the New-ADUser call, conditionally:
+$ExpirationParam = if ($Hire.Department -eq "Contractor") { @{ AccountExpirationDate = (Get-Date).AddDays(90) } } else { @{} }
+New-ADUser @ExpirationParam -Name ... # combined with the rest of the existing parameters via splatting</code></pre>
+        </details>
+      </details>
+    </section>
+
+    <section id="resume">
+      <h2>Resume Points</h2>
+      <ul class="explain-list">
+        <li>Built a CSV-driven, idempotent PowerShell Active Directory user provisioning script for automated new-hire onboarding.</li>
+        <li>Implemented secure temporary credential generation with mandatory first-logon password changes, avoiding any plaintext credential exposure.</li>
+        <li>Applied SamAccountName-based idempotency checks to safely handle duplicate or repeated provisioning requests.</li>
+      </ul>
+    </section>
+
+    <section id="assignment">
+      <h2>Practice Assignment</h2>
+      <div class="callout note">
+        (If you have lab domain access) Add a third row to <code>new-hires.csv</code> with a Username matching one
+        of the first two entries, run the script, and confirm it correctly skips the duplicate while still
+        processing the genuinely new row - proving the idempotency check works correctly within a single CSV, not
+        just across separate runs.
+      </div>
+    </section>
+
+    <section id="next">
+      <h2>Next Project Prerequisites</h2>
+      <p>Project 27 (AD Group Membership Audit) shifts from creating accounts to auditing who belongs to which
+      groups — especially privileged ones — reusing the detection-only philosophy from Project 15's NTFS audit. When
+      ready, say <b>"Next Project."</b></p>
+    </section>
+
+    <footer>
+      PowerShell Masterclass — ABC Bank Automation Track · Project 26 of 40 · Generated for offline, self-contained use.
+    </footer>
+  </main>
+</div>
+
+<script>
+function copyCode(btn){
+  const code = btn.parentElement.querySelector('pre').innerText;
+  navigator.clipboard.writeText(code).then(()=>{
+    const old = btn.innerText; btn.innerText = "Copied!";
+    setTimeout(()=>btn.innerText = old, 1200);
+  });
+}
+window.addEventListener('scroll', ()=>{
+  const h = document.documentElement;
+  const pct = (h.scrollTop) / (h.scrollHeight - h.clientHeight) * 100;
+  document.getElementById('progressFill').style.width = pct + '%';
+  document.getElementById('progressLabel').innerText = 'Reading progress: ' + Math.round(pct) + '%';
+});
+</script>
+</body>
+</html>

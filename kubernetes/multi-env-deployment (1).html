@@ -1,0 +1,908 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Use Case 2: Multi-Environment Application Deployment | ShopNow Retail</title>
+<style>
+  :root{
+    --bg:#0b0f14; --panel:#111823; --panel2:#0e1420; --border:#1f2b3a;
+    --text:#dbe6f0; --muted:#8aa0b4; --accent:#3fb6a8; --accent2:#e8a33d;
+    --dev:#5aa9e6; --qa:#e8a33d; --uat:#c76bd6; --prod:#e35d5d;
+    --code-bg:#0a0e14; --good:#5ec98f; --bad:#e35d5d;
+  }
+  *{box-sizing:border-box}
+  body{background:var(--bg);color:var(--text);font-family:'Segoe UI',Roboto,Helvetica,Arial,sans-serif;line-height:1.65;margin:0;padding:0}
+  .wrap{max-width:980px;margin:0 auto;padding:32px 24px 120px}
+  h1{font-size:2rem;color:#fff;border-bottom:3px solid var(--accent);padding-bottom:12px;margin-top:0}
+  h2{color:var(--accent);font-size:1.5rem;margin-top:56px;border-left:5px solid var(--accent);padding-left:14px}
+  h3{color:var(--accent2);font-size:1.2rem;margin-top:32px}
+  h4{color:#fff;font-size:1.02rem;margin-top:22px;background:var(--panel2);padding:6px 10px;border-radius:4px;border-left:3px solid var(--muted)}
+  p{color:#c6d3df}
+  .story{background:linear-gradient(135deg,#132030,#0e1622);border:1px solid var(--border);border-radius:10px;padding:18px 22px;margin:18px 0;font-style:italic;color:#b9c9d8}
+  .story b{color:var(--accent2);font-style:normal}
+  .callout{background:#152a24;border:1px solid #235c4c;border-radius:8px;padding:14px 18px;margin:16px 0}
+  .callout.warn{background:#2a1f14;border-color:#6b4a1d}
+  .callout.why{background:#101b2c;border-color:#254268}
+  .badge{display:inline-block;font-size:.72rem;font-weight:700;padding:3px 10px;border-radius:20px;margin-right:6px;color:#0b0f14}
+  .dev{background:var(--dev)} .qa{background:var(--qa)} .uat{background:var(--uat)} .prod{background:var(--prod)}
+  pre{background:var(--code-bg);border:1px solid var(--border);border-radius:8px;padding:16px;overflow-x:auto;font-size:.85rem}
+  code{font-family:'Fira Code',Consolas,monospace;color:#c9d9e3}
+  .cmt{color:#5c7a8a}
+  .k{color:#e8a33d} .s{color:#7fd1a7} .v{color:#5aa9e6}
+  table{width:100%;border-collapse:collapse;margin:16px 0}
+  th,td{border:1px solid var(--border);padding:8px 12px;text-align:left;font-size:.9rem}
+  th{background:var(--panel2);color:var(--accent2)}
+  .toc{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:20px 26px}
+  .toc a{color:var(--accent);text-decoration:none}
+  .toc li{margin:6px 0}
+  .filepath{color:var(--accent2);font-family:monospace;font-size:.85rem}
+  .divider{border:none;border-top:1px solid var(--border);margin:40px 0}
+  .flow{display:flex;flex-wrap:wrap;gap:10px;margin:16px 0}
+  .flow div{background:var(--panel2);border:1px solid var(--border);border-radius:6px;padding:8px 14px;font-size:.85rem}
+  .env-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin:16px 0}
+  .env-card{border-radius:8px;padding:14px;border:1px solid var(--border)}
+  .env-card.dev-c{background:#0f2233}
+  .env-card.qa-c{background:#2b2110}
+  .env-card.uat-c{background:#28152e}
+  .env-card.prod-c{background:#2b1414}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>Use Case 2: Multi-Environment Application Deployment on Amazon EKS</h1>
+<p><b>Company:</b> ShopNow Retail Pvt Ltd (fictional mid-size e-commerce company) &nbsp;|&nbsp; <b>Your role:</b> DevOps/Cloud Engineer &nbsp;|&nbsp; <b>Level:</b> 4+ years, resume-ready production project</p>
+
+<div class="toc">
+<b>What this document covers, start to finish:</b>
+<ol>
+<li><a href="#scenario">The Business Scenario</a></li>
+<li><a href="#apparch">Application Architecture</a></li>
+<li><a href="#awsarch">AWS Architecture</a></li>
+<li><a href="#eks">EKS Cluster Design</a></li>
+<li><a href="#vpc">VPC and Networking</a></li>
+<li><a href="#iam">IAM Roles and IRSA</a></li>
+<li><a href="#namespaces">Namespaces per Environment</a></li>
+<li><a href="#manifests">Kubernetes Manifests (Deployment + Service)</a></li>
+<li><a href="#config">ConfigMaps and Secrets per Environment</a></li>
+<li><a href="#ingress">Ingress with AWS Load Balancer Controller</a></li>
+<li><a href="#hpa">HPA and Autoscaling</a></li>
+<li><a href="#pdb">PodDisruptionBudget</a></li>
+<li><a href="#netpol">NetworkPolicies</a></li>
+<li><a href="#ecr">ECR Integration</a></li>
+<li><a href="#pipeline">Jenkins and GitHub Actions Pipelines</a></li>
+<li><a href="#argocd">Argo CD GitOps</a></li>
+<li><a href="#monitoring">Prometheus and Grafana</a></li>
+<li><a href="#cloudwatch">CloudWatch Logging</a></li>
+<li><a href="#failure">Failure Testing</a></li>
+<li><a href="#rollback">Rollback Strategy</a></li>
+<li><a href="#troubleshoot">Troubleshooting Scenarios</a></li>
+<li><a href="#ansible">Ansible Automation</a></li>
+<li><a href="#report">HTML Deployment/Job Report</a></li>
+<li><a href="#email">Email Notification</a></li>
+<li><a href="#resume">How to Present This on Your Resume</a></li>
+</ol>
+</div>
+
+<h2 id="scenario">1. The Business Scenario — Why This Project Exists</h2>
+<div class="story">
+ShopNow Retail runs an online store. Every festival season — Diwali, Republic Day sale, End of Season Sale — the engineering team ships fifteen to twenty code changes a week. In the old world, all of this went through <b>one shared server</b>. A developer's half-finished feature would sit next to the code going live for customers. Twice last quarter, an untested change reached production and the checkout page went down for eleven minutes during a flash sale. The VP of Engineering lost trust in the release process, and your manager, Ramesh, was asked one direct question in the leadership review: <b>"Why don't we have separate environments like every other serious company?"</b>
+</div>
+<p>Ramesh gives you the task in a one-line message: <i>"Puneeth, set up proper Dev, QA, UAT and Prod environments on our EKS cluster. Same application, same pipeline, but each environment must be isolated — its own namespace, its own config, its own secrets, its own approval gate before Prod."</i></p>
+<p>This is not a toy exercise. This is the exact problem every mid-size and large company solves with Kubernetes namespaces, GitOps, and pipeline promotion gates. Understanding this end-to-end is what separates a 2-year engineer who can write a YAML file from a 4+ year engineer who can <b>design a release process</b>.</p>
+
+<div class="callout why">
+<b>Why namespaces and not four separate clusters?</b> Four clusters means four control planes to patch, four sets of IAM roles, four times the operational cost. One cluster with four namespaces gives you logical isolation (network policies, resource quotas, RBAC) at a fraction of the cost and operational burden — this is exactly why almost every real company does it this way, and exactly why interviewers ask "namespace vs cluster isolation, when would you choose which."
+</div>
+
+<h2 id="apparch">2. Application Architecture</h2>
+<p>The application ShopNow runs is a simple three-tier web app, deliberately kept realistic rather than complicated, because in interviews you must be able to explain every box you draw:</p>
+<div class="flow">
+<div>Customer Browser</div><div>&rarr;</div>
+<div>ALB (Ingress)</div><div>&rarr;</div>
+<div>Frontend Pods (React, served via Nginx)</div><div>&rarr;</div>
+<div>Backend API Pods (Node.js / Spring Boot style REST API)</div><div>&rarr;</div>
+<div>RDS PostgreSQL (managed, outside the cluster)</div>
+</div>
+<p>Only the <b>frontend</b> and <b>backend</b> run as Kubernetes Deployments inside EKS. The database is deliberately kept as a managed AWS RDS instance per environment — this mirrors real companies, where stateful databases are almost never run inside Kubernetes for production workloads because of the operational complexity of managing persistent storage, backups, and failover by hand.</p>
+
+<h2 id="awsarch">3. AWS Architecture — The Full Picture</h2>
+<pre><code><span class="cmt">                         Route53 (shopnow.com, dev.shopnow.com, qa.shopnow.com...)
+                                        |
+                              AWS Certificate Manager (TLS)
+                                        |
+                        +---------------------------------+
+                        |   Application Load Balancer      |  &lt;- created by AWS LB Controller
+                        +---------------------------------+
+                                        |
+                        +---------------------------------+
+                        |     Amazon EKS Cluster (1)       |
+                        |  ---------------------------     |
+                        |  namespace: dev                  |
+                        |  namespace: qa                   |
+                        |  namespace: uat                  |
+                        |  namespace: prod                 |
+                        +---------------------------------+
+                            |        |        |        |
+                          RDS-dev  RDS-qa  RDS-uat  RDS-prod
+                            |        |        |        |
+                          ECR (shared, tagged by env)
+</span></code></pre>
+<table>
+<tr><th>AWS Service</th><th>Role in this project</th></tr>
+<tr><td>EKS</td><td>Runs all four environments as isolated namespaces on one managed Kubernetes control plane</td></tr>
+<tr><td>VPC</td><td>Private networking backbone; public subnets for the ALB, private subnets for worker nodes and RDS</td></tr>
+<tr><td>ECR</td><td>Stores Docker images, tagged per environment and per commit SHA</td></tr>
+<tr><td>ALB (via LB Controller)</td><td>Routes external traffic to the correct Kubernetes Service based on host header, e.g. qa.shopnow.com</td></tr>
+<tr><td>RDS PostgreSQL</td><td>One instance per environment (small for dev/qa, Multi-AZ for prod)</td></tr>
+<tr><td>Secrets Manager</td><td>Stores DB passwords and API keys per environment, synced into Kubernetes Secrets</td></tr>
+<tr><td>CloudWatch</td><td>Central log aggregation and alarms across all namespaces</td></tr>
+<tr><td>IAM / IRSA</td><td>Fine-grained AWS permissions per pod, no long-lived credentials in containers</td></tr>
+</table>
+
+<h2 id="eks">4. EKS Cluster Design</h2>
+<p>You size and design one EKS cluster shared by all four environments, using <b>separate managed node groups</b> so that a runaway load test in QA can never starve Production of compute capacity.</p>
+<pre><code><span class="k">apiVersion</span>: eksctl.io/v1alpha5
+<span class="k">kind</span>: ClusterConfig
+
+<span class="k">metadata</span>:
+  <span class="k">name</span>: shopnow-cluster
+  <span class="k">region</span>: ap-south-1
+  <span class="k">version</span>: <span class="s">"1.29"</span>
+
+<span class="k">vpc</span>:
+  <span class="k">cidr</span>: <span class="s">"10.20.0.0/16"</span>
+  <span class="k">nat</span>:
+    <span class="k">gateway</span>: Single   <span class="cmt"># one NAT gateway to control cost in non-prod</span>
+
+<span class="k">managedNodeGroups</span>:
+  <span class="k">- name</span>: ng-shared-nonprod
+    <span class="k">instanceType</span>: t3.medium
+    <span class="k">desiredCapacity</span>: 2
+    <span class="k">minSize</span>: 2
+    <span class="k">maxSize</span>: 5
+    <span class="k">labels</span>: { workload-tier: non-prod }
+    <span class="k">tags</span>: { Environment: shared-nonprod }
+    <span class="k">taints</span>:
+      <span class="k">- key</span>: <span class="s">"tier"</span>
+        <span class="k">value</span>: <span class="s">"non-prod"</span>
+        <span class="k">effect</span>: <span class="s">"NoSchedule"</span>
+
+  <span class="k">- name</span>: ng-prod
+    <span class="k">instanceType</span>: m5.large
+    <span class="k">desiredCapacity</span>: 3
+    <span class="k">minSize</span>: 3
+    <span class="k">maxSize</span>: 8
+    <span class="k">labels</span>: { workload-tier: prod }
+    <span class="k">tags</span>: { Environment: prod }
+    <span class="k">taints</span>:
+      <span class="k">- key</span>: <span class="s">"tier"</span>
+        <span class="k">value</span>: <span class="s">"prod"</span>
+        <span class="k">effect</span>: <span class="s">"NoSchedule"</span>
+</code></pre>
+<div class="callout why"><b>Why taints and node groups?</b> A taint on the prod node group, matched with a toleration only on prod Deployments, guarantees that a QA pod can physically never be scheduled onto a production node — even by human mistake. This is the real-world answer to "how do you enforce environment isolation at the compute layer," a question you will very likely get asked.</div>
+
+<h2 id="vpc">5. VPC and Networking</h2>
+<div class="env-grid">
+<div class="env-card dev-c"><b>Public Subnets (3 AZs)</b><br>Hold the ALB only. Internet-facing.</div>
+<div class="env-card qa-c"><b>Private App Subnets (3 AZs)</b><br>Hold EKS worker nodes for all four namespaces.</div>
+<div class="env-card uat-c"><b>Private DB Subnets (3 AZs)</b><br>Hold RDS instances, reachable only from the app subnets.</div>
+<div class="env-card prod-c"><b>NAT Gateway</b><br>Lets private subnets reach the internet (pull images, hit external APIs) without being reachable from it.</div>
+</div>
+<p>Every namespace's pods live on the same private subnets — isolation between Dev/QA/UAT/Prod at the network layer is enforced with Kubernetes <b>NetworkPolicies</b> and <b>Security Groups</b>, not by giving each environment its own VPC (that would be over-engineering for one application and would multiply your NAT Gateway and peering costs for no real benefit).</p>
+
+<h2 id="iam">6. IAM Roles and IRSA</h2>
+<p>IRSA stands for <b>IAM Roles for Service Accounts</b>. It solves one very old and very dangerous problem: how does a pod running inside Kubernetes get permission to call AWS APIs (like reading a secret from Secrets Manager) without you hard-coding an AWS access key into the container image?</p>
+<div class="story">Before IRSA, the old way was to give every EC2 worker node one big IAM role, and every pod on that node inherited the same wide permissions — a QA pod could theoretically read a production S3 bucket if the node role allowed it. IRSA fixes this by binding a narrow IAM role to one Kubernetes ServiceAccount, so a pod only gets exactly the AWS permissions its own workload needs.</div>
+<pre><code><span class="cmt"># 1. Create an IAM policy scoped to only what the backend pod needs</span>
+aws iam create-policy \
+  --policy-name shopnow-backend-secrets-read \
+  --policy-document file://backend-secrets-policy.json
+
+<span class="cmt"># 2. Create the IAM role trusted by the EKS OIDC provider, one per environment</span>
+eksctl create iamserviceaccount \
+  --cluster shopnow-cluster \
+  --namespace prod \
+  --name shopnow-backend-sa \
+  --attach-policy-arn arn:aws:iam::111122223333:policy/shopnow-backend-secrets-read \
+  --approve
+</code></pre>
+<pre><code><span class="cmt"># backend-secrets-policy.json — scoped to prod secrets only</span>
+{
+  <span class="k">"Version"</span>: <span class="s">"2012-10-17"</span>,
+  <span class="k">"Statement"</span>: [
+    {
+      <span class="k">"Effect"</span>: <span class="s">"Allow"</span>,
+      <span class="k">"Action"</span>: [<span class="s">"secretsmanager:GetSecretValue"</span>],
+      <span class="k">"Resource"</span>: <span class="s">"arn:aws:secretsmanager:ap-south-1:111122223333:secret:shopnow/prod/*"</span>
+    }
+  ]
+}
+</code></pre>
+<p>Notice the resource ARN ends in <code>shopnow/prod/*</code>. The exact same policy, created for the QA namespace, would end in <code>shopnow/qa/*</code>. This one line is the actual technical enforcement of "QA cannot touch Prod secrets" — not a convention, not a promise, but an IAM boundary the AWS API itself refuses to cross.</p>
+
+<h2 id="namespaces">7. Namespaces per Environment</h2>
+<pre><code>kubectl create namespace dev
+kubectl create namespace qa
+kubectl create namespace uat
+kubectl create namespace prod
+
+<span class="cmt"># Label each for policy targeting and cost reporting</span>
+kubectl label namespace dev  environment=dev  team=shopnow
+kubectl label namespace qa   environment=qa   team=shopnow
+kubectl label namespace uat  environment=uat  team=shopnow
+kubectl label namespace prod environment=prod team=shopnow criticality=high
+
+<span class="cmt"># Resource Quota — stop non-prod environments from eating the shared node group</span>
+</code></pre>
+<pre><code><span class="k">apiVersion</span>: v1
+<span class="k">kind</span>: ResourceQuota
+<span class="k">metadata</span>:
+  <span class="k">name</span>: dev-quota
+  <span class="k">namespace</span>: dev
+<span class="k">spec</span>:
+  <span class="k">hard</span>:
+    <span class="k">requests.cpu</span>: <span class="s">"2"</span>
+    <span class="k">requests.memory</span>: 4Gi
+    <span class="k">limits.cpu</span>: <span class="s">"4"</span>
+    <span class="k">limits.memory</span>: 8Gi
+    <span class="k">pods</span>: <span class="s">"20"</span>
+</code></pre>
+<p>The same ResourceQuota, applied to <code>qa</code> and <code>uat</code>, and a much larger one for <code>prod</code>, guarantees that a developer accidentally scaling a Dev Deployment to 500 replicas cannot take down the shared cluster.</p>
+
+<h2 id="manifests">8. Kubernetes Manifests — Deployment and Service</h2>
+<p>Here is the full backend Deployment for the <b>dev</b> namespace. The QA, UAT, and Prod manifests are identical in shape — only the namespace, replica count, resource limits, image tag, and environment variables change. This is the core idea of environment promotion: <b>the same manifest structure, different values</b>.</p>
+<pre><code><span class="cmt"># backend-deployment-dev.yaml</span>
+<span class="k">apiVersion</span>: apps/v1
+<span class="k">kind</span>: Deployment
+<span class="k">metadata</span>:
+  <span class="k">name</span>: shopnow-backend
+  <span class="k">namespace</span>: dev
+  <span class="k">labels</span>:
+    <span class="k">app</span>: shopnow-backend
+    <span class="k">environment</span>: dev
+<span class="k">spec</span>:
+  <span class="k">replicas</span>: 2
+  <span class="k">selector</span>:
+    <span class="k">matchLabels</span>:
+      <span class="k">app</span>: shopnow-backend
+  <span class="k">template</span>:
+    <span class="k">metadata</span>:
+      <span class="k">labels</span>:
+        <span class="k">app</span>: shopnow-backend
+        <span class="k">environment</span>: dev
+    <span class="k">spec</span>:
+      <span class="k">serviceAccountName</span>: shopnow-backend-sa
+      <span class="k">containers</span>:
+        <span class="k">- name</span>: backend
+          <span class="k">image</span>: 111122223333.dkr.ecr.ap-south-1.amazonaws.com/shopnow-backend:dev-a1b2c3d
+          <span class="k">ports</span>:
+            <span class="k">- containerPort</span>: 8080
+          <span class="k">envFrom</span>:
+            <span class="k">- configMapRef</span>:
+                <span class="k">name</span>: shopnow-backend-config
+            <span class="k">- secretRef</span>:
+                <span class="k">name</span>: shopnow-backend-secret
+          <span class="k">resources</span>:
+            <span class="k">requests</span>: { cpu: <span class="s">"100m"</span>, memory: <span class="s">"128Mi"</span> }
+            <span class="k">limits</span>:   { cpu: <span class="s">"250m"</span>, memory: <span class="s">"256Mi"</span> }
+          <span class="k">readinessProbe</span>:
+            <span class="k">httpGet</span>: { path: /health/ready, port: 8080 }
+            <span class="k">initialDelaySeconds</span>: 5
+            <span class="k">periodSeconds</span>: 10
+          <span class="k">livenessProbe</span>:
+            <span class="k">httpGet</span>: { path: /health/live, port: 8080 }
+            <span class="k">initialDelaySeconds</span>: 15
+            <span class="k">periodSeconds</span>: 20
+      <span class="k">tolerations</span>: []   <span class="cmt"># dev pods do not tolerate the prod taint, and never can be</span>
+---
+<span class="k">apiVersion</span>: v1
+<span class="k">kind</span>: Service
+<span class="k">metadata</span>:
+  <span class="k">name</span>: shopnow-backend-svc
+  <span class="k">namespace</span>: dev
+<span class="k">spec</span>:
+  <span class="k">selector</span>:
+    <span class="k">app</span>: shopnow-backend
+  <span class="k">ports</span>:
+    <span class="k">- port</span>: 80
+      <span class="k">targetPort</span>: 8080
+  <span class="k">type</span>: ClusterIP
+</code></pre>
+<p>For the <b>prod</b> version, four lines change: <code>replicas: 6</code>, resource limits are roughly doubled, the image tag is a release tag like <code>prod-v2.4.1</code> instead of a commit SHA, and this block is added under <code>spec.template.spec</code>:</p>
+<pre><code>      <span class="k">tolerations</span>:
+        <span class="k">- key</span>: <span class="s">"tier"</span>
+          <span class="k">operator</span>: <span class="s">"Equal"</span>
+          <span class="k">value</span>: <span class="s">"prod"</span>
+          <span class="k">effect</span>: <span class="s">"NoSchedule"</span>
+      <span class="k">nodeSelector</span>:
+        <span class="k">workload-tier</span>: prod</code></pre>
+
+<h2 id="config">9. ConfigMaps and Secrets per Environment</h2>
+<p>ConfigMaps hold values that are not sensitive but do change per environment — log level, feature flags, external API base URLs. Secrets hold anything sensitive — database passwords, third-party API keys.</p>
+<pre><code><span class="cmt"># configmap-dev.yaml</span>
+<span class="k">apiVersion</span>: v1
+<span class="k">kind</span>: ConfigMap
+<span class="k">metadata</span>:
+  <span class="k">name</span>: shopnow-backend-config
+  <span class="k">namespace</span>: dev
+<span class="k">data</span>:
+  <span class="k">LOG_LEVEL</span>: <span class="s">"debug"</span>
+  <span class="k">FEATURE_NEW_CHECKOUT</span>: <span class="s">"true"</span>
+  <span class="k">DB_HOST</span>: <span class="s">"shopnow-dev.abcxyz.ap-south-1.rds.amazonaws.com"</span>
+  <span class="k">PAYMENT_GATEWAY_URL</span>: <span class="s">"https://sandbox.paygateway.com"</span>
+---
+<span class="cmt"># the same key structure for prod, values change:</span>
+<span class="cmt"># LOG_LEVEL: "warn"</span>
+<span class="cmt"># FEATURE_NEW_CHECKOUT: "false"   (not yet enabled for real customers)</span>
+<span class="cmt"># PAYMENT_GATEWAY_URL: "https://live.paygateway.com"</span>
+</code></pre>
+<p>Secrets are <b>never</b> written by hand into a YAML file that goes into Git — that is one of the most common real-world security mistakes. Instead, you use the <b>External Secrets Operator</b> to pull from AWS Secrets Manager and materialize a native Kubernetes Secret automatically:</p>
+<pre><code><span class="cmt"># external-secret-prod.yaml</span>
+<span class="k">apiVersion</span>: external-secrets.io/v1beta1
+<span class="k">kind</span>: ExternalSecret
+<span class="k">metadata</span>:
+  <span class="k">name</span>: shopnow-backend-secret
+  <span class="k">namespace</span>: prod
+<span class="k">spec</span>:
+  <span class="k">refreshInterval</span>: 1h
+  <span class="k">secretStoreRef</span>:
+    <span class="k">name</span>: aws-secrets-manager
+    <span class="k">kind</span>: ClusterSecretStore
+  <span class="k">target</span>:
+    <span class="k">name</span>: shopnow-backend-secret
+  <span class="k">data</span>:
+    <span class="k">- secretKey</span>: DB_PASSWORD
+      <span class="k">remoteRef</span>:
+        <span class="k">key</span>: shopnow/prod/db-password
+    <span class="k">- secretKey</span>: PAYMENT_API_KEY
+      <span class="k">remoteRef</span>:
+        <span class="k">key</span>: shopnow/prod/payment-api-key
+</code></pre>
+<div class="callout warn"><b>Interview line to remember:</b> "We never store plaintext secrets in Git. The ExternalSecret object only stores a *reference* — the key name in Secrets Manager — and the operator pulls the actual value at runtime using the pod's IRSA-bound IAM role."</div>
+
+<h2 id="ingress">10. Ingress with AWS Load Balancer Controller</h2>
+<p>One shared Application Load Balancer routes to all four environments using host-based routing, which is far cheaper than provisioning a separate ALB per environment.</p>
+<pre><code><span class="cmt"># ingress-dev.yaml</span>
+<span class="k">apiVersion</span>: networking.k8s.io/v1
+<span class="k">kind</span>: Ingress
+<span class="k">metadata</span>:
+  <span class="k">name</span>: shopnow-ingress
+  <span class="k">namespace</span>: dev
+  <span class="k">annotations</span>:
+    <span class="k">kubernetes.io/ingress.class</span>: alb
+    <span class="k">alb.ingress.kubernetes.io/scheme</span>: internet-facing
+    <span class="k">alb.ingress.kubernetes.io/target-type</span>: ip
+    <span class="k">alb.ingress.kubernetes.io/certificate-arn</span>: arn:aws:acm:ap-south-1:111122223333:certificate/xxxx
+    <span class="k">alb.ingress.kubernetes.io/listen-ports</span>: <span class="s">'[{"HTTPS":443}]'</span>
+<span class="k">spec</span>:
+  <span class="k">rules</span>:
+    <span class="k">- host</span>: dev.shopnow.com
+      <span class="k">http</span>:
+        <span class="k">paths</span>:
+          <span class="k">- path</span>: /
+            <span class="k">pathType</span>: Prefix
+            <span class="k">backend</span>:
+              <span class="k">service</span>:
+                <span class="k">name</span>: shopnow-backend-svc
+                <span class="k">port</span>: { number: 80 }
+</code></pre>
+<p>The same object, repeated for <code>qa.shopnow.com</code>, <code>uat.shopnow.com</code>, and <code>shopnow.com</code> (prod), all attach to the <b>same</b> underlying ALB because the AWS Load Balancer Controller groups Ingress objects sharing an <code>alb.ingress.kubernetes.io/group.name</code> annotation — a cost-saving detail worth mentioning in an interview.</p>
+
+<h2 id="hpa">11. HPA and Autoscaling</h2>
+<pre><code><span class="cmt"># hpa-prod.yaml</span>
+<span class="k">apiVersion</span>: autoscaling/v2
+<span class="k">kind</span>: HorizontalPodAutoscaler
+<span class="k">metadata</span>:
+  <span class="k">name</span>: shopnow-backend-hpa
+  <span class="k">namespace</span>: prod
+<span class="k">spec</span>:
+  <span class="k">scaleTargetRef</span>:
+    <span class="k">apiVersion</span>: apps/v1
+    <span class="k">kind</span>: Deployment
+    <span class="k">name</span>: shopnow-backend
+  <span class="k">minReplicas</span>: 6
+  <span class="k">maxReplicas</span>: 20
+  <span class="k">metrics</span>:
+    <span class="k">- type</span>: Resource
+      <span class="k">resource</span>:
+        <span class="k">name</span>: cpu
+        <span class="k">target</span>: { type: Utilization, averageUtilization: 65 }
+  <span class="k">behavior</span>:
+    <span class="k">scaleUp</span>:
+      <span class="k">stabilizationWindowSeconds</span>: 30
+    <span class="k">scaleDown</span>:
+      <span class="k">stabilizationWindowSeconds</span>: 300   <span class="cmt"># scale down slowly to avoid flapping during a sale</span>
+</code></pre>
+<p>Dev and QA get a much smaller HPA, typically <code>minReplicas: 1, maxReplicas: 3</code>, because there is no real customer traffic to absorb — this difference itself is a talking point: "we size autoscaling per environment based on actual traffic patterns, not a copy-paste of prod settings."</p>
+
+<h2 id="pdb">12. PodDisruptionBudget</h2>
+<pre><code><span class="cmt"># pdb-prod.yaml — guarantees at least 4 pods stay up during node drains / upgrades</span>
+<span class="k">apiVersion</span>: policy/v1
+<span class="k">kind</span>: PodDisruptionBudget
+<span class="k">metadata</span>:
+  <span class="k">name</span>: shopnow-backend-pdb
+  <span class="k">namespace</span>: prod
+<span class="k">spec</span>:
+  <span class="k">minAvailable</span>: 4
+  <span class="k">selector</span>:
+    <span class="k">matchLabels</span>:
+      <span class="k">app</span>: shopnow-backend
+</code></pre>
+<div class="callout why"><b>Why this matters:</b> Without a PDB, a routine EKS node upgrade (draining nodes one by one) could evict enough backend pods at once to drop below the traffic capacity you need, causing a self-inflicted outage during a maintenance window. PDB is the safety rail that makes "we patch prod nodes without downtime" true.</div>
+
+<h2 id="netpol">13. NetworkPolicies</h2>
+<pre><code><span class="cmt"># netpol-prod-deny-cross-namespace.yaml</span>
+<span class="k">apiVersion</span>: networking.k8s.io/v1
+<span class="k">kind</span>: NetworkPolicy
+<span class="k">metadata</span>:
+  <span class="k">name</span>: deny-from-other-namespaces
+  <span class="k">namespace</span>: prod
+<span class="k">spec</span>:
+  <span class="k">podSelector</span>: {}
+  <span class="k">policyTypes</span>: [Ingress]
+  <span class="k">ingress</span>:
+    <span class="k">- from</span>:
+        <span class="k">- podSelector</span>: {}   <span class="cmt"># only allow traffic from pods inside the SAME namespace</span>
+---
+<span class="cmt"># netpol-allow-ingress-from-alb.yaml — still let the ALB target group reach the pods</span>
+<span class="k">apiVersion</span>: networking.k8s.io/v1
+<span class="k">kind</span>: NetworkPolicy
+<span class="k">metadata</span>:
+  <span class="k">name</span>: allow-alb-ingress
+  <span class="k">namespace</span>: prod
+<span class="k">spec</span>:
+  <span class="k">podSelector</span>:
+    <span class="k">matchLabels</span>: { app: shopnow-backend }
+  <span class="k">policyTypes</span>: [Ingress]
+  <span class="k">ingress</span>:
+    <span class="k">- from</span>: []
+      <span class="k">ports</span>:
+        <span class="k">- protocol</span>: TCP
+          <span class="k">port</span>: 8080
+</code></pre>
+<p>This is the network-layer version of the same story you saw in IAM: a pod in <code>qa</code> namespace, even sitting on the same physical node as a <code>prod</code> pod, is denied at the packet level from ever initiating a connection to it.</p>
+
+<h2 id="ecr">14. ECR Integration</h2>
+<pre><code><span class="cmt"># One repository per service, environment distinguished by TAG, not by repo</span>
+aws ecr create-repository --repository-name shopnow-backend  --region ap-south-1
+aws ecr create-repository --repository-name shopnow-frontend --region ap-south-1
+
+<span class="cmt"># Build and push, tagged with both the environment and the commit SHA</span>
+aws ecr get-login-password --region ap-south-1 | \
+  docker login --username AWS --password-stdin 111122223333.dkr.ecr.ap-south-1.amazonaws.com
+
+docker build -t shopnow-backend:$IMAGE_TAG .
+docker tag shopnow-backend:$IMAGE_TAG \
+  111122223333.dkr.ecr.ap-south-1.amazonaws.com/shopnow-backend:$ENV-$IMAGE_TAG
+docker push 111122223333.dkr.ecr.ap-south-1.amazonaws.com/shopnow-backend:$ENV-$IMAGE_TAG
+</code></pre>
+<p>A lifecycle policy keeps ECR from filling up with old dev images:</p>
+<pre><code>{
+  <span class="k">"rules"</span>: [{
+    <span class="k">"rulePriority"</span>: 1,
+    <span class="k">"description"</span>: <span class="s">"Expire untagged images after 7 days"</span>,
+    <span class="k">"selection"</span>: { <span class="k">"tagStatus"</span>: <span class="s">"untagged"</span>, <span class="k">"countType"</span>: <span class="s">"sinceImagePushed"</span>, <span class="k">"countUnit"</span>: <span class="s">"days"</span>, <span class="k">"countNumber"</span>: 7 },
+    <span class="k">"action"</span>: { <span class="k">"type"</span>: <span class="s">"expire"</span> }
+  }]
+}
+</code></pre>
+
+<h2 id="pipeline">15. CI/CD Pipeline — Jenkins and GitHub Actions</h2>
+<p>The core idea in both tools is identical: <b>one pipeline, environment as a parameter, with a manual approval gate before UAT and before Prod.</b></p>
+<h3>Jenkins Declarative Pipeline</h3>
+<pre><code><span class="cmt">// Jenkinsfile</span>
+pipeline {
+  agent any
+  parameters {
+    choice(name: <span class="s">'DEPLOY_ENV'</span>, choices: [<span class="s">'dev'</span>,<span class="s">'qa'</span>,<span class="s">'uat'</span>,<span class="s">'prod'</span>], description: <span class="s">'Target environment'</span>)
+  }
+  environment {
+    ECR_REPO = <span class="s">"111122223333.dkr.ecr.ap-south-1.amazonaws.com/shopnow-backend"</span>
+    IMAGE_TAG = <span class="s">"${params.DEPLOY_ENV}-${GIT_COMMIT.take(7)}"</span>
+  }
+  stages {
+    stage(<span class="s">'Checkout'</span>) { steps { checkout scm } }
+
+    stage(<span class="s">'Unit Test'</span>) { steps { sh <span class="s">'npm ci && npm test'</span> } }
+
+    stage(<span class="s">'Build & Push Image'</span>) {
+      steps {
+        sh <span class="s">"""
+          aws ecr get-login-password --region ap-south-1 | docker login --username AWS --password-stdin ${ECR_REPO}
+          docker build -t ${ECR_REPO}:${IMAGE_TAG} .
+          docker push ${ECR_REPO}:${IMAGE_TAG}
+        """</span>
+      }
+    }
+
+    stage(<span class="s">'Approval Gate'</span>) {
+      when { expression { params.DEPLOY_ENV == <span class="s">'uat'</span> || params.DEPLOY_ENV == <span class="s">'prod'</span> } }
+      steps {
+        timeout(time: 30, unit: <span class="s">'MINUTES'</span>) {
+          input message: <span class="s">"Approve deployment to ${params.DEPLOY_ENV}?"</span>, submitter: <span class="s">'release-managers'</span>
+        }
+      }
+    }
+
+    stage(<span class="s">'Deploy to Kubernetes'</span>) {
+      steps {
+        sh <span class="s">"""
+          kubectl set image deployment/shopnow-backend backend=${ECR_REPO}:${IMAGE_TAG} -n ${params.DEPLOY_ENV}
+          kubectl rollout status deployment/shopnow-backend -n ${params.DEPLOY_ENV} --timeout=180s
+        """</span>
+      }
+    }
+
+    stage(<span class="s">'Generate Report & Notify'</span>) {
+      steps {
+        sh <span class="s">'python3 generate_report.py --env ${DEPLOY_ENV} --status success --build ${BUILD_NUMBER}'</span>
+        sh <span class="s">'python3 send_email.py --env ${DEPLOY_ENV} --report report.html'</span>
+      }
+    }
+  }
+  post {
+    failure {
+      sh <span class="s">'python3 send_email.py --env ${DEPLOY_ENV} --status FAILED --build ${BUILD_NUMBER}'</span>
+    }
+  }
+}
+</code></pre>
+
+<h3>GitHub Actions Equivalent</h3>
+<pre><code><span class="cmt"># .github/workflows/deploy.yml</span>
+<span class="k">name</span>: ShopNow Multi-Env Deploy
+<span class="k">on</span>:
+  <span class="k">workflow_dispatch</span>:
+    <span class="k">inputs</span>:
+      <span class="k">environment</span>:
+        <span class="k">type</span>: choice
+        <span class="k">options</span>: [dev, qa, uat, prod]
+  <span class="k">push</span>:
+    <span class="k">branches</span>: [<span class="s">"develop"</span>]   <span class="cmt"># pushes to develop auto-deploy to dev only</span>
+
+<span class="k">jobs</span>:
+  <span class="k">build-and-push</span>:
+    <span class="k">runs-on</span>: ubuntu-latest
+    <span class="k">steps</span>:
+      <span class="k">- uses</span>: actions/checkout@v4
+      <span class="k">- name</span>: Configure AWS credentials
+        <span class="k">uses</span>: aws-actions/configure-aws-credentials@v4
+        <span class="k">with</span>:
+          <span class="k">role-to-assume</span>: arn:aws:iam::111122223333:role/github-actions-ecr-push
+          <span class="k">aws-region</span>: ap-south-1
+      <span class="k">- name</span>: Build and push
+        <span class="k">run</span>: |
+          aws ecr get-login-password | docker login --username AWS --password-stdin $ECR_REGISTRY
+          docker build -t $ECR_REGISTRY/shopnow-backend:${{ github.event.inputs.environment }}-${{ github.sha }} .
+          docker push $ECR_REGISTRY/shopnow-backend:${{ github.event.inputs.environment }}-${{ github.sha }}
+
+  <span class="k">deploy</span>:
+    <span class="k">needs</span>: build-and-push
+    <span class="k">runs-on</span>: ubuntu-latest
+    <span class="k">environment</span>: ${{ github.event.inputs.environment }}   <span class="cmt"># GitHub Environments hold the approval rule for uat/prod</span>
+    <span class="k">steps</span>:
+      <span class="k">- name</span>: Update kustomize image tag and push to GitOps repo
+        <span class="k">run</span>: |
+          cd gitops-repo/overlays/${{ github.event.inputs.environment }}
+          kustomize edit set image shopnow-backend=$ECR_REGISTRY/shopnow-backend:${{ github.event.inputs.environment }}-${{ github.sha }}
+          git commit -am <span class="s">"Deploy ${{ github.sha }} to ${{ github.event.inputs.environment }}"</span>
+          git push
+</code></pre>
+<div class="callout why"><b>Notice the GitHub Actions job never runs <code>kubectl apply</code> directly.</b> It pushes an image-tag change to a Git repository, and Argo CD (next section) picks that up and applies it to the cluster. This pattern is called <b>GitOps</b>, and it is the single most important modern concept to be able to explain in an interview.</div>
+
+<h2 id="argocd">16. Argo CD GitOps</h2>
+<div class="story">The old way: a Jenkins job runs <code>kubectl apply</code> directly against the cluster. The problem — if someone manually edits a Deployment with <code>kubectl edit</code> during an incident at 2 AM, there's no record of that change anywhere, and the next Jenkins run silently overwrites it. GitOps flips the model: <b>Git becomes the single source of truth</b>, and Argo CD's job is only to continuously make the cluster match what's in Git.</div>
+<pre><code><span class="cmt"># app-of-apps: one Argo CD Application per environment, all pointing at the same repo, different folder</span>
+<span class="k">apiVersion</span>: argoproj.io/v1alpha1
+<span class="k">kind</span>: Application
+<span class="k">metadata</span>:
+  <span class="k">name</span>: shopnow-backend-prod
+  <span class="k">namespace</span>: argocd
+<span class="k">spec</span>:
+  <span class="k">project</span>: default
+  <span class="k">source</span>:
+    <span class="k">repoURL</span>: https://github.com/shopnow/gitops-repo.git
+    <span class="k">targetRevision</span>: main
+    <span class="k">path</span>: overlays/prod
+  <span class="k">destination</span>:
+    <span class="k">server</span>: https://kubernetes.default.svc
+    <span class="k">namespace</span>: prod
+  <span class="k">syncPolicy</span>:
+    <span class="k">automated</span>:
+      <span class="k">prune</span>: true
+      <span class="k">selfHeal</span>: true   <span class="cmt"># if someone manually edits prod, Argo CD reverts it back to Git within minutes</span>
+    <span class="k">syncOptions</span>: [<span class="s">"CreateNamespace=false"</span>]
+</code></pre>
+<p>The <code>overlays/</code> folder is a <b>Kustomize</b> structure, which is the cleanest way to express "same base manifests, different values per environment":</p>
+<pre><code>gitops-repo/
+  base/
+    deployment.yaml
+    service.yaml
+    kustomization.yaml
+  overlays/
+    dev/    kustomization.yaml   (replicas: 2, image tag: dev-*)
+    qa/     kustomization.yaml   (replicas: 2, image tag: qa-*)
+    uat/    kustomization.yaml   (replicas: 3, image tag: uat-*)
+    prod/   kustomization.yaml   (replicas: 6, image tag: prod-*)
+</code></pre>
+<pre><code><span class="cmt"># overlays/prod/kustomization.yaml</span>
+<span class="k">resources</span>:
+  <span class="k">- ../../base</span>
+<span class="k">namespace</span>: prod
+<span class="k">replicas</span>:
+  <span class="k">- name</span>: shopnow-backend
+    <span class="k">count</span>: 6
+<span class="k">images</span>:
+  <span class="k">- name</span>: shopnow-backend
+    <span class="k">newTag</span>: prod-a1b2c3d
+</code></pre>
+<p><b>selfHeal: true</b> combined with <b>automated sync for dev/qa</b> but a <b>manual sync for prod</b> is exactly how a real release manager balances speed against control — you would say in an interview: "dev and QA auto-deploy on every merge, UAT and Prod require someone to click Sync in Argo CD after the approval gate passes."</p>
+
+<h2 id="monitoring">17. Prometheus and Grafana</h2>
+<pre><code><span class="cmt"># ServiceMonitor — tells Prometheus Operator to scrape the backend's /metrics endpoint</span>
+<span class="k">apiVersion</span>: monitoring.coreos.com/v1
+<span class="k">kind</span>: ServiceMonitor
+<span class="k">metadata</span>:
+  <span class="k">name</span>: shopnow-backend-monitor
+  <span class="k">namespace</span>: prod
+<span class="k">spec</span>:
+  <span class="k">selector</span>:
+    <span class="k">matchLabels</span>: { app: shopnow-backend }
+  <span class="k">endpoints</span>:
+    <span class="k">- port</span>: metrics
+      <span class="k">path</span>: /metrics
+      <span class="k">interval</span>: 30s
+</code></pre>
+<pre><code><span class="cmt"># PrometheusRule — alert when error rate crosses 5% for 5 minutes, scoped per environment via label</span>
+<span class="k">apiVersion</span>: monitoring.coreos.com/v1
+<span class="k">kind</span>: PrometheusRule
+<span class="k">metadata</span>:
+  <span class="k">name</span>: shopnow-backend-alerts
+  <span class="k">namespace</span>: prod
+<span class="k">spec</span>:
+  <span class="k">groups</span>:
+    <span class="k">- name</span>: shopnow.rules
+      <span class="k">rules</span>:
+        <span class="k">- alert</span>: HighErrorRate
+          <span class="k">expr</span>: |
+            sum(rate(http_requests_total{namespace="prod",status=~"5.."}[5m]))
+            /
+            sum(rate(http_requests_total{namespace="prod"}[5m])) > 0.05
+          <span class="k">for</span>: 5m
+          <span class="k">labels</span>: { severity: critical, environment: prod }
+          <span class="k">annotations</span>:
+            <span class="k">summary</span>: <span class="s">"Prod backend error rate above 5% for 5 minutes"</span>
+</code></pre>
+<p>In Grafana, you build one dashboard with a <b>namespace variable</b> (<code>$environment</code>) at the top, so the same dashboard flips between showing Dev, QA, UAT, and Prod metrics instead of maintaining four separate dashboards — panels for request rate, p95 latency, error rate, pod CPU/memory, and HPA current-vs-max replicas.</p>
+
+<h2 id="cloudwatch">18. CloudWatch Logging</h2>
+<pre><code><span class="cmt"># Fluent Bit DaemonSet ships container logs from every namespace to CloudWatch,
+# into a log group per environment so log retention and access can differ per env</span>
+<span class="k">apiVersion</span>: v1
+<span class="k">kind</span>: ConfigMap
+<span class="k">metadata</span>:
+  <span class="k">name</span>: fluent-bit-config
+  <span class="k">namespace</span>: amazon-cloudwatch
+<span class="k">data</span>:
+  <span class="k">output.conf</span>: |
+    [OUTPUT]
+        Name                cloudwatch_logs
+        Match               kube.*
+        region              ap-south-1
+        log_group_name      /eks/shopnow/${kubernetes['namespace_name']}
+        log_stream_prefix   ${kubernetes['pod_name']}-
+        auto_create_group   true
+</code></pre>
+<table>
+<tr><th>Environment</th><th>Log Group</th><th>Retention</th></tr>
+<tr><td>Dev</td><td>/eks/shopnow/dev</td><td>3 days</td></tr>
+<tr><td>QA</td><td>/eks/shopnow/qa</td><td>7 days</td></tr>
+<tr><td>UAT</td><td>/eks/shopnow/uat</td><td>14 days</td></tr>
+<tr><td>Prod</td><td>/eks/shopnow/prod</td><td>90 days, exported to S3 for compliance</td></tr>
+</table>
+
+<h2 id="failure">19. Failure Testing</h2>
+<p>Before this project is called "done," you deliberately break things to prove the safety nets actually work — this is what turns a deployment setup into a resume line that survives interview cross-questioning.</p>
+<pre><code><span class="cmt"># Test 1: Kill a pod and confirm the Deployment self-heals</span>
+kubectl delete pod -n prod -l app=shopnow-backend --field-selector status.phase=Running --grace-period=0 --force | head -1
+kubectl get pods -n prod -w   <span class="cmt"># watch a new pod get scheduled within seconds</span>
+
+<span class="cmt"># Test 2: Simulate a bad deploy (image that crashes on startup)</span>
+kubectl set image deployment/shopnow-backend backend=...:broken-tag -n uat
+kubectl rollout status deployment/shopnow-backend -n uat   <span class="cmt"># this will time out / fail, proving the readiness probe catches it</span>
+
+<span class="cmt"># Test 3: Load test to trigger HPA</span>
+kubectl run load-test --image=williamyeh/hey --restart=Never -n prod -- \
+  -z 3m -c 50 https://shopnow.com/api/products
+kubectl get hpa -n prod -w   <span class="cmt"># watch replica count climb from 6 towards 20</span>
+
+<span class="cmt"># Test 4: Drain a node and confirm PDB blocks over-eviction</span>
+kubectl drain &lt;node-name&gt; --ignore-daemonsets --delete-emptydir-data
+</code></pre>
+<p>You record the result of each test — pass/fail, recovery time — in the deployment report described in section 22.</p>
+
+<h2 id="rollback">20. Rollback Strategy</h2>
+<pre><code><span class="cmt"># Because Argo CD tracks Git history, rollback is a Git revert, not a manual kubectl command</span>
+cd gitops-repo/overlays/prod
+git log --oneline -5
+git revert &lt;bad-commit-sha&gt;
+git push
+<span class="cmt"># Argo CD detects the revert and syncs the cluster back automatically</span>
+
+<span class="cmt"># For an emergency where you cannot wait for the Git flow, native rollback:</span>
+kubectl rollout undo deployment/shopnow-backend -n prod
+kubectl rollout undo deployment/shopnow-backend -n prod --to-revision=3
+kubectl rollout history deployment/shopnow-backend -n prod
+</code></pre>
+<div class="callout warn"><b>Golden rule stated in the runbook:</b> "Emergency <code>kubectl rollout undo</code> is allowed to stop the bleeding immediately, but within the hour the same fix must be committed to the GitOps repo — otherwise the next Argo CD sync will silently redeploy the broken version, because Git still thinks that's the desired state."</div>
+
+<h2 id="troubleshoot">21. Troubleshooting Scenarios</h2>
+<table>
+<tr><th>Symptom</th><th>Likely Cause</th><th>Diagnostic Commands</th></tr>
+<tr><td>Pod stuck in <code>Pending</code></td><td>ResourceQuota exceeded, or no node matches nodeSelector/taint</td><td><code>kubectl describe pod &lt;pod&gt; -n &lt;ns&gt;</code>, check Events at the bottom</td></tr>
+<tr><td>Pod in <code>CrashLoopBackOff</code></td><td>App fails on startup — bad env var, DB unreachable</td><td><code>kubectl logs &lt;pod&gt; -n &lt;ns&gt; --previous</code></td></tr>
+<tr><td>Service returns 502 via ALB</td><td>Readiness probe failing, target group has zero healthy targets</td><td><code>kubectl get endpoints -n &lt;ns&gt;</code>, check target group health in AWS Console</td></tr>
+<tr><td>Ingress has no ADDRESS</td><td>AWS LB Controller not running, or IAM permissions missing</td><td><code>kubectl logs -n kube-system deploy/aws-load-balancer-controller</code></td></tr>
+<tr><td>Secret value empty in pod</td><td>ExternalSecret not synced, IRSA role missing Secrets Manager permission</td><td><code>kubectl describe externalsecret &lt;name&gt; -n &lt;ns&gt;</code></td></tr>
+<tr><td>Argo CD shows OutOfSync forever</td><td>Manual kubectl edit was reverted; or a webhook is mutating the resource</td><td><code>argocd app diff shopnow-backend-prod</code></td></tr>
+<tr><td>HPA not scaling</td><td>Metrics Server not installed, or resource requests missing on containers</td><td><code>kubectl top pods -n &lt;ns&gt;</code></td></tr>
+</table>
+
+<h2 id="ansible">22. Ansible Automation</h2>
+<p>Ansible wraps the manual setup steps (namespace creation, base RBAC, initial secrets bootstrap) into one repeatable playbook, so that spinning up a brand-new environment — say ShopNow adds a fifth "staging" tier next year — takes one command instead of a checklist.</p>
+<pre><code><span class="cmt"># playbook.yml</span>
+<span class="k">- name</span>: Bootstrap a new ShopNow environment on EKS
+  <span class="k">hosts</span>: localhost
+  <span class="k">gather_facts</span>: false
+  <span class="k">vars</span>:
+    <span class="k">env_name</span>: <span class="s">"{{ target_env }}"</span>
+
+  <span class="k">tasks</span>:
+    <span class="k">- name</span>: Create namespace
+      <span class="k">kubernetes.core.k8s</span>:
+        <span class="k">state</span>: present
+        <span class="k">definition</span>:
+          <span class="k">apiVersion</span>: v1
+          <span class="k">kind</span>: Namespace
+          <span class="k">metadata</span>:
+            <span class="k">name</span>: <span class="s">"{{ env_name }}"</span>
+            <span class="k">labels</span>: { environment: <span class="s">"{{ env_name }}"</span>, team: shopnow }
+
+    <span class="k">- name</span>: Apply ResourceQuota
+      <span class="k">kubernetes.core.k8s</span>:
+        <span class="k">state</span>: present
+        <span class="k">src</span>: <span class="s">"templates/resourcequota.yaml.j2"</span>
+
+    <span class="k">- name</span>: Create IRSA service account via eksctl
+      <span class="k">command</span>: >
+        eksctl create iamserviceaccount
+        --cluster shopnow-cluster
+        --namespace {{ env_name }}
+        --name shopnow-backend-sa
+        --attach-policy-arn {{ irsa_policy_arn }}
+        --approve
+
+    <span class="k">- name</span>: Register ExternalSecret for this environment
+      <span class="k">kubernetes.core.k8s</span>:
+        <span class="k">state</span>: present
+        <span class="k">template</span>: <span class="s">"templates/external-secret.yaml.j2"</span>
+
+    <span class="k">- name</span>: Register Argo CD Application
+      <span class="k">kubernetes.core.k8s</span>:
+        <span class="k">state</span>: present
+        <span class="k">template</span>: <span class="s">"templates/argocd-app.yaml.j2"</span>
+
+    <span class="k">- name</span>: Wait for Deployment rollout
+      <span class="k">kubernetes.core.k8s_info</span>:
+        <span class="k">kind</span>: Deployment
+        <span class="k">namespace</span>: <span class="s">"{{ env_name }}"</span>
+        <span class="k">name</span>: shopnow-backend
+      <span class="k">register</span>: dep_status
+      <span class="k">until</span>: dep_status.resources[0].status.readyReplicas is defined
+      <span class="k">retries</span>: 10
+      <span class="k">delay</span>: 15
+</code></pre>
+<pre><code><span class="cmt"># Run it:</span>
+ansible-playbook playbook.yml -e <span class="s">"target_env=staging irsa_policy_arn=arn:aws:iam::111122223333:policy/shopnow-backend-secrets-read"</span>
+</code></pre>
+
+<h2 id="report">23. HTML Deployment/Job Report Generator</h2>
+<p>Every pipeline run ends by generating a small, self-contained HTML report, attached to the notification email and archived as a Jenkins/GitHub Actions artifact — this is what a release manager opens instead of scrolling through console logs.</p>
+<pre><code><span class="cmt"># generate_report.py</span>
+<span class="k">import</span> argparse, subprocess, datetime, json
+
+<span class="k">def</span> get_pod_status(namespace):
+    out = subprocess.run(
+        [<span class="s">"kubectl"</span>, <span class="s">"get"</span>, <span class="s">"pods"</span>, <span class="s">"-n"</span>, namespace, <span class="s">"-o"</span>, <span class="s">"json"</span>],
+        capture_output=<span class="k">True</span>, text=<span class="k">True</span>
+    )
+    <span class="k">return</span> json.loads(out.stdout)[<span class="s">"items"</span>]
+
+<span class="k">def</span> build_report(env, status, build_no, pods):
+    rows = <span class="s">""</span>.join(
+        f<span class="s">"&lt;tr&gt;&lt;td&gt;{p['metadata']['name']}&lt;/td&gt;&lt;td&gt;{p['status']['phase']}&lt;/td&gt;&lt;/tr&gt;"</span>
+        <span class="k">for</span> p <span class="k">in</span> pods
+    )
+    color = <span class="s">"#5ec98f"</span> <span class="k">if</span> status == <span class="s">"success"</span> <span class="k">else</span> <span class="s">"#e35d5d"</span>
+    html = f<span class="s">"""&lt;html&gt;&lt;body style="font-family:Arial;background:#0b0f14;color:#dbe6f0;padding:24px"&gt;
+    &lt;h2 style="color:{color}"&gt;ShopNow Deployment Report — {env.upper()}&lt;/h2&gt;
+    &lt;p&gt;Build: #{build_no} | Status: {status.upper()} | Time: {datetime.datetime.now()}&lt;/p&gt;
+    &lt;table border="1" cellpadding="8" style="border-collapse:collapse"&gt;
+      &lt;tr&gt;&lt;th&gt;Pod&lt;/th&gt;&lt;th&gt;Phase&lt;/th&gt;&lt;/tr&gt;
+      {rows}
+    &lt;/table&gt;&lt;/body&gt;&lt;/html&gt;"""</span>
+    <span class="k">with</span> open(<span class="s">"report.html"</span>, <span class="s">"w"</span>) <span class="k">as</span> f:
+        f.write(html)
+
+<span class="k">if</span> __name__ == <span class="s">"__main__"</span>:
+    parser = argparse.ArgumentParser()
+    parser.add_argument(<span class="s">"--env"</span>, required=<span class="k">True</span>)
+    parser.add_argument(<span class="s">"--status"</span>, default=<span class="s">"success"</span>)
+    parser.add_argument(<span class="s">"--build"</span>, required=<span class="k">True</span>)
+    args = parser.parse_args()
+    pods = get_pod_status(args.env)
+    build_report(args.env, args.status, args.build, pods)
+    print(<span class="s">"report.html generated"</span>)
+</code></pre>
+
+<h2 id="email">24. Email Notification</h2>
+<pre><code><span class="cmt"># send_email.py</span>
+<span class="k">import</span> argparse, smtplib, os
+<span class="k">from</span> email.mime.multipart <span class="k">import</span> MIMEMultipart
+<span class="k">from</span> email.mime.text <span class="k">import</span> MIMEText
+<span class="k">from</span> email.mime.application <span class="k">import</span> MIMEApplication
+
+<span class="k">def</span> send(env, status, build_no, report_path=<span class="k">None</span>):
+    msg = MIMEMultipart()
+    msg[<span class="s">"Subject"</span>] = f<span class="s">"[ShopNow] Deployment to {env.upper()} - Build #{build_no} - {status.upper()}"</span>
+    msg[<span class="s">"From"</span>] = <span class="s">"devops-bot@shopnow.com"</span>
+    msg[<span class="s">"To"</span>] = <span class="s">"release-managers@shopnow.com"</span>
+
+    body = f<span class="s">"Environment: {env}\nBuild: #{build_no}\nStatus: {status}\n\nSee attached report for pod-level detail."</span>
+    msg.attach(MIMEText(body, <span class="s">"plain"</span>))
+
+    <span class="k">if</span> report_path <span class="k">and</span> os.path.exists(report_path):
+        <span class="k">with</span> open(report_path, <span class="s">"rb"</span>) <span class="k">as</span> f:
+            part = MIMEApplication(f.read(), Name=<span class="s">"report.html"</span>)
+        part[<span class="s">"Content-Disposition"</span>] = <span class="s">'attachment; filename="report.html"'</span>
+        msg.attach(part)
+
+    <span class="k">with</span> smtplib.SMTP(<span class="s">"email-smtp.ap-south-1.amazonaws.com"</span>, 587) <span class="k">as</span> server:   <span class="cmt"># AWS SES</span>
+        server.starttls()
+        server.login(os.environ[<span class="s">"SES_USER"</span>], os.environ[<span class="s">"SES_PASS"</span>])
+        server.send_message(msg)
+
+<span class="k">if</span> __name__ == <span class="s">"__main__"</span>:
+    parser = argparse.ArgumentParser()
+    parser.add_argument(<span class="s">"--env"</span>, required=<span class="k">True</span>)
+    parser.add_argument(<span class="s">"--status"</span>, default=<span class="s">"success"</span>)
+    parser.add_argument(<span class="s">"--build"</span>, required=<span class="k">True</span>)
+    parser.add_argument(<span class="s">"--report"</span>, default=<span class="k">None</span>)
+    args = parser.parse_args()
+    send(args.env, args.status, args.build, args.report)
+</code></pre>
+<p>This uses <b>AWS SES (Simple Email Service)</b> as the SMTP relay, which is the standard choice inside AWS-hosted pipelines because it needs no separate mail server and integrates with the same IAM boundary as everything else in this project.</p>
+
+<hr class="divider">
+<h2 id="resume">25. How to Present This on Your Resume</h2>
+<div class="callout why">
+<b>Resume bullet (use as-is or adapt):</b><br>
+"Designed and implemented a multi-environment (Dev/QA/UAT/Prod) deployment architecture on Amazon EKS using namespace isolation, IRSA, NetworkPolicies and ResourceQuotas; built a GitOps release pipeline with Jenkins/GitHub Actions and Argo CD featuring automated promotion, manual approval gates, and Git-based rollback; integrated Prometheus/Grafana monitoring, CloudWatch centralized logging, and automated HTML/email deployment reporting; automated environment bootstrap with Ansible."
+</div>
+<p><b>What an interviewer will actually probe, and where to point them in this document:</b></p>
+<table>
+<tr><th>Likely question</th><th>Section to re-read before the call</th></tr>
+<tr><td>"How did you isolate environments — namespace or cluster?"</td><td>Section 1, 4, 7</td></tr>
+<tr><td>"How do pods get AWS permissions securely?"</td><td>Section 6 (IRSA)</td></tr>
+<tr><td>"What's your GitOps flow, and why not just kubectl apply from Jenkins?"</td><td>Section 16</td></tr>
+<tr><td>"How do you roll back a bad prod deploy?"</td><td>Section 20</td></tr>
+<tr><td>"How do you prevent a node drain from causing downtime?"</td><td>Section 12</td></tr>
+<tr><td>"Walk me through a pod stuck in Pending"</td><td>Section 21</td></tr>
+</table>
+
+<div class="story" style="margin-top:40px">Back at ShopNow, three weeks after Ramesh's one-line message, you demo this exact setup to the VP of Engineering: a code change merged to <code>develop</code> auto-deploys to Dev in under two minutes, moves to QA after tests pass, waits at a UAT approval gate for the QA lead's sign-off, and only reaches Prod after a release manager clicks Sync in Argo CD — with a rollback that takes thirty seconds instead of a war-room. That is the story you now know end to end, and the story you can tell in your next interview.</div>
+
+</div>
+</body>
+</html>

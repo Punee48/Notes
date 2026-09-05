@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Project 9: Policy-as-Code Guardrails with Sentinel/OPA</title>
+<style>
+  :root { --bg:#0d1117; --bg-panel:#161b22; --bg-code:#0a0e14; --border:#30363d; --text:#c9d1d9; --text-dim:#8b949e; --accent:#58a6ff; --accent2:#79c0ff; --green:#7ee787; --orange:#ffa657; --pink:#ff7b72; --purple:#d2a8ff; --yellow:#e3b341; }
+  * { box-sizing: border-box; }
+  body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; line-height: 1.65; margin: 0; padding: 0; }
+  .wrap { max-width: 980px; margin: 0 auto; padding: 40px 24px 100px; }
+  header.hero { border-bottom: 1px solid var(--border); padding-bottom: 28px; margin-bottom: 36px; }
+  .kicker { color: var(--accent); text-transform: uppercase; letter-spacing: 2px; font-size: 13px; font-weight: 600; }
+  h1 { font-size: 32px; margin: 10px 0 12px; color: #fff; line-height: 1.25; }
+  .subtitle { color: var(--text-dim); font-size: 16px; }
+  .badges { margin-top: 18px; display: flex; flex-wrap: wrap; gap: 8px; }
+  .badge { background: var(--bg-panel); border: 1px solid var(--border); color: var(--accent2); font-size: 12.5px; padding: 4px 10px; border-radius: 999px; }
+  h2 { color: #fff; font-size: 23px; margin-top: 52px; margin-bottom: 16px; padding-bottom: 10px; border-bottom: 1px solid var(--border); }
+  h2 .num { color: var(--accent); font-family: "SFMono-Regular", Consolas, monospace; margin-right: 10px; }
+  h3 { color: var(--accent2); font-size: 18px; margin-top: 28px; }
+  p { margin: 12px 0; }
+  a { color: var(--accent); }
+  .story { background: linear-gradient(135deg, #1a1f2b, #14181f); border-left: 3px solid var(--orange); padding: 20px 22px; border-radius: 6px; font-size: 15.5px; color: #dcdfe4; }
+  .story .tag { color: var(--orange); font-weight: 700; font-size: 12px; letter-spacing: 1.5px; text-transform: uppercase; display: block; margin-bottom: 8px; }
+  .callout { background: var(--bg-panel); border: 1px solid var(--border); border-left: 3px solid var(--accent); padding: 16px 20px; border-radius: 6px; margin: 18px 0; }
+  .callout.warn { border-left-color: var(--pink); }
+  .callout .label { font-weight: 700; font-size: 12px; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 6px; display: block; }
+  .callout.warn .label { color: var(--pink); }
+  pre { background: var(--bg-code); border: 1px solid var(--border); border-radius: 8px; padding: 18px 20px; overflow-x: auto; font-size: 13.2px; line-height: 1.55; margin: 16px 0; }
+  code { font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace; }
+  .filename { font-family: "SFMono-Regular", Consolas, monospace; color: var(--yellow); font-size: 12.5px; background: var(--bg-panel); display: inline-block; padding: 4px 10px; border: 1px solid var(--border); border-bottom: none; border-radius: 6px 6px 0 0; margin-top: 16px; }
+  .filename + pre { margin-top: 0; border-radius: 0 6px 6px 6px; }
+  .kw { color: var(--pink); } .str { color: var(--green); } .cmt { color: var(--text-dim); font-style: italic; } .type { color: var(--purple); } .fn { color: var(--accent2); }
+  .walkthrough { background: var(--bg-panel); border: 1px solid var(--border); border-radius: 6px; padding: 18px 20px; margin: 16px 0; }
+  .walkthrough h4 { margin-top: 0; color: var(--accent2); font-size: 14px; text-transform: uppercase; letter-spacing: 1px; }
+  ul, ol { padding-left: 22px; } li { margin: 8px 0; }
+  table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 14px; }
+  th, td { border: 1px solid var(--border); padding: 10px 14px; text-align: left; }
+  th { background: var(--bg-panel); color: var(--accent2); font-size: 12.5px; text-transform: uppercase; letter-spacing: 0.5px; }
+  tr:nth-child(even) td { background: #12161d; }
+  .diagram { background: var(--bg-code); border: 1px solid var(--border); border-radius: 8px; padding: 20px; font-family: "SFMono-Regular", Consolas, monospace; font-size: 12.5px; color: var(--accent2); white-space: pre; overflow-x: auto; line-height: 1.4; }
+  .interview-q { background: var(--bg-panel); border-radius: 6px; padding: 14px 18px; margin: 10px 0; border: 1px solid var(--border); }
+  .interview-q .q { color: var(--yellow); font-weight: 600; margin-bottom: 6px; }
+  footer { margin-top: 60px; padding-top: 20px; border-top: 1px solid var(--border); color: var(--text-dim); font-size: 13px; text-align: center; }
+  .progress { display: flex; gap: 4px; margin-top: 18px; }
+  .progress .seg { height: 5px; flex: 1; background: var(--border); border-radius: 3px; }
+  .progress .seg.done { background: var(--accent); }
+  .resume-box { background: linear-gradient(135deg, #131a12, #0f150f); border: 1px solid #24361f; border-left: 3px solid var(--green); border-radius: 8px; padding: 24px 26px; margin-top: 18px; }
+  .resume-box h3 { margin-top: 0; color: var(--green); }
+  .resume-sub { color: var(--text-dim); font-size: 13px; margin-bottom: 18px; }
+  .resume-block { margin-bottom: 22px; }
+  .resume-block .rb-label { font-size: 11.5px; text-transform: uppercase; letter-spacing: 1px; color: var(--accent2); font-weight: 700; margin-bottom: 8px; }
+  .resume-bullets { list-style: none; padding-left: 0; }
+  .resume-bullets li { padding-left: 20px; position: relative; margin: 9px 0; font-size: 14.5px; color: #dcdfe4; }
+  .resume-bullets li::before { content: "▸"; position: absolute; left: 0; color: var(--green); }
+  .copy-hint { display: inline-block; margin-top: 4px; font-size: 11.5px; color: var(--text-dim); font-style: italic; }
+  .skill-pills { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+  .skill-pill { background: #172013; border: 1px solid #2b3a24; color: var(--green); font-size: 12px; padding: 3px 10px; border-radius: 999px; font-family: "SFMono-Regular", Consolas, monospace; }
+  .linkedin-box { background: var(--bg-code); border: 1px solid var(--border); border-radius: 6px; padding: 14px 16px; font-size: 13.5px; color: #dcdfe4; font-style: italic; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="hero">
+  <span class="kicker">Terraform on AWS &middot; Project 9 of 25</span>
+  <h1>Policy-as-Code Guardrails with OPA (Cost Controls, Tagging Enforcement, Security Rules)</h1>
+  <p class="subtitle">Intermediate-Advanced &middot; Rules that block a bad apply automatically, so they don't depend on a human catching it in review.</p>
+  <div class="badges">
+    <span class="badge">OPA / Rego</span>
+    <span class="badge">Conftest</span>
+    <span class="badge">Policy as Code</span>
+    <span class="badge">Cost Guardrails</span>
+    <span class="badge">Tagging Enforcement</span>
+  </div>
+  <div class="progress" title="Handbook progress: Project 9 of 25">
+    <div class="seg done"></div><div class="seg done"></div><div class="seg done"></div><div class="seg done"></div><div class="seg done"></div><div class="seg done"></div><div class="seg done"></div><div class="seg done"></div><div class="seg done"></div>
+    <div class="seg"></div><div class="seg"></div><div class="seg"></div><div class="seg"></div><div class="seg"></div><div class="seg"></div><div class="seg"></div><div class="seg"></div>
+  </div>
+</header>
+
+<h2><span class="num">01</span>The Enterprise Problem This Solves</h2>
+<p>
+Project 8's pipeline gets a human to look at a plan before it applies — but human review doesn't scale, misses
+things at the end of a long day, and can't be relied on as the only defense against an expensive or dangerous
+change. This project adds a second, automated layer: <strong>policy-as-code</strong> checks that evaluate every
+Terraform plan against machine-enforced rules — required tags, denied public S3 buckets, allowed instance types
+for cost control — and fail the pipeline automatically if a plan violates them, no human judgment call required
+in the moment.
+</p>
+
+<h2><span class="num">02</span>The Story: The $40,000 Instance Type Typo</h2>
+<div class="story">
+<span class="tag">Production Incident Replay</span>
+An engineer testing a new workload accidentally writes <code>instance_type = "p4d.24xlarge"</code> instead of the
+intended <code>t3.24xlarge</code> — a one-character difference between a general-purpose instance and an
+8-GPU machine-learning instance costing roughly 30 times as much per hour. The PR's plan output shows the change
+correctly, but it's buried in a 200-line diff during a busy sprint, and the reviewer approves it without clocking
+the instance type. The mistake runs in a scaling group with a minimum size of 3 for four days before a finance
+review catches the anomaly. The fix the team implements afterward isn't "review more carefully" — humans will
+always occasionally miss things in a large diff — it's an automated policy check that hard-fails any plan
+proposing an instance type outside an explicitly approved allowlist, so this exact class of mistake can never
+reach <code>apply</code> regardless of how thorough that day's reviewer happened to be.
+</div>
+
+<h2><span class="num">03</span>Deep Technical Explanation</h2>
+
+<h3>Policy-as-code as a second, independent gate — not a replacement for review</h3>
+<p>
+Policy-as-code doesn't replace human review from Project 8; it adds a gate that can't get tired, distracted, or
+skip a line in a long diff. The two are complementary: humans judge intent and architecture ("does this change
+make sense"), automated policy judges hard rules ("is this change ever allowed, no matter who approved it").
+</p>
+
+<h3>Open Policy Agent (OPA) and Rego, evaluated against Terraform's plan JSON</h3>
+<p>
+Terraform can export a plan as structured JSON (<code>terraform show -json tfplan</code>), which <strong>Open
+Policy Agent</strong>, via the <code>conftest</code> CLI, evaluates against policies written in <strong>Rego</strong>,
+a purpose-built query language for expressing "is this data structure allowed." A policy is a set of rules that
+either pass or produce a deny message; conftest exits non-zero if any rule denies, which is what fails the CI job.
+</p>
+
+<h3>Why this runs against plan JSON, not raw HCL</h3>
+<p>
+Evaluating raw HCL would require re-implementing Terraform's own variable resolution, module expansion, and
+provider defaults inside the policy engine. Evaluating the <em>plan JSON</em> instead means policies see exactly
+what Terraform itself resolved every value to — the actual instance type after variables and defaults are
+applied, not the raw (and possibly parameterized) HCL expression.
+</p>
+
+<h3>Sentinel as the alternative, for teams on Terraform Cloud/Enterprise</h3>
+<p>
+HashiCorp's own Sentinel serves the identical purpose as OPA/Rego but is tightly integrated with Terraform
+Cloud/Enterprise's native run pipeline, evaluating plans automatically as part of every run without a separate CI
+step. This project builds the OPA/conftest pattern because it works with plain open-source Terraform and GitHub
+Actions from Project 8 without requiring Terraform Cloud — the concepts (deny rules against plan JSON) transfer
+directly if a team later adopts Sentinel.
+</p>
+
+<h2><span class="num">04</span>Architecture</h2>
+<div class="diagram">
+  Project 8's PR plan job, extended with one more step:
+
+  terraform plan -out=tfplan
+        │
+        ▼
+  terraform show -json tfplan > plan.json
+        │
+        ▼
+  conftest test plan.json --policy policies/
+        │
+        ├─► policies/tagging.rego     (deny: missing required tags)
+        ├─► policies/cost-controls.rego (deny: disallowed instance types)
+        └─► policies/security.rego     (deny: public S3, open security groups)
+        │
+        ▼
+  any DENY → CI job fails → PR cannot merge, regardless of human approval
+  all pass  → proceeds to the PR comment + human review step from Project 8
+</div>
+
+<h2><span class="num">05</span>Step-by-Step Implementation</h2>
+
+<span class="filename">policies/tagging.rego</span>
+<pre><code><span class="kw">package</span> terraform.tagging
+
+<span class="cmt"># required tags every taggable resource must carry — this list is the</span>
+<span class="cmt"># single source of truth for the org's tagging standard.</span>
+required_tags := {<span class="str">"Environment"</span>, <span class="str">"ManagedBy"</span>, <span class="str">"Project"</span>}
+
+<span class="cmt"># iterate every resource_changes entry in the plan JSON whose action</span>
+<span class="cmt"># includes "create" or "update" (we don't need to re-check deletes).</span>
+deny[msg] {
+  <span class="kw">some</span> resource <span class="kw">in</span> input.resource_changes
+  resource.type == <span class="str">"aws_instance"</span>
+  <span class="fn">contains</span>(resource.change.actions, <span class="str">"create"</span>)
+
+  tags := resource.change.after.tags
+  missing := required_tags - {<span class="fn">key</span> | tags[key]}  <span class="cmt"># set difference: required minus present = missing</span>
+  count(missing) &gt; <span class="fn">0</span>
+
+  msg := sprintf(<span class="str">"resource %v is missing required tags: %v"</span>, [resource.address, missing])
+}
+</code></pre>
+
+<span class="filename">policies/cost-controls.rego</span>
+<pre><code><span class="kw">package</span> terraform.cost
+
+<span class="cmt"># Allowlist of instance types permitted without an explicit exception —</span>
+<span class="cmt"># this is exactly the guardrail that would have caught the story above.</span>
+allowed_instance_types := {
+  <span class="str">"t3.micro"</span>, <span class="str">"t3.small"</span>, <span class="str">"t3.medium"</span>, <span class="str">"t3.large"</span>,
+  <span class="str">"r6g.large"</span>, <span class="str">"r6g.xlarge"</span>,
+}
+
+deny[msg] {
+  <span class="kw">some</span> resource <span class="kw">in</span> input.resource_changes
+  resource.type == <span class="str">"aws_instance"</span>
+  <span class="fn">contains</span>(resource.change.actions, <span class="str">"create"</span>)
+
+  it := resource.change.after.instance_type
+  <span class="kw">not</span> allowed_instance_types[it] <span class="cmt"># Rego's "not" on a set membership check — true if NOT in the set</span>
+
+  msg := sprintf(<span class="str">"resource %v requests disallowed instance_type %q — get a cost exception approved first"</span>, [resource.address, it])
+}
+</code></pre>
+
+<span class="filename">policies/security.rego</span>
+<pre><code><span class="kw">package</span> terraform.security
+
+<span class="cmt"># Deny any S3 bucket ACL resource that grants public read/write —</span>
+<span class="cmt"># a second, automated layer behind Project 2's data-tier routing controls.</span>
+deny[msg] {
+  <span class="kw">some</span> resource <span class="kw">in</span> input.resource_changes
+  resource.type == <span class="str">"aws_s3_bucket_public_access_block"</span>
+  <span class="fn">contains</span>(resource.change.actions, <span class="str">"create"</span>)
+
+  after := resource.change.after
+  after.block_public_acls == <span class="kw">false</span>
+
+  msg := sprintf(<span class="str">"resource %v does not block public ACLs — this requires a documented security exception"</span>, [resource.address])
+}
+</code></pre>
+
+<h3>5.1 — Wiring conftest into Project 8's plan job</h3>
+<span class="filename">.github/workflows/terraform-pr-plan.yml (added step)</span>
+<pre><code>      - <span class="kw">name</span>: Export plan as JSON
+        <span class="kw">run</span>: terraform show -json tfplan &gt; plan.json
+
+      - <span class="kw">name</span>: Install conftest
+        <span class="kw">run</span>: |
+          curl -L https://github.com/open-policy-agent/conftest/releases/download/v0.53.0/conftest_0.53.0_Linux_x86_64.tar.gz \
+            | tar xz &amp;&amp; sudo mv conftest /usr/local/bin
+
+      - <span class="kw">name</span>: Run policy-as-code checks
+        <span class="kw">run</span>: conftest test plan.json --policy ../../policies
+        <span class="cmt"># non-zero exit on any deny[] rule firing — fails this CI job before</span>
+        <span class="cmt"># the plan is even posted for human review.</span>
+</code></pre>
+
+<div class="walkthrough">
+<h4>Plain-English walkthrough</h4>
+<p>
+Each Rego file targets one policy family and iterates <code>input.resource_changes</code> — the array of every
+resource change in the plan JSON — filtering to just the resource type and action it cares about. The
+<code>deny[msg]</code> pattern is Rego's idiom for a rule that produces a violation message whenever its body
+evaluates true; conftest collects every fired <code>deny</code> across every policy file and fails the run if
+there's at least one. Placing this step immediately after <code>terraform plan</code> and before the PR-comment
+step from Project 8 means a policy violation blocks the pipeline before a reviewer ever sees it — the cost-control
+policy specifically encodes the instance-type allowlist that would have caught this project's story automatically,
+independent of whether a human reviewer noticed the typo in a long diff.
+</p>
+</div>
+
+<h2><span class="num">06</span>Failure Scenarios — What Breaks in Real Life</h2>
+
+<div class="callout warn">
+<span class="label">Failure: a legitimate exception gets hard-blocked with no path forward</span>
+A team genuinely needs a GPU instance type for an ML workload, and the cost-control policy blocks it outright with
+no way to proceed short of editing the policy file itself. <strong>Debug:</strong> build an explicit exception
+mechanism — e.g., a resource tag like <code>CostException = "APPROVED-JIRA-1234"</code> that the policy checks
+for and allows through, so exceptions are auditable and approved, not achieved by disabling the check.
+</div>
+
+<div class="callout warn">
+<span class="label">Failure: policy references a plan JSON field that changed between provider versions</span>
+An AWS provider upgrade restructures part of the plan JSON schema, and a policy that worked yesterday silently
+stops matching anything (not failing loudly — just never triggering), giving false confidence that nothing's
+violating it. <strong>Debug:</strong> maintain policy unit tests (conftest supports this) with fixture plan JSON
+files covering both a passing and a violating case, run in CI whenever the provider version changes.
+</div>
+
+<div class="callout warn">
+<span class="label">Failure: policy checks slow down every PR meaningfully</span>
+As the policy set grows, conftest evaluation time creeps up, and engineers start feeling the CI pipeline as a
+drag rather than a safety net. <strong>Debug:</strong> profile and prune policies regularly, and prefer fewer,
+well-targeted rules (like the three above) over an ever-growing pile of speculative checks nobody's confirmed are
+still relevant.
+</div>
+
+<h2><span class="num">07</span>Interview Talking Points</h2>
+<div class="interview-q">
+<div class="q">"How do you enforce guardrails on infrastructure changes beyond human code review?"</div>
+Describe policy-as-code as a second, independent, automated gate — not a review replacement — evaluated against
+Terraform's plan JSON so it sees exactly what will actually be created, not raw HCL.
+</div>
+<div class="interview-q">
+<div class="q">"Tell me about a guardrail you built that actually prevented a real mistake."</div>
+Use the instance-type allowlist story directly: a one-character typo that would have cost tens of thousands of
+dollars, caught automatically by a policy check instead of relying on a reviewer noticing it in a long diff.
+</div>
+
+<h2><span class="num">08</span>Skills Gained Checklist</h2>
+<table>
+<tr><th>Skill</th><th>YOE-Equivalent Signal</th></tr>
+<tr><td>Rego policy authoring against Terraform plan JSON</td><td>Can encode organizational rules as automated, testable checks</td></tr>
+<tr><td>Cost-control guardrails</td><td>Prevents expensive mistakes structurally, not through review diligence alone</td></tr>
+<tr><td>Tagging and security policy enforcement</td><td>Enforces compliance requirements without relying on manual audits</td></tr>
+<tr><td>CI-integrated policy gating (conftest)</td><td>Builds automated gates that complement, not replace, human review</td></tr>
+</table>
+
+<h2><span class="num">09</span>Resume &amp; Portfolio Section</h2>
+<div class="resume-box">
+<h3>📌 Showcase This Project</h3>
+<p class="resume-sub">Ready-to-use bullets and framing for your resume, LinkedIn, and portfolio site.</p>
+<div class="resume-block">
+  <div class="rb-label">Resume Bullet Points</div>
+  <ul class="resume-bullets">
+    <li>Implemented policy-as-code guardrails using Open Policy Agent and conftest, automatically enforcing tagging standards, instance-type cost controls, and S3 public-access restrictions on every Terraform plan.</li>
+    <li>Built an automated cost-control policy that blocks disallowed EC2 instance types from ever reaching apply, closing a class of costly configuration mistakes that manual code review alone had missed.</li>
+    <li>Integrated Rego-based policy checks into the CI/CD pipeline against Terraform's plan JSON output, adding a machine-enforced gate independent of human review.</li>
+  </ul>
+  <span class="copy-hint">Copy any of these directly into a resume "Experience" or "Projects" section.</span>
+</div>
+<div class="resume-block">
+  <div class="rb-label">LinkedIn Project / Featured Post Blurb</div>
+  <div class="linkedin-box">
+    "Added a machine-enforced safety net on top of code review: every Terraform plan now runs through OPA policy
+    checks for required tags, an approved instance-type allowlist, and public S3 access — evaluated against the
+    actual resolved plan JSON, not raw HCL, so it sees exactly what would really get created."
+  </div>
+</div>
+<div class="resume-block">
+  <div class="rb-label">Skills to Tag / Add to Resume Skills Section</div>
+  <div class="skill-pills">
+    <span class="skill-pill">Open Policy Agent</span>
+    <span class="skill-pill">Rego</span>
+    <span class="skill-pill">Policy as Code</span>
+    <span class="skill-pill">FinOps / Cost Governance</span>
+    <span class="skill-pill">CI/CD Security Gates</span>
+  </div>
+</div>
+<div class="resume-block">
+  <div class="rb-label">Interview-Ready Project Summary (30-second version)</div>
+  <p style="margin:0; color:#dcdfe4; font-size:14.5px;">
+  "I built policy-as-code guardrails with OPA that evaluate every Terraform plan's actual resolved JSON output —
+  blocking disallowed instance types, missing required tags, or public S3 access automatically, before a human
+  reviewer ever sees the PR. It's caught real mistakes that would have slipped through code review alone."
+  </p>
+</div>
+</div>
+
+<footer>
+Project 9 of 25 &middot; HashiCorp Terraform on AWS Handbook &middot; Say <strong>"next project"</strong> to generate Project 10: Secrets Management Integration (AWS Secrets Manager + Terraform).
+</footer>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Project 27 — AD Group Membership Audit | PowerShell Masterclass</title>
+<style>
+  :root{
+    --primary:#A78BFA; --secondary:#C4B5FD; --surface:#1A1530; --surface2:#221B3D;
+    --bg:#0F0B1E; --text:#EDE9FE; --muted:#9CA3AF; --border:#332B57;
+    --success:#4ADE80; --warn:#FBBF24; --danger:#F87171;
+    --code-bg:#0A0716; --code-text:#E9E4FF;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0; font-family:"Segoe UI",Calibri,Roboto,Arial,sans-serif; background:var(--bg); color:var(--text); line-height:1.65;}
+  a{color:var(--secondary);}
+  .layout{display:flex; max-width:1400px; margin:0 auto;}
+  nav.sidebar{width:270px; flex-shrink:0; position:sticky; top:0; height:100vh; overflow-y:auto; background:var(--surface); border-right:1px solid var(--border); padding:22px 16px;}
+  nav.sidebar h3{color:var(--secondary); font-size:13px; text-transform:uppercase; letter-spacing:.06em; margin:18px 0 8px;}
+  nav.sidebar a{display:block; padding:7px 10px; border-radius:8px; color:var(--text); text-decoration:none; font-size:14px; margin-bottom:2px;}
+  nav.sidebar a:hover{background:var(--surface2); color:var(--secondary);}
+  #progressWrap{background:var(--surface2); border-radius:10px; padding:10px; margin-bottom:8px;}
+  #progressBar{height:8px; background:var(--border); border-radius:6px; overflow:hidden;}
+  #progressFill{height:100%; width:0%; background:linear-gradient(90deg,var(--primary),var(--secondary)); transition:width .2s;}
+  #progressLabel{font-size:12px; color:var(--muted); margin-top:6px;}
+  main{flex:1; min-width:0; padding:0;}
+  .cover{background:linear-gradient(135deg,#3B2A6B,#5B3FA0); color:#fff; padding:60px 48px; position:relative; overflow:hidden; border-bottom:1px solid var(--border);}
+  .cover::after{content:"";position:absolute;right:-80px;top:-80px;width:300px;height:300px;border-radius:50%;background:rgba(255,255,255,.06);}
+  .badge{display:inline-block; background:rgba(255,255,255,.14); padding:5px 14px; border-radius:20px; font-size:12px; letter-spacing:.05em; margin-right:8px; margin-bottom:14px;}
+  .cover h1{font-size:34px; margin:6px 0 10px; max-width:760px;}
+  .cover p.sub{font-size:16px; opacity:.92; max-width:640px;}
+  .cover-meta{display:flex; gap:28px; margin-top:26px; flex-wrap:wrap;}
+  .cover-meta div{background:rgba(255,255,255,.10); padding:12px 18px; border-radius:10px; min-width:140px;}
+  .cover-meta span{display:block; font-size:12px; opacity:.85;}
+  .cover-meta strong{font-size:16px;}
+  section{padding:34px 48px; border-bottom:1px solid var(--border);}
+  section h2{color:var(--secondary); font-size:24px; border-left:5px solid var(--primary); padding-left:14px; margin-top:0;}
+  section h3{color:var(--primary); font-size:18px; margin-top:26px;}
+  .story{background:var(--surface); border-left:5px solid var(--primary); padding:20px 24px; border-radius:0 10px 10px 0; font-size:15px;}
+  .story b{color:var(--secondary);}
+  .callout{border-radius:10px; padding:16px 18px; margin:16px 0; font-size:14.5px; border:1px solid var(--border);}
+  .callout.tip{background:#132A1E; border-left:5px solid var(--success);}
+  .callout.note{background:var(--surface); border-left:5px solid var(--secondary);}
+  .callout.warn{background:#2E2410; border-left:5px solid var(--warn);}
+  .callout.security{background:#2E1616; border-left:5px solid var(--danger);}
+  .callout .lbl{font-weight:700; display:block; margin-bottom:4px;}
+  table{width:100%; border-collapse:collapse; margin:16px 0; font-size:14px;}
+  th,td{border:1px solid var(--border); padding:9px 12px; text-align:left; vertical-align:top;}
+  th{background:var(--surface2); color:var(--secondary);}
+  tr:nth-child(even){background:var(--surface);}
+  .codewrap{position:relative; margin:16px 0;}
+  pre{background:var(--code-bg); color:var(--code-text); padding:18px 16px; border-radius:10px; overflow-x:auto; font-family:Consolas,"Cascadia Code",Menlo,monospace; font-size:13.5px; line-height:1.7; border:1px solid var(--border);}
+  pre code{white-space:pre;}
+  .copybtn{position:absolute; top:10px; right:10px; background:var(--primary); color:#1A1530; border:none; padding:6px 12px; border-radius:6px; font-size:12px; cursor:pointer; font-weight:600;}
+  .copybtn:hover{background:var(--secondary);}
+  .explain-list{list-style:none; padding:0; margin:14px 0;}
+  .explain-list li{background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:10px 14px; margin-bottom:6px; font-size:14.5px;}
+  .explain-list code{background:var(--surface2); padding:2px 6px; border-radius:5px; color:var(--secondary); font-weight:600;}
+  details{background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:12px 16px; margin:10px 0;}
+  details summary{cursor:pointer; font-weight:600; color:var(--secondary);}
+  .diagram{background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:20px; margin:16px 0; overflow-x:auto;}
+  .flow{display:flex; flex-wrap:wrap; align-items:center; gap:10px; font-size:13.5px;}
+  .flow .box{background:var(--surface2); border:2px solid var(--secondary); border-radius:8px; padding:8px 14px; font-weight:600; color:var(--secondary);}
+  .flow .arrow{color:var(--primary); font-size:18px;}
+  .steps{counter-reset:step;}
+  .steps .step{position:relative; padding-left:44px; margin-bottom:18px;}
+  .steps .step::before{counter-increment:step; content:counter(step); position:absolute; left:0; top:0; background:var(--primary); color:#1A1530; width:30px; height:30px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:700;}
+  .grid2{display:grid; grid-template-columns:1fr 1fr; gap:16px;}
+  @media(max-width:900px){.grid2{grid-template-columns:1fr;} nav.sidebar{display:none;} section{padding:26px 20px;} .cover{padding:36px 22px;}}
+  footer{padding:30px 48px; background:var(--surface); color:var(--muted); font-size:13px;}
+  code{color:var(--secondary);}
+</style>
+</head>
+<body>
+
+<div class="layout">
+  <nav class="sidebar">
+    <div id="progressWrap">
+      <div id="progressLabel">Reading progress</div>
+      <div id="progressBar"><div id="progressFill"></div></div>
+    </div>
+    <h3>Project 27</h3>
+    <a href="#cover">Cover</a>
+    <a href="#recap1">Recap: Projects 1–26</a>
+    <a href="#story">The Story</a>
+    <a href="#concepts">Concepts First</a>
+    <a href="#lab">Hands-On Lab</a>
+    <a href="#script">Full Script</a>
+    <a href="#linebyline">Line-by-Line</a>
+    <a href="#architecture">Architecture</a>
+    <a href="#incident">Production Incident</a>
+    <a href="#troubleshoot">Troubleshooting</a>
+    <a href="#security">Security Notes</a>
+    <a href="#recap">Key Learnings</a>
+    <a href="#interview">Interview Prep</a>
+    <a href="#challenges">Coding Challenges</a>
+    <a href="#resume">Resume Points</a>
+    <a href="#assignment">Practice Assignment</a>
+    <a href="#next">Next Project</a>
+  </nav>
+
+  <main id="top">
+    <div class="cover" id="cover">
+      <span class="badge">PROJECT 27</span><span class="badge">INTERMEDIATE</span><span class="badge">BFSI TRACK</span>
+      <h1>AD Group Membership Audit</h1>
+      <p class="sub">Audit privileged group membership against an approved allow-list, accounting for nested groups — detection-only, following Project 15's NTFS audit philosophy.</p>
+      <div class="cover-meta">
+        <div><span>Difficulty</span><strong>Intermediate</strong></div>
+        <div><span>Estimated Lab Time</span><strong>75–90 min</strong></div>
+        <div><span>Concepts</span><strong>8 core concepts</strong></div>
+        <div><span>Track</span><strong>27 of 40</strong></div>
+      </div>
+    </div>
+
+    <section id="recap1">
+      <h2>Quick Recap of Projects 1–26</h2>
+      <p>Project 26 created accounts. This project asks a different, equally important question: <b>who has access
+      to what, and is that access still correct?</b> Specifically for privileged groups (like Domain Admins), where
+      unauthorized membership is one of the most serious security findings an auditor can report. Same
+      detection-only discipline as Project 15's NTFS audit, now applied to AD group membership.</p>
+    </section>
+
+    <section id="story">
+      <h2>The Story — Why We're Building This</h2>
+      <div class="story">
+        A routine security review asks a simple-sounding question that turns out to be surprisingly hard to answer
+        manually: <i>"Exactly who currently has Domain Admin rights, and is everyone on that list still supposed to
+        be there?"</i> Two people who left contractor engagements months ago are still listed as members, added
+        temporarily during a project and never removed. Our manager wants a script that audits privileged group
+        membership against an approved list, and flags anyone who shouldn't be there — accounting for the fact that
+        someone might have access through <i>nested</i> group membership, not just direct membership.
+      </div>
+    </section>
+
+    <section id="concepts">
+      <h2>Concepts First — Before We Touch Code</h2>
+
+      <h3>1. Get-ADGroupMember — Direct Membership</h3>
+      <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code>Get-ADGroupMember -Identity "Domain Admins"</code></pre></div>
+      <p>Lists everyone (and every group) directly added as a member of the specified group.</p>
+
+      <h3>2. The Nested Group Problem</h3>
+      <div class="callout warn"><span class="lbl">Why "direct membership" alone isn't enough</span>If "Domain
+      Admins" contains another group called "IT-Escalation-Team" as a member, then everyone in
+      "IT-Escalation-Team" effectively <i>has</i> Domain Admin rights too — even though
+      <code>Get-ADGroupMember -Identity "Domain Admins"</code> alone would only show "IT-Escalation-Team" as one
+      entry, not each individual person inside it. A thorough privileged-access audit must account for this
+      nesting, or it will significantly undercount who actually has access.</div>
+      <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code>Get-ADGroupMember -Identity "Domain Admins" -Recursive</code></pre></div>
+      <ul class="explain-list">
+        <li><code>-Recursive</code> — expands nested groups automatically, returning every individual user with
+        effective membership, however many levels of group nesting deep that access actually comes from.</li>
+      </ul>
+
+      <h3>3. Get-ADPrincipalGroupMembership — The Reverse Direction</h3>
+      <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code>Get-ADPrincipalGroupMembership -Identity "jdoe"</code></pre></div>
+      <p>Answers the opposite question: given a specific person, what groups do they belong to? Useful when
+      investigating one individual's access rather than auditing a group's full membership.</p>
+
+      <h3>4. Config-Driven Approved Membership Lists</h3>
+      <p>Same pattern as every audit since Project 14: the list of who's <i>supposed</i> to be in a privileged group
+      lives in configuration, not hardcoded — Operations/Security can update the approved list without touching
+      script code.</p>
+
+      <h3>5. Detection-Only — Reusing Project 15's Core Lesson</h3>
+      <div class="callout security"><span class="lbl">Group membership changes carry the same risk as NTFS permissions</span>
+      Automatically removing someone from Domain Admins based on a script's determination could break something
+      genuinely needed and not yet reflected in the approved list — exactly the same reasoning from Project 15.
+      This script reports discrepancies for human review; it never modifies group membership itself.</div>
+
+      <h3>6. Why This Focuses on Privileged Groups Specifically</h3>
+      <p>Auditing every group's membership in a large organization would be overwhelming and mostly low-value.
+      Focusing specifically on high-privilege groups (Domain Admins, Enterprise Admins, and similarly sensitive
+      custom groups) concentrates audit effort where the risk of unauthorized access is highest.</p>
+    </section>
+
+    <section id="lab">
+      <h2>Hands-On Lab — Build It Yourself</h2>
+      <div class="callout note"><span class="lbl">Local Practice Lab vs Enterprise</span>Same requirement as Project
+      26 — this needs the ActiveDirectory module and a real (or lab) domain. If you have a lab domain, create a
+      test nested-group scenario to see -Recursive in action: a test group containing another test group containing
+      a test user.</div>
+      <div class="steps">
+        <div class="step"><b>Create the project structure:</b>
+          <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code>New-Item -ItemType Directory -Path "C:\PS-Masterclass\Project27\config" -Force
+New-Item -ItemType Directory -Path "C:\PS-Masterclass\Project27\reports" -Force
+Set-Location "C:\PS-Masterclass\Project27"</code></pre></div>
+        </div>
+        <div class="step"><b>Create <code>config\approved-privileged-members.csv</code></b> listing who SHOULD have
+        access to each privileged group in your test domain:
+          <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code>GroupName,ApprovedMembers
+Domain Admins,"Administrator;jdoe"</code></pre></div>
+        </div>
+        <div class="step"><b>Create <code>Test-PrivilegedGroupMembership.ps1</code></b> and paste the full script below.</div>
+        <div class="step"><b>Run it:</b>
+          <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code>.\Test-PrivilegedGroupMembership.ps1</code></pre></div>
+        </div>
+        <div class="step"><b>Validate:</b> confirm any member not on the approved list is flagged, and confirm
+        (if you set up a nested test group) that a nested member is correctly detected via -Recursive.</div>
+      </div>
+    </section>
+
+    <section id="script">
+      <h2>Full Script — Test-PrivilegedGroupMembership.ps1</h2>
+      <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code># =====================================================================
+# Test-PrivilegedGroupMembership.ps1
+# ABC Bank - Windows Infrastructure Automation Team
+# Purpose: Audit privileged AD group membership against an approved list (read-only)
+# =====================================================================
+
+Import-Module ActiveDirectory -ErrorAction Stop
+$ApprovedConfig = Import-Csv -Path ".\config\approved-privileged-members.csv"
+
+Write-Host "`n=== PRIVILEGED GROUP MEMBERSHIP AUDIT (READ-ONLY) ===" -ForegroundColor Magenta
+
+$Findings = @()
+
+foreach ($GroupConfig in $ApprovedConfig) {                          # $GroupConfig is one row - one group to audit
+
+    $GroupName = $GroupConfig.GroupName
+    $ApprovedList = $GroupConfig.ApprovedMembers -split ";"            # Splits "Administrator;jdoe" into an array (Project 9's technique)
+
+    Write-Host "`nAuditing '$GroupName'..." -ForegroundColor Cyan
+
+    # ---------------------------------------------------------------
+    # STEP 1: Get EFFECTIVE membership, including nested groups
+    # ---------------------------------------------------------------
+    $ActualMembers = Get-ADGroupMember -Identity $GroupName -Recursive -ErrorAction SilentlyContinue |
+        Where-Object { $_.objectClass -eq "user" }                      # -Recursive can still return group objects in some edge cases; keep only actual users
+
+    Write-Host "  Found $($ActualMembers.Count) effective user member(s) (including nested group membership)." -ForegroundColor Cyan
+
+    # ---------------------------------------------------------------
+    # STEP 2: Compare actual vs approved
+    # ---------------------------------------------------------------
+    foreach ($Member in $ActualMembers) {                                # Loops through every effective member found
+
+        $IsApproved = $Member.SamAccountName -in $ApprovedList             # Project 4's -in operator, reused
+
+        $Findings += [PSCustomObject]@{
+            GroupName      = $GroupName
+            SamAccountName = $Member.SamAccountName
+            Name           = $Member.Name
+            Approved       = $IsApproved
+        }
+
+        if (-not $IsApproved) {
+            Write-Host "  UNAPPROVED: $($Member.SamAccountName) ($($Member.Name)) has access to '$GroupName' but is not on the approved list" -ForegroundColor Red
+        }
+    }
+
+    # ---------------------------------------------------------------
+    # STEP 3: Also flag approved members who are NO LONGER actually members (list may be stale)
+    # ---------------------------------------------------------------
+    $ActualSamAccounts = $ActualMembers.SamAccountName
+    foreach ($ApprovedName in $ApprovedList) {
+        if ($ApprovedName -notin $ActualSamAccounts) {                     # Project 14's -notin operator, reused
+            Write-Host "  NOTE: '$ApprovedName' is approved but not currently a member of '$GroupName' (list may need updating)" -ForegroundColor DarkYellow
+        }
+    }
+}
+
+# ---------------------------------------------------------------
+# Export and summarize
+# ---------------------------------------------------------------
+if (-not (Test-Path ".\reports")) { New-Item -ItemType Directory -Path ".\reports" | Out-Null }
+$Timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
+$Findings | Export-Csv -Path ".\reports\GroupAudit_$Timestamp.csv" -NoTypeInformation
+
+$UnapprovedCount = ($Findings | Where-Object { -not $_.Approved }).Count
+Write-Host "`nSummary: $UnapprovedCount unapproved membership(s) found across $($ApprovedConfig.Count) privileged group(s)." -ForegroundColor Cyan
+Write-Host "REMINDER: No group memberships were changed. Review and remediate manually." -ForegroundColor Yellow
+</code></pre></div>
+      </div>
+    </section>
+
+    <section id="linebyline">
+      <h2>Line-by-Line Explanation</h2>
+
+      <h3><code>Get-ADGroupMember -Identity $GroupName -Recursive | Where-Object { $_.objectClass -eq "user" }</code></h3>
+      <ul class="explain-list">
+        <li><code>-Recursive</code> — this is the single most important line in the whole script; without it, a
+        nested group's members would be invisible to this audit, exactly the gap that let the two departed
+        contractors from our story go unnoticed.</li>
+        <li><code>Where-Object { $_.objectClass -eq "user" }</code> — a defensive filter ensuring we only count real
+        user accounts. In practice <code>-Recursive</code> should already resolve down to individual users, but
+        explicitly filtering makes that assumption visible and safe rather than silently trusted.</li>
+      </ul>
+
+      <h3><code>$IsApproved = $Member.SamAccountName -in $ApprovedList</code></h3>
+      <ul class="explain-list">
+        <li>Same SamAccountName-based comparison from Project 26 — the reliable, unique identifier, used
+        consistently across both AD projects for the same reason.</li>
+      </ul>
+
+      <h3>The second loop checking for stale approved entries</h3>
+      <ul class="explain-list">
+        <li>This is a genuinely useful, easy-to-overlook addition: an audit that only flags "unapproved people who
+        ARE members" misses the equally important "approved people who are NO LONGER members" case — the
+        approved list itself might be stale in either direction, and a thorough audit checks both.</li>
+      </ul>
+    </section>
+
+    <section id="architecture">
+      <h2>Architecture &amp; Audit Flow</h2>
+      <div class="diagram">
+        <div class="flow">
+          <div class="box">approved-privileged-members.csv</div><div class="arrow">→</div>
+          <div class="box">foreach Group</div><div class="arrow">→</div>
+          <div class="box">Get-ADGroupMember -Recursive</div>
+        </div>
+        <div class="flow" style="margin-top:12px;">
+          <div class="box">Effective Members</div><div class="arrow">→</div>
+          <div class="box">Compare vs Approved (both directions)</div><div class="arrow">→</div>
+          <div class="box">Findings Report</div>
+        </div>
+      </div>
+      <p>The two-directional comparison (unapproved-but-present, and approved-but-absent) mirrors the "record
+      everything checked" philosophy from Project 4 and Project 15 — a complete audit shows the full picture, not
+      just the alarming half of it.</p>
+    </section>
+
+    <section id="incident">
+      <h2>Production Incident Walkthrough</h2>
+      <div class="story">
+        Running this audit surfaces exactly the scenario from our story: two SamAccountNames appear in the
+        "effective members" list for Domain Admins but aren't on the approved list. Digging further using
+        <code>Get-ADPrincipalGroupMembership</code> confirms both gained access through a nested
+        "Contractor-Escalation" group added to Domain Admins eight months ago and never cleaned up — invisible to
+        anyone who'd only ever checked direct membership.
+      </div>
+      <ul class="explain-list">
+        <li><b>Why would a manual review checking Get-ADGroupMember without -Recursive have missed this?</b>
+        Without <code>-Recursive</code>, "Contractor-Escalation" would appear as a single group entry in Domain
+        Admins' member list — technically visible, but easy to overlook or dismiss as "just another group," without
+        realizing it grants effective access to everyone inside it.</li>
+      </ul>
+    </section>
+
+    <section id="troubleshoot">
+      <h2>Troubleshooting Cheat Sheet</h2>
+      <table>
+        <tr><th>Symptom</th><th>Likely Root Cause</th><th>Fix</th></tr>
+        <tr><td>"The term 'Get-ADGroupMember' is not recognized"</td><td>ActiveDirectory module not imported</td><td>Confirm Import-Module ActiveDirectory succeeds standalone first</td></tr>
+        <tr><td>Fewer members shown than expected</td><td>-Recursive was accidentally omitted</td><td>Confirm the exact cmdlet call includes -Recursive</td></tr>
+        <tr><td>Everyone gets flagged as unapproved</td><td>ApprovedMembers column in the CSV uses the wrong separator, or names don't match SamAccountName exactly</td><td>Confirm the CSV uses semicolons and exact SamAccountName spelling, matching Get-ADUser output</td></tr>
+        <tr><td>"Access is denied" running Get-ADGroupMember</td><td>The account running the script lacks read permission on that group in AD</td><td>Confirm with a domain account that has at least standard read access</td></tr>
+      </table>
+    </section>
+
+    <section id="security">
+      <h2>Security &amp; Best Practices</h2>
+      <div class="callout security"><span class="lbl">The core lesson of this project, again</span>Like Project
+      15's NTFS audit, this script deliberately never modifies group membership — removing someone from a
+      privileged group is a decision requiring human judgment and often a formal change process, not something a
+      script should decide unilaterally, however confident its detection logic is.</div>
+      <div class="callout tip"><span class="lbl">Best practice reinforced here</span>Always use <code>-Recursive</code>
+      when auditing privileged group membership — a non-recursive check can significantly understate who actually
+      has effective access, exactly as this project's incident demonstrated.</div>
+    </section>
+
+    <section id="recap">
+      <h2>Key Learnings &amp; Recap</h2>
+      <div class="grid2">
+        <div>
+          <h3>Commands/Syntax Learned</h3>
+          <ul class="explain-list">
+            <li><code>Get-ADGroupMember -Recursive</code></li>
+            <li><code>Get-ADPrincipalGroupMembership</code></li>
+          </ul>
+        </div>
+        <div>
+          <h3>Concepts Learned</h3>
+          <ul class="explain-list">
+            <li>The nested group problem and why -Recursive matters</li>
+            <li>Two-directional audit comparison (unapproved-present AND approved-absent)</li>
+            <li>Focusing audit effort on high-privilege groups specifically</li>
+            <li>Detection-only for group membership, same as NTFS permissions</li>
+          </ul>
+        </div>
+      </div>
+      <h3>Common Mistakes to Avoid</h3>
+      <ul class="explain-list">
+        <li>Auditing group membership without -Recursive and missing nested access.</li>
+        <li>Only checking for unapproved additions, ignoring a stale approved list.</li>
+        <li>Automatically removing "unapproved" members without human review.</li>
+      </ul>
+    </section>
+
+    <section id="interview">
+      <h2>Interview Preparation</h2>
+      <details><summary>Q1. Why is -Recursive critical when auditing privileged group membership specifically?</summary>
+        <p><b>Answer:</b> Groups can be nested inside other groups — without -Recursive, a person gaining access
+        through an intermediate nested group would be completely invisible to the audit, even though they have full
+        effective privileged access. For high-risk groups like Domain Admins, that blind spot is exactly the kind of
+        gap a real security review needs to catch.</p>
+        <p><b>Follow-up:</b> "How deep can group nesting go, and does that create any performance concerns?" —
+        Answer: AD technically allows multiple levels of nesting; -Recursive handles this automatically, though very
+        deep or complex nesting structures can make membership harder to reason about for humans, which is itself
+        often flagged as a governance concern separate from the technical audit.</p>
+      </details>
+      <details><summary>Q2. Why does this audit check for approved members who are NO LONGER actual members, not just unapproved additions?</summary>
+        <p><b>Answer:</b> An approved list can go stale in either direction — someone might be added without
+        approval (the more obviously dangerous case), but someone might also leave a group legitimately without the
+        approved list being updated, silently making the reference list inaccurate for future audits. Checking both
+        directions keeps the approved list itself trustworthy.</p>
+        <p><b>Follow-up:</b> "Which of the two directions is more urgent to act on?" — Answer: unapproved-but-present
+        is almost always the more urgent security finding; approved-but-absent is more of a housekeeping/documentation
+        issue, though both are worth tracking.</p>
+      </details>
+      <details><summary>Q3. Why focus this audit specifically on privileged groups rather than auditing every group in the domain?</summary>
+        <p><b>Answer:</b> Auditing every group would produce an overwhelming volume of low-value findings for most
+        organizations — concentrating on high-privilege groups (Domain Admins, Enterprise Admins, and similarly
+        sensitive custom groups) focuses limited audit and review effort where unauthorized access actually poses
+        the greatest risk.</p>
+        <p><b>Follow-up:</b> "How would you decide which OTHER groups deserve this same level of scrutiny?" —
+        Answer: groups that grant access to sensitive systems or data (like a "Finance-Reporting-Admins" group)
+        deserve similar treatment — the config-driven design of this script makes it trivial to extend the audit to
+        additional groups just by adding rows to the CSV, no code changes needed.</p>
+      </details>
+    </section>
+
+    <section id="challenges">
+      <h2>Coding Challenges</h2>
+      <details><summary>Challenge 1: For each unapproved member, also show HOW they gained access (direct vs which nested group)</summary>
+        <details><summary>Show answer</summary>
+        <pre><code>$DirectMembers = (Get-ADGroupMember -Identity $GroupName).SamAccountName   # Non-recursive - direct members only
+$AccessPath = if ($Member.SamAccountName -in $DirectMembers) { "Direct" } else { "Via nested group" }</code></pre>
+        </details>
+      </details>
+      <details><summary>Challenge 2: Add a second privileged group (e.g. "Enterprise Admins") to the same audit run</summary>
+        <details><summary>Show answer</summary>
+        <pre><code># Just add another row to approved-privileged-members.csv:
+# GroupName,ApprovedMembers
+# Enterprise Admins,"Administrator"
+# The existing foreach loop handles any number of rows automatically</code></pre>
+        </details>
+      </details>
+      <details><summary>Challenge 3: Cross-reference unapproved members against Project 26-style account status - flag if the unapproved member's account is also disabled</summary>
+        <details><summary>Show answer</summary>
+        <pre><code>$AccountDetails = Get-ADUser -Identity $Member.SamAccountName -Properties Enabled
+if (-not $AccountDetails.Enabled) {
+    Write-Host "  NOTE: $($Member.SamAccountName) is unapproved AND already disabled - likely safe to remove from group" -ForegroundColor DarkYellow
+}</code></pre>
+        </details>
+      </details>
+    </section>
+
+    <section id="resume">
+      <h2>Resume Points</h2>
+      <ul class="explain-list">
+        <li>Built a config-driven PowerShell Active Directory privileged group membership audit accounting for nested group access.</li>
+        <li>Implemented two-directional membership comparison to detect both unauthorized access and stale approval records.</li>
+        <li>Applied a detection-only design boundary consistent with the course's permission-auditing philosophy for high-risk group changes.</li>
+      </ul>
+    </section>
+
+    <section id="assignment">
+      <h2>Practice Assignment</h2>
+      <div class="callout note">
+        (If you have lab domain access) Create a test group, add it as a member of another test group, add a user to
+        the innermost test group, and confirm the audit script correctly identifies that user as an effective member
+        of the outer group via -Recursive.
+      </div>
+    </section>
+
+    <section id="next">
+      <h2>Next Project Prerequisites</h2>
+      <p>Project 28 (Inactive Account Detection) shifts to a different AD hygiene concern — finding accounts nobody's
+      used in months, using LastLogonDate and threshold classification reused from Project 2/20. When ready, say
+      <b>"Next Project."</b></p>
+    </section>
+
+    <footer>
+      PowerShell Masterclass — ABC Bank Automation Track · Project 27 of 40 · Generated for offline, self-contained use.
+    </footer>
+  </main>
+</div>
+
+<script>
+function copyCode(btn){
+  const code = btn.parentElement.querySelector('pre').innerText;
+  navigator.clipboard.writeText(code).then(()=>{
+    const old = btn.innerText; btn.innerText = "Copied!";
+    setTimeout(()=>btn.innerText = old, 1200);
+  });
+}
+window.addEventListener('scroll', ()=>{
+  const h = document.documentElement;
+  const pct = (h.scrollTop) / (h.scrollHeight - h.clientHeight) * 100;
+  document.getElementById('progressFill').style.width = pct + '%';
+  document.getElementById('progressLabel').innerText = 'Reading progress: ' + Math.round(pct) + '%';
+});
+</script>
+</body>
+</html>

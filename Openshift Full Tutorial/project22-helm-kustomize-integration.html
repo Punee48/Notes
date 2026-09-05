@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Project 22 — Helm &amp; Kustomize Integration Alongside Ansible</title>
+<style>
+:root{
+  --blue:#5b9dff; --blue-bg:#132038;
+  --purple:#b58aff; --purple-bg:#221a3a;
+  --green:#3ed67f; --green-bg:#11301f;
+  --orange:#ffb15c; --orange-bg:#3a2712;
+  --red:#ff6b6b; --red-bg:#3a1616;
+  --teal:#4fd8e0; --teal-bg:#0f2f31;
+  --ink:#e7ecf5; --sub:#9aa7bd; --line:#2a3345; --bg:#0d1117; --card:#141b26;
+  --code-bg:#0a0e14; --code-ink:#dfe7f5;
+}
+*{box-sizing:border-box;}
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--ink);line-height:1.65;}
+a{color:var(--blue);}
+.progress{position:fixed;top:0;left:0;height:4px;background:linear-gradient(90deg,var(--blue),var(--teal));z-index:999;width:0%;transition:width .1s;}
+header.cover{background:linear-gradient(135deg,#101a30 0%,#241a3d 100%);color:#fff;padding:56px 24px 40px;text-align:center;border-bottom:1px solid var(--line);}
+header.cover .badge{display:inline-block;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);padding:6px 14px;border-radius:20px;font-size:13px;letter-spacing:.5px;margin-bottom:14px;}
+header.cover h1{margin:8px auto;max-width:900px;font-size:32px;}
+header.cover p.sub{max-width:750px;margin:10px auto 0;opacity:.85;font-size:16px;}
+.meta-grid{display:flex;flex-wrap:wrap;gap:12px;justify-content:center;margin-top:26px;}
+.meta-chip{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.18);padding:8px 16px;border-radius:8px;font-size:13px;}
+nav.toc{position:sticky;top:0;background:#0f151f;border-bottom:1px solid var(--line);z-index:100;padding:10px 16px;overflow-x:auto;white-space:nowrap;}
+nav.toc a{color:var(--sub);text-decoration:none;font-size:13px;margin-right:18px;padding:6px 10px;border-radius:6px;}
+nav.toc a:hover{background:var(--blue-bg);color:var(--blue);}
+main{max-width:980px;margin:0 auto;padding:30px 20px 80px;}
+section{margin-bottom:46px;}
+h2{font-size:24px;border-left:5px solid var(--blue);padding-left:12px;margin-top:10px;color:#fff;}
+h3{font-size:19px;color:var(--purple);margin-top:28px;}
+h4{font-size:16px;color:#fff;margin-top:20px;}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:20px 22px;margin:16px 0;}
+.box{border-radius:10px;padding:16px 18px;margin:14px 0;border-left:5px solid;}
+.box.concept{background:var(--blue-bg);border-color:var(--blue);}
+.box.arch{background:var(--purple-bg);border-color:var(--purple);}
+.box.success{background:var(--green-bg);border-color:var(--green);}
+.box.warning{background:var(--orange-bg);border-color:var(--orange);}
+.box.fail{background:var(--red-bg);border-color:var(--red);}
+.box.best{background:var(--teal-bg);border-color:var(--teal);}
+.box strong.tag{display:block;font-size:12px;text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px;opacity:.85;}
+details{background:var(--card);border:1px solid var(--line);border-radius:10px;margin:12px 0;padding:4px 16px;}
+details summary{cursor:pointer;font-weight:600;padding:12px 0;color:var(--blue);}
+table{width:100%;border-collapse:collapse;margin:14px 0;font-size:14px;}
+th,td{border:1px solid var(--line);padding:9px 12px;text-align:left;vertical-align:top;}
+th{background:var(--blue-bg);color:var(--blue);}
+tr:nth-child(even){background:#101623;}
+.codewrap{position:relative;margin:14px 0;}
+pre{background:var(--code-bg);color:var(--code-ink);padding:18px;border-radius:10px;overflow-x:auto;font-size:13px;line-height:1.6;font-family:"SF Mono",Menlo,Consolas,monospace;border:1px solid var(--line);}
+pre .c{color:#6fd18a;}
+.copy-btn{position:absolute;top:10px;right:10px;background:#22304a;color:#fff;border:1px solid var(--line);padding:6px 12px;border-radius:6px;font-size:12px;cursor:pointer;}
+.copy-btn:hover{background:#2c3d5e;}
+.cmd-label{font-size:12px;color:var(--sub);text-transform:uppercase;letter-spacing:.5px;margin:14px 0 4px;}
+.flow{background:var(--purple-bg);border:1px dashed var(--purple);border-radius:10px;padding:16px;font-family:monospace;white-space:pre;font-size:13px;overflow-x:auto;color:var(--ink);}
+.qa{margin:14px 0;padding:14px 16px;background:var(--card);border:1px solid var(--line);border-radius:8px;}
+.qa .q{font-weight:600;color:var(--purple);}
+.badge-diff{display:inline-block;padding:3px 10px;border-radius:12px;font-size:12px;font-weight:600;}
+.badge-diff.mid{background:var(--orange-bg);color:var(--orange);}
+.steps{counter-reset:step;}
+.step{position:relative;padding:14px 16px 14px 52px;margin:10px 0;background:var(--card);border:1px solid var(--line);border-radius:10px;}
+.step::before{counter-increment:step;content:counter(step);position:absolute;left:14px;top:14px;width:26px;height:26px;background:var(--blue);color:#0d1117;font-weight:700;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;}
+footer{text-align:center;padding:30px;color:var(--sub);font-size:13px;}
+</style>
+</head>
+<body>
+<div class="progress" id="progressBar"></div>
+
+<header class="cover">
+  <div class="badge">OPENSHIFT + ANSIBLE MASTERCLASS · PROJECT 22 OF ~28</div>
+  <h1>Helm &amp; Kustomize Integration Alongside Ansible</h1>
+  <p class="sub">Packaging payment-api as a Helm chart and a Kustomize base/overlay structure, having Ansible drive both correctly, and resolving a live "DEV config leaked into PROD" incident caused by an overlay ordering mistake.</p>
+  <div class="meta-grid">
+    <div class="meta-chip">Difficulty: <span class="badge-diff mid">Advanced</span></div>
+    <div class="meta-chip">Domain: Telecom / Platform Engineering</div>
+    <div class="meta-chip">OpenShift: 4.14+</div>
+    <div class="meta-chip">Ansible Core: 2.16 · kubernetes.core 3.x · Helm 3.x</div>
+    <div class="meta-chip">Lab Time: ~3.5 hrs</div>
+    <div class="meta-chip">Infra Cost: $0 (CRC / existing cluster)</div>
+  </div>
+</header>
+
+<nav class="toc">
+  <a href="#story">Story</a>
+  <a href="#device">Run On Your Device</a>
+  <a href="#architecture">When to Use What</a>
+  <a href="#playbooks">Playbooks</a>
+  <a href="#run">Execution</a>
+  <a href="#incident">Incident</a>
+  <a href="#breakfix">Break-Fix</a>
+  <a href="#security">Security</a>
+  <a href="#interview">Interview</a>
+  <a href="#resume">Resume</a>
+  <a href="#cheatsheet">Cheat Sheet</a>
+  <a href="#summary">Key Learnings</a>
+</nav>
+
+<main>
+
+<section id="story">
+<h2>1. The Production Story</h2>
+<div class="box concept">
+<strong class="tag">Scenario</strong>
+Other teams at the company are starting to reuse payment-api's patterns for their own services, and they're asking for a genuinely reusable, parameterized package — not a copy-pasted Ansible role tree. Meanwhile, our own DEV/QA/STAGE/PROD environment differences (Project 1's quota sizing, Project 3's replica counts) have grown into a sprawling pile of <code>-e</code ansible flags that's getting hard to audit at a glance.
+</div>
+<div class="box warning">
+<strong class="tag">Business Problem</strong>
+Two different problems, two different tools needed: other teams want a distributable, versioned PACKAGE (Helm's strength), while we want clearer, diffable environment-specific OVERLAYS of our own manifests (Kustomize's strength). Forcing either tool to solve both problems awkwardly.
+</div>
+<div class="box best">
+<strong class="tag">Our Mandate</strong>
+Package payment-api as a Helm chart for other teams to consume, restructure our OWN environment differences as Kustomize overlays for clarity, and have Ansible orchestrate both — install/upgrade the Helm release, and apply the correct Kustomize overlay per environment.
+</div>
+</section>
+
+<section id="device">
+<h2>2. Run This On Your Device</h2>
+<div class="steps">
+<div class="step"><strong>Install Helm and confirm the kustomize binary built into oc.</strong>
+<div class="codewrap"><pre>helm version
+oc kustomize --help</pre></div>
+</div>
+<div class="step"><strong>Scaffold the Helm chart and Kustomize structure from Section 4.</strong>
+<div class="codewrap"><pre>helm create payment-api-chart
+mkdir -p kustomize/{base,overlays/{dev,qa,stage,prod}}</pre></div>
+</div>
+<div class="step"><strong>Add the Ansible orchestration playbooks.</strong>
+<div class="codewrap"><pre>mkdir -p payment-stack/playbooks</pre></div>
+</div>
+<div class="step"><strong>Install via Helm through Ansible.</strong>
+<div class="codewrap"><pre>ansible-playbook playbooks/helm_deploy.yml -e app_name=payment-api -e environment=dev</pre></div>
+</div>
+<div class="step"><strong>Apply the Kustomize overlay for the SAME environment through Ansible.</strong>
+<div class="codewrap"><pre>ansible-playbook playbooks/kustomize_apply.yml -e environment=dev</pre></div>
+</div>
+</div>
+</section>
+
+<section id="architecture">
+<h2>3. Helm vs Kustomize vs Raw Ansible — When to Use What</h2>
+<table>
+<tr><th>Tool</th><th>Best fit</th><th>How we use it here</th></tr>
+<tr><td>Helm</td><td>Distributable, versioned, parameterized packages for OTHER consumers</td><td>payment-api-chart, published for other teams to install with their own <code>values.yaml</code></td></tr>
+<tr><td>Kustomize</td><td>Clear, diffable, patch-based environment overlays of OUR OWN manifests, no templating language needed</td><td>base/ + overlays/{dev,qa,stage,prod} for our own environment differences</td></tr>
+<tr><td>Raw Ansible (Projects 1-21)</td><td>Governed operations, RBAC, Operators, backup/DR, incident response — logic-heavy, not just manifest rendering</td><td>Everything that isn't pure manifest templating stays exactly as built</td></tr>
+</table>
+<div class="flow">Ansible orchestrates BOTH, for different jobs:
+
+  ansible-playbook helm_deploy.yml
+     └── helm upgrade --install (Ansible shells out, or uses
+         kubernetes.core.helm module) → renders chart → applies
+
+  ansible-playbook kustomize_apply.yml
+     └── oc apply -k overlays/{{ environment }} (Ansible shells out
+         to 'oc kustomize' or uses kubernetes.core.k8s with a
+         rendered manifest) → applies environment-specific patches
+
+Neither replaces Projects 1-21's Ansible roles for namespace/RBAC/
+quota/Operators/DR -- those stay exactly as built.</div>
+</section>
+
+<section id="playbooks">
+<h2>4. The Playbooks — Fully Commented</h2>
+
+<h3>4.1 kustomize/overlays/prod/kustomization.yaml (reference, not Ansible)</h3>
+<div class="cmd-label">kustomize/overlays/prod/kustomization.yaml</div>
+<div class="codewrap"><pre><span class="c"># Kustomize overlay -- patches the shared base for PROD specifically.
+# This file itself isn't Ansible, but Ansible applies it below.</span>
+resources:
+  - ../../base                          <span class="c"># inherits every base manifest (Deployment, Service, Route skeleton)</span>
+patches:
+  - path: replica-patch.yaml              <span class="c"># PROD-specific patch: higher replica count</span>
+  - path: resources-patch.yaml            <span class="c"># PROD-specific patch: higher CPU/memory limits (Project 15's lesson)</span>
+namespace: payment-api-prod               <span class="c"># target namespace -- must already exist via Project 1's Ansible baseline</span></pre></div>
+
+<h3>4.2 playbooks/helm_deploy.yml</h3>
+<div class="cmd-label">playbooks/helm_deploy.yml</div>
+<div class="codewrap"><pre><span class="c">---
+# Ansible drives Helm using the kubernetes.core.helm module --
+# NOT shelling out to raw 'helm' commands, so we get the same
+# idempotency guarantees as every other playbook in this series.</span>
+- name: Deploy payment-api via Helm chart
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  tasks:
+    - name: Confirm the target namespace exists (Project 1's baseline)     <span class="c"># Helm doesn't manage namespace lifecycle here -- Ansible/Project 1 does</span>
+      kubernetes.core.k8s_info:
+        kind: Namespace
+        name: "{{ app_name }}-{{ environment }}"
+      register: ns_check                                                    <span class="c"># empty resources if missing</span>
+
+    - name: Assert namespace exists before Helm install                       <span class="c"># fail with a clear message rather than a confusing Helm error</span>
+      ansible.builtin.assert:
+        that: [ns_check.resources | length > 0]
+        fail_msg: "Namespace {{ app_name }}-{{ environment }} missing -- run Project 1's baseline first"
+
+    - name: Install or upgrade the Helm release                                <span class="c"># the actual Helm operation, made idempotent by the module</span>
+      kubernetes.core.helm:                                                     <span class="c"># dedicated Helm module -- not a shell command</span>
+        name: "{{ app_name }}-{{ environment }}"                                 <span class="c"># Helm release name -- one release per app/environment</span>
+        chart_ref: "./payment-api-chart"                                          <span class="c"># local path to the packaged chart; could also be a chart repo URL</span>
+        release_namespace: "{{ app_name }}-{{ environment }}"                      <span class="c"># target namespace -- matches Ansible's own naming convention</span>
+        create_namespace: false                                                    <span class="c"># explicitly false -- namespace lifecycle stays owned by Project 1's Ansible role, never Helm</span>
+        values:                                                                     <span class="c"># overrides passed to the chart's values.yaml</span>
+          image:
+            tag: "{{ backend_image_tag }}"                                           <span class="c"># same variable convention as Project 5's release role</span>
+          replicaCount: "{{ backend_replicas | default(3) }}"                         <span class="c"># mirrors Project 3's Deployment replica variable</span>
+          resources:
+            requests: {cpu: "{{ backend_cpu_request | default('200m') }}"}             <span class="c"># same resource-sizing discipline as every prior project</span>
+      register: helm_result                                                            <span class="c"># capture for assert</span>
+
+    - name: Assert Helm release succeeded                                                <span class="c"># fail fast on chart rendering or apply errors</span>
+      ansible.builtin.assert:
+        that: [helm_result is succeeded]
+        fail_msg: "Helm release failed for {{ app_name }}-{{ environment }}"</pre></div>
+
+<h3>4.3 playbooks/kustomize_apply.yml</h3>
+<div class="cmd-label">playbooks/kustomize_apply.yml</div>
+<div class="codewrap"><pre><span class="c">---
+# Renders the correct Kustomize overlay and applies it declaratively
+# -- rendering is delegated to 'oc kustomize' (the trusted, built-in
+# renderer), but APPLYING goes through kubernetes.core.k8s for the
+# same idempotency and error-handling as everything else.</span>
+- name: Apply Kustomize overlay for {{ environment }}
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  tasks:
+    - name: Render the environment-specific overlay to raw manifests          <span class="c"># rendering only -- no cluster changes from this task</span>
+      ansible.builtin.command:
+        cmd: "oc kustomize kustomize/overlays/{{ environment }}"                <span class="c"># built-in Kustomize renderer, trusted and version-matched to the cluster's oc</span>
+      register: rendered_manifests                                              <span class="c"># holds the full rendered YAML as text</span>
+      changed_when: false                                                        <span class="c"># pure rendering -- never itself a 'changed' cluster operation</span>
+
+    - name: Apply the rendered manifests declaratively                            <span class="c"># THIS is the actual cluster-changing step</span>
+      kubernetes.core.k8s:
+        state: present                                                             <span class="c"># idempotent create-or-update, same as every other playbook</span>
+        definition: "{{ rendered_manifests.stdout | from_yaml_all | list }}"          <span class="c"># parses the multi-document YAML string into a list of objects</span>
+      register: apply_result                                                         <span class="c"># capture for assert</span>
+
+    - name: Assert Kustomize overlay applied successfully                              <span class="c"># fail fast rather than a partial apply going unnoticed</span>
+      ansible.builtin.assert:
+        that: [apply_result is succeeded]
+        fail_msg: "Failed to apply Kustomize overlay for {{ environment }}"</pre></div>
+</section>
+
+<section id="run">
+<h2>5. Execution &amp; Idempotency</h2>
+<div class="codewrap"><pre>ansible-playbook playbooks/helm_deploy.yml -e app_name=payment-api -e environment=dev \
+  -e backend_image_tag=v2.4.1
+ansible-playbook playbooks/kustomize_apply.yml -e environment=dev</pre></div>
+<div class="box success"><strong class="tag">First run (both)</strong><pre style="background:#0f2b1c;border-color:#1a4a2c;">PLAY RECAP *** ok=4 changed=2 failed=0   (helm_deploy)
+PLAY RECAP *** ok=3 changed=1 failed=0   (kustomize_apply)</pre></div>
+<div class="box success"><strong class="tag">Second run (both, idempotency proof)</strong><pre style="background:#0f2b1c;border-color:#1a4a2c;">PLAY RECAP *** ok=4 changed=0 failed=0
+PLAY RECAP *** ok=3 changed=0 failed=0</pre></div>
+</section>
+
+<section id="incident">
+<h2>6. Live Incident — DEV Config Leaked Into PROD</h2>
+<div class="box fail"><strong class="tag">Report</strong>PROD backend pods are running with DEV-sized resource limits (200m CPU instead of the expected 1 core) right after a routine Kustomize overlay update.</div>
+
+<div class="cmd-label">Step 1 — check what actually got applied</div>
+<div class="codewrap"><pre>oc get deployment payment-api-backend -n payment-api-prod -o jsonpath='{.spec.template.spec.containers[0].resources}'
+{"requests":{"cpu":"200m"}}   <span class="c"># DEV's value, not PROD's expected 1 core</span></pre></div>
+
+<div class="cmd-label">Step 2 — check which overlay was actually rendered</div>
+<div class="codewrap"><pre>ansible-playbook playbooks/kustomize_apply.yml -e environment=prod --check --diff
+<span class="c"># --check mode shows what WOULD change without applying</span>
+<span class="c"># diff shows the resources-patch.yaml for prod was never actually included</span>
+
+cat kustomize/overlays/prod/kustomization.yaml
+resources: [../../base]
+patches:
+  - path: replica-patch.yaml
+  <span class="c"># resources-patch.yaml line is MISSING -- someone removed it while editing replica-patch nearby</span></pre></div>
+<div class="box fail"><strong class="tag">Root cause</strong>A recent edit to the PROD overlay's <code>kustomization.yaml</code> accidentally dropped the <code>resources-patch.yaml</code> line while someone was updating the replica count patch — Kustomize silently falls back to the BASE manifest's values (which match DEV-like defaults) for anything not explicitly patched, with no error or warning that a patch reference went missing.</div>
+
+<div class="cmd-label">Step 3 — fix by restoring the missing patch reference</div>
+<div class="codewrap"><pre><span class="c"># kustomize/overlays/prod/kustomization.yaml, corrected:</span>
+resources: [../../base]
+patches:
+  - path: replica-patch.yaml
+  - path: resources-patch.yaml    <span class="c"># restored</span></pre></div>
+<div class="codewrap"><pre>ansible-playbook playbooks/kustomize_apply.yml -e environment=prod</pre></div>
+
+<div class="cmd-label">Step 4 — validate</div>
+<div class="codewrap"><pre>oc get deployment payment-api-backend -n payment-api-prod -o jsonpath='{.spec.template.spec.containers[0].resources}'
+{"requests":{"cpu":"1"},"limits":{"cpu":"1"}}   <span class="c"># correct PROD values restored</span></pre></div>
+<div class="box success"><strong class="tag">Resolved</strong>PROD resource sizing restored; the <code>--check --diff</code> technique used in Step 2 becomes a standing pre-apply habit going forward.</div>
+
+<h3>RCA Summary</h3>
+<table>
+<tr><th>Field</th><th>Detail</th></tr>
+<tr><td>Impact</td><td>PROD running under-provisioned, re-creating the exact CPU throttling risk class from Project 15</td></tr>
+<tr><td>Root cause</td><td>A patch reference silently dropped from the PROD overlay's kustomization.yaml during an unrelated edit, with no validation catching the gap</td></tr>
+<tr><td>Fix</td><td>Restored the missing patch reference, re-applied</td></tr>
+<tr><td>Preventive action</td><td>Add <code>ansible-playbook ... --check --diff</code> as a mandatory review step before any Kustomize overlay change reaches PROD, and consider a CI check (extends Project 18) that asserts every overlay references a minimum expected patch set</td></tr>
+</table>
+</section>
+
+<section id="breakfix">
+<h2>7. Additional Break-Fix Labs</h2>
+<details><summary>Break-Fix — Helm release stuck in "pending-upgrade"</summary>
+<div class="codewrap"><pre>helm list -n payment-api-dev
+NAME                STATUS
+payment-api-dev     pending-upgrade   <span class="c"># a previous run was interrupted mid-upgrade</span></pre></div>
+<p><strong>Root cause:</strong> a prior Helm operation didn't complete cleanly (e.g. Ansible control node lost connectivity mid-run). <strong>Fix:</strong> <code>helm rollback</code> to the last good revision first, THEN re-run the Ansible playbook — Helm's own state must be clean before Ansible's idempotent re-apply will succeed.</p>
+</details>
+<details><summary>Break-Fix — Kustomize base change breaks ALL overlays simultaneously</summary>
+<p><strong>Symptom:</strong> a well-intentioned fix to <code>base/deployment.yaml</code> breaks DEV, QA, STAGE, and PROD all at once.</p>
+<p><strong>Root cause:</strong> unlike Helm's per-release isolation, Kustomize's shared base means ANY base change ripples to every overlay simultaneously — there's no natural staging boundary unless you build one deliberately. <strong>Fix:</strong> always render and diff EVERY overlay (<code>--check --diff</code> across dev/qa/stage/prod) before committing a base change, not just the one environment you're actively working on.</p>
+</details>
+</section>
+
+<section id="security">
+<h2>8. Security Review</h2>
+<table>
+<tr><th>Control</th><th>Detail</th></tr>
+<tr><td>Namespace lifecycle stays Ansible-owned</td><td>Neither Helm nor Kustomize creates namespaces — <code>create_namespace: false</code> explicit, preventing tool sprawl over who owns what</td></tr>
+<tr><td>Pre-apply diff review</td><td><code>--check --diff</code> as a standing habit surfaces silent overlay gaps before they reach PROD</td></tr>
+<tr><td>Chart values scoped</td><td>Helm chart only exposes the specific values (image tag, replicas, resources) intended for override — not arbitrary manifest editing</td></tr>
+</table>
+</section>
+
+<section id="interview">
+<h2>9. Interview Preparation</h2>
+<div class="qa"><div class="q">Interviewer: "When would you choose Helm vs Kustomize vs plain Ansible-applied manifests?"</div>
+<p><strong>Answer:</strong> Helm when I need a distributable, versioned package other teams or consumers will install with their own values — it's built for that distribution model. Kustomize when I'm managing my OWN environment differences on top of a shared base and want patches that are easy to diff and review without a templating language. Plain Ansible-applied manifests for anything that's more than just rendering — governed operations, RBAC, Operator lifecycle, backup/DR — where I need real control flow, not just YAML templating. They're not mutually exclusive; I've used Ansible to orchestrate both Helm and Kustomize for the same application, each for the part it's actually good at.</p></div>
+<div class="qa"><div class="q">Interviewer: "A Kustomize overlay silently applied wrong values in production — how do you prevent that?"</div>
+<p><strong>Answer:</strong> The dangerous part is that Kustomize doesn't error when a patch reference goes missing — it just silently falls back to the base value. Since then I treat <code>--check --diff</code> (or <code>oc kustomize ... | diff</code>) as a mandatory step before any overlay change reaches PROD, and I'd add a CI check asserting each overlay references its expected minimum patch set, so a missing reference fails a pipeline instead of reaching a cluster.</p></div>
+</section>
+
+<section id="resume">
+<h2>10. Resume Points</h2>
+<div class="box best"><ul>
+<li>Packaged an application as a distributable Helm chart and restructured environment-specific differences using Kustomize overlays, with Ansible orchestrating both through idempotent, assert-guarded playbooks.</li>
+<li>Diagnosed a production under-provisioning incident caused by a silently dropped Kustomize patch reference, establishing a mandatory pre-apply diff review to prevent recurrence.</li>
+</ul></div>
+</section>
+
+<section id="cheatsheet">
+<h2>11. Troubleshooting Cheat Sheet</h2>
+<table>
+<tr><th>Symptom</th><th>Check</th></tr>
+<tr><td>Wrong values applied via Kustomize</td><td><code>--check --diff</code> to see what would render; check for a missing patch reference in <code>kustomization.yaml</code></td></tr>
+<tr><td>Helm stuck pending-upgrade</td><td><code>helm rollback</code> to clear state before re-running Ansible</td></tr>
+<tr><td>Base change breaks all environments</td><td>Diff every overlay, not just the one being actively edited</td></tr>
+<tr><td>Chart install fails, namespace error</td><td>Confirm <code>create_namespace: false</code> and that Project 1's baseline already ran</td></tr>
+</table>
+</section>
+
+<section id="summary">
+<h2>12. Key Learnings</h2>
+<div class="card">
+<h4>OpenShift/tooling concepts</h4><p>Helm chart/release/values model, Kustomize base/overlay/patch model, the silent-fallback risk of a missing Kustomize patch reference, per-release isolation (Helm) vs shared-base ripple effects (Kustomize).</p>
+<h4>Ansible concepts</h4><p><code>kubernetes.core.helm</code> module for idempotent chart releases, rendering external tool output (<code>oc kustomize</code>) then applying it through the same <code>k8s</code> module used everywhere else, using <code>--check --diff</code> as a review gate.</p>
+<h4>Commands learned</h4><p><code>helm list</code>, <code>helm rollback</code>, <code>oc kustomize</code>, <code>ansible-playbook --check --diff</code>.</p>
+<h4>Next project prerequisites</h4><p>Keep this repo — Project 23 covers multi-environment promotion workflows: how a change moves DEV → QA → STAGE → PROD with approval gates and environment-specific safeguards tying together everything built so far.</p>
+</div>
+</section>
+
+</main>
+<footer>OpenShift + Ansible Masterclass — Project 22 of ~28.</footer>
+<script>
+window.addEventListener('scroll', function(){
+  var h = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+  var p = h ? (window.scrollY / h) * 100 : 0;
+  document.getElementById('progressBar').style.width = p + '%';
+});
+document.querySelectorAll('pre').forEach(function(pre){
+  if(pre.parentElement.classList.contains('codewrap')){
+    var btn = document.createElement('button');
+    btn.className = 'copy-btn'; btn.textContent = 'Copy';
+    btn.onclick = function(){
+      navigator.clipboard.writeText(pre.innerText);
+      btn.textContent = 'Copied!';
+      setTimeout(function(){ btn.textContent = 'Copy'; }, 1500);
+    };
+    pre.parentElement.appendChild(btn);
+  }
+});
+</script>
+</body>
+</html>

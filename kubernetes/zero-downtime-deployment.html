@@ -1,0 +1,715 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Use Case 3: Zero-Downtime Application Deployment | ShopNow Retail</title>
+<style>
+  :root{
+    --bg:#0b0f14; --panel:#111823; --panel2:#0e1420; --border:#1f2b3a;
+    --text:#dbe6f0; --muted:#8aa0b4; --accent:#3fb6a8; --accent2:#e8a33d;
+    --code-bg:#0a0e14; --good:#5ec98f; --bad:#e35d5d; --old:#5aa9e6; --new:#7fd1a7;
+  }
+  *{box-sizing:border-box}
+  body{background:var(--bg);color:var(--text);font-family:'Segoe UI',Roboto,Helvetica,Arial,sans-serif;line-height:1.65;margin:0;padding:0}
+  .wrap{max-width:980px;margin:0 auto;padding:32px 24px 120px}
+  h1{font-size:2rem;color:#fff;border-bottom:3px solid var(--accent);padding-bottom:12px;margin-top:0}
+  h2{color:var(--accent);font-size:1.5rem;margin-top:56px;border-left:5px solid var(--accent);padding-left:14px}
+  h3{color:var(--accent2);font-size:1.2rem;margin-top:32px}
+  h4{color:#fff;font-size:1.02rem;margin-top:22px;background:var(--panel2);padding:6px 10px;border-radius:4px;border-left:3px solid var(--muted)}
+  p{color:#c6d3df}
+  .story{background:linear-gradient(135deg,#132030,#0e1622);border:1px solid var(--border);border-radius:10px;padding:18px 22px;margin:18px 0;font-style:italic;color:#b9c9d8}
+  .story b{color:var(--accent2);font-style:normal}
+  .callout{background:#152a24;border:1px solid #235c4c;border-radius:8px;padding:14px 18px;margin:16px 0}
+  .callout.warn{background:#2a1f14;border-color:#6b4a1d}
+  .callout.why{background:#101b2c;border-color:#254268}
+  .step{background:var(--panel);border:1px solid var(--border);border-left:4px solid var(--accent);border-radius:6px;padding:12px 18px;margin:14px 0}
+  .step b.n{display:inline-block;background:var(--accent);color:#04120f;border-radius:50%;width:24px;height:24px;text-align:center;line-height:24px;font-size:.8rem;margin-right:10px}
+  pre{background:var(--code-bg);border:1px solid var(--border);border-radius:8px;padding:16px;overflow-x:auto;font-size:.85rem}
+  code{font-family:'Fira Code',Consolas,monospace;color:#c9d9e3}
+  .cmt{color:#5c7a8a}
+  .k{color:#e8a33d} .s{color:#7fd1a7} .v{color:#5aa9e6}
+  table{width:100%;border-collapse:collapse;margin:16px 0}
+  th,td{border:1px solid var(--border);padding:8px 12px;text-align:left;font-size:.9rem}
+  th{background:var(--panel2);color:var(--accent2)}
+  .toc{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:20px 26px}
+  .toc a{color:var(--accent);text-decoration:none}
+  .toc li{margin:6px 0}
+  .divider{border:none;border-top:1px solid var(--border);margin:40px 0}
+  .timeline{display:flex;flex-wrap:wrap;gap:10px;margin:16px 0;align-items:center}
+  .timeline div{background:var(--panel2);border:1px solid var(--border);border-radius:6px;padding:8px 14px;font-size:.82rem}
+  .pod{display:inline-block;width:18px;height:18px;border-radius:4px;margin:2px}
+  .pod.old{background:var(--old)} .pod.new{background:var(--new)} .pod.term{background:var(--bad);opacity:.5}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>Use Case 3: Zero-Downtime Application Deployment on Amazon EKS</h1>
+<p><b>Company:</b> ShopNow Retail Pvt Ltd (fictional mid-size e-commerce company) &nbsp;|&nbsp; <b>Your role:</b> DevOps/Cloud Engineer &nbsp;|&nbsp; <b>Level:</b> 4+ years, resume-ready production project</p>
+
+<div class="toc">
+<b>What this document covers, start to finish:</b>
+<ol>
+<li><a href="#scenario">The Business Scenario</a></li>
+<li><a href="#concept">The Core Idea — How Kubernetes Achieves Zero Downtime</a></li>
+<li><a href="#apparch">Application Architecture</a></li>
+<li><a href="#awsarch">AWS Architecture</a></li>
+<li><a href="#eks">EKS Cluster Design</a></li>
+<li><a href="#vpc">VPC and Networking</a></li>
+<li><a href="#iam">IAM Roles and IRSA</a></li>
+<li><a href="#manifests">Deployment with RollingUpdate Strategy</a></li>
+<li><a href="#probes">Readiness and Liveness Probes — Explained Line by Line</a></li>
+<li><a href="#pdb">PodDisruptionBudget</a></li>
+<li><a href="#svc">Service and Multiple Replicas</a></li>
+<li><a href="#config">ConfigMaps and Secrets</a></li>
+<li><a href="#ingress">Ingress with AWS Load Balancer Controller</a></li>
+<li><a href="#hpa">HPA and Autoscaling</a></li>
+<li><a href="#netpol">NetworkPolicies</a></li>
+<li><a href="#ecr">ECR Integration</a></li>
+<li><a href="#pipeline">Jenkins and GitHub Actions Pipelines</a></li>
+<li><a href="#argocd">Argo CD GitOps</a></li>
+<li><a href="#monitoring">Prometheus and Grafana</a></li>
+<li><a href="#cloudwatch">CloudWatch Logging</a></li>
+<li><a href="#workflow">Running the Code — Full End-to-End Workflow</a></li>
+<li><a href="#failure">Failure Testing — Proving Zero Downtime</a></li>
+<li><a href="#rollback">Rollback Strategy</a></li>
+<li><a href="#troubleshoot">Troubleshooting Scenarios</a></li>
+<li><a href="#ansible">Ansible Automation</a></li>
+<li><a href="#report">HTML Deployment/Job Report</a></li>
+<li><a href="#email">Email Notification</a></li>
+<li><a href="#resume">How to Present This on Your Resume</a></li>
+</ol>
+</div>
+
+<h2 id="scenario">1. The Business Scenario — Why This Project Exists</h2>
+<div class="story">
+Every Friday night, ShopNow Retail's engineering team used to send out a message in the company Slack channel: <b>"Deploying in 5 minutes, checkout will be briefly unavailable."</b> For a company built on impulse purchases during evening scrolling, "briefly unavailable" meant real lost revenue — the old deployment script would stop all running containers, pull the new image, and start fresh containers, and for the ninety seconds in between, every customer hitting shopnow.com got a blank white screen. Last month, a deploy landed exactly when a marketing email went out, and support tickets flooded in asking if the site had been hacked.
+</div>
+<p>Ramesh calls you in: <i>"Puneeth, I don't want to hear 'deploying in 5 minutes' ever again. I want us to be able to ship code in the middle of the day, during peak traffic, and have zero customers notice. Make that true, and prove it's true."</i></p>
+<p>This use case is the answer to that exact ask. It is arguably the single most-asked Kubernetes interview topic, because "how do you deploy without downtime" is a question every company that has ever had a bad Friday-night deploy will ask you. By the end of this document you won't just be able to describe it — you'll have run it, watched it happen live in your terminal, and broken it on purpose to prove the safety nets work.</p>
+
+<h2 id="concept">2. The Core Idea — How Kubernetes Achieves Zero Downtime</h2>
+<p>Before touching any YAML, it helps to see the mental model in one picture. A rolling update never has an "all pods down" moment — it always keeps enough old pods serving traffic while it slowly brings up new pods, checks that each one is actually healthy, and only then retires an old one.</p>
+<div class="timeline">
+<div><span class="pod old"></span><span class="pod old"></span><span class="pod old"></span><span class="pod old"></span> Start: 4 old pods, 100% traffic</div>
+</div>
+<div class="timeline">
+<div><span class="pod old"></span><span class="pod old"></span><span class="pod old"></span><span class="pod old"></span><span class="pod new"></span> Step 1: 1 new pod added (maxSurge), still all 4 old pods serving</div>
+</div>
+<div class="timeline">
+<div><span class="pod old"></span><span class="pod old"></span><span class="pod old"></span><span class="pod term"></span><span class="pod new"></span> Step 2: new pod passes readiness &rarr; 1 old pod removed (maxUnavailable)</div>
+</div>
+<div class="timeline">
+<div><span class="pod old"></span><span class="pod old"></span><span class="pod new"></span><span class="pod new"></span> Step 3: repeat — one new pod up, one old pod down, always overlapping</div>
+</div>
+<div class="timeline">
+<div><span class="pod new"></span><span class="pod new"></span><span class="pod new"></span><span class="pod new"></span> Finish: 4 new pods, traffic never touched zero healthy pods</div>
+</div>
+<p>Four separate Kubernetes features work together to make this true, and this use case implements and proves every one of them:</p>
+<table>
+<tr><th>Feature</th><th>What it guarantees</th></tr>
+<tr><td><b>RollingUpdate strategy</b></td><td>Controls the pace — how many new pods can come up ahead of schedule, how many old pods can go down at once</td></tr>
+<tr><td><b>Readiness probe</b></td><td>Stops the Service from sending traffic to a new pod until it proves it's actually able to handle requests, not just "started"</td></tr>
+<tr><td><b>PodDisruptionBudget</b></td><td>Protects against a <i>second</i>, unrelated disruption (like a node drain) happening at the same time as a rolling update and pushing available pods below a safe floor</td></tr>
+<tr><td><b>Multiple replicas</b></td><td>Without at least 2+ replicas, there's no "old pod" to keep serving while a "new pod" comes up — a single-replica Deployment can never be zero-downtime by definition</td></tr>
+</table>
+
+<h2 id="apparch">3. Application Architecture</h2>
+<div class="timeline">
+<div>Customer Browser</div><div>&rarr;</div><div>ALB (Ingress)</div><div>&rarr;</div><div>Kubernetes Service</div><div>&rarr;</div><div>Cart Service Pods (4 replicas, Node.js/Express)</div><div>&rarr;</div><div>RDS PostgreSQL</div>
+</div>
+<p>The service used for this use case is ShopNow's <b>Cart Service</b> — deliberately chosen because it's hit on almost every page view (every page shows the cart icon with item count), making it the worst possible service to have any downtime on, and therefore the best one to prove this pattern against.</p>
+
+<h2 id="awsarch">4. AWS Architecture</h2>
+<pre><code><span class="cmt">                 Route53 (shopnow.com)
+                         |
+               ACM (TLS certificate)
+                         |
+               Application Load Balancer
+                         |
+        AWS Load Balancer Controller creates/updates
+           Target Group registrations automatically
+                         |
+        +-----------------------------------+
+        |         Amazon EKS Cluster         |
+        |   namespace: prod                  |
+        |   Deployment: cart-service          |
+        |     (RollingUpdate, 4 replicas)     |
+        +-----------------------------------+
+                         |
+                    RDS PostgreSQL (cart-db)
+</span></code></pre>
+<p>The detail that matters most here: the <b>AWS Load Balancer Controller</b> watches Kubernetes Endpoints and automatically registers/deregisters pod IPs in the ALB's Target Group as pods become Ready or get terminated — this is the missing link between "Kubernetes knows a pod is ready" and "AWS actually stops sending real customer traffic to a pod that isn't." Without this controller working correctly, everything else in this document can be perfect and customers would still see errors, because the load balancer would keep sending traffic to pod IPs that no longer exist.</p>
+
+<h2 id="eks">5. EKS Cluster Design</h2>
+<pre><code><span class="k">apiVersion</span>: eksctl.io/v1alpha5
+<span class="k">kind</span>: ClusterConfig
+<span class="k">metadata</span>:
+  <span class="k">name</span>: shopnow-cluster
+  <span class="k">region</span>: ap-south-1
+  <span class="k">version</span>: <span class="s">"1.29"</span>
+<span class="k">managedNodeGroups</span>:
+  <span class="k">- name</span>: ng-general
+    <span class="k">instanceType</span>: m5.large
+    <span class="k">desiredCapacity</span>: 3
+    <span class="k">minSize</span>: 3
+    <span class="k">maxSize</span>: 8
+</code></pre>
+<p>Nothing exotic is needed at the cluster level for zero-downtime deploys — this is intentional and worth saying out loud in an interview: <b>zero-downtime deployment is achieved almost entirely through workload-level configuration (Deployment strategy, probes, PDB), not special cluster infrastructure.</b> That's what makes it applicable to any EKS cluster you're handed, not just one built a specific way.</p>
+
+<h2 id="vpc">6. VPC and Networking</h2>
+<p>Standard three-tier VPC — public subnets across 3 AZs for the ALB, private subnets for the EKS worker nodes running the Cart Service pods, and private subnets for the RDS instance. Spreading nodes across 3 Availability Zones matters directly to this use case: with <code>replicas: 4</code> spread across AZs, an entire AZ going down during a deploy still leaves healthy pods serving traffic in the other two.</p>
+
+<h2 id="iam">7. IAM Roles and IRSA</h2>
+<pre><code>eksctl create iamserviceaccount --cluster shopnow-cluster --namespace prod \
+  --name cart-service-sa \
+  --attach-policy-arn arn:aws:iam::111122223333:policy/cart-service-policy --approve
+</code></pre>
+<pre><code>{
+  <span class="k">"Version"</span>: <span class="s">"2012-10-17"</span>,
+  <span class="k">"Statement"</span>: [
+    { <span class="k">"Effect"</span>: <span class="s">"Allow"</span>, <span class="k">"Action"</span>: [<span class="s">"secretsmanager:GetSecretValue"</span>],
+      <span class="k">"Resource"</span>: <span class="s">"arn:aws:secretsmanager:ap-south-1:111122223333:secret:shopnow/prod/cart-db-*"</span> }
+  ]
+}
+</code></pre>
+
+<h2 id="manifests">8. Deployment with RollingUpdate Strategy — Explained Line by Line</h2>
+<pre><code><span class="cmt"># cart-service-deployment.yaml</span>
+<span class="k">apiVersion</span>: apps/v1
+<span class="k">kind</span>: Deployment
+<span class="k">metadata</span>:
+  <span class="k">name</span>: cart-service
+  <span class="k">namespace</span>: prod
+  <span class="k">labels</span>: { app: cart-service }
+<span class="k">spec</span>:
+  <span class="k">replicas</span>: 4
+  <span class="k">revisionHistoryLimit</span>: 5
+  <span class="k">strategy</span>:
+    <span class="k">type</span>: RollingUpdate
+    <span class="k">rollingUpdate</span>:
+      <span class="k">maxSurge</span>: 1
+      <span class="k">maxUnavailable</span>: 0
+  <span class="k">minReadySeconds</span>: 10
+  <span class="k">selector</span>:
+    <span class="k">matchLabels</span>: { app: cart-service }
+  <span class="k">template</span>:
+    <span class="k">metadata</span>: { labels: { app: cart-service } }
+    <span class="k">spec</span>:
+      <span class="k">serviceAccountName</span>: cart-service-sa
+      <span class="k">terminationGracePeriodSeconds</span>: 30
+      <span class="k">containers</span>:
+        <span class="k">- name</span>: cart-service
+          <span class="k">image</span>: 111122223333.dkr.ecr.ap-south-1.amazonaws.com/cart-service:prod-v4.1.0
+          <span class="k">ports</span>: [{ containerPort: 3000 }]
+          <span class="k">lifecycle</span>:
+            <span class="k">preStop</span>:
+              <span class="k">exec</span>:
+                <span class="k">command</span>: [<span class="s">"sh"</span>, <span class="s">"-c"</span>, <span class="s">"sleep 10"</span>]
+          <span class="k">envFrom</span>:
+            <span class="k">- configMapRef</span>: { name: cart-service-config }
+            <span class="k">- secretRef</span>: { name: cart-service-secret }
+          <span class="k">resources</span>:
+            <span class="k">requests</span>: { cpu: <span class="s">"150m"</span>, memory: <span class="s">"256Mi"</span> }
+            <span class="k">limits</span>:   { cpu: <span class="s">"400m"</span>, memory: <span class="s">"512Mi"</span> }
+</code></pre>
+<p>Every field in <code>strategy</code> and around it exists for a specific reason. Here is what each one does, in the plain language you'd use explaining it out loud on a call:</p>
+<div class="step"><b class="n">1</b><b>replicas: 4</b> — there must be more than one pod for "keep some old ones running while new ones come up" to even be possible. A Deployment with <code>replicas: 1</code> physically cannot be rolled out without a gap, no matter what strategy settings you pick.</div>
+<div class="step"><b class="n">2</b><b>maxSurge: 1</b> — Kubernetes is allowed to create <i>one extra</i> pod above the desired count of 4 while rolling out, so briefly there can be 5 pods total. This is what lets a new pod come up and prove itself before any old pod is touched.</div>
+<div class="step"><b class="n">3</b><b>maxUnavailable: 0</b> — this is the single most important line in this whole document. It tells Kubernetes it is never allowed to drop below 4 <i>available</i> pods during the rollout. Combined with maxSurge:1, the only possible sequence is: add one new pod, wait for it to be Ready, then remove one old pod — never the other way around.</div>
+<div class="step"><b class="n">4</b><b>minReadySeconds: 10</b> — even after a new pod's readiness probe first passes, Kubernetes waits an extra 10 seconds of continued healthiness before considering it truly available and moving on to the next pod. This protects against a pod that passes one readiness check and then immediately crashes.</div>
+<div class="step"><b class="n">5</b><b>terminationGracePeriodSeconds: 30</b> and the <b>preStop hook with sleep 10</b> — this pair solves a real, commonly-missed race condition: when a pod is marked for termination, Kubernetes tells the Service to stop routing to it and tells the container to shut down <i>at almost the same time</i>. If the container shuts down instantly, a request that was already in flight — or one that the ALB hasn't yet noticed should stop being sent — gets dropped. The preStop sleep buys 10 seconds for that in-flight traffic to drain before the process actually receives SIGTERM.</div>
+
+<h2 id="probes">9. Readiness and Liveness Probes — Explained Line by Line</h2>
+<pre><code>          <span class="k">readinessProbe</span>:
+            <span class="k">httpGet</span>:
+              <span class="k">path</span>: /health/ready
+              <span class="k">port</span>: 3000
+            <span class="k">initialDelaySeconds</span>: 5
+            <span class="k">periodSeconds</span>: 5
+            <span class="k">timeoutSeconds</span>: 2
+            <span class="k">failureThreshold</span>: 3
+            <span class="k">successThreshold</span>: 1
+          <span class="k">livenessProbe</span>:
+            <span class="k">httpGet</span>:
+              <span class="k">path</span>: /health/live
+              <span class="k">port</span>: 3000
+            <span class="k">initialDelaySeconds</span>: 15
+            <span class="k">periodSeconds</span>: 20
+            <span class="k">timeoutSeconds</span>: 3
+            <span class="k">failureThreshold</span>: 3
+</code></pre>
+<div class="step"><b class="n">1</b><b>readinessProbe</b> asks one question, repeatedly: "is this pod ready to receive real user traffic <i>right now</i>?" It checks <code>/health/ready</code>, an endpoint the Cart Service exposes that verifies its own database connection pool is initialized and warmed up. Until this passes, Kubernetes never adds the pod's IP to the Service's list of routable endpoints — this is the exact mechanism that stops the new pod in the diagram from getting traffic before it's actually able to serve it.</div>
+<div class="step"><b class="n">2</b><b>livenessProbe</b> asks a different question: "is this pod stuck or deadlocked and needs to be killed and restarted?" It checks <code>/health/live</code>, a much cheaper endpoint that just confirms the process is responsive. This is not about traffic routing — a container can fail liveness and get restarted even though it was never receiving traffic in the first place.</div>
+<div class="step"><b class="n">3</b><b>Why two separate endpoints, not one shared /health?</b> If they were the same endpoint, a temporary database blip would make readiness fail (correctly pulling the pod out of rotation) but would also make liveness fail, causing Kubernetes to <i>restart</i> a perfectly healthy process that was just waiting on the database — restarting it does nothing to fix a database problem and only adds churn. Splitting them lets each probe do only the one job it's meant for.</div>
+
+<h2 id="pdb">10. PodDisruptionBudget</h2>
+<pre><code><span class="cmt"># cart-service-pdb.yaml</span>
+<span class="k">apiVersion</span>: policy/v1
+<span class="k">kind</span>: PodDisruptionBudget
+<span class="k">metadata</span>: { name: cart-service-pdb, namespace: prod }
+<span class="k">spec</span>:
+  <span class="k">minAvailable</span>: 3
+  <span class="k">selector</span>: { matchLabels: { app: cart-service } }
+</code></pre>
+<div class="callout why"><b>PDB is not for rolling updates — it's for everything else happening at the same time as one.</b> The RollingUpdate <code>maxUnavailable: 0</code> setting only controls disruptions <i>caused by the Deployment itself</i>. It has zero effect on a completely separate event, like an EKS-managed node upgrade draining a node in the background while your rollout is also in progress. A PDB is a cluster-wide contract that applies no matter <i>why</i> pods are being evicted — with <code>minAvailable: 3</code> set, Kubernetes will refuse to let a voluntary eviction (a node drain, a cluster-autoscaler scale-down) push the Cart Service below 3 available pods, even in the middle of a deploy.</div>
+
+<h2 id="svc">11. Service and Multiple Replicas</h2>
+<pre><code><span class="k">apiVersion</span>: v1
+<span class="k">kind</span>: Service
+<span class="k">metadata</span>: { name: cart-service-svc, namespace: prod }
+<span class="k">spec</span>:
+  <span class="k">selector</span>: { app: cart-service }
+  <span class="k">ports</span>: [{ port: 80, targetPort: 3000 }]
+  <span class="k">type</span>: ClusterIP
+</code></pre>
+<p>The Service's <code>selector</code> is what ties everything together: it doesn't point at specific pod names or IPs, it points at the <b>label</b> <code>app: cart-service</code>. During a rollout, old pods and new pods both carry this same label simultaneously, which is exactly why the Service can smoothly send traffic to a mix of old and new pods mid-rollout without any reconfiguration — from the Service's point of view, there's no such thing as "old" or "new," only "pods with this label that are currently Ready."</p>
+
+<h2 id="config">12. ConfigMaps and Secrets</h2>
+<pre><code><span class="k">apiVersion</span>: v1
+<span class="k">kind</span>: ConfigMap
+<span class="k">metadata</span>: { name: cart-service-config, namespace: prod }
+<span class="k">data</span>:
+  <span class="k">LOG_LEVEL</span>: <span class="s">"info"</span>
+  <span class="k">DB_HOST</span>: <span class="s">"shopnow-cart-prod.abcxyz.ap-south-1.rds.amazonaws.com"</span>
+  <span class="k">READINESS_DB_CHECK</span>: <span class="s">"true"</span>
+---
+<span class="k">apiVersion</span>: external-secrets.io/v1beta1
+<span class="k">kind</span>: ExternalSecret
+<span class="k">metadata</span>: { name: cart-service-secret, namespace: prod }
+<span class="k">spec</span>:
+  <span class="k">refreshInterval</span>: 1h
+  <span class="k">secretStoreRef</span>: { name: aws-secrets-manager, kind: ClusterSecretStore }
+  <span class="k">target</span>: { name: cart-service-secret }
+  <span class="k">data</span>:
+    <span class="k">- secretKey</span>: DB_PASSWORD
+      <span class="k">remoteRef</span>: { key: shopnow/prod/cart-db-password }
+</code></pre>
+
+<h2 id="ingress">13. Ingress with AWS Load Balancer Controller</h2>
+<pre><code><span class="k">apiVersion</span>: networking.k8s.io/v1
+<span class="k">kind</span>: Ingress
+<span class="k">metadata</span>:
+  <span class="k">name</span>: cart-service-ingress
+  <span class="k">namespace</span>: prod
+  <span class="k">annotations</span>:
+    <span class="k">kubernetes.io/ingress.class</span>: alb
+    <span class="k">alb.ingress.kubernetes.io/scheme</span>: internet-facing
+    <span class="k">alb.ingress.kubernetes.io/target-type</span>: ip
+    <span class="k">alb.ingress.kubernetes.io/healthcheck-path</span>: /health/ready
+    <span class="k">alb.ingress.kubernetes.io/healthcheck-interval-seconds</span>: <span class="s">"10"</span>
+    <span class="k">alb.ingress.kubernetes.io/certificate-arn</span>: arn:aws:acm:ap-south-1:111122223333:certificate/xxxx
+<span class="k">spec</span>:
+  <span class="k">rules</span>:
+    <span class="k">- host</span>: shopnow.com
+      <span class="k">http</span>:
+        <span class="k">paths</span>:
+          <span class="k">- path</span>: /api/cart
+            <span class="k">pathType</span>: Prefix
+            <span class="k">backend</span>: { service: { name: cart-service-svc, port: { number: 80 } } }
+</code></pre>
+<p>Using <code>target-type: ip</code> means the ALB registers pod IPs directly rather than node ports — this is what allows registration and deregistration to happen at the speed of the readiness probe rather than waiting on a slower node-level health check, keeping the ALB's view of "who's healthy" tightly in sync with what Kubernetes already knows.</p>
+
+<h2 id="hpa">14. HPA and Autoscaling</h2>
+<pre><code><span class="k">apiVersion</span>: autoscaling/v2
+<span class="k">kind</span>: HorizontalPodAutoscaler
+<span class="k">metadata</span>: { name: cart-service-hpa, namespace: prod }
+<span class="k">spec</span>:
+  <span class="k">scaleTargetRef</span>: { apiVersion: apps/v1, kind: Deployment, name: cart-service }
+  <span class="k">minReplicas</span>: 4
+  <span class="k">maxReplicas</span>: 12
+  <span class="k">metrics</span>:
+    <span class="k">- type</span>: Resource
+      <span class="k">resource</span>: { name: cpu, target: { type: Utilization, averageUtilization: 65 } }
+</code></pre>
+<p><code>minReplicas: 4</code> matches the Deployment's baseline — this is deliberate: the HPA is never allowed to scale the fleet down to a count so low that a rolling update's <code>maxUnavailable: 0</code> guarantee stops being meaningful.</p>
+
+<h2 id="netpol">15. NetworkPolicies</h2>
+<pre><code><span class="k">apiVersion</span>: networking.k8s.io/v1
+<span class="k">kind</span>: NetworkPolicy
+<span class="k">metadata</span>: { name: allow-alb-to-cart, namespace: prod }
+<span class="k">spec</span>:
+  <span class="k">podSelector</span>: { matchLabels: { app: cart-service } }
+  <span class="k">policyTypes</span>: [Ingress]
+  <span class="k">ingress</span>: [{ from: [], ports: [{ protocol: TCP, port: 3000 }] }]
+</code></pre>
+
+<h2 id="ecr">16. ECR Integration</h2>
+<pre><code>aws ecr create-repository --repository-name cart-service --region ap-south-1
+
+docker build -t cart-service:$TAG .
+docker tag cart-service:$TAG 111122223333.dkr.ecr.ap-south-1.amazonaws.com/cart-service:prod-$TAG
+aws ecr get-login-password --region ap-south-1 | docker login --username AWS --password-stdin 111122223333.dkr.ecr.ap-south-1.amazonaws.com
+docker push 111122223333.dkr.ecr.ap-south-1.amazonaws.com/cart-service:prod-$TAG
+</code></pre>
+
+<h2 id="pipeline">17. CI/CD Pipeline — Jenkins and GitHub Actions</h2>
+<pre><code><span class="cmt">// Jenkinsfile</span>
+pipeline {
+  agent any
+  environment {
+    ECR_REPO = <span class="s">"111122223333.dkr.ecr.ap-south-1.amazonaws.com/cart-service"</span>
+    IMAGE_TAG = <span class="s">"prod-${GIT_COMMIT.take(7)}"</span>
+  }
+  stages {
+    stage(<span class="s">'Test'</span>) { steps { sh <span class="s">'npm ci && npm test'</span> } }
+    stage(<span class="s">'Build & Push'</span>) {
+      steps {
+        sh <span class="s">'''
+          docker build -t $ECR_REPO:$IMAGE_TAG .
+          aws ecr get-login-password | docker login --username AWS --password-stdin $ECR_REPO
+          docker push $ECR_REPO:$IMAGE_TAG
+        '''</span>
+      }
+    }
+    stage(<span class="s">'Approval'</span>) {
+      steps { timeout(time: 20, unit: <span class="s">'MINUTES'</span>) { input message: <span class="s">'Deploy cart-service to prod?'</span> } }
+    }
+    stage(<span class="s">'Rolling Deploy'</span>) {
+      steps {
+        sh <span class="s">'''
+          kubectl set image deployment/cart-service cart-service=$ECR_REPO:$IMAGE_TAG -n prod
+          kubectl rollout status deployment/cart-service -n prod --timeout=180s
+        '''</span>
+      }
+    }
+    stage(<span class="s">'Verify Zero Downtime'</span>) {
+      steps {
+        sh <span class="s">'python3 verify_zero_downtime.py --url https://shopnow.com/api/cart/health --duration 180'</span>
+      }
+    }
+    stage(<span class="s">'Report & Notify'</span>) {
+      steps {
+        sh <span class="s">'python3 generate_report.py --service cart-service --status success --build ${BUILD_NUMBER}'</span>
+        sh <span class="s">'python3 send_email.py --service cart-service --report report.html'</span>
+      }
+    }
+  }
+  post { failure { sh <span class="s">'python3 send_email.py --service cart-service --status FAILED --build ${BUILD_NUMBER}'</span> } }
+}
+</code></pre>
+<pre><code><span class="cmt"># .github/workflows/deploy.yml</span>
+<span class="k">name</span>: Cart Service Zero-Downtime Deploy
+<span class="k">on</span>: { workflow_dispatch: {} }
+<span class="k">jobs</span>:
+  <span class="k">deploy</span>:
+    <span class="k">runs-on</span>: ubuntu-latest
+    <span class="k">environment</span>: production
+    <span class="k">steps</span>:
+      <span class="k">- uses</span>: actions/checkout@v4
+      <span class="k">- uses</span>: aws-actions/configure-aws-credentials@v4
+        <span class="k">with</span>: { role-to-assume: arn:aws:iam::111122223333:role/gha-eks-deploy, aws-region: ap-south-1 }
+      <span class="k">- name</span>: Update kubeconfig
+        <span class="k">run</span>: aws eks update-kubeconfig --name shopnow-cluster --region ap-south-1
+      <span class="k">- name</span>: Rolling deploy
+        <span class="k">run</span>: |
+          kubectl set image deployment/cart-service cart-service=$ECR_REGISTRY/cart-service:prod-${{ github.sha }} -n prod
+          kubectl rollout status deployment/cart-service -n prod --timeout=180s
+      <span class="k">- name</span>: Verify zero downtime
+        <span class="k">run</span>: python3 verify_zero_downtime.py --url https://shopnow.com/api/cart/health --duration 180
+</code></pre>
+
+<h2 id="argocd">18. Argo CD GitOps</h2>
+<pre><code><span class="k">apiVersion</span>: argoproj.io/v1alpha1
+<span class="k">kind</span>: Application
+<span class="k">metadata</span>: { name: cart-service, namespace: argocd }
+<span class="k">spec</span>:
+  <span class="k">project</span>: default
+  <span class="k">source</span>: { repoURL: https://github.com/shopnow/gitops-repo.git, targetRevision: main, path: services/cart-service }
+  <span class="k">destination</span>: { server: https://kubernetes.default.svc, namespace: prod }
+  <span class="k">syncPolicy</span>: { automated: { prune: true, selfHeal: true } }
+</code></pre>
+<p>Argo CD's built-in health assessment for a Deployment already understands <code>rollout status</code> semantics — it marks the Application "Progressing" while the rolling update is in flight and only shows "Healthy" once every replica in the new ReplicaSet is Ready, giving you the same zero-downtime visibility in the Argo CD UI that <code>kubectl rollout status</code> gives you on the command line.</p>
+
+<h2 id="monitoring">19. Prometheus and Grafana</h2>
+<pre><code><span class="k">apiVersion</span>: monitoring.coreos.com/v1
+<span class="k">kind</span>: ServiceMonitor
+<span class="k">metadata</span>: { name: cart-service-monitor, namespace: prod }
+<span class="k">spec</span>:
+  <span class="k">selector</span>: { matchLabels: { app: cart-service } }
+  <span class="k">endpoints</span>: [{ port: metrics, path: /metrics, interval: 15s }]
+</code></pre>
+<p>The Grafana dashboard for this use case has one panel that matters more than any other: <b>HTTP 5xx rate and request success rate, overlaid with a deployment-event annotation</b> (fired via the pipeline calling Grafana's annotation API right as <code>kubectl set image</code> runs). If zero-downtime is really working, that vertical annotation line sits in the middle of a perfectly flat, unbroken success-rate graph — that single panel, screenshotted, is one of the strongest pieces of proof you can bring to a promotion or interview conversation.</p>
+
+<h2 id="cloudwatch">20. CloudWatch Logging</h2>
+<pre><code><span class="k">apiVersion</span>: v1
+<span class="k">kind</span>: ConfigMap
+<span class="k">metadata</span>: { name: fluent-bit-config, namespace: amazon-cloudwatch }
+<span class="k">data</span>:
+  <span class="k">output.conf</span>: |
+    [OUTPUT]
+        Name                cloudwatch_logs
+        Match               kube.*
+        region              ap-south-1
+        log_group_name      /eks/shopnow/cart-service
+        log_stream_prefix   ${kubernetes['pod_name']}-
+        auto_create_group   true
+</code></pre>
+<p>Because pod names change on every rollout, the log_stream_prefix uses the pod name so old and new pods' logs never overwrite each other — during a rollout you can literally watch old-pod streams go quiet exactly as new-pod streams start, in CloudWatch Logs Insights.</p>
+
+<h2 id="workflow">21. Running the Code — Full End-to-End Workflow</h2>
+<p>This is the part that turns everything above from theory into something you have actually watched happen. Follow these steps in order, on a real (or practice) EKS cluster.</p>
+
+<h3>Step 1 — Prerequisites</h3>
+<pre><code><span class="cmt"># Confirm your kubectl context is pointed at the right cluster</span>
+aws eks update-kubeconfig --name shopnow-cluster --region ap-south-1
+kubectl config current-context
+
+<span class="cmt"># Confirm the AWS Load Balancer Controller and metrics-server are already running</span>
+kubectl get deployment -n kube-system aws-load-balancer-controller
+kubectl get deployment -n kube-system metrics-server
+</code></pre>
+
+<h3>Step 2 — Apply everything in the correct order</h3>
+<pre><code><span class="cmt"># Namespace and secrets/config must exist before the Deployment references them</span>
+kubectl apply -f namespace.yaml
+kubectl apply -f cart-service-config.yaml
+kubectl apply -f external-secret.yaml
+
+<span class="cmt"># Wait for the secret to actually materialize before continuing</span>
+kubectl get secret cart-service-secret -n prod -w
+
+<span class="cmt"># Now the workload objects</span>
+kubectl apply -f cart-service-deployment.yaml
+kubectl apply -f cart-service-service.yaml
+kubectl apply -f cart-service-pdb.yaml
+kubectl apply -f cart-service-hpa.yaml
+kubectl apply -f cart-service-ingress.yaml
+kubectl apply -f netpol-allow-alb-to-cart.yaml
+</code></pre>
+
+<h3>Step 3 — Confirm the baseline is healthy before you deploy anything new</h3>
+<pre><code>kubectl get pods -n prod -l app=cart-service -o wide
+kubectl get deployment cart-service -n prod
+<span class="cmt"># Expect: 4/4 READY, 4 UP-TO-DATE, 4 AVAILABLE</span>
+
+kubectl get ingress cart-service-ingress -n prod
+<span class="cmt"># Wait until an ADDRESS (the ALB DNS name) appears — this can take 2-3 minutes the first time</span>
+
+curl -s https://shopnow.com/api/cart/health
+<span class="cmt"># Expect: {"status":"ok"}</span>
+</code></pre>
+
+<h3>Step 4 — Start a continuous traffic probe BEFORE triggering the deploy</h3>
+<p>This is the step that actually proves zero downtime, rather than just assuming it. Open a second terminal and leave this running throughout the entire rollout:</p>
+<pre><code><span class="cmt"># verify_zero_downtime.py — hits the app once per 200ms and records every single failure</span>
+<span class="k">import</span> requests, time, argparse, sys
+
+<span class="k">def</span> run(url, duration):
+    total, failed, start = 0, 0, time.time()
+    failures = []
+    <span class="k">while</span> time.time() - start &lt; duration:
+        total += 1
+        <span class="k">try</span>:
+            r = requests.get(url, timeout=2)
+            <span class="k">if</span> r.status_code != 200:
+                failed += 1
+                failures.append((time.time(), r.status_code))
+        <span class="k">except</span> Exception <span class="k">as</span> e:
+            failed += 1
+            failures.append((time.time(), str(e)))
+        time.sleep(0.2)
+    print(f<span class="s">"Total requests: {total}, Failed: {failed}, Success rate: {(total-failed)/total*100:.2f}%"</span>)
+    <span class="k">if</span> failed &gt; 0:
+        print(<span class="s">"FAILURES DETECTED:"</span>, failures)
+        sys.exit(1)
+    print(<span class="s">"ZERO DOWNTIME CONFIRMED"</span>)
+
+<span class="k">if</span> __name__ == <span class="s">"__main__"</span>:
+    p = argparse.ArgumentParser()
+    p.add_argument(<span class="s">"--url"</span>, required=<span class="k">True</span>)
+    p.add_argument(<span class="s">"--duration"</span>, type=<span class="k">int</span>, default=120)
+    args = p.parse_args()
+    run(args.url, args.duration)
+</code></pre>
+<pre><code><span class="cmt"># Terminal 2 — run this and leave it going</span>
+python3 verify_zero_downtime.py --url https://shopnow.com/api/cart/health --duration 180
+</code></pre>
+
+<h3>Step 5 — Trigger the rolling update, in Terminal 1, while Terminal 2 is still running</h3>
+<pre><code>kubectl set image deployment/cart-service \
+  cart-service=111122223333.dkr.ecr.ap-south-1.amazonaws.com/cart-service:prod-v4.2.0 \
+  -n prod
+
+<span class="cmt"># Watch it happen live</span>
+kubectl rollout status deployment/cart-service -n prod
+
+<span class="cmt"># In a third terminal, watch the pod churn in real time</span>
+kubectl get pods -n prod -l app=cart-service -w
+</code></pre>
+<p>What you will actually see in Terminal 3, matching the diagram from section 2: a 5th pod appears (<code>ContainerCreating</code> &rarr; <code>Running</code> &rarr; <code>1/1 Ready</code>), then one old pod flips to <code>Terminating</code> and disappears, and this repeats four times until only new pods remain — at no point does the READY count for the Deployment ever drop below 4.</p>
+
+<h3>Step 6 — Read the verdict</h3>
+<pre><code><span class="cmt"># Terminal 2 finishes on its own after 180 seconds and prints one of:</span>
+Total requests: 900, Failed: 0, Success rate: 100.00%
+ZERO DOWNTIME CONFIRMED
+
+<span class="cmt"># or, if something was misconfigured:</span>
+Total requests: 900, Failed: 3, Success rate: 99.67%
+FAILURES DETECTED: [(1723999123.4, 503), (1723999123.6, 503), (1723999123.8, 'ConnectionError')]
+</code></pre>
+<p>This exact script and this exact terminal output is what gets attached as evidence to the deployment report in section 26 — a release manager or an interviewer does not have to take your word for "we achieve zero-downtime deploys," they can see the request-by-request proof.</p>
+
+<h3>Step 7 — Confirm the new version is live everywhere</h3>
+<pre><code>kubectl get pods -n prod -l app=cart-service -o jsonpath=<span class="s">'{range .items[*]}{.metadata.name}{"\t"}{.spec.containers[0].image}{"\n"}{end}'</span>
+<span class="cmt"># every line should now show :prod-v4.2.0</span>
+
+kubectl rollout history deployment/cart-service -n prod
+</code></pre>
+
+<h2 id="failure">22. Failure Testing — Proving Zero Downtime Under Stress</h2>
+<pre><code><span class="cmt"># Test 1: Node drain DURING a rollout — confirms PDB and RollingUpdate cooperate correctly</span>
+kubectl set image deployment/cart-service cart-service=...:prod-v4.3.0 -n prod &amp;
+kubectl drain &lt;a-node-running-cart-pods&gt; --ignore-daemonsets --delete-emptydir-data
+<span class="cmt"># Expected: drain respects the PDB (minAvailable: 3) and waits/retries rather than
+# forcefully evicting past the budget, even while the rollout is independently in progress</span>
+
+<span class="cmt"># Test 2: Deliberately push a broken image and confirm the rollout HALTS instead of taking the app down</span>
+kubectl set image deployment/cart-service cart-service=...:broken-build -n prod
+kubectl rollout status deployment/cart-service -n prod --timeout=60s
+<span class="cmt"># Expected: times out because the new pods never pass readiness — but the OLD pods
+# were never touched (maxUnavailable: 0), so the app stays fully up on the last-good version</span>
+
+<span class="cmt"># Test 3: Kill a pod mid-rollout and confirm the ReplicaSet replaces it without dropping below floor</span>
+kubectl delete pod -n prod -l app=cart-service --field-selector status.phase=Running | head -1
+</code></pre>
+
+<h2 id="rollback">23. Rollback Strategy</h2>
+<pre><code><span class="cmt"># Because Test 2 above shows the rollout halts on its own, "rollback" here means
+# explicitly abandoning the stuck rollout and returning to the last-good ReplicaSet</span>
+kubectl rollout undo deployment/cart-service -n prod
+kubectl rollout status deployment/cart-service -n prod
+
+<span class="cmt"># The undo is ITSELF a rolling update back to the old image — so even the rollback
+# is zero-downtime, using the exact same maxSurge/maxUnavailable/readiness mechanism</span>
+
+<span class="cmt"># GitOps-managed version:</span>
+cd gitops-repo/services/cart-service
+git revert &lt;bad-commit-sha&gt; &amp;&amp; git push
+</code></pre>
+
+<h2 id="troubleshoot">24. Troubleshooting Scenarios</h2>
+<table>
+<tr><th>Symptom</th><th>Likely Cause</th><th>Diagnostic Commands</th></tr>
+<tr><td>Rollout stuck at "1 out of 4 new replicas updated" forever</td><td>New pod failing readiness probe — bad config, DB unreachable</td><td><code>kubectl describe pod &lt;new-pod&gt; -n prod</code>, check probe failures in Events</td></tr>
+<tr><td>Brief 502s during deploy despite maxUnavailable: 0</td><td>ALB deregistration delay not configured, or preStop hook missing</td><td>Check <code>alb.ingress.kubernetes.io/target-group-attributes: deregistration_delay.timeout_seconds</code></td></tr>
+<tr><td>Rollout succeeds but old code still responding</td><td>CDN/browser caching, or client pinned to a stale pod IP</td><td>Curl the ALB directly with <code>-H "Cache-Control: no-cache"</code></td></tr>
+<tr><td>PDB blocks node drain indefinitely</td><td>minAvailable set too close to replica count, no slack for maintenance</td><td><code>kubectl get pdb -n prod</code>, review ALLOWED DISRUPTIONS column</td></tr>
+<tr><td>New pods Ready but Service isn't routing to them</td><td>Label mismatch between Deployment template and Service selector</td><td><code>kubectl get endpoints cart-service-svc -n prod</code></td></tr>
+</table>
+
+<h2 id="ansible">25. Ansible Automation</h2>
+<p>Ansible standardizes the "zero-downtime deployment settings" as a reusable role, so every new service ShopNow builds inherits the same RollingUpdate/PDB/probe defaults instead of each team re-deriving them from scratch.</p>
+<pre><code><span class="cmt"># roles/zero-downtime-deploy/tasks/main.yml</span>
+<span class="k">- name</span>: Render Deployment with zero-downtime defaults
+  <span class="k">template</span>:
+    <span class="k">src</span>: deployment.yaml.j2
+    <span class="k">dest</span>: <span class="s">"gitops-repo/services/{{ service_name }}/deployment.yaml"</span>
+  <span class="k">vars</span>:
+    <span class="k">max_surge</span>: 1
+    <span class="k">max_unavailable</span>: 0
+    <span class="k">min_ready_seconds</span>: 10
+    <span class="k">replica_count</span>: <span class="s">"{{ replicas | default(4) }}"</span>
+
+<span class="k">- name</span>: Render PodDisruptionBudget
+  <span class="k">template</span>:
+    <span class="k">src</span>: pdb.yaml.j2
+    <span class="k">dest</span>: <span class="s">"gitops-repo/services/{{ service_name }}/pdb.yaml"</span>
+  <span class="k">vars</span>:
+    <span class="k">min_available</span>: <span class="s">"{{ (replica_count | int) - 1 }}"</span>
+
+<span class="k">- name</span>: Apply to cluster
+  <span class="k">kubernetes.core.k8s</span>:
+    <span class="k">state</span>: present
+    <span class="k">src</span>: <span class="s">"gitops-repo/services/{{ service_name }}/"</span>
+</code></pre>
+<pre><code>ansible-playbook apply-zero-downtime.yml -e <span class="s">"service_name=cart-service replicas=4"</span>
+</code></pre>
+
+<h2 id="report">26. HTML Deployment/Job Report</h2>
+<pre><code><span class="cmt"># generate_report.py — includes the zero-downtime verification result</span>
+<span class="k">import</span> argparse, subprocess, json, datetime
+
+<span class="k">def</span> get_rollout_events(service, ns=<span class="s">"prod"</span>):
+    out = subprocess.run(
+        [<span class="s">"kubectl"</span>, <span class="s">"rollout"</span>, <span class="s">"history"</span>, f<span class="s">"deployment/{service}"</span>, <span class="s">"-n"</span>, ns],
+        capture_output=<span class="k">True</span>, text=<span class="k">True</span>
+    )
+    <span class="k">return</span> out.stdout
+
+<span class="k">def</span> build_report(service, build_no, status, downtime_check):
+    color = <span class="s">"#5ec98f"</span> <span class="k">if</span> status == <span class="s">"success"</span> <span class="k">else</span> <span class="s">"#e35d5d"</span>
+    dt_color = <span class="s">"#5ec98f"</span> <span class="k">if</span> <span class="s">"CONFIRMED"</span> <span class="k">in</span> downtime_check <span class="k">else</span> <span class="s">"#e35d5d"</span>
+    history = get_rollout_events(service)
+    html = f<span class="s">"""&lt;html&gt;&lt;body style="font-family:Arial;background:#0b0f14;color:#dbe6f0;padding:24px"&gt;
+    &lt;h2 style="color:{color}"&gt;ShopNow Zero-Downtime Deploy Report — {service} (Build #{build_no})&lt;/h2&gt;
+    &lt;p&gt;Time: {datetime.datetime.now()} | Status: {status.upper()}&lt;/p&gt;
+    &lt;h3 style="color:{dt_color}"&gt;Zero-Downtime Verification: {downtime_check}&lt;/h3&gt;
+    &lt;pre style="background:#0a0e14;padding:12px;border-radius:6px"&gt;{history}&lt;/pre&gt;
+    &lt;/body&gt;&lt;/html&gt;"""</span>
+    <span class="k">with</span> open(<span class="s">"report.html"</span>, <span class="s">"w"</span>) <span class="k">as</span> f:
+        f.write(html)
+
+<span class="k">if</span> __name__ == <span class="s">"__main__"</span>:
+    parser = argparse.ArgumentParser()
+    parser.add_argument(<span class="s">"--service"</span>, required=<span class="k">True</span>)
+    parser.add_argument(<span class="s">"--status"</span>, default=<span class="s">"success"</span>)
+    parser.add_argument(<span class="s">"--build"</span>, required=<span class="k">True</span>)
+    parser.add_argument(<span class="s">"--downtime-check"</span>, default=<span class="s">"ZERO DOWNTIME CONFIRMED"</span>)
+    args = parser.parse_args()
+    build_report(args.service, args.build, args.status, args.downtime_check)
+</code></pre>
+
+<h2 id="email">27. Email Notification</h2>
+<pre><code><span class="cmt"># send_email.py</span>
+<span class="k">import</span> argparse, smtplib, os
+<span class="k">from</span> email.mime.multipart <span class="k">import</span> MIMEMultipart
+<span class="k">from</span> email.mime.text <span class="k">import</span> MIMEText
+<span class="k">from</span> email.mime.application <span class="k">import</span> MIMEApplication
+
+<span class="k">def</span> send(service, status, build_no, report_path=<span class="s">"report.html"</span>):
+    msg = MIMEMultipart()
+    msg[<span class="s">"Subject"</span>] = f<span class="s">"[ShopNow] {service} zero-downtime deploy - Build #{build_no} - {status.upper()}"</span>
+    msg[<span class="s">"From"</span>] = <span class="s">"devops-bot@shopnow.com"</span>
+    msg[<span class="s">"To"</span>] = <span class="s">"release-managers@shopnow.com"</span>
+    msg.attach(MIMEText(f<span class="s">"Service: {service}\nBuild: #{build_no}\nStatus: {status}\n\nSee attached report for rollout history and zero-downtime verification."</span>, <span class="s">"plain"</span>))
+    <span class="k">if</span> os.path.exists(report_path):
+        <span class="k">with</span> open(report_path, <span class="s">"rb"</span>) <span class="k">as</span> f:
+            part = MIMEApplication(f.read(), Name=<span class="s">"report.html"</span>)
+        part[<span class="s">"Content-Disposition"</span>] = <span class="s">'attachment; filename="report.html"'</span>
+        msg.attach(part)
+    <span class="k">with</span> smtplib.SMTP(<span class="s">"email-smtp.ap-south-1.amazonaws.com"</span>, 587) <span class="k">as</span> server:
+        server.starttls()
+        server.login(os.environ[<span class="s">"SES_USER"</span>], os.environ[<span class="s">"SES_PASS"</span>])
+        server.send_message(msg)
+
+<span class="k">if</span> __name__ == <span class="s">"__main__"</span>:
+    parser = argparse.ArgumentParser()
+    parser.add_argument(<span class="s">"--service"</span>, required=<span class="k">True</span>)
+    parser.add_argument(<span class="s">"--status"</span>, default=<span class="s">"success"</span>)
+    parser.add_argument(<span class="s">"--build"</span>, required=<span class="k">True</span>)
+    parser.add_argument(<span class="s">"--report"</span>, default=<span class="s">"report.html"</span>)
+    args = parser.parse_args()
+    send(args.service, args.status, args.build, args.report)
+</code></pre>
+
+<hr class="divider">
+<h2 id="resume">28. How to Present This on Your Resume</h2>
+<div class="callout why">
+<b>Resume bullet (use as-is or adapt):</b><br>
+"Implemented zero-downtime production deployments on Amazon EKS using RollingUpdate strategy (maxSurge/maxUnavailable tuning), readiness/liveness probes, PodDisruptionBudget, and preStop connection-draining hooks; built and ran an automated continuous-traffic verification script proving 100% request success through live deployments; validated the strategy under failure conditions including node drains and broken-image rollouts; integrated the verification results into automated HTML reports and email notifications via the CI/CD pipeline."
+</div>
+<table>
+<tr><th>Likely question</th><th>Section to re-read before the call</th></tr>
+<tr><td>"Walk me through how you achieve zero-downtime deploys"</td><td>Section 2, 8</td></tr>
+<tr><td>"What's the difference between readiness and liveness probes?"</td><td>Section 9</td></tr>
+<tr><td>"Why do you need a PDB if maxUnavailable is already 0?"</td><td>Section 10</td></tr>
+<tr><td>"How did you actually prove there was zero downtime, not just assume it?"</td><td>Section 21, Step 4-6</td></tr>
+<tr><td>"What happens if a bad image gets deployed — does it take the app down?"</td><td>Section 22, Test 2</td></tr>
+</table>
+
+<div class="story" style="margin-top:40px">The next Friday deploy at ShopNow, Ramesh doesn't send the old warning message. Instead, the pipeline posts its own message to Slack automatically: <code>cart-service prod-v4.2.0 deployed. Zero-downtime verified: 900/900 requests succeeded.</code> No one on the support team notices anything happened at all — which is exactly the point.</div>
+
+</div>
+</body>
+</html>

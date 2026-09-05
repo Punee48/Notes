@@ -1,0 +1,1027 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Project 12 — Persistent Volume Claims & Stateful Workloads | Enterprise Ansible Masterclass</title>
+<style>
+  :root {
+    --bg:          #0B1120;
+    --bg2:         #111827;
+    --card:        #1E293B;
+    --border:      #2D3E55;
+    --accent:      #10B981;
+    --accent2:     #34D399;
+    --accent3:     #6EE7B7;
+    --text:        #F8FAFC;
+    --muted:       #94A3B8;
+    --success:     #22C55E;
+    --warning:     #F59E0B;
+    --error:       #EF4444;
+    --code-bg:     #020617;
+    --code-border: #064E3B;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; font-size: 15px; line-height: 1.7; }
+  .layout { display: flex; min-height: 100vh; }
+  .sidebar { width: 260px; flex-shrink: 0; background: var(--bg2); border-right: 1px solid var(--border); position: sticky; top: 0; height: 100vh; overflow-y: auto; padding: 24px 0; }
+  .sidebar-logo { padding: 0 20px 20px; border-bottom: 1px solid var(--border); margin-bottom: 16px; }
+  .sidebar-logo .series { font-size: 10px; text-transform: uppercase; letter-spacing: 2px; color: var(--muted); margin-bottom: 4px; }
+  .sidebar-logo .title  { font-size: 13px; font-weight: 700; color: var(--accent); line-height: 1.3; }
+  .toc-section { padding: 8px 20px 4px; font-size: 10px; text-transform: uppercase; letter-spacing: 1.5px; color: var(--muted); font-weight: 600; margin-top: 8px; }
+  .toc-item { display: block; padding: 6px 20px; font-size: 12.5px; color: var(--muted); text-decoration: none; border-left: 2px solid transparent; transition: all 0.2s; }
+  .toc-item:hover, .toc-item.active { color: var(--accent); border-left-color: var(--accent); background: rgba(16,185,129,0.08); }
+  .main { flex: 1; max-width: 960px; padding: 48px 56px; overflow-x: hidden; }
+
+  .cover { background: linear-gradient(135deg, #064E3B 0%, #065F46 50%, #0B1120 100%); border: 1px solid var(--border); border-radius: 16px; padding: 48px; margin-bottom: 48px; position: relative; overflow: hidden; }
+  .cover::before { content:''; position:absolute; top:-60px; right:-60px; width:300px; height:300px; background:radial-gradient(circle,rgba(16,185,129,.15) 0%,transparent 70%); pointer-events:none; }
+  .cover-badge { display:inline-flex; align-items:center; gap:8px; background:rgba(16,185,129,.15); border:1px solid rgba(16,185,129,.3); border-radius:99px; padding:4px 14px; font-size:11px; font-weight:600; color:var(--accent); text-transform:uppercase; letter-spacing:1px; margin-bottom:20px; }
+  .cover-badge .dot { width:6px; height:6px; border-radius:50%; background:var(--accent); animation:pulse 2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+  .cover h1 { font-size:32px; font-weight:800; line-height:1.2; margin-bottom:12px; }
+  .cover h1 span { background:linear-gradient(90deg,var(--accent2),var(--accent3)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
+  .cover-sub { font-size:16px; color:var(--muted); margin-bottom:32px; max-width:620px; }
+  .cover-meta { display:flex; flex-wrap:wrap; gap:24px; }
+  .meta-item { display:flex; flex-direction:column; gap:2px; }
+  .meta-label { font-size:10px; text-transform:uppercase; letter-spacing:1px; color:var(--muted); }
+  .meta-value { font-size:14px; font-weight:600; color:var(--text); }
+  .meta-value.green { color:var(--accent); }
+
+  h2.section-title { font-size:22px; font-weight:700; margin:48px 0 20px; padding-bottom:12px; border-bottom:1px solid var(--border); display:flex; align-items:center; gap:12px; }
+  h2.section-title .num { width:32px; height:32px; background:linear-gradient(135deg,var(--accent),var(--accent2)); border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:800; color:#fff; flex-shrink:0; }
+  h3.sub-title { font-size:17px; font-weight:700; margin:28px 0 12px; color:var(--accent2); }
+  h4.mini-title { font-size:14px; font-weight:700; margin:20px 0 8px; color:var(--accent3); text-transform:uppercase; letter-spacing:.5px; }
+  p { margin-bottom:14px; }
+  strong { color:var(--text); font-weight:700; }
+
+  .callout { border-radius:10px; padding:16px 20px; margin:20px 0; border-left:4px solid; display:flex; gap:12px; }
+  .callout-icon { font-size:18px; flex-shrink:0; margin-top:1px; }
+  .callout-body { flex:1; }
+  .callout-title { font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:1px; margin-bottom:4px; }
+  .callout p { margin-bottom:0; font-size:14px; }
+  .callout.info   { background:rgba(16,185,129,.07); border-color:var(--accent); }
+  .callout.info   .callout-title { color:var(--accent); }
+  .callout.warn   { background:rgba(245,158,11,.07); border-color:var(--warning); }
+  .callout.warn   .callout-title { color:var(--warning); }
+  .callout.danger { background:rgba(239,68,68,.07); border-color:var(--error); }
+  .callout.danger .callout-title { color:var(--error); }
+  .callout.tip    { background:rgba(34,197,94,.07); border-color:var(--success); }
+  .callout.tip    .callout-title { color:var(--success); }
+
+  .story-box { background:linear-gradient(135deg,#064E3B 0%,#0B1120 100%); border:1px solid rgba(16,185,129,.3); border-radius:12px; padding:24px 28px; margin:24px 0; position:relative; }
+  .story-box::before { content:'"'; position:absolute; top:-10px; left:20px; font-size:60px; color:rgba(16,185,129,.3); font-family:Georgia,serif; line-height:1; }
+  .story-box p { color:#CBD5E1; font-size:14.5px; line-height:1.8; margin-bottom:8px; }
+  .story-box .story-tag { font-size:10px; text-transform:uppercase; letter-spacing:2px; color:var(--accent); font-weight:700; margin-bottom:12px; }
+
+  .code-wrapper { margin:20px 0; border-radius:10px; overflow:hidden; border:1px solid var(--code-border); }
+  .code-header { display:flex; justify-content:space-between; align-items:center; background:#0D1117; padding:10px 16px; border-bottom:1px solid var(--code-border); }
+  .code-lang { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:var(--accent); }
+  .code-filename { font-size:11px; color:var(--muted); font-family:'Courier New',monospace; }
+  .copy-btn { background:rgba(16,185,129,.15); border:1px solid rgba(16,185,129,.3); color:var(--accent); border-radius:5px; padding:3px 10px; font-size:11px; cursor:pointer; }
+  .copy-btn:hover { background:rgba(16,185,129,.3); }
+  pre { background:var(--code-bg); padding:20px; overflow-x:auto; font-family:'Courier New',Consolas,monospace; font-size:13px; line-height:1.65; margin:0; }
+  .sy-comment { color:#4A5568; font-style:italic; }
+  .sy-key     { color:#6EE7B7; }
+  .sy-string  { color:#86EFAC; }
+  .sy-var     { color:#FBBF24; }
+  .sy-module  { color:#67E8F9; }
+  .sy-bool    { color:#C084FC; }
+  .sy-num     { color:#FBBF24; }
+  .sy-keyword { color:#34D399; font-weight:bold; }
+
+  .diagram { background:var(--code-bg); border:1px solid var(--code-border); border-radius:10px; padding:28px 32px; margin:20px 0; font-family:'Courier New',monospace; font-size:12.5px; line-height:1.9; color:#94A3B8; overflow-x:auto; }
+  .diagram .d-title { color:var(--accent); font-weight:700; font-size:11px; text-transform:uppercase; letter-spacing:2px; margin-bottom:16px; }
+  .d-box    { color:var(--text); }
+  .d-arrow  { color:var(--accent2); }
+  .d-label  { color:var(--success); font-weight:600; }
+  .d-note   { color:var(--warning); font-style:italic; }
+
+  .tag { display:inline-block; border-radius:4px; padding:2px 8px; font-size:11px; font-weight:600; margin:2px; }
+  .tag.green  { background:#064E3B; color:#6EE7B7; }
+  .tag.teal   { background:#134E4A; color:#5EEAD4; }
+  .tag.amber  { background:#78350F; color:#FCD34D; }
+  .tag.blue   { background:#1E3A8A; color:#93C5FD; }
+  .tag.red    { background:#7F1D1D; color:#FCA5A5; }
+
+  .card-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:16px; margin:20px 0; }
+  .card { background:var(--card); border:1px solid var(--border); border-radius:10px; padding:20px; transition:border-color .2s; }
+  .card:hover { border-color:var(--accent); }
+  .card-icon  { font-size:24px; margin-bottom:10px; }
+  .card-title { font-size:13px; font-weight:700; margin-bottom:6px; }
+  .card-desc  { font-size:12px; color:var(--muted); line-height:1.6; }
+
+  .table-wrap { overflow-x:auto; margin:20px 0; border-radius:10px; border:1px solid var(--border); }
+  table { width:100%; border-collapse:collapse; }
+  th { background:var(--card); padding:12px 16px; text-align:left; font-size:12px; font-weight:700; text-transform:uppercase; color:var(--muted); border-bottom:1px solid var(--border); }
+  td { padding:12px 16px; font-size:13px; border-bottom:1px solid rgba(45,62,85,.5); vertical-align:top; }
+  tr:last-child td { border-bottom:none; }
+
+  .step-list { list-style:none; margin:16px 0; }
+  .step-list li { display:flex; gap:16px; margin-bottom:16px; align-items:flex-start; }
+  .step-num { width:28px; height:28px; border-radius:50%; background:linear-gradient(135deg,var(--accent),var(--accent2)); display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:800; color:#fff; flex-shrink:0; }
+  .step-content strong { display:block; font-size:14px; margin-bottom:4px; }
+  .step-content span   { font-size:13px; color:var(--muted); }
+
+  .explain-block { background:#071C14; border:1px solid var(--code-border); border-radius:10px; padding:20px 24px; margin:16px 0; }
+  .explain-title { font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:var(--accent); margin-bottom:12px; }
+  .explain-row { display:flex; gap:16px; padding:8px 0; border-bottom:1px solid rgba(45,62,85,.4); font-size:13px; }
+  .explain-row:last-child { border-bottom:none; }
+  .explain-term { color:var(--accent2); font-family:monospace; min-width:200px; flex-shrink:0; }
+  .explain-def  { color:#CBD5E1; }
+
+  .qa-block { background:var(--card); border:1px solid var(--border); border-radius:10px; margin:16px 0; overflow:hidden; }
+  .qa-q { padding:14px 18px; background:#071C14; font-size:13.5px; font-weight:600; color:var(--accent); border-bottom:1px solid var(--border); }
+  .qa-q::before { content:'Q: '; }
+  .qa-a { padding:14px 18px; font-size:13px; color:#CBD5E1; line-height:1.7; }
+  .qa-a::before { content:'A: '; color:var(--success); font-weight:700; }
+
+  .challenge { background:linear-gradient(135deg,#064E3B 0%,#0B1120 100%); border:1px solid rgba(16,185,129,.3); border-radius:10px; padding:20px 24px; margin:16px 0; }
+  .challenge-num { font-size:10px; text-transform:uppercase; letter-spacing:2px; color:var(--accent); font-weight:700; margin-bottom:8px; }
+  .challenge p   { font-size:13.5px; margin-bottom:10px; }
+  details { margin-top:10px; }
+  summary { cursor:pointer; color:var(--accent); font-size:12px; font-weight:600; padding:6px 0; user-select:none; }
+  summary:hover { color:var(--text); }
+  .answer { margin-top:10px; }
+
+  .resume-box { background:var(--card); border:1px solid var(--border); border-left:4px solid var(--success); border-radius:10px; padding:20px 24px; margin:16px 0; }
+  .resume-box h4 { font-size:12px; text-transform:uppercase; letter-spacing:1px; color:var(--success); margin-bottom:12px; }
+  .resume-box ul { list-style:none; }
+  .resume-box li { font-size:13px; color:#CBD5E1; padding:6px 0; border-bottom:1px solid rgba(45,62,85,.3); padding-left:16px; position:relative; line-height:1.6; }
+  .resume-box li::before { content:'▸'; position:absolute; left:0; color:var(--success); }
+  .resume-box li:last-child { border-bottom:none; }
+
+  .progress-wrap  { margin:24px 0; }
+  .progress-label { font-size:11px; color:var(--muted); margin-bottom:6px; display:flex; justify-content:space-between; }
+  .progress-bar   { height:6px; background:var(--card); border-radius:99px; overflow:hidden; }
+  .progress-fill  { height:100%; background:linear-gradient(90deg,var(--accent),var(--accent2)); border-radius:99px; }
+
+  .footer { margin-top:64px; padding-top:24px; border-top:1px solid var(--border); font-size:12px; color:var(--muted); text-align:center; }
+  code.inline { background:#0D1117; border:1px solid var(--code-border); border-radius:4px; padding:1px 7px; font-family:'Courier New',monospace; font-size:12.5px; color:#FBBF24; }
+  .concepts { display:flex; flex-wrap:wrap; gap:8px; margin:16px 0; }
+  @media (max-width:900px) { .sidebar{display:none;} .main{padding:24px 20px;} .cover{padding:28px 24px;} .cover h1{font-size:24px;} }
+
+  .compare-grid { display:grid; grid-template-columns:1fr 1fr; gap:20px; margin:20px 0; }
+  .compare-box { background:var(--card); border:1px solid var(--border); border-radius:10px; padding:20px; }
+  .compare-box h4 { color:var(--accent2); margin-bottom:12px; font-size:14px; }
+  .compare-box ul { list-style:none; }
+  .compare-box li { font-size:13px; color:var(--muted); padding:5px 0; border-bottom:1px solid rgba(255,255,255,.05); padding-left:16px; position:relative; }
+  .compare-box li::before { content:'▪'; position:absolute; left:0; color:var(--accent); }
+  .compare-box li:last-child { border-bottom:none; }
+</style>
+</head>
+<body>
+<div class="layout">
+
+<nav class="sidebar">
+  <div class="sidebar-logo">
+    <div class="series">Enterprise Ansible Masterclass</div>
+    <div class="title">OpenShift Automation with RHAAP</div>
+  </div>
+  <div class="toc-section">Project Navigation</div>
+  <a href="#cover"         class="toc-item active">Project Overview</a>
+  <a href="#story"         class="toc-item">Enterprise Scenario</a>
+  <a href="#storage-arch"  class="toc-item">Storage Architecture</a>
+  <a href="#pv-pvc"        class="toc-item">PV, PVC, StorageClass</a>
+  <a href="#access-modes"  class="toc-item">Access Modes</a>
+  <a href="#statefulsets"  class="toc-item">StatefulSets vs Deployments</a>
+  <a href="#pvc-ansible"   class="toc-item">PVC Automation</a>
+  <a href="#statefulset-role" class="toc-item">StatefulSet Role</a>
+  <a href="#backup"        class="toc-item">Backup & Snapshot</a>
+  <a href="#expand-pvc"    class="toc-item">PVC Expansion</a>
+  <a href="#trouble"       class="toc-item">Troubleshooting</a>
+  <a href="#interview"     class="toc-item">Interview Questions</a>
+  <a href="#challenges"    class="toc-item">Coding Challenges</a>
+  <a href="#resume"        class="toc-item">Resume Points</a>
+  <a href="#assignment"    class="toc-item">Practice Assignment</a>
+
+  <div class="toc-section">Course Progress</div>
+  <div style="padding:0 20px">
+    <div class="progress-wrap">
+      <div class="progress-label"><span>Project 12 of 35</span><span>34%</span></div>
+      <div class="progress-bar"><div class="progress-fill" style="width:34%"></div></div>
+    </div>
+  </div>
+</nav>
+
+<main class="main">
+
+  <div class="cover" id="cover">
+    <div class="cover-badge"><span class="dot"></span>Project 12 of 35 — Intermediate Stage</div>
+    <h1>Persistent Volume Claims & <span>Stateful Workloads</span></h1>
+    <p class="cover-sub">Cross the line from stateless to stateful. Master Kubernetes persistent storage: PersistentVolumes, PersistentVolumeClaims, and StorageClasses. Understand why StatefulSets exist and when they replace Deployments. Automate PVC provisioning, backup and snapshot procedures, storage expansion, and deploy a production PostgreSQL StatefulSet with Ansible.</p>
+    <div class="cover-meta">
+      <div class="meta-item"><span class="meta-label">Difficulty</span><span class="meta-value green">Intermediate</span></div>
+      <div class="meta-item"><span class="meta-label">Estimated Time</span><span class="meta-value">9–11 Hours</span></div>
+      <div class="meta-item"><span class="meta-label">Ticket</span><span class="meta-value">INFRA-2005</span></div>
+      <div class="meta-item"><span class="meta-label">Domain</span><span class="meta-label">Storage · PVC · StatefulSets · Backup · Snapshots</span></div>
+    </div>
+  </div>
+
+  <h4 class="mini-title">Concepts Introduced in Project 12</h4>
+  <div class="concepts">
+    <span class="tag green">PersistentVolume (PV)</span>
+    <span class="tag green">PersistentVolumeClaim (PVC)</span>
+    <span class="tag green">StorageClass</span>
+    <span class="tag green">Dynamic provisioning</span>
+    <span class="tag teal">Access modes: RWO, ROX, RWX</span>
+    <span class="tag teal">Reclaim policies: Retain, Delete</span>
+    <span class="tag teal">Volume binding modes</span>
+    <span class="tag amber">StatefulSet vs Deployment</span>
+    <span class="tag amber">Stable pod identity</span>
+    <span class="tag amber">volumeClaimTemplates</span>
+    <span class="tag amber">Headless Services</span>
+    <span class="tag blue">VolumeSnapshot</span>
+    <span class="tag blue">PVC expansion</span>
+    <span class="tag red">Storage capacity planning</span>
+  </div>
+
+  <!-- STORY -->
+  <h2 class="section-title" id="story"><span class="num">01</span> The Manager's Twelfth Ticket — INFRA-2005</h2>
+
+  <div class="story-box">
+    <div class="story-tag">🏢 ABC Bank OpenShift Platform Team — Intermediate Week 5</div>
+    <p>The microservices are running well. Now the fraud detection team needs a database:</p>
+    <p><em>"We need to run PostgreSQL on OpenShift for the Fraud Detector service. The DB data must survive pod restarts — if the database pod dies and comes back, all data must still be there. We also need daily backups. The DB needs a stable hostname so the app can always find it. I've heard you shouldn't use a Deployment for databases — why? And how do I make sure if the storage fills up, we can expand it without downtime? Can Ansible provision and manage all of this?"</em></p>
+    <p>This forces us into stateful territory: persistent storage, StatefulSets, headless services, volume snapshots, and storage operations. The most operationally complex Kubernetes workload type.</p>
+  </div>
+
+  <h4 class="mini-title">Acceptance Criteria</h4>
+  <ul class="step-list">
+    <li><span class="step-num">1</span><div class="step-content"><strong>StorageClass selection and PVC provisioning</strong><span>Choose appropriate StorageClass (SSD for DB). Create PVC with correct access mode and size. Verify bound status.</span></div></li>
+    <li><span class="step-num">2</span><div class="step-content"><strong>Deploy PostgreSQL StatefulSet</strong><span>StatefulSet with 1 replica, stable identity (postgres-0), volumeClaimTemplate for data persistence, headless Service for DNS.</span></div></li>
+    <li><span class="step-num">3</span><div class="step-content"><strong>Headless Service for stable DNS</strong><span>PostgreSQL reachable at postgres-0.postgres.namespace.svc.cluster.local regardless of which node it's scheduled on.</span></div></li>
+    <li><span class="step-num">4</span><div class="step-content"><strong>Automated daily backup</strong><span>CronJob runs pg_dump daily. Output stored in separate PVC (or S3). Backup verified after creation.</span></div></li>
+    <li><span class="step-num">5</span><div class="step-content"><strong>VolumeSnapshot capability</strong><span>Create point-in-time snapshots of PVC before schema migrations. Restore from snapshot if migration fails.</span></div></li>
+    <li><span class="step-num">6</span><div class="step-content"><strong>PVC expansion</strong><span>When storage > 80% full, expand PVC to new size. No pod restart required (if StorageClass supports online expansion).</span></div></li>
+  </ul>
+
+  <!-- STORAGE ARCHITECTURE -->
+  <h2 class="section-title" id="storage-arch"><span class="num">02</span> Kubernetes Storage Architecture</h2>
+
+  <div class="diagram">
+    <div class="d-title">Storage Object Hierarchy</div>
+    <br>
+    <span class="d-label">Administrator layer:</span><br>
+    <span class="d-box">  StorageClass (gp3-ssd)                ← Defines HOW storage is provisioned</span><br>
+    <span class="d-arrow">      ↓ dynamic provisioning</span><br>
+    <span class="d-box">  PersistentVolume (pvc-abc123-xyz)      ← Actual storage resource (AWS EBS, NFS, Ceph...)</span><br>
+    <br>
+    <span class="d-label">Developer layer:</span><br>
+    <span class="d-box">  PersistentVolumeClaim (postgres-data)  ← Request for storage (I need 50Gi, ReadWriteOnce)</span><br>
+    <span class="d-arrow">      ↓ bound to PV automatically</span><br>
+    <span class="d-box">  Pod volume mount: /var/lib/postgresql  ← Container sees storage as a filesystem path</span><br>
+    <br>
+    <span class="d-note">  PVC → PV binding: Kubernetes scheduler finds PV that satisfies PVC request</span><br>
+    <span class="d-note">  Dynamic provisioning: StorageClass auto-creates PV when PVC created (no manual PV needed)</span>
+  </div>
+
+  <!-- PV PVC STORAGECLASS -->
+  <h2 class="section-title" id="pv-pvc"><span class="num">03</span> PV, PVC, and StorageClass — Deep Dive</h2>
+
+  <div class="explain-block">
+    <div class="explain-title">Core Storage Objects</div>
+    <div class="explain-row">
+      <span class="explain-term">StorageClass</span>
+      <span class="explain-def">Defines storage "profile": provisioner (aws-ebs, ceph-rbd, nfs), parameters (iops, type), reclaim policy. Cluster-scoped. Admin creates. Multiple classes: gp2-spinning, gp3-ssd, cephfs-shared.</span>
+    </div>
+    <div class="explain-row">
+      <span class="explain-term">PersistentVolume (PV)</span>
+      <span class="explain-def">Actual storage resource. Either manually created (static provisioning) or auto-created by StorageClass (dynamic). Cluster-scoped. Like a physical disk. Has capacity, access modes, reclaim policy.</span>
+    </div>
+    <div class="explain-row">
+      <span class="explain-term">PersistentVolumeClaim (PVC)</span>
+      <span class="explain-def">Storage request from a namespace. "I need 50Gi, ReadWriteOnce, gp3-ssd StorageClass." Kubernetes finds or creates matching PV and binds them. Namespace-scoped. Deleted when done (if reclaim=Delete, PV deleted too).</span>
+    </div>
+    <div class="explain-row">
+      <span class="explain-term">Binding</span>
+      <span class="explain-def">PVC + PV are 1:1 relationship. Once bound, nobody else can claim that PV. PVC phase: Pending → Bound → Released (if PVC deleted). Bound PVC can be mounted by Pods.</span>
+    </div>
+    <div class="explain-row">
+      <span class="explain-term">Reclaim Policy</span>
+      <span class="explain-def">What happens to PV when PVC is deleted. Retain: PV stays, data safe, must manually reclaim. Delete: PV and underlying storage deleted automatically. Recycle (deprecated). Use Retain for DB data.</span>
+    </div>
+  </div>
+
+  <!-- ACCESS MODES -->
+  <h2 class="section-title" id="access-modes"><span class="num">04</span> Access Modes — Who Can Mount What</h2>
+
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Mode</th><th>Abbrev</th><th>Meaning</th><th>Use Case</th><th>Example Backend</th></tr></thead>
+      <tbody>
+        <tr><td><strong>ReadWriteOnce</strong></td><td><code class="inline">RWO</code></td><td>One node can mount read-write. Multiple pods on SAME node OK.</td><td>Databases, single-instance apps</td><td>AWS EBS, Azure Disk</td></tr>
+        <tr><td><strong>ReadOnlyMany</strong></td><td><code class="inline">ROX</code></td><td>Many nodes can mount read-only simultaneously</td><td>Shared config files, ML model serving</td><td>NFS, CephFS</td></tr>
+        <tr><td><strong>ReadWriteMany</strong></td><td><code class="inline">RWX</code></td><td>Many nodes can mount read-write simultaneously</td><td>Shared file storage, content repos</td><td>NFS, CephFS, Azure Files</td></tr>
+        <tr><td><strong>ReadWriteOncePod</strong></td><td><code class="inline">RWOP</code></td><td>Only ONE pod (not just one node) can mount read-write</td><td>Strict single-writer guarantee</td><td>CSI drivers (k8s 1.22+)</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout warn">
+    <div class="callout-icon">⚠️</div>
+    <div class="callout-body">
+      <div class="callout-title">Critical: RWO and Deployment replicas > 1</div>
+      <p>A PVC with RWO access mode can only be mounted on ONE node at a time. If you use a Deployment with replicas=3 and RWO storage, pods on different nodes will fail to mount — only pods on the same node as the PV can attach. This is why databases use StatefulSets with 1 replica (primary) + replication, not Deployments with multiple replicas sharing one PVC.</p>
+    </div>
+  </div>
+
+  <!-- STATEFULSETS -->
+  <h2 class="section-title" id="statefulsets"><span class="num">05</span> StatefulSets vs Deployments — When to Use Each</h2>
+
+  <div class="compare-grid">
+    <div class="compare-box">
+      <h4>Deployment (Stateless)</h4>
+      <ul>
+        <li>Pods are interchangeable — any pod is equivalent</li>
+        <li>Pod names: payment-api-7f8b9c-xkz2p (random suffix)</li>
+        <li>Pods can be scheduled on any node</li>
+        <li>All pods share config; no per-pod storage</li>
+        <li>Scale up: add identical pod</li>
+        <li>Scale down: remove any pod</li>
+        <li>Use for: APIs, web apps, workers — anything stateless</li>
+      </ul>
+    </div>
+    <div class="compare-box">
+      <h4>StatefulSet (Stateful)</h4>
+      <ul>
+        <li>Pods have stable identity — postgres-0, postgres-1</li>
+        <li>Pod names: postgres-0, postgres-1, postgres-2 (ordinal)</li>
+        <li>Pods get their own dedicated PVC each</li>
+        <li>Scale up: pods created in order (0, then 1, then 2)</li>
+        <li>Scale down: pods deleted in reverse order (2, then 1)</li>
+        <li>Stable DNS: postgres-0.postgres.ns.svc.cluster.local</li>
+        <li>Use for: databases, message queues, cache clusters</li>
+      </ul>
+    </div>
+  </div>
+
+  <h3 class="sub-title">PostgreSQL StatefulSet Manifest</h3>
+
+  <div class="code-wrapper">
+    <div class="code-header">
+      <span class="code-lang">yaml</span>
+      <span class="code-filename">PostgreSQL StatefulSet + Headless Service</span>
+      <button class="copy-btn" onclick="navigator.clipboard.writeText(this.closest('.code-wrapper').querySelector('pre').innerText)">Copy</button>
+    </div>
+    <pre><code><span class="sy-comment">---
+# Headless Service — enables stable DNS per pod
+# postgres-0.postgres.fraud-detection.svc.cluster.local
+</span>
+<span class="sy-key">apiVersion:</span> <span class="sy-string">v1</span>
+<span class="sy-key">kind:</span> <span class="sy-string">Service</span>
+<span class="sy-key">metadata:</span>
+  <span class="sy-key">name:</span>      <span class="sy-string">postgres</span>
+  <span class="sy-key">namespace:</span> <span class="sy-string">fraud-detection</span>
+<span class="sy-key">spec:</span>
+  <span class="sy-key">clusterIP:</span> <span class="sy-string">None</span>              <span class="sy-comment"># Headless! No single IP — DNS resolves to pod IPs directly</span>
+  <span class="sy-key">selector:</span>
+    <span class="sy-key">app:</span> <span class="sy-string">postgres</span>
+  <span class="sy-key">ports:</span>
+    - <span class="sy-key">port:</span> <span class="sy-num">5432</span>
+      <span class="sy-key">name:</span> <span class="sy-string">postgres</span>
+
+<span class="sy-comment">---
+# StatefulSet — stable identity + dedicated PVC per pod
+</span>
+<span class="sy-key">apiVersion:</span> <span class="sy-string">apps/v1</span>
+<span class="sy-key">kind:</span> <span class="sy-string">StatefulSet</span>
+<span class="sy-key">metadata:</span>
+  <span class="sy-key">name:</span>      <span class="sy-string">postgres</span>
+  <span class="sy-key">namespace:</span> <span class="sy-string">fraud-detection</span>
+<span class="sy-key">spec:</span>
+  <span class="sy-key">serviceName:</span> <span class="sy-string">postgres</span>      <span class="sy-comment"># References headless Service above</span>
+  <span class="sy-key">replicas:</span> <span class="sy-num">1</span>                <span class="sy-comment"># Primary only; replicas handled by Postgres streaming replication</span>
+  <span class="sy-key">selector:</span>
+    <span class="sy-key">matchLabels:</span>
+      <span class="sy-key">app:</span> <span class="sy-string">postgres</span>
+
+  <span class="sy-key">template:</span>
+    <span class="sy-key">metadata:</span>
+      <span class="sy-key">labels:</span>
+        <span class="sy-key">app:</span> <span class="sy-string">postgres</span>
+    <span class="sy-key">spec:</span>
+      <span class="sy-key">containers:</span>
+        - <span class="sy-key">name:</span>  <span class="sy-string">postgres</span>
+          <span class="sy-key">image:</span> <span class="sy-string">postgres:15</span>
+          <span class="sy-key">ports:</span>
+            - <span class="sy-key">containerPort:</span> <span class="sy-num">5432</span>
+          <span class="sy-key">env:</span>
+            - <span class="sy-key">name:</span>  <span class="sy-string">POSTGRES_DB</span>
+              <span class="sy-key">value:</span> <span class="sy-string">frauddb</span>
+            - <span class="sy-key">name:</span>  <span class="sy-string">POSTGRES_USER</span>
+              <span class="sy-key">value:</span> <span class="sy-string">frauduser</span>
+            - <span class="sy-key">name:</span>  <span class="sy-string">POSTGRES_PASSWORD</span>
+              <span class="sy-key">valueFrom:</span>
+                <span class="sy-key">secretKeyRef:</span>
+                  <span class="sy-key">name:</span> <span class="sy-string">postgres-secret</span>
+                  <span class="sy-key">key:</span>  <span class="sy-string">password</span>
+          <span class="sy-key">volumeMounts:</span>
+            - <span class="sy-key">name:</span>      <span class="sy-string">postgres-data</span>
+              <span class="sy-key">mountPath:</span> <span class="sy-string">/var/lib/postgresql/data</span>
+          <span class="sy-key">resources:</span>
+            <span class="sy-key">requests:</span>
+              <span class="sy-key">cpu:</span>    <span class="sy-string">"500m"</span>
+              <span class="sy-key">memory:</span> <span class="sy-string">"1Gi"</span>
+            <span class="sy-key">limits:</span>
+              <span class="sy-key">cpu:</span>    <span class="sy-string">"2000m"</span>
+              <span class="sy-key">memory:</span> <span class="sy-string">"4Gi"</span>
+          <span class="sy-key">livenessProbe:</span>
+            <span class="sy-key">exec:</span>
+              <span class="sy-key">command:</span> [<span class="sy-string">"pg_isready"</span>, <span class="sy-string">"-U"</span>, <span class="sy-string">"frauduser"</span>]
+            <span class="sy-key">initialDelaySeconds:</span> <span class="sy-num">30</span>
+            <span class="sy-key">periodSeconds:</span>       <span class="sy-num">10</span>
+          <span class="sy-key">readinessProbe:</span>
+            <span class="sy-key">exec:</span>
+              <span class="sy-key">command:</span> [<span class="sy-string">"pg_isready"</span>, <span class="sy-string">"-U"</span>, <span class="sy-string">"frauduser"</span>]
+            <span class="sy-key">initialDelaySeconds:</span> <span class="sy-num">5</span>
+            <span class="sy-key">periodSeconds:</span>       <span class="sy-num">5</span>
+
+  <span class="sy-comment"># volumeClaimTemplates: each pod gets its OWN PVC
+  # postgres-0 → postgres-data-postgres-0
+  # postgres-1 → postgres-data-postgres-1 (if scaled)
+  </span>
+  <span class="sy-key">volumeClaimTemplates:</span>
+    - <span class="sy-key">metadata:</span>
+        <span class="sy-key">name:</span> <span class="sy-string">postgres-data</span>
+      <span class="sy-key">spec:</span>
+        <span class="sy-key">accessModes:</span> [<span class="sy-string">ReadWriteOnce</span>]
+        <span class="sy-key">storageClassName:</span> <span class="sy-string">gp3-ssd</span>
+        <span class="sy-key">resources:</span>
+          <span class="sy-key">requests:</span>
+            <span class="sy-key">storage:</span> <span class="sy-string">50Gi</span></code></pre>
+  </div>
+
+  <!-- PVC AUTOMATION -->
+  <h2 class="section-title" id="pvc-ansible"><span class="num">06</span> PVC Automation with Ansible</h2>
+
+  <div class="code-wrapper">
+    <div class="code-header">
+      <span class="code-lang">yaml</span>
+      <span class="code-filename">tasks/provision_pvc.yml — PVC Lifecycle Management</span>
+      <button class="copy-btn" onclick="navigator.clipboard.writeText(this.closest('.code-wrapper').querySelector('pre').innerText)">Copy</button>
+    </div>
+    <pre><code><span class="sy-comment">---
+# Provision a PVC and verify it binds successfully
+</span>
+
+- <span class="sy-key">name:</span> <span class="sy-string">"[PVC] Create PersistentVolumeClaim"</span>
+  <span class="sy-module">kubernetes.core.k8s:</span>
+    <span class="sy-key">state:</span> <span class="sy-string">present</span>
+    <span class="sy-key">definition:</span>
+      <span class="sy-key">apiVersion:</span> <span class="sy-string">v1</span>
+      <span class="sy-key">kind:</span> <span class="sy-string">PersistentVolumeClaim</span>
+      <span class="sy-key">metadata:</span>
+        <span class="sy-key">name:</span>      <span class="sy-string">"{{ pvc_name }}"</span>
+        <span class="sy-key">namespace:</span> <span class="sy-string">"{{ app_namespace }}"</span>
+        <span class="sy-key">labels:</span>
+          <span class="sy-key">app:</span>        <span class="sy-string">"{{ app_name }}"</span>
+          <span class="sy-key">managed-by:</span> <span class="sy-string">ansible</span>
+        <span class="sy-key">annotations:</span>
+          <span class="sy-key">created-at:</span>  <span class="sy-string">"{{ ansible_date_time.iso8601 }}"</span>
+          <span class="sy-key">purpose:</span>     <span class="sy-string">"{{ pvc_purpose | default('application-data') }}"</span>
+      <span class="sy-key">spec:</span>
+        <span class="sy-key">accessModes:</span>
+          - <span class="sy-string">"{{ pvc_access_mode | default('ReadWriteOnce') }}"</span>
+        <span class="sy-key">storageClassName:</span> <span class="sy-string">"{{ storage_class | default('gp3-ssd') }}"</span>
+        <span class="sy-key">resources:</span>
+          <span class="sy-key">requests:</span>
+            <span class="sy-key">storage:</span> <span class="sy-string">"{{ pvc_size | default('10Gi') }}"</span>
+    <span class="sy-key">host:</span> <span class="sy-string">"{{ ocp_api_url }}"</span>
+    <span class="sy-key">api_key:</span> <span class="sy-string">"{{ ocp_token }}"</span>
+  <span class="sy-key">register:</span> <span class="sy-string">pvc_result</span>
+
+<span class="sy-comment"># Wait for PVC to bind (dynamic provisioning may take up to 30s)</span>
+- <span class="sy-key">name:</span> <span class="sy-string">"[PVC] Wait for PVC to reach Bound state"</span>
+  <span class="sy-module">kubernetes.core.k8s_info:</span>
+    <span class="sy-key">kind:</span> <span class="sy-string">PersistentVolumeClaim</span>
+    <span class="sy-key">name:</span> <span class="sy-string">"{{ pvc_name }}"</span>
+    <span class="sy-key">namespace:</span> <span class="sy-string">"{{ app_namespace }}"</span>
+    <span class="sy-key">host:</span> <span class="sy-string">"{{ ocp_api_url }}"</span>
+    <span class="sy-key">api_key:</span> <span class="sy-string">"{{ ocp_token }}"</span>
+  <span class="sy-key">register:</span> <span class="sy-string">pvc_status</span>
+  <span class="sy-key">until:</span>   <span class="sy-string">pvc_status.resources[0].status.phase == "Bound"</span>
+  <span class="sy-key">retries:</span> <span class="sy-num">12</span>
+  <span class="sy-key">delay:</span>   <span class="sy-num">5</span>
+
+- <span class="sy-key">name:</span> <span class="sy-string">"[PVC] Extract bound PV name"</span>
+  <span class="sy-key">ansible.builtin.set_fact:</span>
+    <span class="sy-key">bound_pv_name:</span>     <span class="sy-string">"{{ pvc_status.resources[0].spec.volumeName }}"</span>
+    <span class="sy-key">pvc_capacity:</span>      <span class="sy-string">"{{ pvc_status.resources[0].status.capacity.storage }}"</span>
+    <span class="sy-key">pvc_storage_class:</span> <span class="sy-string">"{{ pvc_status.resources[0].spec.storageClassName }}"</span>
+
+- <span class="sy-key">name:</span> <span class="sy-string">"[PVC] Log provisioning details"</span>
+  <span class="sy-module">ansible.builtin.debug:</span>
+    <span class="sy-key">msg:</span>
+      - <span class="sy-string">"PVC: {{ pvc_name }} → {{ pvc_status.resources[0].status.phase }}"</span>
+      - <span class="sy-string">"Bound to PV: {{ bound_pv_name }}"</span>
+      - <span class="sy-string">"Capacity: {{ pvc_capacity }}"</span>
+      - <span class="sy-string">"StorageClass: {{ pvc_storage_class }}"</span></code></pre>
+  </div>
+
+  <!-- STATEFULSET ROLE -->
+  <h2 class="section-title" id="statefulset-role"><span class="num">07</span> StatefulSet Role — Full Implementation</h2>
+
+  <div class="code-wrapper">
+    <div class="code-header">
+      <span class="code-lang">yaml</span>
+      <span class="code-filename">roles/openshift_statefulset/tasks/main.yml</span>
+      <button class="copy-btn" onclick="navigator.clipboard.writeText(this.closest('.code-wrapper').querySelector('pre').innerText)">Copy</button>
+    </div>
+    <pre><code><span class="sy-comment">---
+# StatefulSet deployment orchestration
+</span>
+
+- <span class="sy-key">name:</span> <span class="sy-string">"[STATEFULSET] Create Secret for credentials"</span>
+  <span class="sy-module">kubernetes.core.k8s:</span>
+    <span class="sy-key">state:</span> <span class="sy-string">present</span>
+    <span class="sy-key">definition:</span>
+      <span class="sy-key">apiVersion:</span> <span class="sy-string">v1</span>
+      <span class="sy-key">kind:</span> <span class="sy-string">Secret</span>
+      <span class="sy-key">metadata:</span>
+        <span class="sy-key">name:</span>      <span class="sy-string">"{{ db_secret_name }}"</span>
+        <span class="sy-key">namespace:</span> <span class="sy-string">"{{ app_namespace }}"</span>
+      <span class="sy-key">stringData:</span>
+        <span class="sy-key">password:</span> <span class="sy-string">"{{ vault_db_password }}"</span>
+    <span class="sy-key">host:</span> <span class="sy-string">"{{ ocp_api_url }}"</span>
+    <span class="sy-key">api_key:</span> <span class="sy-string">"{{ ocp_token }}"</span>
+  <span class="sy-key">no_log:</span> <span class="sy-bool">true</span>
+
+- <span class="sy-key">name:</span> <span class="sy-string">"[STATEFULSET] Create Headless Service"</span>
+  <span class="sy-module">kubernetes.core.k8s:</span>
+    <span class="sy-key">state:</span> <span class="sy-string">present</span>
+    <span class="sy-key">definition:</span> <span class="sy-string">"{{ lookup('template', 'headless_service.yml.j2') }}"</span>
+    <span class="sy-key">host:</span> <span class="sy-string">"{{ ocp_api_url }}"</span>
+    <span class="sy-key">api_key:</span> <span class="sy-string">"{{ ocp_token }}"</span>
+
+- <span class="sy-key">name:</span> <span class="sy-string">"[STATEFULSET] Deploy StatefulSet"</span>
+  <span class="sy-module">kubernetes.core.k8s:</span>
+    <span class="sy-key">state:</span> <span class="sy-string">present</span>
+    <span class="sy-key">definition:</span> <span class="sy-string">"{{ lookup('template', 'statefulset.yml.j2') }}"</span>
+    <span class="sy-key">host:</span> <span class="sy-string">"{{ ocp_api_url }}"</span>
+    <span class="sy-key">api_key:</span> <span class="sy-string">"{{ ocp_token }}"</span>
+  <span class="sy-key">register:</span> <span class="sy-string">sts_result</span>
+
+- <span class="sy-key">name:</span> <span class="sy-string">"[STATEFULSET] Wait for pod to be Ready"</span>
+  <span class="sy-module">kubernetes.core.k8s_info:</span>
+    <span class="sy-key">kind:</span> <span class="sy-string">StatefulSet</span>
+    <span class="sy-key">name:</span> <span class="sy-string">"{{ statefulset_name }}"</span>
+    <span class="sy-key">namespace:</span> <span class="sy-string">"{{ app_namespace }}"</span>
+    <span class="sy-key">host:</span> <span class="sy-string">"{{ ocp_api_url }}"</span>
+    <span class="sy-key">api_key:</span> <span class="sy-string">"{{ ocp_token }}"</span>
+  <span class="sy-key">register:</span> <span class="sy-string">sts_status</span>
+  <span class="sy-key">until:</span> <span class="sy-string">sts_status.resources[0].status.readyReplicas | default(0) == db_replicas | default(1) | int</span>
+  <span class="sy-key">retries:</span> <span class="sy-num">30</span>
+  <span class="sy-key">delay:</span>   <span class="sy-num">15</span>
+
+- <span class="sy-key">name:</span> <span class="sy-string">"[STATEFULSET] Verify PVC created and bound"</span>
+  <span class="sy-module">kubernetes.core.k8s_info:</span>
+    <span class="sy-key">kind:</span> <span class="sy-string">PersistentVolumeClaim</span>
+    <span class="sy-key">namespace:</span> <span class="sy-string">"{{ app_namespace }}"</span>
+    <span class="sy-key">label_selectors:</span>
+      - <span class="sy-string">"app={{ statefulset_name }}"</span>
+    <span class="sy-key">host:</span> <span class="sy-string">"{{ ocp_api_url }}"</span>
+    <span class="sy-key">api_key:</span> <span class="sy-string">"{{ ocp_token }}"</span>
+  <span class="sy-key">register:</span> <span class="sy-string">sts_pvcs</span>
+
+- <span class="sy-key">name:</span> <span class="sy-string">"[STATEFULSET] Assert PVCs are bound"</span>
+  <span class="sy-key">ansible.builtin.assert:</span>
+    <span class="sy-key">that:</span>
+      - <span class="sy-string">sts_pvcs.resources | length > 0</span>
+      - <span class="sy-string">sts_pvcs.resources | selectattr('status.phase','eq','Bound') | list | length == sts_pvcs.resources | length</span>
+    <span class="sy-key">fail_msg:</span> <span class="sy-string">"Not all StatefulSet PVCs are bound. Check StorageClass availability."</span>
+
+- <span class="sy-key">name:</span> <span class="sy-string">"[STATEFULSET] Log deployment summary"</span>
+  <span class="sy-module">ansible.builtin.debug:</span>
+    <span class="sy-key">msg:</span>
+      - <span class="sy-string">"StatefulSet: {{ statefulset_name }}"</span>
+      - <span class="sy-string">"Ready replicas: {{ sts_status.resources[0].status.readyReplicas | default(0) }}"</span>
+      - <span class="sy-string">"PVCs: {{ sts_pvcs.resources | length }} bound"</span>
+      - <span class="sy-string">"DNS: {{ statefulset_name }}-0.{{ statefulset_name }}.{{ app_namespace }}.svc.cluster.local"</span></code></pre>
+  </div>
+
+  <!-- BACKUP -->
+  <h2 class="section-title" id="backup"><span class="num">08</span> Automated Backup with CronJob</h2>
+
+  <div class="code-wrapper">
+    <div class="code-header">
+      <span class="code-lang">yaml</span>
+      <span class="code-filename">PostgreSQL Backup CronJob</span>
+      <button class="copy-btn" onclick="navigator.clipboard.writeText(this.closest('.code-wrapper').querySelector('pre').innerText)">Copy</button>
+    </div>
+    <pre><code><span class="sy-comment">---
+# Daily pg_dump at 02:00 UTC, stored in backup PVC
+</span>
+<span class="sy-key">apiVersion:</span> <span class="sy-string">batch/v1</span>
+<span class="sy-key">kind:</span> <span class="sy-string">CronJob</span>
+<span class="sy-key">metadata:</span>
+  <span class="sy-key">name:</span>      <span class="sy-string">postgres-backup</span>
+  <span class="sy-key">namespace:</span> <span class="sy-string">fraud-detection</span>
+<span class="sy-key">spec:</span>
+  <span class="sy-key">schedule:</span> <span class="sy-string">"0 2 * * *"</span>          <span class="sy-comment"># 02:00 UTC daily</span>
+  <span class="sy-key">successfulJobsHistoryLimit:</span> <span class="sy-num">7</span>   <span class="sy-comment"># Keep 7 days of successful job records</span>
+  <span class="sy-key">failedJobsHistoryLimit:</span>    <span class="sy-num">3</span>
+  <span class="sy-key">jobTemplate:</span>
+    <span class="sy-key">spec:</span>
+      <span class="sy-key">template:</span>
+        <span class="sy-key">spec:</span>
+          <span class="sy-key">restartPolicy:</span> <span class="sy-string">OnFailure</span>
+          <span class="sy-key">containers:</span>
+            - <span class="sy-key">name:</span>  <span class="sy-string">backup</span>
+              <span class="sy-key">image:</span> <span class="sy-string">postgres:15</span>
+              <span class="sy-key">command:</span>
+                - <span class="sy-string">/bin/sh</span>
+                - <span class="sy-string">-c</span>
+                - <span class="sy-string">|
+                    BACKUP_FILE="/backups/frauddb-$(date +%Y%m%d-%H%M%S).sql.gz"
+                    echo "Starting backup to $BACKUP_FILE"
+                    pg_dump -h postgres-0.postgres.fraud-detection.svc.cluster.local \
+                            -U $POSTGRES_USER \
+                            -d frauddb \
+                            | gzip > $BACKUP_FILE
+                    echo "Backup complete: $(ls -lh $BACKUP_FILE)"
+                    # Prune backups older than 30 days
+                    find /backups -name "*.sql.gz" -mtime +30 -delete
+                    echo "Old backups pruned."</span>
+              <span class="sy-key">env:</span>
+                - <span class="sy-key">name:</span>  <span class="sy-string">POSTGRES_USER</span>
+                  <span class="sy-key">value:</span> <span class="sy-string">frauduser</span>
+                - <span class="sy-key">name:</span>  <span class="sy-string">PGPASSWORD</span>
+                  <span class="sy-key">valueFrom:</span>
+                    <span class="sy-key">secretKeyRef:</span>
+                      <span class="sy-key">name:</span> <span class="sy-string">postgres-secret</span>
+                      <span class="sy-key">key:</span>  <span class="sy-string">password</span>
+              <span class="sy-key">volumeMounts:</span>
+                - <span class="sy-key">name:</span>      <span class="sy-string">backup-storage</span>
+                  <span class="sy-key">mountPath:</span> <span class="sy-string">/backups</span>
+          <span class="sy-key">volumes:</span>
+            - <span class="sy-key">name:</span> <span class="sy-string">backup-storage</span>
+              <span class="sy-key">persistentVolumeClaim:</span>
+                <span class="sy-key">claimName:</span> <span class="sy-string">postgres-backups</span></code></pre>
+  </div>
+
+  <!-- PVC EXPANSION -->
+  <h2 class="section-title" id="expand-pvc"><span class="num">09</span> PVC Expansion — Growing Storage Without Downtime</h2>
+
+  <div class="callout info">
+    <div class="callout-icon">💡</div>
+    <div class="callout-body">
+      <div class="callout-title">Online PVC Expansion Requirement</div>
+      <p>PVC expansion requires: (1) StorageClass has <code class="inline">allowVolumeExpansion: true</code>, (2) Underlying storage driver supports online expansion (AWS EBS gp2/gp3, Ceph RBD). If supported, you can expand without pod restart. The filesystem is expanded while pod runs. If not supported, pod must be restarted to trigger filesystem resize.</p>
+    </div>
+  </div>
+
+  <div class="code-wrapper">
+    <div class="code-header">
+      <span class="code-lang">yaml</span>
+      <span class="code-filename">tasks/expand_pvc.yml — Storage Expansion Task</span>
+      <button class="copy-btn" onclick="navigator.clipboard.writeText(this.closest('.code-wrapper').querySelector('pre').innerText)">Copy</button>
+    </div>
+    <pre><code><span class="sy-comment">---
+# Expand PVC when storage usage exceeds threshold
+</span>
+
+- <span class="sy-key">name:</span> <span class="sy-string">"[EXPAND] Get current PVC spec"</span>
+  <span class="sy-module">kubernetes.core.k8s_info:</span>
+    <span class="sy-key">kind:</span> <span class="sy-string">PersistentVolumeClaim</span>
+    <span class="sy-key">name:</span> <span class="sy-string">"{{ pvc_name }}"</span>
+    <span class="sy-key">namespace:</span> <span class="sy-string">"{{ app_namespace }}"</span>
+    <span class="sy-key">host:</span> <span class="sy-string">"{{ ocp_api_url }}"</span>
+    <span class="sy-key">api_key:</span> <span class="sy-string">"{{ ocp_token }}"</span>
+  <span class="sy-key">register:</span> <span class="sy-string">current_pvc</span>
+
+- <span class="sy-key">name:</span> <span class="sy-string">"[EXPAND] Extract current storage size"</span>
+  <span class="sy-key">ansible.builtin.set_fact:</span>
+    <span class="sy-key">current_size:</span> <span class="sy-string">"{{ current_pvc.resources[0].spec.resources.requests.storage }}"</span>
+    <span class="sy-key">new_size:</span>     <span class="sy-string">"{{ pvc_new_size }}"</span>     <span class="sy-comment"># Passed as variable e.g. "100Gi"</span>
+
+- <span class="sy-key">name:</span> <span class="sy-string">"[EXPAND] Validate new size is larger"</span>
+  <span class="sy-key">ansible.builtin.assert:</span>
+    <span class="sy-key">that:</span>
+      - <span class="sy-string">new_size != current_size</span>
+    <span class="sy-key">fail_msg:</span> <span class="sy-string">"New size {{ new_size }} must be larger than current {{ current_size }}"</span>
+
+- <span class="sy-key">name:</span> <span class="sy-string">"[EXPAND] Patch PVC with new storage request"</span>
+  <span class="sy-module">kubernetes.core.k8s:</span>
+    <span class="sy-key">state:</span> <span class="sy-string">patched</span>
+    <span class="sy-key">kind:</span> <span class="sy-string">PersistentVolumeClaim</span>
+    <span class="sy-key">name:</span> <span class="sy-string">"{{ pvc_name }}"</span>
+    <span class="sy-key">namespace:</span> <span class="sy-string">"{{ app_namespace }}"</span>
+    <span class="sy-key">definition:</span>
+      <span class="sy-key">spec:</span>
+        <span class="sy-key">resources:</span>
+          <span class="sy-key">requests:</span>
+            <span class="sy-key">storage:</span> <span class="sy-string">"{{ new_size }}"</span>
+    <span class="sy-key">host:</span> <span class="sy-string">"{{ ocp_api_url }}"</span>
+    <span class="sy-key">api_key:</span> <span class="sy-string">"{{ ocp_token }}"</span>
+
+- <span class="sy-key">name:</span> <span class="sy-string">"[EXPAND] Wait for resize to complete"</span>
+  <span class="sy-module">kubernetes.core.k8s_info:</span>
+    <span class="sy-key">kind:</span> <span class="sy-string">PersistentVolumeClaim</span>
+    <span class="sy-key">name:</span> <span class="sy-string">"{{ pvc_name }}"</span>
+    <span class="sy-key">namespace:</span> <span class="sy-string">"{{ app_namespace }}"</span>
+    <span class="sy-key">host:</span> <span class="sy-string">"{{ ocp_api_url }}"</span>
+    <span class="sy-key">api_key:</span> <span class="sy-string">"{{ ocp_token }}"</span>
+  <span class="sy-key">register:</span> <span class="sy-string">pvc_after_expand</span>
+  <span class="sy-key">until:</span> <span class="sy-string">pvc_after_expand.resources[0].status.capacity.storage == new_size</span>
+  <span class="sy-key">retries:</span> <span class="sy-num">20</span>
+  <span class="sy-key">delay:</span>   <span class="sy-num">15</span>
+
+- <span class="sy-key">name:</span> <span class="sy-string">"[EXPAND] Log expansion result"</span>
+  <span class="sy-module">ansible.builtin.debug:</span>
+    <span class="sy-key">msg:</span> <span class="sy-string">"PVC {{ pvc_name }} expanded: {{ current_size }} → {{ new_size }}"</span></code></pre>
+  </div>
+
+  <!-- TROUBLESHOOTING -->
+  <h2 class="section-title" id="trouble"><span class="num">10</span> Troubleshooting Guide</h2>
+
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Symptom</th><th>Root Cause</th><th>Fix</th></tr></thead>
+      <tbody>
+        <tr><td>PVC stuck in Pending</td><td>No PV available matching StorageClass, size, access mode. Or StorageClass provisioner unavailable.</td><td><code class="inline">oc describe pvc postgres-data</code> — Events show reason. Verify StorageClass exists: <code class="inline">oc get storageclass</code>.</td></tr>
+        <tr><td>Pod stuck in ContainerCreating</td><td>Volume not attached. PVC Bound but not mounted to node.</td><td><code class="inline">oc describe pod postgres-0</code> — check Events. Often a node issue or CSI driver problem.</td></tr>
+        <tr><td>PVC expansion not taking effect</td><td>StorageClass does not have <code class="inline">allowVolumeExpansion: true</code></td><td><code class="inline">oc get storageclass gp3-ssd -o yaml</code>. Check allowVolumeExpansion field. May require migration to different StorageClass.</td></tr>
+        <tr><td>StatefulSet pod won't schedule</td><td>RWO PVC already attached to a different node than where pod is being scheduled</td><td>The previous pod must terminate fully before new pod starts. Check for stuck Terminating pods. Set <code class="inline">terminationGracePeriodSeconds</code> appropriately.</td></tr>
+        <tr><td>Backup CronJob fails</td><td>pg_dump can't connect. Wrong hostname, auth failure, or network policy blocking.</td><td>Use headless DNS: postgres-0.postgres.ns.svc.cluster.local. Check NetworkPolicy allows CronJob namespace to reach DB port 5432.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- INTERVIEW -->
+  <h2 class="section-title" id="interview"><span class="num">11</span> Interview Questions</h2>
+
+  <div class="qa-block">
+    <div class="qa-q">Why can't you use a Deployment with multiple replicas for a database?</div>
+    <div class="qa-a">Two reasons. First: RWO (ReadWriteOnce) PVCs can only be mounted on one node. If you have 3 replicas on different nodes, only the node with the PV attached succeeds. Other replicas fail to start. Second: databases are not stateless. Two Postgres instances writing to the same disk simultaneously would corrupt data. Proper DB HA uses StatefulSets with 1 primary (RWO write) and replicas via streaming replication to their own PVCs. The StatefulSet gives each replica its own PVC and stable identity.</div>
+  </div>
+
+  <div class="qa-block">
+    <div class="qa-q">Explain the difference between static and dynamic PV provisioning.</div>
+    <div class="qa-a">Static provisioning: admin manually creates PersistentVolume objects describing existing storage (NFS export, SAN LUN). PVC then binds to a matching static PV. Manual, doesn't scale well. Dynamic provisioning: StorageClass with a provisioner plugin. When PVC is created, the provisioner automatically provisions the underlying storage (creates AWS EBS volume, Ceph RBD image) and creates the PV, then binds them. No admin action needed per PVC. Scales automatically. Dynamic provisioning is the standard for cloud and modern on-premises clusters.</div>
+  </div>
+
+  <div class="qa-block">
+    <div class="qa-q">What is a headless Service and why does a StatefulSet need one?</div>
+    <div class="qa-a">A headless Service has clusterIP: None. Instead of a single virtual IP, DNS queries return the individual pod IP addresses directly. Combined with a StatefulSet, this gives each pod a stable, predictable DNS name: postgres-0.postgres.namespace.svc.cluster.local. This is critical for databases: the application needs to connect to the primary (postgres-0) specifically, not any random replica. Regular Services hide pod identity behind a load-balanced VIP — that's correct for stateless apps but wrong for databases where the primary matters.</div>
+  </div>
+
+  <div class="qa-block">
+    <div class="qa-q">What is volumeClaimTemplates and how does it differ from a regular volume?</div>
+    <div class="qa-a">A regular volume in a Pod spec references a single PVC by name — all pods share that PVC. volumeClaimTemplates in a StatefulSet is a PVC template: when each pod is created, Kubernetes creates a unique PVC from the template. postgres-0 gets postgres-data-postgres-0, postgres-1 gets postgres-data-postgres-1. Each pod has isolated storage. This is essential for databases: each replica needs its own independent data directory. When the StatefulSet is deleted, these PVCs are NOT automatically deleted (data preservation). You must manually delete them.</div>
+  </div>
+
+  <div class="qa-block">
+    <div class="qa-q">Describe how you would automate storage capacity monitoring and expansion.</div>
+    <div class="qa-a">Query pod metrics with oc top or Prometheus for disk usage. Set threshold (e.g. 80% used). When exceeded, ansible task: (1) verify StorageClass has allowVolumeExpansion:true, (2) patch PVC spec.resources.requests.storage to new size, (3) poll until status.capacity.storage matches new size, (4) verify application still working. For filesystems that require pod restart: trigger rolling restart of StatefulSet. Alert Slack/email on expansion. Log to audit file. Schedule check as daily RHAAP Job Template.</div>
+  </div>
+
+  <!-- CHALLENGES -->
+  <h2 class="section-title" id="challenges"><span class="num">12</span> Coding Challenges</h2>
+
+  <div class="challenge">
+    <div class="challenge-num">Challenge 1 of 3</div>
+    <p>Write a task that lists all PVCs in a namespace, checks their current capacity against their usage (using <code class="inline">oc exec</code> and <code class="inline">df -h</code>), and generates a report of PVCs that are above 75% utilisation. Include the PVC name, current size, used, available, and percentage.</p>
+    <details>
+      <summary>▶ Show Answer</summary>
+      <div class="answer">
+        <div class="code-wrapper">
+          <div class="code-header"><span class="code-lang">yaml</span><span class="code-filename">PVC utilisation check</span></div>
+          <pre><code">- name: "Get all pods with PVC mounts"
+  kubernetes.core.k8s_info:
+    kind: Pod
+    namespace: "{{ app_namespace }}"
+    host: "{{ ocp_api_url }}"
+    api_key: "{{ ocp_token }}"
+  register: all_pods
+
+- name: "Check disk usage in each pod"
+  ansible.builtin.command:
+    cmd: "oc exec {{ item.metadata.name }} -n {{ app_namespace }} -- df -h /var/lib/postgresql/data"
+  environment:
+    KUBECONFIG: "{{ kubeconfig_path }}"
+  register: df_results
+  loop: "{{ all_pods.resources | selectattr('status.phase','eq','Running') | list }}"
+  loop_control:
+    label: "{{ item.metadata.name }}"
+  ignore_errors: true
+  changed_when: false
+
+- name: "Build PVC utilisation report"
+  ansible.builtin.set_fact:
+    high_usage_pvcs: "{{ high_usage_pvcs | default([]) + [{
+      'pod': item.item.metadata.name,
+      'output': item.stdout_lines
+    }] }}"
+  loop: "{{ df_results.results }}"
+  when:
+    - item.rc == 0
+    - item.stdout_lines | length > 1
+    - "(item.stdout_lines[1].split()[4] | replace('%','') | int) > 75"
+
+- name: "Alert on high utilisation PVCs"
+  ansible.builtin.debug:
+    msg: "⚠️ High storage utilisation: {{ high_usage_pvcs }}"
+  when: high_usage_pvcs | default([]) | length > 0</code></pre>
+        </div>
+      </div>
+    </details>
+  </div>
+
+  <div class="challenge">
+    <div class="challenge-num">Challenge 2 of 3</div>
+    <p>Write a task that takes a VolumeSnapshot of a PVC before a schema migration. If the migration fails, restore the PVC from the snapshot. Use block/rescue/always.</p>
+    <details>
+      <summary>▶ Show Answer</summary>
+      <div class="answer">
+        <div class="code-wrapper">
+          <div class="code-header"><span class="code-lang">yaml</span><span class="code-filename">Snapshot before migration</span></div>
+          <pre><code">- name: "Safe Schema Migration with Snapshot"
+  block:
+    - name: "Create VolumeSnapshot pre-migration"
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: snapshot.storage.k8s.io/v1
+          kind: VolumeSnapshot
+          metadata:
+            name: "postgres-pre-migration-{{ ansible_date_time.iso8601_basic_short }}"
+            namespace: "{{ app_namespace }}"
+          spec:
+            volumeSnapshotClassName: csi-snapclass
+            source:
+              persistentVolumeClaimName: postgres-data-postgres-0
+        host: "{{ ocp_api_url }}"
+        api_key: "{{ ocp_token }}"
+      register: snapshot
+
+    - name: "Wait for snapshot to be ready"
+      kubernetes.core.k8s_info:
+        kind: VolumeSnapshot
+        name: "{{ snapshot.result.metadata.name }}"
+        namespace: "{{ app_namespace }}"
+        host: "{{ ocp_api_url }}"
+        api_key: "{{ ocp_token }}"
+      register: snap_status
+      until: snap_status.resources[0].status.readyToUse | default(false) | bool
+      retries: 20
+      delay: 10
+
+    - name: "Run schema migration"
+      ansible.builtin.command:
+        cmd: "oc exec postgres-0 -n {{ app_namespace }} -- psql -U frauduser -d frauddb -f /migrations/v2.sql"
+      environment:
+        KUBECONFIG: "{{ kubeconfig_path }}"
+
+  rescue:
+    - name: "Migration failed — restore from snapshot"
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: PersistentVolumeClaim
+          metadata:
+            name: postgres-data-postgres-0-restored
+            namespace: "{{ app_namespace }}"
+          spec:
+            dataSource:
+              name: "{{ snapshot.result.metadata.name }}"
+              kind: VolumeSnapshot
+              apiGroup: snapshot.storage.k8s.io
+            accessModes: [ReadWriteOnce]
+            resources:
+              requests:
+                storage: 50Gi
+        host: "{{ ocp_api_url }}"
+        api_key: "{{ ocp_token }}"</code></pre>
+        </div>
+      </div>
+    </details>
+  </div>
+
+  <div class="challenge">
+    <div class="challenge-num">Challenge 3 of 3</div>
+    <p>Write an Ansible task that creates a complete StorageClass manifest and verifies that dynamic provisioning works by creating a test PVC, waiting for it to bind, then deleting the test PVC.</p>
+    <details>
+      <summary>▶ Show Answer</summary>
+      <div class="answer">
+        <div class="code-wrapper">
+          <div class="code-header"><span class="code-lang">yaml</span><span class="code-filename">StorageClass + dynamic provisioning test</span></div>
+          <pre><code">- name: "Create StorageClass"
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: storage.k8s.io/v1
+      kind: StorageClass
+      metadata:
+        name: gp3-ssd
+        annotations:
+          storageclass.kubernetes.io/is-default-class: "false"
+      provisioner: ebs.csi.aws.com
+      parameters:
+        type: gp3
+        iops: "3000"
+        throughput: "125"
+      reclaimPolicy: Retain
+      allowVolumeExpansion: true
+      volumeBindingMode: WaitForFirstConsumer
+    host: "{{ ocp_api_url }}"
+    api_key: "{{ ocp_token }}"
+
+- name: "Create test PVC to verify dynamic provisioning"
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: PersistentVolumeClaim
+      metadata:
+        name: test-dynamic-provisioning
+        namespace: "{{ app_namespace }}"
+      spec:
+        accessModes: [ReadWriteOnce]
+        storageClassName: gp3-ssd
+        resources:
+          requests:
+            storage: 1Gi
+    host: "{{ ocp_api_url }}"
+    api_key: "{{ ocp_token }}"
+
+- name: "Wait for test PVC to bind"
+  kubernetes.core.k8s_info:
+    kind: PersistentVolumeClaim
+    name: test-dynamic-provisioning
+    namespace: "{{ app_namespace }}"
+    host: "{{ ocp_api_url }}"
+    api_key: "{{ ocp_token }}"
+  register: test_pvc
+  until: test_pvc.resources[0].status.phase in ['Bound', 'Pending']
+  retries: 6
+  delay: 5
+
+- name: "Assert dynamic provisioning works"
+  ansible.builtin.assert:
+    that: test_pvc.resources[0].status.phase == 'Bound'
+    fail_msg: "Dynamic provisioning failed. StorageClass gp3-ssd may be misconfigured."
+
+- name: "Cleanup test PVC"
+  kubernetes.core.k8s:
+    state: absent
+    kind: PersistentVolumeClaim
+    name: test-dynamic-provisioning
+    namespace: "{{ app_namespace }}"
+    host: "{{ ocp_api_url }}"
+    api_key: "{{ ocp_token }}"</code></pre>
+        </div>
+      </div>
+    </details>
+  </div>
+
+  <!-- RESUME -->
+  <h2 class="section-title" id="resume"><span class="num">13</span> Resume Points</h2>
+
+  <div class="resume-box">
+    <h4>Project 12 — Resume Bullets</h4>
+    <ul>
+      <li>Designed and automated PostgreSQL StatefulSet deployment on OpenShift with persistent storage, headless Service for stable pod DNS, and volumeClaimTemplates providing each replica with isolated PVCs.</li>
+      <li>Implemented PVC lifecycle automation: dynamic provisioning via StorageClass, binding verification with retry logic, capacity monitoring, and online storage expansion without pod restart.</li>
+      <li>Built daily automated backup pipeline using Kubernetes CronJob executing pg_dump to dedicated backup PVC, with 30-day retention policy and backup verification.</li>
+      <li>Engineered pre-migration VolumeSnapshot workflow using block/rescue/always — snapshot before schema change, automatic PVC restore from snapshot on migration failure.</li>
+      <li>Implemented storage capacity monitoring checking PVC utilisation against 75% threshold, with automated PVC expansion and Slack alerting when storage limits are approached.</li>
+    </ul>
+  </div>
+
+  <!-- ASSIGNMENT -->
+  <h2 class="section-title" id="assignment"><span class="num">14</span> Practice Assignment — INFRA-2005-EXT</h2>
+
+  <ol style="margin-left:20px;line-height:2.2;color:var(--muted)">
+    <li><strong style="color:var(--text)">PostgreSQL HA with Streaming Replication</strong> — Extend StatefulSet to 2 replicas. Configure postgres-0 as primary, postgres-1 as streaming replica. Automate primary/replica configuration via ConfigMap and init scripts.</li>
+    <li><strong style="color:var(--text)">Offsite Backup to S3</strong> — Extend the backup CronJob to upload pg_dump output to AWS S3 using the AWS CLI. Use a Secret for S3 credentials. Test restore procedure from S3 backup.</li>
+    <li><strong style="color:var(--text)">Storage Class Migration</strong> — Build a playbook that migrates data from one StorageClass to another (e.g. gp2 → gp3). Create new PVC with new StorageClass, rsync data using a migration pod, update StatefulSet to use new PVC.</li>
+    <li><strong style="color:var(--text)">Automated Snapshot Scheduler</strong> — Create a CronJob that takes daily VolumeSnapshots of all production PVCs. Retain last 7 daily + 4 weekly snapshots. Generate snapshot inventory report.</li>
+    <li><strong style="color:var(--text)">Storage Capacity Report</strong> — Build weekly report querying all PVCs across namespaces: name, StorageClass, access mode, capacity, bound PV, age, pod using it. Flag PVCs that are unused (no pod mounting them).</li>
+  </ol>
+
+  <div class="footer">
+    <p>Enterprise Ansible Masterclass — OpenShift Automation with RHAAP</p>
+    <p style="margin-top:8px">Project 12 of 35 · Intermediate Stage · INFRA-2005</p>
+    <p style="margin-top:8px;color:var(--success)">Say <strong>"Next Project"</strong> to continue to <strong>Project 13: ResourceQuotas & LimitRanges</strong></p>
+  </div>
+
+</main>
+</div>
+
+<script>
+const sections = document.querySelectorAll('[id]');
+const tocItems = document.querySelectorAll('.toc-item');
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      tocItems.forEach(i => i.classList.remove('active'));
+      const a = document.querySelector(`.toc-item[href="#${entry.target.id}"]`);
+      if (a) a.classList.add('active');
+    }
+  });
+}, { threshold: 0.3 });
+sections.forEach(s => observer.observe(s));
+</script>
+</body>
+</html>

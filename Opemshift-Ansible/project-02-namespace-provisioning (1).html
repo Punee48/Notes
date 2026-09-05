@@ -1,0 +1,1419 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Project 02 — OpenShift Namespace Provisioning | Enterprise Ansible Masterclass</title>
+<style>
+  :root {
+    --bg:          #0B1120;
+    --bg2:         #111827;
+    --card:        #1E293B;
+    --card2:       #162032;
+    --border:      #2D3E55;
+    --accent:      #8B5CF6;
+    --accent2:     #06B6D4;
+    --accent3:     #F59E0B;
+    --text:        #F8FAFC;
+    --muted:       #94A3B8;
+    --success:     #22C55E;
+    --warning:     #F59E0B;
+    --error:       #EF4444;
+    --code-bg:     #020617;
+    --code-border: #1E3A5F;
+    --tag-purple:  #4C1D95;
+    --tag-cyan:    #164E63;
+    --tag-green:   #14532D;
+    --tag-yellow:  #713F12;
+    --tag-red:     #7F1D1D;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    font-size: 15px;
+    line-height: 1.7;
+  }
+
+  .layout { display: flex; min-height: 100vh; }
+
+  .sidebar {
+    width: 260px;
+    flex-shrink: 0;
+    background: var(--bg2);
+    border-right: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow-y: auto;
+    padding: 24px 0;
+  }
+  .sidebar-logo {
+    padding: 0 20px 20px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 16px;
+  }
+  .sidebar-logo .series { font-size: 10px; text-transform: uppercase; letter-spacing: 2px; color: var(--muted); margin-bottom: 4px; }
+  .sidebar-logo .title  { font-size: 13px; font-weight: 700; color: var(--accent); line-height: 1.3; }
+
+  .toc-section { padding: 8px 20px 4px; font-size: 10px; text-transform: uppercase; letter-spacing: 1.5px; color: var(--muted); font-weight: 600; margin-top: 8px; }
+  .toc-item { display: block; padding: 6px 20px; font-size: 12.5px; color: var(--muted); text-decoration: none; border-left: 2px solid transparent; transition: all 0.2s; }
+  .toc-item:hover { color: var(--text); border-left-color: var(--accent); background: rgba(139,92,246,0.06); }
+  .toc-item.active { color: var(--accent); border-left-color: var(--accent); background: rgba(139,92,246,0.1); }
+
+  .main { flex: 1; max-width: 960px; padding: 48px 56px; overflow-x: hidden; }
+
+  .cover {
+    background: linear-gradient(135deg, #0F172A 0%, #1E1B4B 50%, #0C1A2E 100%);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 48px;
+    margin-bottom: 48px;
+    position: relative;
+    overflow: hidden;
+  }
+  .cover::before {
+    content: '';
+    position: absolute; top: -60px; right: -60px;
+    width: 300px; height: 300px;
+    background: radial-gradient(circle, rgba(139,92,246,0.15) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .cover-badge { display: inline-flex; align-items: center; gap: 8px; background: rgba(139,92,246,0.15); border: 1px solid rgba(139,92,246,0.3); border-radius: 99px; padding: 4px 14px; font-size: 11px; font-weight: 600; color: var(--accent); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 20px; }
+  .cover-badge .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+  .cover h1 { font-size: 32px; font-weight: 800; line-height: 1.2; margin-bottom: 12px; }
+  .cover h1 span { background: linear-gradient(90deg, var(--accent), var(--accent2)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+  .cover-sub { font-size: 16px; color: var(--muted); margin-bottom: 32px; max-width: 600px; }
+  .cover-meta { display: flex; flex-wrap: wrap; gap: 24px; }
+  .meta-item { display: flex; flex-direction: column; gap: 2px; }
+  .meta-label { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); }
+  .meta-value { font-size: 14px; font-weight: 600; color: var(--text); }
+  .meta-value.green { color: var(--success); }
+  .meta-value.purple { color: var(--accent); }
+  .meta-value.cyan { color: var(--accent2); }
+
+  h2.section-title {
+    font-size: 22px;
+    font-weight: 700;
+    margin: 48px 0 20px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  h2.section-title .num {
+    width: 32px; height: 32px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; font-weight: 800; color: #fff; flex-shrink: 0;
+  }
+  h3.sub-title { font-size: 17px; font-weight: 700; margin: 28px 0 12px; color: var(--accent2); }
+  h4.mini-title { font-size: 14px; font-weight: 700; margin: 20px 0 8px; color: var(--accent3); text-transform: uppercase; letter-spacing: 0.5px; }
+
+  p { margin-bottom: 14px; color: var(--text); }
+  p.muted { color: var(--muted); }
+  strong { color: var(--text); font-weight: 700; }
+  em { color: var(--accent2); font-style: normal; font-weight: 600; }
+
+  .callout {
+    border-radius: 10px;
+    padding: 16px 20px;
+    margin: 20px 0;
+    border-left: 4px solid;
+    display: flex;
+    gap: 12px;
+  }
+  .callout-icon { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
+  .callout-body { flex: 1; }
+  .callout-title { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; }
+  .callout p { margin-bottom: 0; font-size: 14px; }
+  .callout.info  { background: rgba(6,182,212,0.07);  border-color: var(--accent2); }
+  .callout.info  .callout-title { color: var(--accent2); }
+  .callout.warn  { background: rgba(245,158,11,0.07); border-color: var(--warning); }
+  .callout.warn  .callout-title { color: var(--warning); }
+  .callout.danger{ background: rgba(239,68,68,0.07);  border-color: var(--error); }
+  .callout.danger .callout-title { color: var(--error); }
+  .callout.tip   { background: rgba(34,197,94,0.07);  border-color: var(--success); }
+  .callout.tip   .callout-title { color: var(--success); }
+  .callout.security { background: rgba(139,92,246,0.07); border-color: var(--accent); }
+  .callout.security .callout-title { color: var(--accent); }
+
+  .story-box {
+    background: linear-gradient(135deg, #1A1040 0%, #0C1A2E 100%);
+    border: 1px solid rgba(139,92,246,0.3);
+    border-radius: 12px;
+    padding: 24px 28px;
+    margin: 24px 0;
+    position: relative;
+  }
+  .story-box::before { content: '"'; position: absolute; top: -10px; left: 20px; font-size: 60px; color: rgba(139,92,246,0.3); font-family: Georgia, serif; line-height: 1; }
+  .story-box p { color: #CBD5E1; font-size: 14.5px; line-height: 1.8; margin-bottom: 8px; }
+  .story-box p:last-child { margin-bottom: 0; }
+  .story-box .story-tag { font-size: 10px; text-transform: uppercase; letter-spacing: 2px; color: var(--accent); font-weight: 700; margin-bottom: 12px; }
+
+  .code-wrapper { margin: 20px 0; border-radius: 10px; overflow: hidden; border: 1px solid var(--code-border); }
+  .code-header {
+    display: flex; justify-content: space-between; align-items: center;
+    background: #0D1117; padding: 10px 16px;
+    border-bottom: 1px solid var(--code-border);
+  }
+  .code-lang { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--accent2); }
+  .code-filename { font-size: 11px; color: var(--muted); font-family: 'Courier New', monospace; }
+  .copy-btn {
+    background: rgba(139,92,246,0.15); border: 1px solid rgba(139,92,246,0.3);
+    color: var(--accent); border-radius: 5px; padding: 3px 10px;
+    font-size: 11px; cursor: pointer; transition: all 0.2s;
+  }
+  .copy-btn:hover { background: rgba(139,92,246,0.3); }
+  pre {
+    background: var(--code-bg);
+    padding: 20px;
+    overflow-x: auto;
+    font-family: 'Courier New', 'Consolas', 'Fira Code', monospace;
+    font-size: 13px;
+    line-height: 1.65;
+    margin: 0;
+  }
+  pre code { color: #E2E8F0; }
+
+  .sy-comment  { color: #4A5568; font-style: italic; }
+  .sy-key      { color: #7C86B5; }
+  .sy-string   { color: #68D391; }
+  .sy-var      { color: #F6AD55; }
+  .sy-module   { color: #63B3ED; }
+  .sy-jinja    { color: #FC8181; }
+  .sy-bool     { color: #B794F4; }
+  .sy-num      { color: #F6AD55; }
+  .sy-keyword  { color: #90CDF4; font-weight: bold; }
+  .sy-op       { color: #E53E3E; }
+
+  .diagram {
+    background: var(--code-bg);
+    border: 1px solid var(--code-border);
+    border-radius: 10px;
+    padding: 28px 32px;
+    margin: 20px 0;
+    font-family: 'Courier New', monospace;
+    font-size: 13px;
+    line-height: 2;
+    color: #94A3B8;
+    overflow-x: auto;
+  }
+  .diagram .d-title { color: var(--accent2); font-weight: 700; font-size: 11px; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 16px; }
+  .diagram .d-box   { color: var(--text); }
+  .diagram .d-arrow { color: var(--accent); }
+  .diagram .d-label { color: var(--success); }
+  .diagram .d-note  { color: var(--warning); font-style: italic; }
+  .diagram .d-err   { color: var(--error); }
+
+  .tag { display: inline-block; border-radius: 4px; padding: 2px 8px; font-size: 11px; font-weight: 600; margin: 2px; }
+  .tag.purple { background: var(--tag-purple); color: #A78BFA; }
+  .tag.cyan   { background: var(--tag-cyan);   color: #67E8F9; }
+  .tag.green  { background: var(--tag-green);  color: #4ADE80; }
+  .tag.yellow { background: var(--tag-yellow); color: #FCD34D; }
+  .tag.red    { background: var(--tag-red);    color: #FCA5A5; }
+
+  .card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px,1fr)); gap: 16px; margin: 20px 0; }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px;
+    transition: border-color 0.2s;
+  }
+  .card:hover { border-color: var(--accent); }
+  .card-icon { font-size: 24px; margin-bottom: 10px; }
+  .card-title { font-size: 13px; font-weight: 700; margin-bottom: 6px; color: var(--text); }
+  .card-desc  { font-size: 12px; color: var(--muted); line-height: 1.6; }
+
+  .table-wrap { overflow-x: auto; margin: 20px 0; border-radius: 10px; border: 1px solid var(--border); }
+  table { width: 100%; border-collapse: collapse; }
+  th { background: var(--card); padding: 12px 16px; text-align: left; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); border-bottom: 1px solid var(--border); }
+  td { padding: 12px 16px; font-size: 13px; border-bottom: 1px solid rgba(45,62,85,0.5); vertical-align: top; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: rgba(255,255,255,0.02); }
+
+  .badge { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; border-radius: 99px; font-size: 11px; font-weight: 700; }
+  .badge.ok   { background: rgba(34,197,94,0.15);  color: var(--success); }
+  .badge.fail { background: rgba(239,68,68,0.15);  color: var(--error); }
+  .badge.warn { background: rgba(245,158,11,0.15); color: var(--warning); }
+  .badge::before { content: '●'; font-size: 8px; }
+
+  .step-list { list-style: none; margin: 16px 0; }
+  .step-list li { display: flex; gap: 16px; margin-bottom: 16px; align-items: flex-start; }
+  .step-num { width: 28px; height: 28px; border-radius: 50%; background: linear-gradient(135deg, var(--accent), var(--accent2)); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 800; color: #fff; flex-shrink: 0; }
+  .step-content { flex: 1; }
+  .step-content strong { display: block; font-size: 14px; margin-bottom: 4px; }
+  .step-content span { font-size: 13px; color: var(--muted); }
+
+  .explain-block {
+    background: #0D1F3C;
+    border: 1px solid #1E3A5F;
+    border-radius: 10px;
+    padding: 20px 24px;
+    margin: 16px 0;
+  }
+  .explain-block .explain-title { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--accent2); margin-bottom: 12px; }
+  .explain-row { display: flex; gap: 16px; padding: 8px 0; border-bottom: 1px solid rgba(45,62,85,0.4); font-size: 13px; }
+  .explain-row:last-child { border-bottom: none; }
+  .explain-term { color: var(--accent3); font-family: monospace; min-width: 160px; flex-shrink: 0; }
+  .explain-def  { color: #CBD5E1; }
+
+  .qa-block { background: var(--card); border: 1px solid var(--border); border-radius: 10px; margin: 16px 0; overflow: hidden; }
+  .qa-q { padding: 14px 18px; background: #162032; font-size: 13.5px; font-weight: 600; color: var(--accent2); border-bottom: 1px solid var(--border); }
+  .qa-q::before { content: 'Q: '; color: var(--accent); }
+  .qa-a { padding: 14px 18px; font-size: 13px; color: #CBD5E1; line-height: 1.7; }
+  .qa-a::before { content: 'A: '; color: var(--success); font-weight: 700; }
+
+  .challenge { background: linear-gradient(135deg, #1A1040 0%, #0C1A2E 100%); border: 1px solid rgba(139,92,246,0.3); border-radius: 10px; padding: 20px 24px; margin: 16px 0; }
+  .challenge-num { font-size: 10px; text-transform: uppercase; letter-spacing: 2px; color: var(--accent); font-weight: 700; margin-bottom: 8px; }
+  .challenge p { font-size: 13.5px; color: var(--text); margin-bottom: 10px; }
+  details { margin-top: 10px; }
+  summary { cursor: pointer; color: var(--accent); font-size: 12px; font-weight: 600; padding: 6px 0; user-select: none; }
+  summary:hover { color: var(--text); }
+  details[open] summary { color: var(--text); }
+  details .answer { margin-top: 10px; }
+
+  .resume-box { background: var(--card); border: 1px solid var(--border); border-left: 4px solid var(--success); border-radius: 10px; padding: 20px 24px; margin: 16px 0; }
+  .resume-box h4 { font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: var(--success); margin-bottom: 12px; }
+  .resume-box ul { list-style: none; }
+  .resume-box li { font-size: 13px; color: #CBD5E1; padding: 6px 0; border-bottom: 1px solid rgba(45,62,85,0.3); padding-left: 16px; position: relative; line-height: 1.6; }
+  .resume-box li::before { content: '▸'; position: absolute; left: 0; color: var(--success); }
+  .resume-box li:last-child { border-bottom: none; }
+
+  .progress-wrap { margin: 24px 0; }
+  .progress-label { font-size: 11px; color: var(--muted); margin-bottom: 6px; display: flex; justify-content: space-between; }
+  .progress-bar { height: 6px; background: var(--card); border-radius: 99px; overflow: hidden; }
+  .progress-fill { height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent2)); border-radius: 99px; }
+
+  .divider { border: none; border-top: 1px solid var(--border); margin: 40px 0; }
+
+  .folder-tree { font-family: 'Courier New', monospace; font-size: 13px; line-height: 2; }
+  .folder-tree .dir  { color: var(--accent2); }
+  .folder-tree .file { color: #CBD5E1; }
+  .folder-tree .note { color: var(--muted); }
+
+  .footer { margin-top: 64px; padding-top: 24px; border-top: 1px solid var(--border); font-size: 12px; color: var(--muted); text-align: center; }
+
+  @media (max-width: 900px) {
+    .sidebar { display: none; }
+    .main { padding: 24px 20px; }
+    .cover { padding: 28px 24px; }
+    .cover h1 { font-size: 24px; }
+  }
+
+  code.inline { background: #0D1117; border: 1px solid var(--code-border); border-radius: 4px; padding: 1px 7px; font-family: 'Courier New', monospace; font-size: 12.5px; color: #F6AD55; }
+
+  .concepts { display: flex; flex-wrap: wrap; gap: 8px; margin: 16px 0; }
+</style>
+</head>
+<body>
+
+<div class="layout">
+
+<nav class="sidebar">
+  <div class="sidebar-logo">
+    <div class="series">Enterprise Ansible Masterclass</div>
+    <div class="title">OpenShift Automation with RHAAP</div>
+  </div>
+
+  <div class="toc-section">Project Navigation</div>
+  <a href="#cover"      class="toc-item active">Project Overview</a>
+  <a href="#story"      class="toc-item">Enterprise Scenario</a>
+  <a href="#difference" class="toc-item">k8s vs k8s_info</a>
+  <a href="#idempotency" class="toc-item">Idempotency Deep Dive</a>
+  <a href="#yaml"       class="toc-item">Kubernetes YAML</a>
+  <a href="#manifests"  class="toc-item">Manifest Files</a>
+  <a href="#playbook"   class="toc-item">The Playbook</a>
+  <a href="#explanation"class="toc-item">Code Explanation</a>
+  <a href="#roles"      class="toc-item">Introduction to Roles</a>
+  <a href="#testing"    class="toc-item">Testing Idempotency</a>
+  <a href="#trouble"    class="toc-item">Troubleshooting</a>
+  <a href="#interview"  class="toc-item">Interview Questions</a>
+  <a href="#challenges" class="toc-item">Coding Challenges</a>
+  <a href="#resume"     class="toc-item">Resume Points</a>
+  <a href="#assignment" class="toc-item">Practice Assignment</a>
+
+  <div class="toc-section">Course Progress</div>
+  <div style="padding:0 20px">
+    <div class="progress-wrap">
+      <div class="progress-label"><span>Project 2 of 35</span><span>6%</span></div>
+      <div class="progress-bar"><div class="progress-fill" style="width:6%"></div></div>
+    </div>
+    <div class="progress-wrap">
+      <div class="progress-label"><span>Stage: Foundation</span><span></span></div>
+      <div class="progress-bar"><div class="progress-fill" style="width:100%;background:linear-gradient(90deg,#22C55E,#06B6D4)"></div></div>
+    </div>
+  </div>
+</nav>
+
+<main class="main">
+
+  <div class="cover" id="cover">
+    <div class="cover-badge"><span class="dot"></span>Project 02 of 35 — Foundation Stage</div>
+    <h1>OpenShift Namespace <span>Provisioning Automation</span></h1>
+    <p class="cover-sub">Move from read-only health checks to writing resources. Learn the kubernetes.core.k8s module, provision namespaces with labels/annotations, set resource quotas, and understand true idempotency. Implement everything as a production-grade Ansible Role.</p>
+    <div class="cover-meta">
+      <div class="meta-item"><span class="meta-label">Difficulty</span><span class="meta-value green">Foundation</span></div>
+      <div class="meta-item"><span class="meta-label">Estimated Time</span><span class="meta-value purple">5–7 Hours</span></div>
+      <div class="meta-item"><span class="meta-label">Stage</span><span class="meta-value cyan">Foundation</span></div>
+      <div class="meta-item"><span class="meta-label">Ticket</span><span class="meta-value">INFRA-1002</span></div>
+      <div class="meta-item"><span class="meta-label">Domain</span><span class="meta-label">Kubernetes · Roles · Idempotency</span></div>
+    </div>
+  </div>
+
+  <h4 class="mini-title">Concepts Introduced</h4>
+  <div class="concepts">
+    <span class="tag purple">kubernetes.core.k8s module</span>
+    <span class="tag purple">Apply YAML manifests</span>
+    <span class="tag purple">Idempotency deep dive</span>
+    <span class="tag cyan">Namespace creation</span>
+    <span class="tag cyan">Labels & Annotations</span>
+    <span class="tag cyan">ResourceQuota</span>
+    <span class="tag cyan">LimitRange</span>
+    <span class="tag green">Ansible Roles</span>
+    <span class="tag green">Role structure</span>
+    <span class="tag green">defaults, tasks, handlers</span>
+    <span class="tag yellow">Validation assertions</span>
+    <span class="tag yellow">Testing idempotency</span>
+    <span class="tag red">Multi-run playbook testing</span>
+    <span class="tag red">Production deployment flow</span>
+  </div>
+
+  <!-- ── STORY ── -->
+  <h2 class="section-title" id="story"><span class="num">01</span> The Manager's Next Ticket — INFRA-1002</h2>
+
+  <div class="story-box">
+    <div class="story-tag">🏢 ABC Bank OpenShift Platform Team — Week 2</div>
+    <p>Our cluster health checks are running smoothly. Now Rajesh, our manager, comes back with the next ticket:</p>
+    <p><em>"Good work on the health checks. Now I need you to automate namespace provisioning. Today, when a new application team joins, an admin manually creates a namespace, sets labels, configures resource quotas, and sets limits. This takes 2 hours per team because they always miss something. I want Ansible to provision namespaces in 30 seconds — every time, perfectly, with zero variation. It should be idempotent: if someone runs it twice, the second run should change nothing. Can you have this working in RHAAP by end of sprint?"</em></p>
+    <p>This ticket introduces us to the distinction between <strong>reading</strong> resources (Project 01 with k8s_info) and <strong>creating/updating</strong> resources (now with kubernetes.core.k8s). It also forces us to understand idempotency deeply — because provisioning is where mistakes hurt.</p>
+  </div>
+
+  <h4 class="mini-title">Acceptance Criteria</h4>
+  <ul class="step-list">
+    <li><span class="step-num">1</span><div class="step-content"><strong>Create a namespace with custom labels</strong><span>Each namespace gets: tier (dev/qa/uat/prod), team, cost-center labels. Idempotent — if it exists, update labels only if different.</span></div></li>
+    <li><span class="step-num">2</span><div class="step-content"><strong>Set resource quotas</strong><span>CPU and memory limits per namespace. Different limits for DEV vs PROD.</span></div></li>
+    <li><span class="step-num">3</span><div class="step-content"><strong>Set LimitRanges</strong><span>Default pod resource limits. Prevents pods that consume all cluster resources.</span></div></li>
+    <li><span class="step-num">4</span><div class="step-content"><strong>Verify namespace is ready</strong><span>Assert that the namespace and resources were created successfully. Run health checks after creation.</span></div></li>
+    <li><span class="step-num">5</span><div class="step-content"><strong>Implement as an Ansible Role</strong><span>Reusable component: roles/openshift_namespace_provision/. Can be called for any namespace, any environment.</span></div></li>
+    <li><span class="step-num">6</span><div class="step-content"><strong>Test idempotency</strong><span>Run playbook twice. Second run should show all tasks OK or skipped, zero changed.</span></div></li>
+  </ul>
+
+  <!-- ── THE KEY DIFFERENCE ── -->
+  <h2 class="section-title" id="difference"><span class="num">02</span> k8s vs k8s_info — The Critical Difference</h2>
+
+  <h3 class="sub-title">k8s_info (Project 01) — Read-Only</h3>
+  <p><code class="inline">kubernetes.core.k8s_info</code> queries the OpenShift API and returns information. It never changes anything. Completely safe to run 100 times.</p>
+  
+  <div class="diagram">
+    <div class="d-title">k8s_info Behavior</div>
+    <span class="d-box">  k8s_info module</span><br>
+    <span class="d-arrow">    ↓</span><br>
+    <span class="d-box">  Query OpenShift API: "Give me all nodes"</span><br>
+    <span class="d-arrow">    ↓</span><br>
+    <span class="d-box">  API returns: "Here are 5 nodes"</span><br>
+    <span class="d-arrow">    ↓</span><br>
+    <span class="d-box">  Result stored in variable</span><br>
+    <span class="d-arrow">    ↓</span><br>
+    <span class="d-label">  Status: ok (no changes, no state modified)</span>
+  </div>
+
+  <h3 class="sub-title">k8s (Project 02) — Read + Write + Compare + Change</h3>
+  <p><code class="inline">kubernetes.core.k8s</code> is the workhorse. It applies Kubernetes YAML manifests to the cluster. But here is the genius: <strong>it is idempotent</strong>. It compares desired state with actual state and only makes changes if different.</p>
+
+  <div class="diagram">
+    <div class="d-title">kubernetes.core.k8s Module Workflow — Desired State Engine</div>
+    <span class="d-box">  You provide YAML manifest</span>  <span class="d-note">← Desired state</span><br>
+    <span class="d-arrow">    ↓</span><br>
+    <span class="d-box">  k8s module queries API: "Does this resource exist?"</span><br>
+    <span class="d-arrow">    ↓         ↓</span><br>
+    <span class="d-label">  EXISTS    DOES NOT EXIST</span><br>
+    <span class="d-arrow">    ↓         ↓</span><br>
+    <span class="d-box">  Compare   CREATE</span>  <span class="d-note">← Easy path</span><br>
+    <span class="d-box">  ↓         ↓</span><br>
+    <span class="d-box">  Same?</span>     <span class="d-label">  CREATED</span><br>
+    <span class="d-arrow">  ↓ ↓</span><br>
+    <span class="d-label">  YES NO</span><br>
+    <span class="d-arrow">  ↓  ↓</span><br>
+    <span class="d-box"> OK  PATCH</span><br>
+    <span class="d-arrow">  ↓  ↓</span><br>
+    <span class="d-label"> (no change) (changed!)</span>
+  </div>
+
+  <div class="callout tip">
+    <div class="callout-icon">✨</div>
+    <div class="callout-body">
+      <div class="callout-title">Why This Matters for Production</div>
+      <p>This is the essence of <strong>Infrastructure as Code (IaC)</strong>. You describe what you want (YAML), Ansible figures out how to achieve it (create or patch), and guarantees idempotency. You can run it in automated CI/CD pipelines without fear. You can schedule it to run every day without duplicate resources piling up.</p>
+    </div>
+  </div>
+
+  <!-- ── IDEMPOTENCY ── -->
+  <h2 class="section-title" id="idempotency"><span class="num">03</span> Idempotency Deep Dive — The Foundation of Production Automation</h2>
+
+  <p>This is not just about preventing duplicate resources. Idempotency is how we make automation safe and trustworthy.</p>
+
+  <h3 class="sub-title">Three Runs: What Happens in Each</h3>
+
+  <div class="diagram">
+    <div class="d-title">Run 1: Fresh Cluster (Namespace Does Not Exist)</div>
+    <span class="d-box">  k8s: state=present, kind=Namespace, name=app-dev</span><br>
+    <span class="d-arrow">    ↓</span><br>
+    <span class="d-box">  Module checks: Does namespace app-dev exist?</span><br>
+    <span class="d-arrow">    ↓</span><br>
+    <span class="d-box">  NO → Create namespace</span><br>
+    <span class="d-arrow">    ↓</span><br>
+    <span class="d-label">  Result: changed ✓</span>
+  </div>
+
+  <div class="diagram">
+    <div class="d-title">Run 2: Same Manifest, Unchanged Cluster</div>
+    <span class="d-box">  k8s: state=present, kind=Namespace, name=app-dev</span><br>
+    <span class="d-arrow">    ↓</span><br>
+    <span class="d-box">  Module checks: Does namespace app-dev exist?</span><br>
+    <span class="d-arrow">    ↓</span><br>
+    <span class="d-box">  YES → Compare manifest with actual resource</span><br>
+    <span class="d-arrow">    ↓</span><br>
+    <span class="d-box">  Manifest matches actual → No changes needed</span><br>
+    <span class="d-arrow">    ↓</span><br>
+    <span class="d-label">  Result: ok ✓ (no change)</span>
+  </div>
+
+  <div class="diagram">
+    <div class="d-title">Run 3: After Manual Change (Someone edited namespace labels)</div>
+    <span class="d-box">  k8s: state=present, kind=Namespace, name=app-dev</span><br>
+    <span class="d-arrow">    ↓</span><br>
+    <span class="d-box">  Module checks: Does namespace app-dev exist?</span><br>
+    <span class="d-arrow">    ↓</span><br>
+    <span class="d-box">  YES → Compare manifest with actual resource</span><br>
+    <span class="d-arrow">    ↓</span><br>
+    <span class="d-box">  Labels differ! Actual has extra label: "environment=staging"</span><br>
+    <span class="d-arrow">    ↓</span><br>
+    <span class="d-box">  PATCH: Remove "environment=staging", apply desired labels</span><br>
+    <span class="d-arrow">    ↓</span><br>
+    <span class="d-label">  Result: changed ✓ (drift corrected)</span>
+  </div>
+
+  <div class="callout warn">
+    <div class="callout-icon">⚠️</div>
+    <div class="callout-body">
+      <div class="callout-title">Idempotency is Not Automatic</div>
+      <p>k8s provides idempotent behavior FOR KUBERNETES RESOURCE CHANGES. But Ansible playbooks can contain non-idempotent tasks (shell commands, API calls via curl, external scripts). It is your job as the automation engineer to ensure the entire playbook is idempotent — usually by using <code class="inline">changed_when</code> to control when Ansible reports a change, and testing the playbook by running it twice.</p>
+    </div>
+  </div>
+
+  <!-- ── YAML MANIFESTS ── -->
+  <h2 class="section-title" id="yaml"><span class="num">04</span> Kubernetes/OpenShift YAML Manifests</h2>
+
+  <p>The k8s module takes Kubernetes YAML manifests as input. You can provide them inline (in the playbook) or as separate files. Let us understand the structure.</p>
+
+  <h3 class="sub-title">A Complete Namespace Manifest</h3>
+
+  <div class="code-wrapper">
+    <div class="code-header">
+      <span class="code-lang">yaml</span>
+      <span class="code-filename">Example — Complete Namespace Manifest</span>
+    </div>
+    <pre><code><span class="sy-comment">---
+# Kubernetes Manifest — Namespace Object
+# Every Kubernetes object has this structure
+</span>
+<span class="sy-key">apiVersion:</span> <span class="sy-string">v1</span>             <span class="sy-comment"># API version for Namespace. v1 = core API</span>
+<span class="sy-key">kind:</span> <span class="sy-string">Namespace</span>         <span class="sy-comment"># Resource type. "Namespace" tells Kubernetes this is a namespace</span>
+<span class="sy-key">metadata:</span>               <span class="sy-comment"># Metadata about this resource</span>
+  <span class="sy-key">name:</span> <span class="sy-string">app-dev</span>           <span class="sy-comment"># Name of the namespace. Required. Must be DNS-compliant (lowercase, hyphens OK)</span>
+  <span class="sy-key">labels:</span>               <span class="sy-comment"># Labels: key=value pairs for organization and selection</span>
+    <span class="sy-key">tier:</span> <span class="sy-string">development</span>    <span class="sy-comment"># Custom label: tier</span>
+    <span class="sy-key">team:</span> <span class="sy-string">payments</span>       <span class="sy-comment"># Custom label: team</span>
+    <span class="sy-key">cost-center:</span> <span class="sy-string">"ACC123"</span>      <span class="sy-comment"># Custom label: cost-center (quoted because it contains a dash)</span>
+    <span class="sy-key">created-by:</span> <span class="sy-string">ansible</span>   <span class="sy-comment"># Track that Ansible created this</span>
+  <span class="sy-key">annotations:</span>           <span class="sy-comment"># Annotations: longer-form metadata, often non-query data</span>
+    <span class="sy-key">description:</span> <span class="sy-string">"DEV environment for Payments microservice"</span>
+    <span class="sy-key">provisioned-by:</span> <span class="sy-string">"Ansible Automation Platform"</span>
+    <span class="sy-key">provisioned-timestamp:</span> <span class="sy-string">"{{ ansible_date_time.iso8601 }}"</span>
+
+<span class="sy-comment"># OPTIONAL: spec field — most Namespaces don't have a spec</span>
+<span class="sy-comment"># (some resource types require specs; Namespace is minimal)</span></code></pre>
+  </div>
+
+  <div class="explain-block">
+    <div class="explain-title">Breaking Down Namespace YAML</div>
+    <div class="explain-row"><span class="explain-term">apiVersion: v1</span><span class="explain-def">The Kubernetes API version for this resource. "v1" is the core/stable API. Namespace always uses v1. If this is wrong, kubectl/oc rejects the manifest.</span></div>
+    <div class="explain-row"><span class="explain-term">kind: Namespace</span><span class="explain-def">The resource type. Tells OpenShift: "This YAML describes a Namespace resource." Other kinds: Deployment, Pod, Service, Ingress, etc.</span></div>
+    <div class="explain-row"><span class="explain-term">metadata.name</span><span class="explain-def">The actual name of the namespace. This is how you reference it: oc get pods -n app-dev. Must be DNS-compliant (lowercase, numbers, hyphens).</span></div>
+    <div class="explain-row"><span class="explain-term">metadata.labels</span><span class="explain-def">Key-value pairs used for selection and organization. You can query: "Get all namespaces with tier=development". Labels are searchable and filterable.</span></div>
+    <div class="explain-row"><span class="explain-term">metadata.annotations</span><span class="explain-def">Key-value pairs for metadata that is NOT searchable/filterable. Often used for documentation, audit info, automation notes. No size limit like labels have.</span></div>
+  </div>
+
+  <h3 class="sub-title">ResourceQuota Manifest</h3>
+  <p>A ResourceQuota limits total resource consumption in a namespace. Without it, one rogue deployment can consume all cluster CPU and memory.</p>
+
+  <div class="code-wrapper">
+    <div class="code-header">
+      <span class="code-lang">yaml</span>
+      <span class="code-filename">Example — ResourceQuota</span>
+    </div>
+    <pre><code><span class="sy-comment">---
+# ResourceQuota — Enforce namespace resource limits
+</span>
+<span class="sy-key">apiVersion:</span> <span class="sy-string">v1</span>
+<span class="sy-key">kind:</span> <span class="sy-string">ResourceQuota</span>
+<span class="sy-key">metadata:</span>
+  <span class="sy-key">name:</span> <span class="sy-string">app-dev-quota</span>    <span class="sy-comment"># Name of this quota</span>
+  <span class="sy-key">namespace:</span> <span class="sy-string">app-dev</span>   <span class="sy-comment"># Which namespace this quota applies to</span>
+<span class="sy-key">spec:</span>
+  <span class="sy-key">hard:</span>                <span class="sy-comment"># Hard limits — cannot exceed these</span>
+    <span class="sy-key">requests.cpu:</span> <span class="sy-string">"4"</span>        <span class="sy-comment"># Total CPU requested by all pods cannot exceed 4 cores</span>
+    <span class="sy-key">requests.memory:</span> <span class="sy-string">"8Gi"</span>  <span class="sy-comment"># Total memory requested cannot exceed 8GB</span>
+    <span class="sy-key">limits.cpu:</span> <span class="sy-string">"8"</span>          <span class="sy-comment"># Total CPU limits cannot exceed 8 cores</span>
+    <span class="sy-key">limits.memory:</span> <span class="sy-string">"16Gi"</span>    <span class="sy-comment"># Total memory limits cannot exceed 16GB</span>
+    <span class="sy-key">pods:</span> <span class="sy-string">"100"</span>            <span class="sy-comment"># Maximum 100 pods in this namespace</span></code></pre>
+  </div>
+
+  <h3 class="sub-title">LimitRange Manifest</h3>
+  <p>A LimitRange sets defaults and boundaries for individual pods/containers. ResourceQuota is namespace-total; LimitRange is per-pod.</p>
+
+  <div class="code-wrapper">
+    <div class="code-header">
+      <span class="code-lang">yaml</span>
+      <span class="code-filename">Example — LimitRange</span>
+    </div>
+    <pre><code><span class="sy-comment">---
+# LimitRange — Default and max limits for pods/containers
+</span>
+<span class="sy-key">apiVersion:</span> <span class="sy-string">v1</span>
+<span class="sy-key">kind:</span> <span class="sy-string">LimitRange</span>
+<span class="sy-key">metadata:</span>
+  <span class="sy-key">name:</span> <span class="sy-string">app-dev-limits</span>
+  <span class="sy-key">namespace:</span> <span class="sy-string">app-dev</span>
+<span class="sy-key">spec:</span>
+  <span class="sy-key">limits:</span>
+    - <span class="sy-key">type:</span> <span class="sy-string">Container</span>          <span class="sy-comment"># Limits for individual containers</span>
+      <span class="sy-key">default:</span>                <span class="sy-comment"># If a pod/container doesn't specify limits, use these</span>
+        <span class="sy-key">cpu:</span> <span class="sy-string">"500m"</span>        <span class="sy-comment"># Default: 0.5 CPU</span>
+        <span class="sy-key">memory:</span> <span class="sy-string">"512Mi"</span>     <span class="sy-comment"># Default: 512MB</span>
+      <span class="sy-key">defaultRequest:</span>       <span class="sy-comment"># If a pod/container doesn't request resources, use these</span>
+        <span class="sy-key">cpu:</span> <span class="sy-string">"250m"</span>
+        <span class="sy-key">memory:</span> <span class="sy-string">"256Mi"</span>
+      <span class="sy-key">max:</span>                   <span class="sy-comment"># Maximum a container can use</span>
+        <span class="sy-key">cpu:</span> <span class="sy-string">"4"</span>
+        <span class="sy-key">memory:</span> <span class="sy-string">"4Gi"</span>
+      <span class="sy-key">min:</span>                   <span class="sy-comment"># Minimum a container can use</span>
+        <span class="sy-key">cpu:</span> <span class="sy-string">"100m"</span>
+        <span class="sy-key">memory:</span> <span class="sy-string">"128Mi"</span></code></pre>
+  </div>
+
+  <!-- ── MANIFEST FILES ── -->
+  <h2 class="section-title" id="manifests"><span class="num">05</span> Project Structure: Separating Manifests from Playbooks</h2>
+
+  <p>In production, manifests are not hard-coded in playbooks. They live in separate files that can be version-controlled, templated, and reviewed independently.</p>
+
+  <h4 class="mini-title">Updated Folder Structure</h4>
+  <div class="code-wrapper">
+    <div class="code-header"><span class="code-lang">text</span><span class="code-filename">openshift-automation/ — Updated Layout</span></div>
+    <pre><code class="folder-tree"><span class="dir">openshift-automation/</span>
+│
+├── ansible.cfg
+├── requirements.yml
+├── README.md
+│
+├── <span class="dir">inventories/</span>                <span class="sy-comment"># From Project 01</span>
+│   └── dev/, qa/, uat/, prod/
+│
+├── <span class="dir">playbooks/</span>
+│   ├── cluster_health_check.yml   <span class="sy-comment"># Project 01</span>
+│   └── provision_namespace.yml    <span class="sy-comment"># Project 02 — orchestration playbook</span>
+│
+├── <span class="dir">roles/</span>                      <span class="sy-comment"># NEW — Reusable components</span>
+│   └── <span class="dir">openshift_namespace_provision/</span>
+│       ├── <span class="dir">defaults/</span>
+│       │   └── main.yml           <span class="sy-comment"># Default variables</span>
+│       ├── <span class="dir">tasks/</span>
+│       │   └── main.yml           <span class="sy-comment"># Tasks: create namespace, quota, limits</span>
+│       ├── <span class="dir">handlers/</span>
+│       │   └── main.yml           <span class="sy-comment"># Post-creation hooks (if needed)</span>
+│       ├── <span class="dir">templates/</span>
+│       │   ├── namespace.yml.j2   <span class="sy-comment"># Jinja2 Namespace manifest</span>
+│       │   ├── quota.yml.j2       <span class="sy-comment"># Jinja2 ResourceQuota manifest</span>
+│       │   └── limits.yml.j2      <span class="sy-comment"># Jinja2 LimitRange manifest</span>
+│       └── <span class="dir">vars/</span>
+│           └── main.yml           <span class="sy-comment"># Role-specific variables</span>
+│
+├── <span class="dir">templates/</span>                  <span class="sy-comment"># Shared templates</span>
+│   └── cluster_health_report.html.j2
+│
+├── <span class="dir">vars/</span>
+│   └── common.yml
+│
+└── <span class="dir">reports/</span></code></pre>
+  </div>
+
+  <h3 class="sub-title">The Role Structure Explained</h3>
+  <p>An Ansible Role is a reusable, organized way to bundle tasks, variables, and templates. Instead of writing everything in one 500-line playbook, you organize it logically.</p>
+
+  <div class="card-grid">
+    <div class="card"><div class="card-icon">⚙️</div><div class="card-title">defaults/main.yml</div><div class="card-desc">Default variable values. These are the "suggested" parameters. Can be overridden by playbooks or inventories.</div></div>
+    <div class="card"><div class="card-icon">✅</div><div class="card-title">tasks/main.yml</div><div class="card-desc">The work. Tasks that execute when the role is called. This is where our k8s module calls happen.</div></div>
+    <div class="card"><div class="card-icon">🔔</div><div class="card-title">handlers/main.yml</div><div class="card-desc">Triggered tasks — run only when a task notifies them. Example: restart a service after config change.</div></div>
+    <div class="card"><div class="card-icon">📄</div><div class="card-title">templates/</span></div><div class="card-desc">Jinja2 templates. In our case: Namespace, ResourceQuota, LimitRange YAML manifests as .j2 files.</div></div>
+    <div class="card"><div class="card-icon">📋</div><div class="card-title">vars/main.yml</div><div class="card-desc">Role-specific variables. Defaults can go in defaults/; variables set by the role can go in vars/.</div></div>
+  </div>
+
+  <!-- ── THE MANIFESTS ── -->
+  <h2 class="section-title"><span class="num">06</span> Jinja2 Namespace Manifest Templates</h2>
+
+  <p>We store manifests as Jinja2 templates so we can parameterize them. Variables are injected at runtime.</p>
+
+  <h3 class="sub-title">Namespace Manifest Template</h3>
+
+  <div class="code-wrapper">
+    <div class="code-header">
+      <span class="code-lang">jinja2</span>
+      <span class="code-filename">roles/openshift_namespace_provision/templates/namespace.yml.j2</span>
+      <button class="copy-btn" onclick="navigator.clipboard.writeText(this.closest('.code-wrapper').querySelector('pre').innerText)">Copy</button>
+    </div>
+    <pre><code><span class="sy-comment">---
+# Kubernetes Namespace Manifest Template
+# Variables injected by Ansible at runtime
+# Example: namespace_name=app-dev, team=payments, tier=development
+</span>
+<span class="sy-key">apiVersion:</span> <span class="sy-string">v1</span>
+<span class="sy-key">kind:</span> <span class="sy-string">Namespace</span>
+<span class="sy-key">metadata:</span>
+  <span class="sy-key">name:</span> <span class="sy-string">{{ namespace_name }}</span>        <span class="sy-comment"># Interpolated: e.g., app-dev</span>
+  <span class="sy-key">labels:</span>
+    <span class="sy-key">tier:</span> <span class="sy-string">{{ namespace_tier }}</span>     <span class="sy-comment"># e.g., development</span>
+    <span class="sy-key">team:</span> <span class="sy-string">{{ namespace_team }}</span>     <span class="sy-comment"># e.g., payments</span>
+    <span class="sy-key">cost-center:</span> <span class="sy-string">{{ namespace_cost_center }}</span>
+    <span class="sy-key">created-by:</span> <span class="sy-string">ansible</span>
+    <span class="sy-key">environment:</span> <span class="sy-string">{{ environment_name | lower }}</span>
+  <span class="sy-key">annotations:</span>
+    <span class="sy-key">description:</span> <span class="sy-string">"{{ namespace_description }}"</span>
+    <span class="sy-key">provisioned-by:</span> <span class="sy-string">"Ansible Automation Platform"</span>
+    <span class="sy-key">provisioned-date:</span> <span class="sy-string">"{{ ansible_date_time.date }}"</span>
+    <span class="sy-key">provisioned-by-ticket:</span> <span class="sy-string">"INFRA-1002"</span></code></pre>
+  </div>
+
+  <h3 class="sub-title">ResourceQuota Manifest Template</h3>
+
+  <div class="code-wrapper">
+    <div class="code-header">
+      <span class="code-lang">jinja2</span>
+      <span class="code-filename">roles/openshift_namespace_provision/templates/quota.yml.j2</span>
+      <button class="copy-btn" onclick="navigator.clipboard.writeText(this.closest('.code-wrapper').querySelector('pre').innerText)">Copy</button>
+    </div>
+    <pre><code><span class="sy-comment">---
+# ResourceQuota Template
+# Different quota limits per environment
+</span>
+<span class="sy-key">apiVersion:</span> <span class="sy-string">v1</span>
+<span class="sy-key">kind:</span> <span class="sy-string">ResourceQuota</span>
+<span class="sy-key">metadata:</span>
+  <span class="sy-key">name:</span> <span class="sy-string">{{ namespace_name }}-quota</span>
+  <span class="sy-key">namespace:</span> <span class="sy-string">{{ namespace_name }}</span>
+<span class="sy-key">spec:</span>
+  <span class="sy-key">hard:</span>
+    <span class="sy-key">requests.cpu:</span> <span class="sy-string">"{{ quota_cpu_requests }}"</span>
+    <span class="sy-key">requests.memory:</span> <span class="sy-string">"{{ quota_memory_requests }}"</span>
+    <span class="sy-key">limits.cpu:</span> <span class="sy-string">"{{ quota_cpu_limits }}"</span>
+    <span class="sy-key">limits.memory:</span> <span class="sy-string">"{{ quota_memory_limits }}"</span>
+    <span class="sy-key">pods:</span> <span class="sy-string">"{{ quota_pod_count }}"</span></code></pre>
+  </div>
+
+  <h3 class="sub-title">LimitRange Manifest Template</h3>
+
+  <div class="code-wrapper">
+    <div class="code-header">
+      <span class="code-lang">jinja2</span>
+      <span class="code-filename">roles/openshift_namespace_provision/templates/limits.yml.j2</span>
+      <button class="copy-btn" onclick="navigator.clipboard.writeText(this.closest('.code-wrapper').querySelector('pre').innerText)">Copy</button>
+    </div>
+    <pre><code><span class="sy-comment">---
+# LimitRange Template
+</span>
+<span class="sy-key">apiVersion:</span> <span class="sy-string">v1</span>
+<span class="sy-key">kind:</span> <span class="sy-string">LimitRange</span>
+<span class="sy-key">metadata:</span>
+  <span class="sy-key">name:</span> <span class="sy-string">{{ namespace_name }}-limits</span>
+  <span class="sy-key">namespace:</span> <span class="sy-string">{{ namespace_name }}</span>
+<span class="sy-key">spec:</span>
+  <span class="sy-key">limits:</span>
+    - <span class="sy-key">type:</span> <span class="sy-string">Container</span>
+      <span class="sy-key">default:</span>
+        <span class="sy-key">cpu:</span> <span class="sy-string">"{{ limit_default_cpu }}"</span>
+        <span class="sy-key">memory:</span> <span class="sy-string">"{{ limit_default_memory }}"</span>
+      <span class="sy-key">defaultRequest:</span>
+        <span class="sy-key">cpu:</span> <span class="sy-string">"{{ limit_request_cpu }}"</span>
+        <span class="sy-key">memory:</span> <span class="sy-string">"{{ limit_request_memory }}"</span>
+      <span class="sy-key">max:</span>
+        <span class="sy-key">cpu:</span> <span class="sy-string">"{{ limit_max_cpu }}"</span>
+        <span class="sy-key">memory:</span> <span class="sy-string">"{{ limit_max_memory }}"</span>
+      <span class="sy-key">min:</span>
+        <span class="sy-key">cpu:</span> <span class="sy-string">"{{ limit_min_cpu }}"</span>
+        <span class="sy-key">memory:</span> <span class="sy-string">"{{ limit_min_memory }}"</span></code></pre>
+  </div>
+
+  <!-- ── ROLE DEFAULTS ── -->
+  <h2 class="section-title"><span class="num">07</span> Role Defaults — Environment-Specific Variables</h2>
+
+  <div class="code-wrapper">
+    <div class="code-header">
+      <span class="code-lang">yaml</span>
+      <span class="code-filename">roles/openshift_namespace_provision/defaults/main.yml</span>
+      <button class="copy-btn" onclick="navigator.clipboard.writeText(this.closest('.code-wrapper').querySelector('pre').innerText)">Copy</button>
+    </div>
+    <pre><code><span class="sy-comment">---
+# Default variables for namespace provisioning role
+# Caller can override these by passing role parameters
+</span>
+
+<span class="sy-comment">##############################################</span>
+<span class="sy-comment"># NAMESPACE IDENTIFICATION</span>
+<span class="sy-comment">##############################################</span>
+<span class="sy-key">namespace_name:</span>        <span class="sy-string">"default"</span>      <span class="sy-comment"># REQUIRED: actual namespace name</span>
+<span class="sy-key">namespace_tier:</span>        <span class="sy-string">"development"</span>
+<span class="sy-key">namespace_team:</span>        <span class="sy-string">"engineering"</span>
+<span class="sy-key">namespace_cost_center:</span> <span class="sy-string">"ACC001"</span>
+<span class="sy-key">namespace_description:</span> <span class="sy-string">"Application namespace"</span>
+
+<span class="sy-comment">##############################################</span>
+<span class="sy-comment"># RESOURCE QUOTAS</span>
+<span class="sy-comment"># Vary these based on environment_name (dev/qa/uat/prod)</span>
+<span class="sy-comment">##############################################</span>
+<span class="sy-key">quota_cpu_requests:</span>    <span class="sy-string">"4"</span>      <span class="sy-comment"># Development default</span>
+<span class="sy-key">quota_memory_requests:</span> <span class="sy-string">"8Gi"</span>
+<span class="sy-key">quota_cpu_limits:</span>      <span class="sy-string">"8"</span>
+<span class="sy-key">quota_memory_limits:</span>   <span class="sy-string">"16Gi"</span>
+<span class="sy-key">quota_pod_count:</span>       <span class="sy-string">"100"</span>
+
+<span class="sy-comment">##############################################</span>
+<span class="sy-comment"># LIMIT RANGES (per-container defaults)</span>
+<span class="sy-comment">##############################################</span>
+<span class="sy-key">limit_default_cpu:</span>    <span class="sy-string">"500m"</span>
+<span class="sy-key">limit_default_memory:</span> <span class="sy-string">"512Mi"</span>
+<span class="sy-key">limit_request_cpu:</span>    <span class="sy-string">"250m"</span>
+<span class="sy-key">limit_request_memory:</span> <span class="sy-string">"256Mi"</span>
+<span class="sy-key">limit_max_cpu:</span>        <span class="sy-string">"4"</span>
+<span class="sy-key">limit_max_memory:</span>     <span class="sy-string">"4Gi"</span>
+<span class="sy-key">limit_min_cpu:</span>        <span class="sy-string">"100m"</span>
+<span class="sy-key">limit_min_memory:</span>     <span class="sy-string">"128Mi"</span>
+
+<span class="sy-comment">##############################################</span>
+<span class="sy-comment"># VALIDATION</span>
+<span class="sy-comment">##############################################</span>
+<span class="sy-key">verify_namespace_creation:</span> <span class="sy-bool">true</span>
+<span class="sy-key">verify_resource_quota:</span>      <span class="sy-bool">true</span>
+<span class="sy-key">verify_limit_range:</span>         <span class="sy-bool">true</span></code></pre>
+  </div>
+
+  <!-- ── THE ROLE TASKS ── -->
+  <h2 class="section-title" id="playbook"><span class="num">08</span> The Role Tasks — Creating Namespace, Quota, Limits</h2>
+
+  <div class="code-wrapper">
+    <div class="code-header">
+      <span class="code-lang">yaml</span>
+      <span class="code-filename">roles/openshift_namespace_provision/tasks/main.yml</span>
+      <button class="copy-btn" onclick="navigator.clipboard.writeText(this.closest('.code-wrapper').querySelector('pre').innerText)">Copy</button>
+    </div>
+    <pre><code><span class="sy-comment">---
+# Task: Create/Update OpenShift Namespace
+# This is where kubernetes.core.k8s module does the work
+</span>
+
+- <span class="sy-key">name:</span> <span class="sy-string">"Validate namespace name parameter"</span>
+  <span class="sy-key">ansible.builtin.assert:</span>
+    <span class="sy-key">that:</span>
+      - <span class="sy-string">namespace_name is defined</span>
+      - <span class="sy-string">namespace_name != 'default'</span>
+      - <span class="sy-string">namespace_name != ''</span>
+    <span class="sy-key">fail_msg:</span> <span class="sy-string">"ERROR: namespace_name must be provided and not 'default'. Passed: {{ namespace_name | default('UNDEFINED') }}"</span>
+
+<span class="sy-comment"># TASK 1 — Create or Update the Namespace</span>
+- <span class="sy-key">name:</span> <span class="sy-string">"Create/update namespace with labels and annotations"</span>
+  <span class="sy-module">kubernetes.core.k8s:</span>
+    <span class="sy-key">state:</span> <span class="sy-string">present</span>                    <span class="sy-comment"># Create if missing, update if different</span>
+    <span class="sy-key">definition:</span> <span class="sy-string">"{{ lookup('template', 'namespace.yml.j2') }}"</span>
+    <span class="sy-key">host:</span> <span class="sy-string">"{{ ocp_api_url }}"</span>
+    <span class="sy-key">api_key:</span> <span class="sy-string">"{{ ocp_token }}"</span>
+    <span class="sy-key">validate_certs:</span> <span class="sy-string">"{{ ocp_validate_certs }}"</span>
+  <span class="sy-key">register:</span> <span class="sy-string">namespace_creation_result</span>
+  <span class="sy-key">tags:</span> [<span class="sy-string">namespace</span>]
+
+- <span class="sy-key">name:</span> <span class="sy-string">"Debug: Namespace creation result"</span>
+  <span class="sy-key">ansible.builtin.debug:</span>
+    <span class="sy-key">msg:</span> <span class="sy-string">"Namespace: {{ namespace_creation_result.changed }} (changed=true means new, changed=false means updated/no-change)"</span>
+  <span class="sy-key">tags:</span> [<span class="sy-string">namespace</span>]
+
+<span class="sy-comment"># TASK 2 — Apply ResourceQuota</span>
+- <span class="sy-key">name:</span> <span class="sy-string">"Create/update ResourceQuota"</span>
+  <span class="sy-module">kubernetes.core.k8s:</span>
+    <span class="sy-key">state:</span> <span class="sy-string">present</span>
+    <span class="sy-key">definition:</span> <span class="sy-string">"{{ lookup('template', 'quota.yml.j2') }}"</span>
+    <span class="sy-key">host:</span> <span class="sy-string">"{{ ocp_api_url }}"</span>
+    <span class="sy-key">api_key:</span> <span class="sy-string">"{{ ocp_token }}"</span>
+    <span class="sy-key">validate_certs:</span> <span class="sy-string">"{{ ocp_validate_certs }}"</span>
+  <span class="sy-key">register:</span> <span class="sy-string">quota_creation_result</span>
+  <span class="sy-key">tags:</span> [<span class="sy-string">quota</span>]
+
+<span class="sy-comment"># TASK 3 — Apply LimitRange</span>
+- <span class="sy-key">name:</span> <span class="sy-string">"Create/update LimitRange"</span>
+  <span class="sy-module">kubernetes.core.k8s:</span>
+    <span class="sy-key">state:</span> <span class="sy-string">present</span>
+    <span class="sy-key">definition:</span> <span class="sy-string">"{{ lookup('template', 'limits.yml.j2') }}"</span>
+    <span class="sy-key">host:</span> <span class="sy-string">"{{ ocp_api_url }}"</span>
+    <span class="sy-key">api_key:</span> <span class="sy-string">"{{ ocp_token }}"</span>
+    <span class="sy-key">validate_certs:</span> <span class="sy-string">"{{ ocp_validate_certs }}"</span>
+  <span class="sy-key">register:</span> <span class="sy-string">limits_creation_result</span>
+  <span class="sy-key">tags:</span> [<span class="sy-string">limits</span>]
+
+<span class="sy-comment"># TASK 4 — Verify Namespace Created Successfully</span>
+- <span class="sy-key">name:</span> <span class="sy-string">"[VERIFY] Query created namespace"</span>
+  <span class="sy-module">kubernetes.core.k8s_info:</span>
+    <span class="sy-key">api_version:</span> <span class="sy-string">v1</span>
+    <span class="sy-key">kind:</span> <span class="sy-string">Namespace</span>
+    <span class="sy-key">name:</span> <span class="sy-string">"{{ namespace_name }}"</span>
+    <span class="sy-key">host:</span> <span class="sy-string">"{{ ocp_api_url }}"</span>
+    <span class="sy-key">api_key:</span> <span class="sy-string">"{{ ocp_token }}"</span>
+    <span class="sy-key">validate_certs:</span> <span class="sy-string">"{{ ocp_validate_certs }}"</span>
+  <span class="sy-key">register:</span> <span class="sy-string">namespace_verify_result</span>
+  <span class="sy-key">tags:</span> [<span class="sy-string">verify</span>]
+
+<span class="sy-comment"># TASK 5 — Assert Namespace Exists and Has Correct Labels</span>
+- <span class="sy-key">name:</span> <span class="sy-string">"[ASSERT] Namespace exists and has expected labels"</span>
+  <span class="sy-key">ansible.builtin.assert:</span>
+    <span class="sy-key">that:</span>
+      - <span class="sy-string">namespace_verify_result.resources | length == 1</span>   <span class="sy-comment"># Exactly one namespace found</span>
+      - <span class="sy-string">namespace_verify_result.resources[0].metadata.labels.tier == namespace_tier</span>
+      - <span class="sy-string">namespace_verify_result.resources[0].metadata.labels.team == namespace_team</span>
+    <span class="sy-key">fail_msg:</span> <span class="sy-string">"Namespace creation/update failed or labels incorrect"</span>
+    <span class="sy-key">success_msg:</span> <span class="sy-string">"Namespace {{ namespace_name }} verified with correct labels"</span>
+  <span class="sy-key">tags:</span> [<span class="sy-string">verify</span>]
+
+<span class="sy-comment"># TASK 6 — Verify ResourceQuota</span>
+- <span class="sy-key">name:</span> <span class="sy-string">"[VERIFY] Query ResourceQuota"</span>
+  <span class="sy-module">kubernetes.core.k8s_info:</span>
+    <span class="sy-key">api_version:</span> <span class="sy-string">v1</span>
+    <span class="sy-key">kind:</span> <span class="sy-string">ResourceQuota</span>
+    <span class="sy-key">namespace:</span> <span class="sy-string">"{{ namespace_name }}"</span>
+    <span class="sy-key">name:</span> <span class="sy-string">"{{ namespace_name }}-quota"</span>
+    <span class="sy-key">host:</span> <span class="sy-string">"{{ ocp_api_url }}"</span>
+    <span class="sy-key">api_key:</span> <span class="sy-string">"{{ ocp_token }}"</span>
+    <span class="sy-key">validate_certs:</span> <span class="sy-string">"{{ ocp_validate_certs }}"</span>
+  <span class="sy-key">register:</span> <span class="sy-string">quota_verify_result</span>
+  <span class="sy-key">tags:</span> [<span class="sy-string">verify</span>]
+
+- <span class="sy-key">name:</span> <span class="sy-string">"[ASSERT] ResourceQuota exists"</span>
+  <span class="sy-key">ansible.builtin.assert:</span>
+    <span class="sy-key">that:</span>
+      - <span class="sy-string">quota_verify_result.resources | length > 0</span>
+    <span class="sy-key">fail_msg:</span> <span class="sy-string">"ResourceQuota was not created in namespace {{ namespace_name }}"</span>
+  <span class="sy-key">tags:</span> [<span class="sy-string">verify</span>]
+
+<span class="sy-comment"># TASK 7 — Verify LimitRange</span>
+- <span class="sy-key">name:</span> <span class="sy-string">"[VERIFY] Query LimitRange"</span>
+  <span class="sy-module">kubernetes.core.k8s_info:</span>
+    <span class="sy-key">api_version:</span> <span class="sy-string">v1</span>
+    <span class="sy-key">kind:</span> <span class="sy-string">LimitRange</span>
+    <span class="sy-key">namespace:</span> <span class="sy-string">"{{ namespace_name }}"</span>
+    <span class="sy-key">name:</span> <span class="sy-string">"{{ namespace_name }}-limits"</span>
+    <span class="sy-key">host:</span> <span class="sy-string">"{{ ocp_api_url }}"</span>
+    <span class="sy-key">api_key:</span> <span class="sy-string">"{{ ocp_token }}"</span>
+    <span class="sy-key">validate_certs:</span> <span class="sy-string">"{{ ocp_validate_certs }}"</span>
+  <span class="sy-key">register:</span> <span class="sy-string">limits_verify_result</span>
+  <span class="sy-key">tags:</span> [<span class="sy-string">verify</span>]
+
+- <span class="sy-key">name:</span> <span class="sy-string">"[ASSERT] LimitRange exists"</span>
+  <span class="sy-key">ansible.builtin.assert:</span>
+    <span class="sy-key">that:</span>
+      - <span class="sy-string">limits_verify_result.resources | length > 0</span>
+    <span class="sy-key">fail_msg:</span> <span class="sy-string">"LimitRange was not created in namespace {{ namespace_name }}"</span>
+  <span class="sy-key">tags:</span> [<span class="sy-string">verify</span>]
+
+<span class="sy-comment"># TASK 8 — Summary</span>
+- <span class="sy-key">name:</span> <span class="sy-string">"[SUMMARY] Namespace provisioning complete"</span>
+  <span class="sy-key">ansible.builtin.debug:</span>
+    <span class="sy-key">msg:</span>
+      - <span class="sy-string">"Namespace {{ namespace_name }} provisioning complete"</span>
+      - <span class="sy-string">"  Namespace: {{ 'CREATED' if namespace_creation_result.changed else 'EXISTS' }}"</span>
+      - <span class="sy-string">"  ResourceQuota: {{ 'CREATED' if quota_creation_result.changed else 'EXISTS' }}"</span>
+      - <span class="sy-string">"  LimitRange: {{ 'CREATED' if limits_creation_result.changed else 'EXISTS' }}"</span>
+      - <span class="sy-string">"All resources verified and healthy."</span>
+  <span class="sy-key">tags:</span> [<span class="sy-string">always</span>]</code></pre>
+  </div>
+
+  <!-- ── EXPLANATION ── -->
+  <h2 class="section-title" id="explanation"><span class="num">09</span> Code Explanation — Every Important Concept</h2>
+
+  <h3 class="sub-title">Understanding the k8s Module Parameters</h3>
+  <div class="explain-block">
+    <div class="explain-title">kubernetes.core.k8s Module Parameters</div>
+    <div class="explain-row"><span class="explain-term">state: present</span><span class="explain-def">Create or update the resource if it doesn't exist. Essential for idempotency — the module will create ONLY if missing, and patch only if different.</span></div>
+    <div class="explain-row"><span class="explain-term">definition:</span><span class="explain-def">The Kubernetes manifest (YAML) defining the resource. Can be a dict, string, or template lookup result.</span></div>
+    <div class="explain-row"><span class="explain-term">lookup('template', 'namespace.yml.j2')</span><span class="explain-def">Ansible function that renders the Jinja2 template file, interpolating all variables. Returns the rendered YAML as a string, which k8s then parses and applies.</span></div>
+    <div class="explain-row"><span class="explain-term">host / api_key / validate_certs</span><span class="explain-def">Authentication details. Same as in Project 01. Tells k8s which cluster to connect to and with what token.</span></div>
+    <div class="explain-row"><span class="explain-term">register: namespace_creation_result</span><span class="explain-def">Captures the result object containing: .changed (bool) — did the module make changes; .failed (bool) — did it fail; .duration (seconds) — how long it took.</span></div>
+  </div>
+
+  <h3 class="sub-title">Understanding Idempotency in Practice</h3>
+
+  <div class="callout tip">
+    <div class="callout-icon">✅</div>
+    <div class="callout-body">
+      <div class="callout-title">What the k8s Module Actually Does</div>
+      <p><strong>On Run 1 (namespace doesn't exist):</strong> k8s calls the OpenShift API: "Create this namespace." API returns "created". k8s records changed=true.<br><br><strong>On Run 2 (same playbook, same variables):</strong> k8s calls the OpenShift API: "Get namespace app-dev". API returns the namespace. k8s compares: manifest says labels={tier: dev}, actual has labels={tier: dev}. Match! No patch needed. Records changed=false, status=ok.<br><br><strong>On Run 3 (someone manually added a label):</strong> k8s gets the namespace, sees labels={tier: dev, extra: manual}. Manifest says labels should be {tier: dev}. Mismatch! k8s patches: remove "extra: manual". Records changed=true.</p>
+    </div>
+  </div>
+
+  <h3 class="sub-title">Understanding Template Lookup</h3>
+
+  <div class="explain-block">
+    <div class="explain-title">How lookup('template', ...) Works</div>
+    <div class="explain-row"><span class="explain-term">lookup()</span><span class="explain-def">Ansible function that calls a plugin. Many types: 'template', 'file', 'vars', 'env'. In this case, 'template' means render a Jinja2 template.</span></div>
+    <div class="explain-row"><span class="explain-term">'namespace.yml.j2'</span><span class="explain-def">Relative path. Ansible looks in: role's templates/ folder. So it becomes: roles/openshift_namespace_provision/templates/namespace.yml.j2</span></div>
+    <div class="explain-row"><span class="explain-term">Return value</span><span class="explain-def">A string containing the rendered YAML. All {{ }} expressions are replaced with variable values. This string is then parsed as YAML and applied to OpenShift.</span></div>
+  </div>
+
+  <!-- ── USING THE ROLE ── -->
+  <h2 class="section-title"><span class="num">10</span> Calling the Role — The Playbook</h2>
+
+  <p>A role is useless without a playbook that calls it. Let us create the orchestration playbook.</p>
+
+  <div class="code-wrapper">
+    <div class="code-header">
+      <span class="code-lang">yaml</span>
+      <span class="code-filename">playbooks/provision_namespace.yml</span>
+      <button class="copy-btn" onclick="navigator.clipboard.writeText(this.closest('.code-wrapper').querySelector('pre').innerText)">Copy</button>
+    </div>
+    <pre><code><span class="sy-comment">---
+###############################################################################
+# PLAYBOOK: Provision OpenShift Namespace
+# TICKET:   INFRA-1002
+# PURPOSE:  Create/update namespace with labels, resource quotas, limits
+# CALLS:    roles/openshift_namespace_provision
+###############################################################################
+</span>
+- <span class="sy-key">name:</span> <span class="sy-string">"Provision OpenShift Namespace"</span>
+  <span class="sy-key">hosts:</span> <span class="sy-string">localhost</span>           <span class="sy-comment"># Run on Ansible control node / Execution Environment</span>
+  <span class="sy-key">gather_facts:</span> <span class="sy-bool">false</span>           <span class="sy-comment"># No SSH needed</span>
+  <span class="sy-key">connection:</span> <span class="sy-string">local</span>          <span class="sy-comment"># Local execution (API calls)</span>
+
+  <span class="sy-key">vars:</span>
+    <span class="sy-comment"># OpenShift API authentication</span>
+    <span class="sy-key">ocp_token:</span> <span class="sy-string">"{{ lookup('env', 'K8S_AUTH_API_KEY') | default(vault_ocp_api_token, true) }}"</span>
+
+  <span class="sy-key">tasks:</span>
+
+    - <span class="sy-key">name:</span> <span class="sy-string">"Input validation: namespace name required"</span>
+      <span class="sy-key">ansible.builtin.assert:</span>
+        <span class="sy-key">that:</span>
+          - <span class="sy-string">provision_namespace_name is defined</span>
+          - <span class="sy-string">provision_namespace_name != ''</span>
+        <span class="sy-key">fail_msg:</span> <span class="sy-string">"ERROR: provision_namespace_name variable must be supplied. Use: -e provision_namespace_name=app-dev"</span>
+      <span class="sy-key">tags:</span> [<span class="sy-string">always</span>]
+
+    <span class="sy-comment"># CALL THE ROLE — Pass parameters as role arguments</span>
+    <span class="sy-key">- name:</span> <span class="sy-string">"Call: Provision namespace role"</span>
+      <span class="sy-key">ansible.builtin.include_role:</span>
+        <span class="sy-key">name:</span> <span class="sy-string">openshift_namespace_provision</span>
+      <span class="sy-key">vars:</span>
+        <span class="sy-comment"># Override role defaults with user input</span>
+        <span class="sy-key">namespace_name:</span> <span class="sy-string">"{{ provision_namespace_name }}"</span>
+        <span class="sy-key">namespace_team:</span> <span class="sy-string">"{{ provision_team | default('engineering') }}"</span>
+        <span class="sy-key">namespace_tier:</span> <span class="sy-string">"{{ provision_tier | default(environment_code) }}"</span>
+        <span class="sy-key">namespace_cost_center:</span> <span class="sy-string">"{{ provision_cost_center | default('ACC001') }}"</span>
+        <span class="sy-key">namespace_description:</span> <span class="sy-string">"{{ provision_description | default('Application namespace') }}"</span>
+
+        <span class="sy-comment"># Vary resource limits by environment</span>
+        <span class="sy-key">quota_cpu_requests:</span> >-
+          {{
+            '2' if environment_code == 'dev'
+            else '8' if environment_code in ['qa', 'uat']
+            else '16'
+          }}
+        <span class="sy-key">quota_memory_requests:</span> >-
+          {{
+            '4Gi' if environment_code == 'dev'
+            else '16Gi' if environment_code in ['qa', 'uat']
+            else '32Gi'
+          }}
+      <span class="sy-key">tags:</span> [<span class="sy-string">provision</span>]</code></pre>
+  </div>
+
+  <!-- ── TESTING IDEMPOTENCY ── -->
+  <h2 class="section-title" id="testing"><span class="num">11</span> Testing Idempotency — Run It Twice, Get It Right</h2>
+
+  <div class="diagram">
+    <div class="d-title">Idempotency Test Process</div>
+    <span class="d-box">  $ ansible-playbook playbooks/provision_namespace.yml \</span><br>
+    <span class="d-box">      -e provision_namespace_name=test-idempotent</span><br>
+    <span class="d-arrow">    ↓</span><br>
+    <span class="d-label">  RUN 1 OUTPUT: changed=3 ← Namespace, Quota, Limits created</span><br>
+    <span class="d-arrow">    ↓</span><br>
+    <span class="d-box">  (Same command again)</span><br>
+    <span class="d-arrow">    ↓</span><br>
+    <span class="d-label">  RUN 2 OUTPUT: changed=0 ← Nothing changed ✓ IDEMPOTENT!</span><br>
+    <span class="d-arrow">    ↓</span><br>
+    <span class="d-box">  (Manually add label to namespace in oc)</span><br>
+    <span class="d-arrow">    ↓</span><br>
+    <span class="d-box">  oc label namespace test-idempotent manual=test</span><br>
+    <span class="d-arrow">    ↓</span><br>
+    <span class="d-box">  (Run playbook again)</span><br>
+    <span class="d-arrow">    ↓</span><br>
+    <span class="d-label">  RUN 3 OUTPUT: changed=1 ← Manual label removed, corrected ✓</span>
+  </div>
+
+  <div class="code-wrapper">
+    <div class="code-header">
+      <span class="code-lang">bash</span>
+      <span class="code-filename">Testing Idempotency — Step by Step</span>
+      <button class="copy-btn" onclick="navigator.clipboard.writeText(this.closest('.code-wrapper').querySelector('pre').innerText)">Copy</button>
+    </div>
+    <pre><code><span class="sy-comment"># ==== RUN 1: Create namespace ===="</span>
+ansible-playbook playbooks/provision_namespace.yml \
+  -i inventories/dev \
+  -e provision_namespace_name=app-idempotent \
+  -e provision_team=payments \
+  -v
+
+<span class="sy-comment"># Expected output:
+# PLAY [Provision OpenShift Namespace] ****
+# TASK [Call: Provision namespace role] ****
+# TASK [create/update namespace ...] ****
+# changed: [localhost] ← First time creates
+# TASK [Create/update ResourceQuota] ****
+# changed: [localhost]
+# TASK [Create/update LimitRange] ****
+# changed: [localhost]
+# PLAY RECAP ****
+# changed=3  ← Three changes: namespace, quota, limits created</span>
+
+<span class="sy-comment"># ==== RUN 2: Same playbook, same variables ===="</span>
+ansible-playbook playbooks/provision_namespace.yml \
+  -i inventories/dev \
+  -e provision_namespace_name=app-idempotent \
+  -e provision_team=payments \
+  -v
+
+<span class="sy-comment"># Expected output:
+# PLAY [Provision OpenShift Namespace] ****
+# TASK [Call: Provision namespace role] ****
+# TASK [create/update namespace ...] ****
+# ok: [localhost] ← Already exists, no changes
+# TASK [Create/update ResourceQuota] ****
+# ok: [localhost]
+# TASK [Create/update LimitRange] ****
+# ok: [localhost]
+# PLAY RECAP ****
+# changed=0  ← ZERO changes — Idempotency achieved ✓</span>
+
+<span class="sy-comment"># ==== RUN 3: Verify drift correction ===="</span>
+
+<span class="sy-comment"># Manually modify the namespace</span>
+oc label namespace app-idempotent manual-label=test-value
+
+<span class="sy-comment"># Run playbook again</span>
+ansible-playbook playbooks/provision_namespace.yml \
+  -i inventories/dev \
+  -e provision_namespace_name=app-idempotent \
+  -e provision_team=payments \
+  -v
+
+<span class="sy-comment"># Expected output:
+# TASK [create/update namespace ...] ****
+# changed: [localhost] ← Detected drift, patched namespace
+# PLAY RECAP ****
+# changed=1  ← Corrected the manual label</span>
+
+<span class="sy-comment"># Verify the manual label is gone</span>
+oc get ns app-idempotent -o yaml | grep labels -A 5</code></pre>
+  </div>
+
+  <!-- ── ROLES EXPLANATION ── -->
+  <h2 class="section-title" id="roles"><span class="num">12</span> Introduction to Roles — Why They Matter for Enterprise Automation</h2>
+
+  <p>Roles transform Ansible from a script tool to an enterprise framework. Here is why they are critical:</p>
+
+  <div class="card-grid">
+    <div class="card"><div class="card-icon">♻️</div><div class="card-title">Reusability</div><div class="card-desc">Write once, use 100 times. "Provision a namespace" is a reusable component. Call it for DEV, QA, PROD with different parameters.</div></div>
+    <div class="card"><div class="card-icon">📚</div><div class="card-title">Organization</div><div class="card-desc">Code is structured logically: tasks/ for work, defaults/ for parameters, templates/ for manifests. No 1000-line playbooks.</div></div>
+    <div class="card"><div class="card-icon">🔒</div><div class="card-title">Encapsulation</div><div class="card-desc">Role hides internal complexity. Caller just says "provision this namespace" — doesn't care about template lookup, multi-step validation.</div></div>
+    <div class="card"><div class="card-icon">🤝</div><div class="card-title">Team Collaboration</div><div class="card-desc">One engineer writes a role, 50 engineers use it. Updates/fixes propagate to all callers automatically via Git.</div></div>
+    <div class="card"><div class="card-icon">🧪</div><div class="card-title">Testability</div><div class="card-desc">Test role in isolation. Mock inputs, verify outputs. Then compose multiple roles into workflows and test the integration.</div></div>
+    <div class="card"><div class="card-icon">📖</div><div class="card-title">Documentation</div><div class="card-desc">Role structure IS the documentation. Defaults are the parameters. Tasks are self-documenting with names.</div></div>
+  </div>
+
+  <div class="callout info">
+    <div class="callout-icon">💡</div>
+    <div class="callout-body">
+      <div class="callout-title">Role Structure = Professional Ansible</div>
+      <p>The jump from "playbooks" to "roles" is the jump from scripting to professional DevOps engineering. Production Ansible is almost always roles + workflows, not flat playbooks. This is Project 02 — embrace roles now, and all future projects become easier.</p>
+    </div>
+  </div>
+
+  <!-- ── TROUBLESHOOTING ── -->
+  <h2 class="section-title" id="trouble"><span class="num">13</span> Troubleshooting Guide</h2>
+
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Symptom</th><th>Error</th><th>Root Cause</th><th>Fix</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>k8s module fails</td>
+          <td><code class="inline">StateValidationFailure: resource definition is not valid</code></td>
+          <td>Manifest YAML is invalid. Bad indentation, missing required field, syntax error.</td>
+          <td>Validate template locally: <code class="inline">oc apply -f manifest.yml --dry-run=client</code>. Check YAML syntax with a linter.</td>
+        </tr>
+        <tr>
+          <td>Role not found</td>
+          <td><code class="inline">ERROR! the role 'openshift_namespace_provision' was not found in /path/to/roles</code></td>
+          <td>Role directory path is wrong, or role directory doesn't exist.</td>
+          <td>Verify folder structure: <code class="inline">roles/openshift_namespace_provision/tasks/main.yml</code> must exist. Run from project root.</td>
+        </tr>
+        <tr>
+          <td>Template not found</td>
+          <td><code class="inline">Unable to find template 'namespace.yml.j2'</code></td>
+          <td>Template file path incorrect, or template is in wrong folder.</td>
+          <td>Ensure: <code class="inline">roles/openshift_namespace_provision/templates/namespace.yml.j2</code> exists. Use relative path from role root.</td>
+        </tr>
+        <tr>
+          <td>Variable undefined in template</td>
+          <td><code class="inline">AnsibleUndefinedVariable: {{ namespace_name }} is undefined</code></td>
+          <td>Variable not passed to role, or name is typo.</td>
+          <td>Check playbook: does it pass the variable? <code class="inline">-e provision_namespace_name=app-dev</code>. Check defaults for fallback values.</td>
+        </tr>
+        <tr>
+          <td>Namespace exists but update fails</td>
+          <td><code class="inline">Forbidden: resourcequotas already exists</code></td>
+          <td>ResourceQuota already exists but fields differ. k8s can't patch certain immutable fields.</td>
+          <td>Some fields are immutable after creation. Delete and recreate, or use <code class="inline">state: absent</code> then <code class="inline">state: present</code>.</td>
+        </tr>
+        <tr>
+          <td>Not idempotent — changed=N every run</td>
+          <td>Playbook shows <code class="inline">changed=true</code> every execution</td>
+          <td>YAML manifest has dynamic content (timestamps, random values), or k8s module can't diff the resource correctly.</td>
+          <td>Avoid dynamic values in manifests. Use static defaults. Check: are you changing labels/annotations at runtime? Those should be static.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <hr class="divider">
+
+  <!-- ── INTERVIEW ── -->
+  <h2 class="section-title" id="interview"><span class="num">14</span> Interview Questions</h2>
+
+  <div class="qa-block">
+    <div class="qa-q">What is the difference between kubernetes.core.k8s and kubernetes.core.k8s_info, and when would you use each?</div>
+    <div class="qa-a">k8s_info is read-only: it queries the API and returns information without modifying resources. Use it for validation, checking status, asserting prerequisites. k8s is the write module: it applies manifests using the desired-state model. It is idempotent — creates if missing, patches if different. Use k8s for deployments, creating/updating resources. Together: k8s_info validates pre-conditions, k8s makes the changes, k8s_info post-validates the result.</div>
+  </div>
+
+  <div class="qa-block">
+    <div class="qa-q">Explain idempotency in the context of the kubernetes.core.k8s module.</div>
+    <div class="qa-a">Idempotency means running the same automation 1 time or 100 times produces identical results. The k8s module achieves this by: (1) querying if the resource exists, (2) comparing desired manifest with actual resource, (3) creating only if missing, patching only if different, skipping if matching. Run the playbook 10 times: run 1 shows changed=3 (creates namespace, quota, limits); runs 2-10 show changed=0 (everything already correct). This is safe for scheduled automation and CI/CD pipelines.</div>
+  </div>
+
+  <div class="qa-block">
+    <div class="qa-q">What is an Ansible Role and why is it better than a monolithic playbook?</div>
+    <div class="qa-a">A Role is a structured directory containing tasks, defaults, templates, handlers, vars organized logically. It is reusable: "provision a namespace" is one role, called many times with different parameters. Advantages: (1) Reusability — no copy-paste, (2) Encapsulation — hides complexity, caller doesn't care about template lookup, (3) Organization — no 500-line files, (4) Testing — test in isolation, (5) Collaboration — one author, many users, changes propagate via Git, (6) Documentation — structure is self-documenting.</div>
+  </div>
+
+  <div class="qa-block">
+    <div class="qa-q">How do you pass parameters to an Ansible Role?</div>
+    <div class="qa-a">Roles have defaults/main.yml defining default values. Caller can override via: (1) -e flag: <code class="inline">ansible-playbook ... -e namespace_name=app-dev</code>, (2) vars in the playbook that calls the role, (3) inventory variables. Precedence: command-line (-e) > playbook vars > inventory > role defaults. Best practice: define all parameters in role defaults with sensible defaults, document them in README.</div>
+  </div>
+
+  <div class="qa-block">
+    <div class="qa-q">What is a Kubernetes manifest and what does it define?</div>
+    <div class="qa-a">A manifest is a YAML file describing a Kubernetes resource (desired state). Structure: apiVersion (API version), kind (resource type), metadata (name, labels, annotations), spec (resource-specific configuration). Example: a Namespace manifest defines the namespace name, labels (tier, team, cost-center), annotations (documentation, audit info). Manifests are declarative: you describe WHAT you want, Kubernetes makes it happen. Templating (Jinja2) allows dynamic values — replace {{ namespace_name }} with actual values at runtime.</div>
+  </div>
+
+  <!-- ── CHALLENGES ── -->
+  <h2 class="section-title" id="challenges"><span class="num">15</span> Coding Challenges</h2>
+
+  <div class="challenge">
+    <div class="challenge-num">Challenge 1 of 3</div>
+    <p>Create a new variable in <code class="inline">defaults/main.yml</code> called <code class="inline">namespace_network_policy_enabled</code> (default: true). If true, the role should apply a basic NetworkPolicy that allows traffic within the namespace but blocks ingress from other namespaces. Write the NetworkPolicy YAML template and the task that applies it.</p>
+    <details>
+      <summary>▶ Show Answer</summary>
+      <div class="answer">
+        <div class="code-wrapper">
+          <div class="code-header"><span class="code-lang">yaml</span><span class="code-filename">defaults/main.yml addition</span></div>
+          <pre><code>namespace_network_policy_enabled: true</code></pre>
+        </div>
+        <div class="code-wrapper">
+          <div class="code-header"><span class="code-lang">jinja2</span><span class="code-filename">templates/network_policy.yml.j2</span></div>
+          <pre><code>---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ namespace_name }}-default-deny
+  namespace: {{ namespace_name }}
+spec:
+  podSelector: {}  # Applies to all pods
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector: {}  # Allow only from pods in same namespace</code></pre>
+        </div>
+        <div class="code-wrapper">
+          <div class="code-header"><span class="code-lang">yaml</span><span class="code-filename">tasks/main.yml addition</span></div>
+          <pre><code>- name: "Create/update NetworkPolicy"
+  kubernetes.core.k8s:
+    state: present
+    definition: "{{ lookup('template', 'network_policy.yml.j2') }}"
+    host: "{{ ocp_api_url }}"
+    api_key: "{{ ocp_token }}"
+    validate_certs: "{{ ocp_validate_certs }}"
+  when: namespace_network_policy_enabled | bool
+  register: network_policy_result
+  tags: [network_policy]</code></pre>
+        </div>
+      </div>
+    </details>
+  </div>
+
+  <div class="challenge">
+    <div class="challenge-num">Challenge 2 of 3</div>
+    <p>Modify the main playbook so that it can provision MULTIPLE namespaces in one run. Instead of <code class="inline">provision_namespace_name</code>, accept a variable <code class="inline">provision_namespaces</code> that is a list like <code class="inline">['app-dev', 'app-qa', 'app-uat']</code>. Loop over the list and call the role once for each namespace.</p>
+    <details>
+      <summary>▶ Show Answer</summary>
+      <div class="answer">
+        <div class="code-wrapper">
+          <div class="code-header"><span class="code-lang">yaml</span><span class="code-filename">Modified playbook snippet</span></div>
+          <pre><code>- name: "Provision multiple namespaces"
+  ansible.builtin.include_role:
+    name: openshift_namespace_provision
+  loop: "{{ provision_namespaces }}"
+  loop_control:
+    label: "{{ item }}"
+  vars:
+    namespace_name: "{{ item }}"
+    namespace_team: "{{ provision_team | default('engineering') }}"
+    namespace_tier: "{{ provision_tier | default(environment_code) }}"
+  tags: [provision]</code></pre>
+        </div>
+        <p style="color:var(--muted);font-size:13px;margin-top:8px">Usage: <code class="inline">ansible-playbook ... -e provision_namespaces='["app-dev","app-qa"]'</code></p>
+      </div>
+    </details>
+  </div>
+
+  <div class="challenge">
+    <div class="challenge-num">Challenge 3 of 3</div>
+    <p>Write a test playbook that provisions a namespace, then verifies idempotency by running the provision role twice and asserting that the second run shows changed=0. Use the Ansible debug output to prove idempotency.</p>
+    <details>
+      <summary>▶ Show Answer</summary>
+      <div class="answer">
+        <div class="code-wrapper">
+          <div class="code-header"><span class="code-lang">yaml</span><span class="code-filename">playbooks/test_idempotency.yml</span></div>
+          <pre><code>---
+- name: "Test Idempotency of Namespace Provisioning"
+  hosts: localhost
+  gather_facts: false
+  connection: local
+
+  tasks:
+    - name: "RUN 1: Provision test namespace"
+      ansible.builtin.include_role:
+        name: openshift_namespace_provision
+      vars:
+        namespace_name: "idempotent-test"
+      register: run1_result
+
+    - name: "RUN 1: Record result"
+      ansible.builtin.set_fact:
+        run1_changed: "{{ run1_result.changed }}"
+
+    - name: "RUN 2: Provision same namespace again (idempotency check)"
+      ansible.builtin.include_role:
+        name: openshift_namespace_provision
+      vars:
+        namespace_name: "idempotent-test"
+      register: run2_result
+
+    - name: "RUN 2: Record result"
+      ansible.builtin.set_fact:
+        run2_changed: "{{ run2_result.changed }}"
+
+    - name: "ASSERT: Run 1 should have changes"
+      ansible.builtin.assert:
+        that:
+          - run1_changed | bool
+        fail_msg: "Run 1 should have created resources (changed=true)"
+
+    - name: "ASSERT: Run 2 should have NO changes (idempotency)"
+      ansible.builtin.assert:
+        that:
+          - not (run2_changed | bool)
+        fail_msg: "Run 2 should show no changes (changed=false). Idempotency FAILED."
+        success_msg: "IDEMPOTENCY VERIFIED: Second run showed no changes"</code></pre>
+        </div>
+      </div>
+    </details>
+  </div>
+
+  <!-- ── RESUME ── -->
+  <h2 class="section-title" id="resume"><span class="num">16</span> Resume Points</h2>
+
+  <div class="resume-box">
+    <h4>Project 02 — Resume Bullets</h4>
+    <ul>
+      <li>Developed production-grade Ansible Role (openshift_namespace_provision) for idempotent namespace creation with labels, annotations, resource quotas, and limit ranges across multiple environments.</li>
+      <li>Implemented kubernetes.core.k8s module with desired-state engine, achieving true idempotency — second playbook run shows zero changes, enabling safe scheduled automation.</li>
+      <li>Designed parameterized Jinja2 manifest templates allowing dynamic namespace configuration from variables, supporting environment-specific resource allocation (DEV vs PROD quotas).</li>
+      <li>Architected reusable Role structure with separation of concerns: defaults for parameters, tasks for implementation, templates for manifests, enabling team-wide code reuse.</li>
+      <li>Established comprehensive validation framework using kubernetes.core.k8s_info post-deployment assertions, guaranteeing namespace health before declaring success.</li>
+    </ul>
+  </div>
+
+  <!-- ── ASSIGNMENT ── -->
+  <h2 class="section-title" id="assignment"><span class="num">17</span> Practice Assignment — INFRA-1002-EXT</h2>
+
+  <div class="callout tip">
+    <div class="callout-icon">🎯</div>
+    <div class="callout-body">
+      <div class="callout-title">Your Challenge</div>
+      <p>Extend the namespace provisioning role to be even more production-ready. Attempt these yourself before checking solutions.</p>
+    </div>
+  </div>
+
+  <ol style="margin-left:20px;line-height:2.2;color:var(--muted)">
+    <li><strong style="color:var(--text)">Add a ServiceAccount</strong> — Create a default ServiceAccount in each provisioned namespace for application pod authentication. Add it as a separate manifest template and task.</li>
+    <li><strong style="color:var(--text)">Add RBAC Role + RoleBinding</strong> — Create a basic "app-developer" Role with pod list/get/describe permissions. Bind it to the default ServiceAccount for the namespace.</li>
+    <li><strong style="color:var(--text)">Make resource quotas conditional</strong> — Only apply ResourceQuota and LimitRange if a variable <code class="inline">enforce_quotas</code> is true. DEV might not need strict quotas; PROD definitely should.</li>
+    <li><strong style="color:var(--text)">Generate a provisioning report</strong> — After all namespace components are created, use a Jinja2 template to generate a markdown report showing namespace name, labels, quotas, limits, and save it to a file.</li>
+    <li><strong style="color:var(--text)">Test with QA inventory</strong> — Create <code class="inline">inventories/qa/group_vars/all.yml</code> and provision a QA namespace. Verify that QA gets different resource quotas than DEV (from group_vars conditions).</li>
+  </ol>
+
+  <div class="footer">
+    <p>Enterprise Ansible Masterclass — OpenShift Automation with RHAAP</p>
+    <p style="margin-top:8px">Project 02 of 35 · Foundation Stage · INFRA-1002 · ABC Bank OpenShift Platform Team</p>
+    <p style="margin-top:8px;color:var(--success)">When you are ready → say <strong>"Next Project"</strong> to continue to Project 03</p>
+  </div>
+
+</main>
+</div>
+
+<script>
+const sections = document.querySelectorAll('[id]');
+const tocItems = document.querySelectorAll('.toc-item');
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      tocItems.forEach(item => item.classList.remove('active'));
+      const active = document.querySelector(`.toc-item[href="#${entry.target.id}"]`);
+      if (active) active.classList.add('active');
+    }
+  });
+}, { threshold: 0.3 });
+sections.forEach(s => observer.observe(s));
+</script>
+</body>
+</html>

@@ -1,0 +1,803 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Use Case 1: Production Microservice Deployment on EKS | ShopNow Retail</title>
+<style>
+  :root{
+    --bg:#0b0f14; --panel:#111823; --panel2:#0e1420; --border:#1f2b3a;
+    --text:#dbe6f0; --muted:#8aa0b4; --accent:#3fb6a8; --accent2:#e8a33d;
+    --java:#e58b3e; --py:#5aa9e6; --node:#6bbf6b; --dotnet:#c76bd6;
+    --code-bg:#0a0e14; --good:#5ec98f; --bad:#e35d5d;
+  }
+  *{box-sizing:border-box}
+  body{background:var(--bg);color:var(--text);font-family:'Segoe UI',Roboto,Helvetica,Arial,sans-serif;line-height:1.65;margin:0;padding:0}
+  .wrap{max-width:980px;margin:0 auto;padding:32px 24px 120px}
+  h1{font-size:2rem;color:#fff;border-bottom:3px solid var(--accent);padding-bottom:12px;margin-top:0}
+  h2{color:var(--accent);font-size:1.5rem;margin-top:56px;border-left:5px solid var(--accent);padding-left:14px}
+  h3{color:var(--accent2);font-size:1.2rem;margin-top:32px}
+  h4{color:#fff;font-size:1.02rem;margin-top:22px;background:var(--panel2);padding:6px 10px;border-radius:4px;border-left:3px solid var(--muted)}
+  p{color:#c6d3df}
+  .story{background:linear-gradient(135deg,#132030,#0e1622);border:1px solid var(--border);border-radius:10px;padding:18px 22px;margin:18px 0;font-style:italic;color:#b9c9d8}
+  .story b{color:var(--accent2);font-style:normal}
+  .callout{background:#152a24;border:1px solid #235c4c;border-radius:8px;padding:14px 18px;margin:16px 0}
+  .callout.warn{background:#2a1f14;border-color:#6b4a1d}
+  .callout.why{background:#101b2c;border-color:#254268}
+  .badge{display:inline-block;font-size:.72rem;font-weight:700;padding:3px 10px;border-radius:20px;margin-right:6px;color:#0b0f14}
+  .java{background:var(--java)} .py{background:var(--py)} .node{background:var(--node)} .dotnet{background:var(--dotnet)}
+  pre{background:var(--code-bg);border:1px solid var(--border);border-radius:8px;padding:16px;overflow-x:auto;font-size:.85rem}
+  code{font-family:'Fira Code',Consolas,monospace;color:#c9d9e3}
+  .cmt{color:#5c7a8a}
+  .k{color:#e8a33d} .s{color:#7fd1a7} .v{color:#5aa9e6}
+  table{width:100%;border-collapse:collapse;margin:16px 0}
+  th,td{border:1px solid var(--border);padding:8px 12px;text-align:left;font-size:.9rem}
+  th{background:var(--panel2);color:var(--accent2)}
+  .toc{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:20px 26px}
+  .toc a{color:var(--accent);text-decoration:none}
+  .toc li{margin:6px 0}
+  .divider{border:none;border-top:1px solid var(--border);margin:40px 0}
+  .flow{display:flex;flex-wrap:wrap;gap:10px;margin:16px 0;align-items:center}
+  .flow div{background:var(--panel2);border:1px solid var(--border);border-radius:6px;padding:8px 14px;font-size:.85rem}
+  .svc-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px;margin:16px 0}
+  .svc-card{border-radius:8px;padding:14px;border:1px solid var(--border)}
+  .svc-card.java-c{background:#2b1f10}
+  .svc-card.py-c{background:#0f2233}
+  .svc-card.node-c{background:#122b17}
+  .svc-card.dotnet-c{background:#28152e}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>Use Case 1: Production Microservice Deployment on Amazon EKS</h1>
+<p><b>Company:</b> ShopNow Retail Pvt Ltd (fictional mid-size e-commerce company) &nbsp;|&nbsp; <b>Your role:</b> DevOps/Cloud Engineer &nbsp;|&nbsp; <b>Level:</b> 4+ years, resume-ready production project</p>
+
+<div class="toc">
+<b>What this document covers, start to finish:</b>
+<ol>
+<li><a href="#scenario">The Business Scenario</a></li>
+<li><a href="#apparch">Microservice Architecture — Four Languages, One Platform</a></li>
+<li><a href="#awsarch">AWS Architecture</a></li>
+<li><a href="#eks">EKS Cluster Design</a></li>
+<li><a href="#vpc">VPC and Networking</a></li>
+<li><a href="#iam">IAM Roles and IRSA</a></li>
+<li><a href="#docker">Dockerizing Each Microservice</a></li>
+<li><a href="#manifests">Kubernetes Deployments and Services (all four services)</a></li>
+<li><a href="#config">ConfigMaps and Secrets</a></li>
+<li><a href="#ingress">Ingress with AWS Load Balancer Controller</a></li>
+<li><a href="#hpa">HPA and Autoscaling</a></li>
+<li><a href="#pdb">PodDisruptionBudget</a></li>
+<li><a href="#netpol">NetworkPolicies</a></li>
+<li><a href="#ecr">ECR Integration</a></li>
+<li><a href="#pipeline">Jenkins and GitHub Actions Pipelines</a></li>
+<li><a href="#argocd">Argo CD GitOps</a></li>
+<li><a href="#monitoring">Prometheus and Grafana</a></li>
+<li><a href="#cloudwatch">CloudWatch Logging</a></li>
+<li><a href="#failure">Failure Testing</a></li>
+<li><a href="#rollback">Rollback Strategy</a></li>
+<li><a href="#troubleshoot">Troubleshooting Scenarios</a></li>
+<li><a href="#ansible">Ansible Automation</a></li>
+<li><a href="#report">HTML Deployment/Job Report</a></li>
+<li><a href="#email">Email Notification</a></li>
+<li><a href="#resume">How to Present This on Your Resume</a></li>
+</ol>
+</div>
+
+<h2 id="scenario">1. The Business Scenario — Why This Project Exists</h2>
+<div class="story">
+ShopNow Retail started three years ago as a single Java monolith — one giant Spring Boot application doing everything: catalog, cart, orders, payments, notifications. It worked when the company was small. It stopped working the day the catalog team wanted to deploy a small change and had to wait four hours for the entire monolith's test suite to pass, then discovered their unrelated change had broken the payments module because everything shared one codebase and one deployment. Engineering leadership made the call: <b>break the monolith into independently deployable microservices</b>, and let each team choose the best language for their domain — the Payments team, mostly ex-banking engineers, wanted <b>.NET</b>; the Catalog team already had a <b>Python</b> data pipeline; the fast-moving Notifications team wanted <b>Node.js</b>; and the core Order Service, the most business-critical piece, stayed in <b>Java Spring Boot</b> where the strongest engineers already were.
+</div>
+<p>Your manager Ramesh hands you the task: <i>"Puneeth, these four teams are building their services independently. I need you to design how all four run together on one EKS cluster — each with its own Dockerfile, its own Deployment, its own scaling behavior, but talking to each other cleanly and going out through one front door."</i></p>
+<p>This is the single most common real-world DevOps problem: not "how do I deploy one app," but <b>"how do I run a polyglot fleet of independently-owned services on shared infrastructure without them stepping on each other."</b> This is what "microservices platform engineer" actually means day to day, and it's a stronger interview story than a single-app deployment because it proves you can operate infrastructure that other teams build on top of.</p>
+
+<h2 id="apparch">2. Microservice Architecture — Four Languages, One Platform</h2>
+<div class="flow">
+<div>Customer / Mobile App</div><div>&rarr;</div>
+<div>ALB (single Ingress)</div><div>&rarr;</div>
+<div>Order Service <span class="badge java">Java</span></div>
+</div>
+<div class="svc-grid">
+<div class="svc-card java-c"><b>Order Service <span class="badge java">Java 17 / Spring Boot</span></b><br>Owns cart &amp; checkout. Calls Catalog and Payment. Most business-critical — highest replica count, strictest PDB.</div>
+<div class="svc-card py-c"><b>Catalog Service <span class="badge py">Python 3.11 / FastAPI</span></b><br>Product search and listings, backed by its own Postgres + a search index. Read-heavy, scales aggressively on traffic spikes.</div>
+<div class="svc-card node-c"><b>Notification Service <span class="badge node">Node.js 20 / Express</span></b><br>Sends order confirmation emails and SMS. Consumes events from an SQS queue, not called synchronously.</div>
+<div class="svc-card dotnet-c"><b>Payment Service <span class="badge dotnet">.NET 8</span></b><br>Talks to the external payment gateway. Highest security bar, own IAM role, own NetworkPolicy, no direct internet egress except the gateway.</div>
+</div>
+<p>Every service is <b>independently built, independently deployed, and independently scaled</b> — that independence is the entire point of the migration, and it is also exactly what makes the Kubernetes and CI/CD design in this document non-trivial: four different Dockerfiles, four different pipelines, but one shared platform.</p>
+
+<h2 id="awsarch">3. AWS Architecture</h2>
+<pre><code><span class="cmt">                    Route53 (shopnow.com)
+                            |
+                  ACM (TLS certificate)
+                            |
+                +---------------------------+
+                |   Application Load Balancer|
+                +---------------------------+
+                    /       |        |      \
+              /api/orders /api/catalog /api/payments  (path-based routing)
+                    |       |        |
+        +----------------------------------------+
+        |          Amazon EKS Cluster              |
+        |  Order(Java)  Catalog(Py)  Payment(.NET)  |
+        |  Notification(Node, no Ingress - internal)|
+        +----------------------------------------+
+             |          |         |          |
+          RDS-orders RDS-catalog  |        SQS (order-events)
+                              Payment Gateway (external, via NAT)
+</span></code></pre>
+<table>
+<tr><th>AWS Service</th><th>Role in this project</th></tr>
+<tr><td>EKS</td><td>Runs all four microservices as separate Deployments, each with its own Kubernetes Service</td></tr>
+<tr><td>ECR</td><td>Four repositories — one per service, since each has a different build process and base image</td></tr>
+<tr><td>ALB</td><td>Single entry point, path-based routing to Order and Catalog and Payment; Notification has no public route, it's internal-only</td></tr>
+<tr><td>RDS PostgreSQL</td><td>Order Service and Catalog Service each own a separate database — no shared database between services, which is the core microservice rule</td></tr>
+<tr><td>SQS</td><td>Decouples Order Service from Notification Service — Order publishes an event, Notification consumes it asynchronously</td></tr>
+<tr><td>Secrets Manager</td><td>DB credentials and the Payment Gateway API key, scoped per service via IRSA</td></tr>
+<tr><td>CloudWatch</td><td>Central logs and alarms across all four services</td></tr>
+</table>
+<div class="callout why"><b>Why does Notification Service have no Ingress route?</b> It has nothing for a browser to call directly — it only reacts to SQS messages. Giving it a public endpoint anyway would be an unnecessary attack surface. This is a real distinction interviewers listen for: not every microservice needs to be internet-facing.</div>
+
+<h2 id="eks">4. EKS Cluster Design</h2>
+<pre><code><span class="k">apiVersion</span>: eksctl.io/v1alpha5
+<span class="k">kind</span>: ClusterConfig
+<span class="k">metadata</span>:
+  <span class="k">name</span>: shopnow-cluster
+  <span class="k">region</span>: ap-south-1
+  <span class="k">version</span>: <span class="s">"1.29"</span>
+
+<span class="k">managedNodeGroups</span>:
+  <span class="k">- name</span>: ng-general
+    <span class="k">instanceType</span>: m5.large
+    <span class="k">desiredCapacity</span>: 3
+    <span class="k">minSize</span>: 3
+    <span class="k">maxSize</span>: 10
+    <span class="k">labels</span>: { workload: general }
+
+  <span class="k">- name</span>: ng-payment-secure
+    <span class="k">instanceType</span>: m5.large
+    <span class="k">desiredCapacity</span>: 2
+    <span class="k">minSize</span>: 2
+    <span class="k">maxSize</span>: 4
+    <span class="k">labels</span>: { workload: payment-secure }
+    <span class="k">taints</span>:
+      <span class="k">- key</span>: <span class="s">"dedicated"</span>
+        <span class="k">value</span>: <span class="s">"payment"</span>
+        <span class="k">effect</span>: <span class="s">"NoSchedule"</span>
+</code></pre>
+<p>Order, Catalog and Notification share the general node group. Payment Service, because it handles card data, gets its own tainted node group — the same taint pattern you'd use for environment isolation, applied here instead for <b>compliance isolation</b>: PCI-related workloads physically separated from everything else, a distinction worth naming explicitly if asked "have you worked with any compliance-driven infrastructure requirements."</p>
+
+<h2 id="vpc">5. VPC and Networking</h2>
+<p>One VPC (<code>10.30.0.0/16</code>), public subnets for the ALB across 3 AZs, private subnets for all EKS worker nodes, and a dedicated set of private subnets for the RDS instances reachable only from the app subnets on port 5432. The Payment Service's node group sits in the same private subnets as everyone else — the isolation for Payment is enforced by NetworkPolicy and Security Group, not a separate VPC, keeping the network design simple while the strict boundary still holds.</p>
+
+<h2 id="iam">6. IAM Roles and IRSA</h2>
+<p>Each microservice gets its own IAM role via IRSA, scoped to only the AWS resources that specific service touches — this is the single biggest security lesson of a microservices platform: <b>blast radius</b>. If the Catalog Service's Python code has a vulnerability and gets compromised, its IAM role cannot read the Payment Gateway API key, because that permission was never granted to it in the first place.</p>
+<pre><code>eksctl create iamserviceaccount --cluster shopnow-cluster --namespace prod \
+  --name order-service-sa \
+  --attach-policy-arn arn:aws:iam::111122223333:policy/order-service-policy --approve
+
+eksctl create iamserviceaccount --cluster shopnow-cluster --namespace prod \
+  --name catalog-service-sa \
+  --attach-policy-arn arn:aws:iam::111122223333:policy/catalog-service-policy --approve
+
+eksctl create iamserviceaccount --cluster shopnow-cluster --namespace prod \
+  --name notification-service-sa \
+  --attach-policy-arn arn:aws:iam::111122223333:policy/notification-sqs-policy --approve
+
+eksctl create iamserviceaccount --cluster shopnow-cluster --namespace prod \
+  --name payment-service-sa \
+  --attach-policy-arn arn:aws:iam::111122223333:policy/payment-service-policy --approve
+</code></pre>
+<pre><code><span class="cmt"># payment-service-policy.json — the narrowest of the four</span>
+{
+  <span class="k">"Version"</span>: <span class="s">"2012-10-17"</span>,
+  <span class="k">"Statement"</span>: [
+    { <span class="k">"Effect"</span>: <span class="s">"Allow"</span>, <span class="k">"Action"</span>: [<span class="s">"secretsmanager:GetSecretValue"</span>],
+      <span class="k">"Resource"</span>: <span class="s">"arn:aws:secretsmanager:ap-south-1:111122223333:secret:shopnow/prod/payment-*"</span> }
+  ]
+}
+</code></pre>
+
+<h2 id="docker">7. Dockerizing Each Microservice</h2>
+<p>Four different languages means four different build strategies, all following the same principle: <b>multi-stage builds</b> so the final image ships only the compiled artifact, not the build toolchain — smaller image, smaller attack surface, faster pull time.</p>
+<pre><code><span class="cmt"># order-service/Dockerfile (Java / Spring Boot)</span>
+FROM eclipse-temurin:17-jdk AS build
+WORKDIR /app
+COPY . .
+RUN ./gradlew bootJar --no-daemon
+
+FROM eclipse-temurin:17-jre-alpine
+WORKDIR /app
+COPY --from=build /app/build/libs/*.jar app.jar
+EXPOSE 8080
+ENTRYPOINT [<span class="s">"java"</span>, <span class="s">"-jar"</span>, <span class="s">"app.jar"</span>]
+</code></pre>
+<pre><code><span class="cmt"># catalog-service/Dockerfile (Python / FastAPI)</span>
+FROM python:3.11-slim AS build
+WORKDIR /app
+COPY requirements.txt .
+RUN pip install --user --no-cache-dir -r requirements.txt
+
+FROM python:3.11-slim
+WORKDIR /app
+COPY --from=build /root/.local /root/.local
+COPY . .
+ENV PATH=/root/.local/bin:$PATH
+EXPOSE 8000
+CMD [<span class="s">"uvicorn"</span>, <span class="s">"main:app"</span>, <span class="s">"--host"</span>, <span class="s">"0.0.0.0"</span>, <span class="s">"--port"</span>, <span class="s">"8000"</span>]
+</code></pre>
+<pre><code><span class="cmt"># notification-service/Dockerfile (Node.js / Express)</span>
+FROM node:20-alpine AS build
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci --omit=dev
+
+FROM node:20-alpine
+WORKDIR /app
+COPY --from=build /app/node_modules ./node_modules
+COPY . .
+EXPOSE 3000
+CMD [<span class="s">"node"</span>, <span class="s">"server.js"</span>]
+</code></pre>
+<pre><code><span class="cmt"># payment-service/Dockerfile (.NET 8)</span>
+FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
+WORKDIR /src
+COPY . .
+RUN dotnet publish -c Release -o /app/publish
+
+FROM mcr.microsoft.com/dotnet/aspnet:8.0
+WORKDIR /app
+COPY --from=build /app/publish .
+EXPOSE 8081
+ENTRYPOINT [<span class="s">"dotnet"</span>, <span class="s">"PaymentService.dll"</span>]
+</code></pre>
+
+<h2 id="manifests">8. Kubernetes Deployments and Services</h2>
+<p>All four services live in the same <code>prod</code> namespace but never share a Deployment — each gets its own manifest, its own resource sizing based on its actual workload shape.</p>
+<pre><code><span class="cmt"># order-service-deployment.yaml</span>
+<span class="k">apiVersion</span>: apps/v1
+<span class="k">kind</span>: Deployment
+<span class="k">metadata</span>:
+  <span class="k">name</span>: order-service
+  <span class="k">namespace</span>: prod
+  <span class="k">labels</span>: { app: order-service, tier: business-critical }
+<span class="k">spec</span>:
+  <span class="k">replicas</span>: 6
+  <span class="k">selector</span>: { matchLabels: { app: order-service } }
+  <span class="k">template</span>:
+    <span class="k">metadata</span>: { labels: { app: order-service } }
+    <span class="k">spec</span>:
+      <span class="k">serviceAccountName</span>: order-service-sa
+      <span class="k">containers</span>:
+        <span class="k">- name</span>: order-service
+          <span class="k">image</span>: 111122223333.dkr.ecr.ap-south-1.amazonaws.com/order-service:prod-v3.2.0
+          <span class="k">ports</span>: [{ containerPort: 8080 }]
+          <span class="k">envFrom</span>:
+            <span class="k">- configMapRef</span>: { name: order-service-config }
+            <span class="k">- secretRef</span>: { name: order-service-secret }
+          <span class="k">resources</span>:
+            <span class="k">requests</span>: { cpu: <span class="s">"250m"</span>, memory: <span class="s">"512Mi"</span> }   <span class="cmt"># JVM needs real memory headroom</span>
+            <span class="k">limits</span>:   { cpu: <span class="s">"1"</span>,    memory: <span class="s">"1Gi"</span> }
+          <span class="k">readinessProbe</span>: { httpGet: { path: /actuator/health/readiness, port: 8080 }, initialDelaySeconds: 20, periodSeconds: 10 }
+          <span class="k">livenessProbe</span>:  { httpGet: { path: /actuator/health/liveness,  port: 8080 }, initialDelaySeconds: 30, periodSeconds: 20 }
+---
+<span class="k">apiVersion</span>: v1
+<span class="k">kind</span>: Service
+<span class="k">metadata</span>: { name: order-service-svc, namespace: prod }
+<span class="k">spec</span>:
+  <span class="k">selector</span>: { app: order-service }
+  <span class="k">ports</span>: [{ port: 80, targetPort: 8080 }]
+</code></pre>
+<pre><code><span class="cmt"># catalog-service-deployment.yaml (Python) — leaner footprint, more replicas for read traffic</span>
+<span class="k">apiVersion</span>: apps/v1
+<span class="k">kind</span>: Deployment
+<span class="k">metadata</span>: { name: catalog-service, namespace: prod }
+<span class="k">spec</span>:
+  <span class="k">replicas</span>: 8
+  <span class="k">selector</span>: { matchLabels: { app: catalog-service } }
+  <span class="k">template</span>:
+    <span class="k">metadata</span>: { labels: { app: catalog-service } }
+    <span class="k">spec</span>:
+      <span class="k">serviceAccountName</span>: catalog-service-sa
+      <span class="k">containers</span>:
+        <span class="k">- name</span>: catalog-service
+          <span class="k">image</span>: 111122223333.dkr.ecr.ap-south-1.amazonaws.com/catalog-service:prod-v1.9.4
+          <span class="k">ports</span>: [{ containerPort: 8000 }]
+          <span class="k">resources</span>:
+            <span class="k">requests</span>: { cpu: <span class="s">"100m"</span>, memory: <span class="s">"256Mi"</span> }
+            <span class="k">limits</span>:   { cpu: <span class="s">"400m"</span>, memory: <span class="s">"512Mi"</span> }
+          <span class="k">readinessProbe</span>: { httpGet: { path: /health, port: 8000 }, initialDelaySeconds: 5, periodSeconds: 10 }
+---
+<span class="k">apiVersion</span>: v1
+<span class="k">kind</span>: Service
+<span class="k">metadata</span>: { name: catalog-service-svc, namespace: prod }
+<span class="k">spec</span>:
+  <span class="k">selector</span>: { app: catalog-service }
+  <span class="k">ports</span>: [{ port: 80, targetPort: 8000 }]
+</code></pre>
+<pre><code><span class="cmt"># notification-service-deployment.yaml (Node.js) — no public Service exposure, small footprint</span>
+<span class="k">apiVersion</span>: apps/v1
+<span class="k">kind</span>: Deployment
+<span class="k">metadata</span>: { name: notification-service, namespace: prod }
+<span class="k">spec</span>:
+  <span class="k">replicas</span>: 2
+  <span class="k">selector</span>: { matchLabels: { app: notification-service } }
+  <span class="k">template</span>:
+    <span class="k">metadata</span>: { labels: { app: notification-service } }
+    <span class="k">spec</span>:
+      <span class="k">serviceAccountName</span>: notification-service-sa
+      <span class="k">containers</span>:
+        <span class="k">- name</span>: notification-service
+          <span class="k">image</span>: 111122223333.dkr.ecr.ap-south-1.amazonaws.com/notification-service:prod-v2.1.0
+          <span class="k">resources</span>:
+            <span class="k">requests</span>: { cpu: <span class="s">"50m"</span>, memory: <span class="s">"128Mi"</span> }
+            <span class="k">limits</span>:   { cpu: <span class="s">"200m"</span>, memory: <span class="s">"256Mi"</span> }
+          <span class="k">env</span>:
+            <span class="k">- name</span>: SQS_QUEUE_URL
+              <span class="k">valueFrom</span>: { configMapKeyRef: { name: notification-config, key: SQS_QUEUE_URL } }
+</code></pre>
+<pre><code><span class="cmt"># payment-service-deployment.yaml (.NET) — runs only on the tainted secure node group</span>
+<span class="k">apiVersion</span>: apps/v1
+<span class="k">kind</span>: Deployment
+<span class="k">metadata</span>: { name: payment-service, namespace: prod }
+<span class="k">spec</span>:
+  <span class="k">replicas</span>: 3
+  <span class="k">selector</span>: { matchLabels: { app: payment-service } }
+  <span class="k">template</span>:
+    <span class="k">metadata</span>: { labels: { app: payment-service } }
+    <span class="k">spec</span>:
+      <span class="k">serviceAccountName</span>: payment-service-sa
+      <span class="k">nodeSelector</span>: { workload: payment-secure }
+      <span class="k">tolerations</span>:
+        <span class="k">- key</span>: <span class="s">"dedicated"</span>
+          <span class="k">operator</span>: <span class="s">"Equal"</span>
+          <span class="k">value</span>: <span class="s">"payment"</span>
+          <span class="k">effect</span>: <span class="s">"NoSchedule"</span>
+      <span class="k">containers</span>:
+        <span class="k">- name</span>: payment-service
+          <span class="k">image</span>: 111122223333.dkr.ecr.ap-south-1.amazonaws.com/payment-service:prod-v1.4.2
+          <span class="k">ports</span>: [{ containerPort: 8081 }]
+          <span class="k">resources</span>:
+            <span class="k">requests</span>: { cpu: <span class="s">"200m"</span>, memory: <span class="s">"384Mi"</span> }
+            <span class="k">limits</span>:   { cpu: <span class="s">"500m"</span>, memory: <span class="s">"768Mi"</span> }
+---
+<span class="k">apiVersion</span>: v1
+<span class="k">kind</span>: Service
+<span class="k">metadata</span>: { name: payment-service-svc, namespace: prod }
+<span class="k">spec</span>:
+  <span class="k">selector</span>: { app: payment-service }
+  <span class="k">ports</span>: [{ port: 80, targetPort: 8081 }]
+</code></pre>
+
+<h2 id="config">9. ConfigMaps and Secrets</h2>
+<pre><code><span class="cmt"># order-service-config (ConfigMap) — non-sensitive</span>
+<span class="k">apiVersion</span>: v1
+<span class="k">kind</span>: ConfigMap
+<span class="k">metadata</span>: { name: order-service-config, namespace: prod }
+<span class="k">data</span>:
+  <span class="k">CATALOG_SERVICE_URL</span>: <span class="s">"http://catalog-service-svc.prod.svc.cluster.local"</span>
+  <span class="k">PAYMENT_SERVICE_URL</span>: <span class="s">"http://payment-service-svc.prod.svc.cluster.local"</span>
+  <span class="k">LOG_LEVEL</span>: <span class="s">"info"</span>
+</code></pre>
+<p>Notice the internal URLs use Kubernetes DNS (<code>&lt;service&gt;.&lt;namespace&gt;.svc.cluster.local</code>) — this is service-to-service communication happening entirely inside the cluster network, never bouncing out through the public ALB, which is both faster and more secure.</p>
+<pre><code><span class="cmt"># External Secrets for the Payment Service — the most sensitive credential in the whole system</span>
+<span class="k">apiVersion</span>: external-secrets.io/v1beta1
+<span class="k">kind</span>: ExternalSecret
+<span class="k">metadata</span>: { name: payment-service-secret, namespace: prod }
+<span class="k">spec</span>:
+  <span class="k">refreshInterval</span>: 1h
+  <span class="k">secretStoreRef</span>: { name: aws-secrets-manager, kind: ClusterSecretStore }
+  <span class="k">target</span>: { name: payment-service-secret }
+  <span class="k">data</span>:
+    <span class="k">- secretKey</span>: PAYMENT_GATEWAY_API_KEY
+      <span class="k">remoteRef</span>: { key: shopnow/prod/payment-gateway-key }
+</code></pre>
+
+<h2 id="ingress">10. Ingress with AWS Load Balancer Controller</h2>
+<pre><code><span class="cmt"># shopnow-ingress.yaml — one ALB, path-based routing to the three public-facing services</span>
+<span class="k">apiVersion</span>: networking.k8s.io/v1
+<span class="k">kind</span>: Ingress
+<span class="k">metadata</span>:
+  <span class="k">name</span>: shopnow-ingress
+  <span class="k">namespace</span>: prod
+  <span class="k">annotations</span>:
+    <span class="k">kubernetes.io/ingress.class</span>: alb
+    <span class="k">alb.ingress.kubernetes.io/scheme</span>: internet-facing
+    <span class="k">alb.ingress.kubernetes.io/target-type</span>: ip
+    <span class="k">alb.ingress.kubernetes.io/certificate-arn</span>: arn:aws:acm:ap-south-1:111122223333:certificate/xxxx
+<span class="k">spec</span>:
+  <span class="k">rules</span>:
+    <span class="k">- host</span>: shopnow.com
+      <span class="k">http</span>:
+        <span class="k">paths</span>:
+          <span class="k">- path</span>: /api/orders
+            <span class="k">pathType</span>: Prefix
+            <span class="k">backend</span>: { service: { name: order-service-svc, port: { number: 80 } } }
+          <span class="k">- path</span>: /api/catalog
+            <span class="k">pathType</span>: Prefix
+            <span class="k">backend</span>: { service: { name: catalog-service-svc, port: { number: 80 } } }
+          <span class="k">- path</span>: /api/payments
+            <span class="k">pathType</span>: Prefix
+            <span class="k">backend</span>: { service: { name: payment-service-svc, port: { number: 80 } } }
+</code></pre>
+<p>Notification Service is intentionally absent from this Ingress — it has no path, no public route, exactly as designed in section 3.</p>
+
+<h2 id="hpa">11. HPA and Autoscaling</h2>
+<pre><code><span class="cmt"># catalog-service-hpa.yaml — scales hardest because it absorbs the most read traffic</span>
+<span class="k">apiVersion</span>: autoscaling/v2
+<span class="k">kind</span>: HorizontalPodAutoscaler
+<span class="k">metadata</span>: { name: catalog-service-hpa, namespace: prod }
+<span class="k">spec</span>:
+  <span class="k">scaleTargetRef</span>: { apiVersion: apps/v1, kind: Deployment, name: catalog-service }
+  <span class="k">minReplicas</span>: 8
+  <span class="k">maxReplicas</span>: 30
+  <span class="k">metrics</span>:
+    <span class="k">- type</span>: Resource
+      <span class="k">resource</span>: { name: cpu, target: { type: Utilization, averageUtilization: 60 } }
+---
+<span class="cmt"># order-service-hpa.yaml — narrower band, business-critical, prefers stability over aggressive scaling</span>
+<span class="k">apiVersion</span>: autoscaling/v2
+<span class="k">kind</span>: HorizontalPodAutoscaler
+<span class="k">metadata</span>: { name: order-service-hpa, namespace: prod }
+<span class="k">spec</span>:
+  <span class="k">scaleTargetRef</span>: { apiVersion: apps/v1, kind: Deployment, name: order-service }
+  <span class="k">minReplicas</span>: 6
+  <span class="k">maxReplicas</span>: 15
+  <span class="k">metrics</span>:
+    <span class="k">- type</span>: Resource
+      <span class="k">resource</span>: { name: cpu, target: { type: Utilization, averageUtilization: 70 } }
+</code></pre>
+<p>Payment Service deliberately has <b>no HPA</b> — it runs a fixed 3 replicas on the secure node group, because scaling behavior for a PCI-scoped service is a change reviewed by security, not an automatic reaction to CPU load.</p>
+
+<h2 id="pdb">12. PodDisruptionBudget</h2>
+<pre><code><span class="k">apiVersion</span>: policy/v1
+<span class="k">kind</span>: PodDisruptionBudget
+<span class="k">metadata</span>: { name: order-service-pdb, namespace: prod }
+<span class="k">spec</span>:
+  <span class="k">minAvailable</span>: 4
+  <span class="k">selector</span>: { matchLabels: { app: order-service } }
+---
+<span class="k">apiVersion</span>: policy/v1
+<span class="k">kind</span>: PodDisruptionBudget
+<span class="k">metadata</span>: { name: payment-service-pdb, namespace: prod }
+<span class="k">spec</span>:
+  <span class="k">minAvailable</span>: 2   <span class="cmt"># out of 3 replicas — payment can never drop below 2 healthy pods during a node drain</span>
+  <span class="k">selector</span>: { matchLabels: { app: payment-service } }
+</code></pre>
+
+<h2 id="netpol">13. NetworkPolicies</h2>
+<pre><code><span class="cmt"># Default deny-all, then explicitly allow only the calls that should exist</span>
+<span class="k">apiVersion</span>: networking.k8s.io/v1
+<span class="k">kind</span>: NetworkPolicy
+<span class="k">metadata</span>: { name: default-deny, namespace: prod }
+<span class="k">spec</span>:
+  <span class="k">podSelector</span>: {}
+  <span class="k">policyTypes</span>: [Ingress]
+---
+<span class="cmt"># Only Order Service may call Payment Service — Catalog and Notification cannot</span>
+<span class="k">apiVersion</span>: networking.k8s.io/v1
+<span class="k">kind</span>: NetworkPolicy
+<span class="k">metadata</span>: { name: allow-order-to-payment, namespace: prod }
+<span class="k">spec</span>:
+  <span class="k">podSelector</span>: { matchLabels: { app: payment-service } }
+  <span class="k">policyTypes</span>: [Ingress]
+  <span class="k">ingress</span>:
+    <span class="k">- from</span>:
+        <span class="k">- podSelector</span>: { matchLabels: { app: order-service } }
+      <span class="k">ports</span>: [{ protocol: TCP, port: 8081 }]
+---
+<span class="cmt"># Allow the ALB target group to reach Order and Catalog (both public)</span>
+<span class="k">apiVersion</span>: networking.k8s.io/v1
+<span class="k">kind</span>: NetworkPolicy
+<span class="k">metadata</span>: { name: allow-alb-to-order, namespace: prod }
+<span class="k">spec</span>:
+  <span class="k">podSelector</span>: { matchLabels: { app: order-service } }
+  <span class="k">policyTypes</span>: [Ingress]
+  <span class="k">ingress</span>: [{ from: [], ports: [{ protocol: TCP, port: 8080 }] }]
+</code></pre>
+<div class="callout why"><b>This is the technical enforcement of the microservice boundary drawn in section 2.</b> "Catalog Service can never talk to Payment Service" is not just an architecture diagram — with this NetworkPolicy in place, a compromised Catalog pod that tries to open a TCP connection to Payment Service gets dropped at the packet level, before the request ever reaches the application.</div>
+
+<h2 id="ecr">14. ECR Integration</h2>
+<pre><code>aws ecr create-repository --repository-name order-service
+aws ecr create-repository --repository-name catalog-service
+aws ecr create-repository --repository-name notification-service
+aws ecr create-repository --repository-name payment-service
+
+<span class="cmt"># Each service's own pipeline builds and pushes only its own image — no shared build step</span>
+docker build -t order-service:$TAG ./order-service
+docker tag order-service:$TAG 111122223333.dkr.ecr.ap-south-1.amazonaws.com/order-service:prod-$TAG
+docker push 111122223333.dkr.ecr.ap-south-1.amazonaws.com/order-service:prod-$TAG
+</code></pre>
+
+<h2 id="pipeline">15. CI/CD Pipeline — Jenkins and GitHub Actions</h2>
+<p>Because each microservice has its own repository and its own team, each gets its own pipeline file — but all four follow the same shape: test in the service's native toolchain, build a Docker image, push to that service's ECR repo, update the GitOps manifest.</p>
+<h3>Jenkins Pipeline — Order Service (Java)</h3>
+<pre><code><span class="cmt">// order-service/Jenkinsfile</span>
+pipeline {
+  agent any
+  environment {
+    ECR_REPO = <span class="s">"111122223333.dkr.ecr.ap-south-1.amazonaws.com/order-service"</span>
+    IMAGE_TAG = <span class="s">"prod-${GIT_COMMIT.take(7)}"</span>
+  }
+  stages {
+    stage(<span class="s">'Test'</span>) { steps { sh <span class="s">'./gradlew test'</span> } }
+    stage(<span class="s">'Build Image'</span>) { steps { sh <span class="s">'docker build -t $ECR_REPO:$IMAGE_TAG .'</span> } }
+    stage(<span class="s">'Push'</span>) {
+      steps {
+        sh <span class="s">'''
+          aws ecr get-login-password | docker login --username AWS --password-stdin $ECR_REPO
+          docker push $ECR_REPO:$IMAGE_TAG
+        '''</span>
+      }
+    }
+    stage(<span class="s">'Approval'</span>) {
+      steps { timeout(time: 20, unit: <span class="s">'MINUTES'</span>) { input message: <span class="s">'Deploy order-service to prod?'</span> } }
+    }
+    stage(<span class="s">'Update GitOps repo'</span>) {
+      steps {
+        sh <span class="s">'''
+          cd gitops-repo/services/order-service
+          kustomize edit set image order-service=$ECR_REPO:$IMAGE_TAG
+          git commit -am "order-service: deploy $IMAGE_TAG" && git push
+        '''</span>
+      }
+    }
+    stage(<span class="s">'Report & Notify'</span>) {
+      steps {
+        sh <span class="s">'python3 generate_report.py --service order-service --status success --build ${BUILD_NUMBER}'</span>
+        sh <span class="s">'python3 send_email.py --service order-service --report report.html'</span>
+      }
+    }
+  }
+}
+</code></pre>
+<h3>GitHub Actions — Catalog Service (Python)</h3>
+<pre><code><span class="cmt"># catalog-service/.github/workflows/deploy.yml</span>
+<span class="k">name</span>: Catalog Service Deploy
+<span class="k">on</span>: { push: { branches: [<span class="s">"main"</span>] } }
+<span class="k">jobs</span>:
+  <span class="k">test-build-push</span>:
+    <span class="k">runs-on</span>: ubuntu-latest
+    <span class="k">steps</span>:
+      <span class="k">- uses</span>: actions/checkout@v4
+      <span class="k">- name</span>: Run tests
+        <span class="k">run</span>: |
+          pip install -r requirements-dev.txt
+          pytest
+      <span class="k">- uses</span>: aws-actions/configure-aws-credentials@v4
+        <span class="k">with</span>: { role-to-assume: arn:aws:iam::111122223333:role/gha-ecr-push, aws-region: ap-south-1 }
+      <span class="k">- name</span>: Build and push
+        <span class="k">run</span>: |
+          IMAGE_TAG=prod-${{ github.sha }}
+          aws ecr get-login-password | docker login --username AWS --password-stdin $ECR_REGISTRY
+          docker build -t $ECR_REGISTRY/catalog-service:$IMAGE_TAG .
+          docker push $ECR_REGISTRY/catalog-service:$IMAGE_TAG
+      <span class="k">- name</span>: Update GitOps manifest
+        <span class="k">run</span>: |
+          cd gitops-repo/services/catalog-service
+          kustomize edit set image catalog-service=$ECR_REGISTRY/catalog-service:prod-${{ github.sha }}
+          git commit -am <span class="s">"catalog-service: deploy ${{ github.sha }}"</span> && git push
+</code></pre>
+<p>Notification (Node.js) and Payment (.NET) pipelines follow the identical shape — <code>npm test</code> / <code>dotnet test</code> in place of <code>pytest</code>, everything else the same — which is exactly the point: <b>one pipeline pattern, reused across languages</b>, is what makes a polyglot platform maintainable instead of four completely different operational nightmares.</p>
+
+<h2 id="argocd">16. Argo CD GitOps</h2>
+<pre><code><span class="cmt"># Four separate Argo CD Applications, one per microservice, so each team's deploys are independent</span>
+<span class="k">apiVersion</span>: argoproj.io/v1alpha1
+<span class="k">kind</span>: Application
+<span class="k">metadata</span>: { name: order-service, namespace: argocd }
+<span class="k">spec</span>:
+  <span class="k">project</span>: default
+  <span class="k">source</span>: { repoURL: https://github.com/shopnow/gitops-repo.git, targetRevision: main, path: services/order-service }
+  <span class="k">destination</span>: { server: https://kubernetes.default.svc, namespace: prod }
+  <span class="k">syncPolicy</span>: { automated: { prune: true, selfHeal: true } }
+---
+<span class="k">apiVersion</span>: argoproj.io/v1alpha1
+<span class="k">kind</span>: Application
+<span class="k">metadata</span>: { name: payment-service, namespace: argocd }
+<span class="k">spec</span>:
+  <span class="k">project</span>: default
+  <span class="k">source</span>: { repoURL: https://github.com/shopnow/gitops-repo.git, targetRevision: main, path: services/payment-service }
+  <span class="k">destination</span>: { server: https://kubernetes.default.svc, namespace: prod }
+  <span class="k">syncPolicy</span>: {}   <span class="cmt"># deliberately NOT automated — Payment Service always syncs manually, after security sign-off</span>
+</code></pre>
+<p>This is the practical answer to "how do independent teams deploy to a shared cluster without stepping on each other" — Order Service's Argo CD Application only ever touches Order Service's manifests; the Catalog team can merge and auto-deploy fifty times a day without anyone from the Order team even being aware, because the two Applications, the two ECR repos, and the two GitOps folders never overlap.</p>
+
+<h2 id="monitoring">17. Prometheus and Grafana</h2>
+<pre><code><span class="k">apiVersion</span>: monitoring.coreos.com/v1
+<span class="k">kind</span>: ServiceMonitor
+<span class="k">metadata</span>: { name: microservices-monitor, namespace: prod }
+<span class="k">spec</span>:
+  <span class="k">selector</span>:
+    <span class="k">matchExpressions</span>:
+      <span class="k">- key</span>: app
+        <span class="k">operator</span>: In
+        <span class="k">values</span>: [order-service, catalog-service, notification-service, payment-service]
+  <span class="k">endpoints</span>: [{ port: metrics, path: /metrics, interval: 30s }]
+</code></pre>
+<p>One Grafana dashboard per service, plus a single "fleet overview" dashboard with a <code>$service</code> variable showing request rate, p95 latency, and error rate side by side for all four — this is what lets you answer "is the slowness in Order Service or is it Catalog Service it's calling" in thirty seconds instead of grepping logs across four different pods.</p>
+
+<h2 id="cloudwatch">18. CloudWatch Logging</h2>
+<pre><code><span class="k">apiVersion</span>: v1
+<span class="k">kind</span>: ConfigMap
+<span class="k">metadata</span>: { name: fluent-bit-config, namespace: amazon-cloudwatch }
+<span class="k">data</span>:
+  <span class="k">output.conf</span>: |
+    [OUTPUT]
+        Name                cloudwatch_logs
+        Match               kube.*
+        region              ap-south-1
+        log_group_name      /eks/shopnow/${kubernetes['labels']['app']}
+        log_stream_prefix   ${kubernetes['pod_name']}-
+        auto_create_group   true
+</code></pre>
+<p>Logs are grouped by <b>service label</b>, not by namespace this time, since all four services share the <code>prod</code> namespace — <code>/eks/shopnow/order-service</code>, <code>/eks/shopnow/catalog-service</code>, and so on, so a team can subscribe to just their own service's log group without wading through the other three.</p>
+
+<h2 id="failure">19. Failure Testing</h2>
+<pre><code><span class="cmt"># Test 1: Kill Order Service pods, confirm PDB and self-healing hold</span>
+kubectl delete pod -n prod -l app=order-service --field-selector status.phase=Running | head -2
+kubectl get pods -n prod -l app=order-service -w
+
+<span class="cmt"># Test 2: Simulate Catalog Service being slow/unresponsive — confirm Order Service degrades gracefully
+# instead of hanging forever (proves the timeout/circuit-breaker config in Order Service is real)</span>
+kubectl exec -it deploy/catalog-service -n prod -- sh -c "sleep 300 &"
+
+<span class="cmt"># Test 3: Confirm the NetworkPolicy boundary actually blocks Catalog -> Payment</span>
+kubectl exec -it deploy/catalog-service -n prod -- curl -m 3 http://payment-service-svc.prod.svc.cluster.local
+<span class="cmt"># expected result: connection timeout, proving the NetworkPolicy from section 13 is enforced</span>
+
+<span class="cmt"># Test 4: Load test Catalog Service and watch its HPA scale from 8 to 30</span>
+kubectl run load-test --image=williamyeh/hey --restart=Never -n prod -- -z 3m -c 100 http://catalog-service-svc.prod.svc.cluster.local
+</code></pre>
+
+<h2 id="rollback">20. Rollback Strategy</h2>
+<pre><code><span class="cmt"># Because each service has its own Argo CD Application, rollback is scoped to exactly one service</span>
+cd gitops-repo/services/payment-service
+git log --oneline -5
+git revert &lt;bad-commit-sha&gt;
+git push
+<span class="cmt"># Only payment-service's Argo CD Application picks this up — order/catalog/notification are untouched</span>
+
+<span class="cmt"># Emergency native rollback, scoped to one Deployment:</span>
+kubectl rollout undo deployment/payment-service -n prod
+kubectl rollout history deployment/payment-service -n prod
+</code></pre>
+<div class="callout warn">A rollback of Payment Service can never accidentally roll back Order Service, because they are two entirely separate Argo CD Applications pointed at two entirely separate GitOps folders — this per-service blast-radius containment is worth stating explicitly if asked how you'd handle an incident in one microservice without risking the others.</div>
+
+<h2 id="troubleshoot">21. Troubleshooting Scenarios</h2>
+<table>
+<tr><th>Symptom</th><th>Likely Cause</th><th>Diagnostic Commands</th></tr>
+<tr><td>Order Service returns 504 calling Payment Service</td><td>NetworkPolicy blocking the call, or Payment pods not ready</td><td><code>kubectl exec -it &lt;order-pod&gt; -- curl -v payment-service-svc</code></td></tr>
+<tr><td>Catalog Service pods OOMKilled</td><td>Python memory limit too low for a large search response</td><td><code>kubectl describe pod &lt;pod&gt; -n prod</code> — look for <code>OOMKilled</code> in last state</td></tr>
+<tr><td>Notification Service not sending emails</td><td>SQS IAM permission missing on notification-service-sa, or queue URL misconfigured</td><td><code>kubectl logs deploy/notification-service -n prod</code></td></tr>
+<tr><td>Payment Service pod stuck Pending</td><td>Secure node group at capacity, or missing toleration</td><td><code>kubectl describe pod &lt;pod&gt; -n prod</code> — check Events</td></tr>
+<tr><td>Java service slow to become Ready after deploy</td><td>JVM warm-up / class loading; readiness probe fired too early</td><td>Increase <code>initialDelaySeconds</code>, check <code>/actuator/health</code></td></tr>
+<tr><td>.NET service crashes on startup in prod only</td><td>Missing environment-specific config or connection string</td><td><code>kubectl logs &lt;pod&gt; -n prod --previous</code></td></tr>
+</table>
+
+<h2 id="ansible">22. Ansible Automation</h2>
+<p>Ansible bootstraps a brand-new microservice onto the platform — when a fifth team spins up a Recommendation Service next quarter, this playbook creates its IRSA role, ECR repo, and Argo CD Application in one run instead of a manual checklist repeated by hand.</p>
+<pre><code><span class="cmt"># bootstrap-microservice.yml</span>
+<span class="k">- name</span>: Onboard a new microservice onto the ShopNow EKS platform
+  <span class="k">hosts</span>: localhost
+  <span class="k">gather_facts</span>: false
+  <span class="k">vars</span>:
+    <span class="k">service_name</span>: <span class="s">"{{ svc }}"</span>
+
+  <span class="k">tasks</span>:
+    <span class="k">- name</span>: Create ECR repository
+      <span class="k">community.aws.ecs_ecr</span>:
+        <span class="k">name</span>: <span class="s">"{{ service_name }}"</span>
+        <span class="k">region</span>: ap-south-1
+
+    <span class="k">- name</span>: Create IRSA service account
+      <span class="k">command</span>: >
+        eksctl create iamserviceaccount --cluster shopnow-cluster --namespace prod
+        --name {{ service_name }}-sa
+        --attach-policy-arn {{ policy_arn }}
+        --approve
+
+    <span class="k">- name</span>: Render base Deployment manifest from template
+      <span class="k">template</span>:
+        <span class="k">src</span>: templates/deployment.yaml.j2
+        <span class="k">dest</span>: <span class="s">"gitops-repo/services/{{ service_name }}/deployment.yaml"</span>
+
+    <span class="k">- name</span>: Register Argo CD Application
+      <span class="k">kubernetes.core.k8s</span>:
+        <span class="k">state</span>: present
+        <span class="k">template</span>: templates/argocd-app.yaml.j2
+</code></pre>
+<pre><code>ansible-playbook bootstrap-microservice.yml -e <span class="s">"svc=recommendation-service policy_arn=arn:aws:iam::111122223333:policy/recommendation-service-policy"</span>
+</code></pre>
+
+<h2 id="report">23. HTML Deployment/Job Report</h2>
+<pre><code><span class="cmt"># generate_report.py — extended to show all four services' status side by side</span>
+<span class="k">import</span> argparse, subprocess, json, datetime
+
+<span class="k">SERVICES</span> = [<span class="s">"order-service"</span>, <span class="s">"catalog-service"</span>, <span class="s">"notification-service"</span>, <span class="s">"payment-service"</span>]
+
+<span class="k">def</span> get_status(svc):
+    out = subprocess.run(
+        [<span class="s">"kubectl"</span>, <span class="s">"get"</span>, <span class="s">"deploy"</span>, svc, <span class="s">"-n"</span>, <span class="s">"prod"</span>, <span class="s">"-o"</span>, <span class="s">"json"</span>],
+        capture_output=<span class="k">True</span>, text=<span class="k">True</span>
+    )
+    d = json.loads(out.stdout)
+    <span class="k">return</span> d[<span class="s">"status"</span>].get(<span class="s">"readyReplicas"</span>, 0), d[<span class="s">"status"</span>].get(<span class="s">"replicas"</span>, 0)
+
+<span class="k">def</span> build_report(deployed_service, build_no, status):
+    rows = <span class="s">""</span>
+    <span class="k">for</span> svc <span class="k">in</span> SERVICES:
+        ready, total = get_status(svc)
+        highlight = <span class="s">' style="font-weight:bold;color:#e8a33d"'</span> <span class="k">if</span> svc == deployed_service <span class="k">else</span> <span class="s">""</span>
+        rows += f<span class="s">"&lt;tr{highlight}&gt;&lt;td&gt;{svc}&lt;/td&gt;&lt;td&gt;{ready}/{total}&lt;/td&gt;&lt;/tr&gt;"</span>
+    color = <span class="s">"#5ec98f"</span> <span class="k">if</span> status == <span class="s">"success"</span> <span class="k">else</span> <span class="s">"#e35d5d"</span>
+    html = f<span class="s">"""&lt;html&gt;&lt;body style="font-family:Arial;background:#0b0f14;color:#dbe6f0;padding:24px"&gt;
+    &lt;h2 style="color:{color}"&gt;ShopNow Deploy Report — {deployed_service} (Build #{build_no})&lt;/h2&gt;
+    &lt;p&gt;Time: {datetime.datetime.now()} | Status: {status.upper()}&lt;/p&gt;
+    &lt;table border="1" cellpadding="8" style="border-collapse:collapse"&gt;
+      &lt;tr&gt;&lt;th&gt;Service&lt;/th&gt;&lt;th&gt;Ready/Total Pods&lt;/th&gt;&lt;/tr&gt;{rows}
+    &lt;/table&gt;&lt;/body&gt;&lt;/html&gt;"""</span>
+    <span class="k">with</span> open(<span class="s">"report.html"</span>, <span class="s">"w"</span>) <span class="k">as</span> f:
+        f.write(html)
+
+<span class="k">if</span> __name__ == <span class="s">"__main__"</span>:
+    parser = argparse.ArgumentParser()
+    parser.add_argument(<span class="s">"--service"</span>, required=<span class="k">True</span>)
+    parser.add_argument(<span class="s">"--status"</span>, default=<span class="s">"success"</span>)
+    parser.add_argument(<span class="s">"--build"</span>, required=<span class="k">True</span>)
+    args = parser.parse_args()
+    build_report(args.service, args.build, args.status)
+</code></pre>
+<p>The report always shows <b>all four services</b>, with the one that was just deployed highlighted — so a release manager sees at a glance whether an Order Service deploy accidentally affected any other service's pod count.</p>
+
+<h2 id="email">24. Email Notification</h2>
+<pre><code><span class="cmt"># send_email.py — same pattern as the multi-env use case, subject line now names the service</span>
+<span class="k">import</span> argparse, smtplib, os
+<span class="k">from</span> email.mime.multipart <span class="k">import</span> MIMEMultipart
+<span class="k">from</span> email.mime.text <span class="k">import</span> MIMEText
+<span class="k">from</span> email.mime.application <span class="k">import</span> MIMEApplication
+
+<span class="k">def</span> send(service, status, build_no, report_path):
+    msg = MIMEMultipart()
+    msg[<span class="s">"Subject"</span>] = f<span class="s">"[ShopNow] {service} deploy - Build #{build_no} - {status.upper()}"</span>
+    msg[<span class="s">"From"</span>] = <span class="s">"devops-bot@shopnow.com"</span>
+    msg[<span class="s">"To"</span>] = f<span class="s">"{service}-team@shopnow.com, release-managers@shopnow.com"</span>
+    msg.attach(MIMEText(f<span class="s">"Service: {service}\nBuild: #{build_no}\nStatus: {status}"</span>, <span class="s">"plain"</span>))
+    <span class="k">if</span> os.path.exists(report_path):
+        <span class="k">with</span> open(report_path, <span class="s">"rb"</span>) <span class="k">as</span> f:
+            part = MIMEApplication(f.read(), Name=<span class="s">"report.html"</span>)
+        part[<span class="s">"Content-Disposition"</span>] = <span class="s">'attachment; filename="report.html"'</span>
+        msg.attach(part)
+    <span class="k">with</span> smtplib.SMTP(<span class="s">"email-smtp.ap-south-1.amazonaws.com"</span>, 587) <span class="k">as</span> server:
+        server.starttls()
+        server.login(os.environ[<span class="s">"SES_USER"</span>], os.environ[<span class="s">"SES_PASS"</span>])
+        server.send_message(msg)
+
+<span class="k">if</span> __name__ == <span class="s">"__main__"</span>:
+    parser = argparse.ArgumentParser()
+    parser.add_argument(<span class="s">"--service"</span>, required=<span class="k">True</span>)
+    parser.add_argument(<span class="s">"--status"</span>, default=<span class="s">"success"</span>)
+    parser.add_argument(<span class="s">"--build"</span>, required=<span class="k">True</span>)
+    parser.add_argument(<span class="s">"--report"</span>, default=<span class="s">"report.html"</span>)
+    args = parser.parse_args()
+    send(args.service, args.status, args.build, args.report)
+</code></pre>
+<p>Notice the recipient list — each deploy notifies <b>that service's own team</b> plus release managers, not everyone. This is the same "each team owns their own service" principle from section 2, now showing up in something as simple as an email recipient list.</p>
+
+<hr class="divider">
+<h2 id="resume">25. How to Present This on Your Resume</h2>
+<div class="callout why">
+<b>Resume bullet (use as-is or adapt):</b><br>
+"Deployed and operated four polyglot production microservices (Java Spring Boot, Python FastAPI, Node.js, .NET) on a shared Amazon EKS cluster, each with independent Docker builds, per-service IRSA roles, HPA, and PodDisruptionBudgets; enforced service-to-service traffic boundaries with Kubernetes NetworkPolicies and dedicated node pools for PCI-scoped workloads; built per-service GitOps pipelines (Jenkins/GitHub Actions + Argo CD) enabling independent team deploys with zero cross-service blast radius; added Prometheus/Grafana monitoring, CloudWatch logging, and automated HTML/email deployment reporting; automated new-service onboarding with Ansible."
+</div>
+<table>
+<tr><th>Likely question</th><th>Section to re-read before the call</th></tr>
+<tr><td>"Why microservices instead of the monolith — what problem did it solve?"</td><td>Section 1</td></tr>
+<tr><td>"How do independently-owned services deploy without conflicting?"</td><td>Section 16 (per-service Argo CD Apps)</td></tr>
+<tr><td>"How do you restrict which services can call which?"</td><td>Section 13 (NetworkPolicies)</td></tr>
+<tr><td>"How did you handle a compliance-sensitive service differently?"</td><td>Section 4, 6, 11 (Payment Service)</td></tr>
+<tr><td>"How do you troubleshoot a Java vs a Python vs a .NET pod differently?"</td><td>Section 21</td></tr>
+</table>
+
+<div class="story" style="margin-top:40px">Six weeks after Ramesh's request, ShopNow ships its first fully independent deploy: the Catalog team pushes a search-ranking fix straight to prod through their own pipeline, without opening a single ticket with the Order team, without a shared deploy window, and without any risk to Payment Service sitting safely on its own tainted node pool. That's the platform you built — and it's the story that shows an interviewer you can operate infrastructure other engineering teams build their work on top of.</div>
+
+</div>
+</body>
+</html>

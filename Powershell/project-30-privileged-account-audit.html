@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Project 30 — Privileged Account Audit | PowerShell Masterclass</title>
+<style>
+  :root{
+    --primary:#A78BFA; --secondary:#C4B5FD; --surface:#1A1530; --surface2:#221B3D;
+    --bg:#0F0B1E; --text:#EDE9FE; --muted:#9CA3AF; --border:#332B57;
+    --success:#4ADE80; --warn:#FBBF24; --danger:#F87171;
+    --code-bg:#0A0716; --code-text:#E9E4FF;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0; font-family:"Segoe UI",Calibri,Roboto,Arial,sans-serif; background:var(--bg); color:var(--text); line-height:1.65;}
+  a{color:var(--secondary);}
+  .layout{display:flex; max-width:1400px; margin:0 auto;}
+  nav.sidebar{width:270px; flex-shrink:0; position:sticky; top:0; height:100vh; overflow-y:auto; background:var(--surface); border-right:1px solid var(--border); padding:22px 16px;}
+  nav.sidebar h3{color:var(--secondary); font-size:13px; text-transform:uppercase; letter-spacing:.06em; margin:18px 0 8px;}
+  nav.sidebar a{display:block; padding:7px 10px; border-radius:8px; color:var(--text); text-decoration:none; font-size:14px; margin-bottom:2px;}
+  nav.sidebar a:hover{background:var(--surface2); color:var(--secondary);}
+  #progressWrap{background:var(--surface2); border-radius:10px; padding:10px; margin-bottom:8px;}
+  #progressBar{height:8px; background:var(--border); border-radius:6px; overflow:hidden;}
+  #progressFill{height:100%; width:0%; background:linear-gradient(90deg,var(--primary),var(--secondary)); transition:width .2s;}
+  #progressLabel{font-size:12px; color:var(--muted); margin-top:6px;}
+  main{flex:1; min-width:0; padding:0;}
+  .cover{background:linear-gradient(135deg,#3B2A6B,#5B3FA0); color:#fff; padding:60px 48px; position:relative; overflow:hidden; border-bottom:1px solid var(--border);}
+  .cover::after{content:"";position:absolute;right:-80px;top:-80px;width:300px;height:300px;border-radius:50%;background:rgba(255,255,255,.06);}
+  .badge{display:inline-block; background:rgba(255,255,255,.14); padding:5px 14px; border-radius:20px; font-size:12px; letter-spacing:.05em; margin-right:8px; margin-bottom:14px;}
+  .cover h1{font-size:34px; margin:6px 0 10px; max-width:760px;}
+  .cover p.sub{font-size:16px; opacity:.92; max-width:640px;}
+  .cover-meta{display:flex; gap:28px; margin-top:26px; flex-wrap:wrap;}
+  .cover-meta div{background:rgba(255,255,255,.10); padding:12px 18px; border-radius:10px; min-width:140px;}
+  .cover-meta span{display:block; font-size:12px; opacity:.85;}
+  .cover-meta strong{font-size:16px;}
+  section{padding:34px 48px; border-bottom:1px solid var(--border);}
+  section h2{color:var(--secondary); font-size:24px; border-left:5px solid var(--primary); padding-left:14px; margin-top:0;}
+  section h3{color:var(--primary); font-size:18px; margin-top:26px;}
+  .story{background:var(--surface); border-left:5px solid var(--primary); padding:20px 24px; border-radius:0 10px 10px 0; font-size:15px;}
+  .story b{color:var(--secondary);}
+  .callout{border-radius:10px; padding:16px 18px; margin:16px 0; font-size:14.5px; border:1px solid var(--border);}
+  .callout.tip{background:#132A1E; border-left:5px solid var(--success);}
+  .callout.note{background:var(--surface); border-left:5px solid var(--secondary);}
+  .callout.warn{background:#2E2410; border-left:5px solid var(--warn);}
+  .callout.security{background:#2E1616; border-left:5px solid var(--danger);}
+  .callout .lbl{font-weight:700; display:block; margin-bottom:4px;}
+  table{width:100%; border-collapse:collapse; margin:16px 0; font-size:14px;}
+  th,td{border:1px solid var(--border); padding:9px 12px; text-align:left; vertical-align:top;}
+  th{background:var(--surface2); color:var(--secondary);}
+  tr:nth-child(even){background:var(--surface);}
+  .codewrap{position:relative; margin:16px 0;}
+  pre{background:var(--code-bg); color:var(--code-text); padding:18px 16px; border-radius:10px; overflow-x:auto; font-family:Consolas,"Cascadia Code",Menlo,monospace; font-size:13.5px; line-height:1.7; border:1px solid var(--border);}
+  pre code{white-space:pre;}
+  .copybtn{position:absolute; top:10px; right:10px; background:var(--primary); color:#1A1530; border:none; padding:6px 12px; border-radius:6px; font-size:12px; cursor:pointer; font-weight:600;}
+  .copybtn:hover{background:var(--secondary);}
+  .explain-list{list-style:none; padding:0; margin:14px 0;}
+  .explain-list li{background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:10px 14px; margin-bottom:6px; font-size:14.5px;}
+  .explain-list code{background:var(--surface2); padding:2px 6px; border-radius:5px; color:var(--secondary); font-weight:600;}
+  details{background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:12px 16px; margin:10px 0;}
+  details summary{cursor:pointer; font-weight:600; color:var(--secondary);}
+  .diagram{background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:20px; margin:16px 0; overflow-x:auto;}
+  .flow{display:flex; flex-wrap:wrap; align-items:center; gap:10px; font-size:13.5px;}
+  .flow .box{background:var(--surface2); border:2px solid var(--secondary); border-radius:8px; padding:8px 14px; font-weight:600; color:var(--secondary);}
+  .flow .arrow{color:var(--primary); font-size:18px;}
+  .steps{counter-reset:step;}
+  .steps .step{position:relative; padding-left:44px; margin-bottom:18px;}
+  .steps .step::before{counter-increment:step; content:counter(step); position:absolute; left:0; top:0; background:var(--primary); color:#1A1530; width:30px; height:30px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:700;}
+  .grid2{display:grid; grid-template-columns:1fr 1fr; gap:16px;}
+  .milestone{background:linear-gradient(135deg,var(--surface2),var(--surface)); border:2px dashed var(--secondary); border-radius:12px; padding:22px 24px; margin:18px 0;}
+  @media(max-width:900px){.grid2{grid-template-columns:1fr;} nav.sidebar{display:none;} section{padding:26px 20px;} .cover{padding:36px 22px;}}
+  footer{padding:30px 48px; background:var(--surface); color:var(--muted); font-size:13px;}
+  code{color:var(--secondary);}
+</style>
+</head>
+<body>
+
+<div class="layout">
+  <nav class="sidebar">
+    <div id="progressWrap">
+      <div id="progressLabel">Reading progress</div>
+      <div id="progressBar"><div id="progressFill"></div></div>
+    </div>
+    <h3>Project 30</h3>
+    <a href="#cover">Cover</a>
+    <a href="#milestone">AD Track Complete</a>
+    <a href="#recap1">Recap: Projects 1–29</a>
+    <a href="#story">The Story</a>
+    <a href="#concepts">Concepts First</a>
+    <a href="#lab">Hands-On Lab</a>
+    <a href="#script">Full Script</a>
+    <a href="#linebyline">Line-by-Line</a>
+    <a href="#architecture">Architecture</a>
+    <a href="#incident">Production Incident</a>
+    <a href="#troubleshoot">Troubleshooting</a>
+    <a href="#security">Security Notes</a>
+    <a href="#recap">Key Learnings</a>
+    <a href="#interview">Interview Prep</a>
+    <a href="#challenges">Coding Challenges</a>
+    <a href="#resume">Resume Points</a>
+    <a href="#assignment">Practice Assignment</a>
+    <a href="#next">Next Project</a>
+  </nav>
+
+  <main id="top">
+    <div class="cover" id="cover">
+      <span class="badge">PROJECT 30</span><span class="badge">INTERMEDIATE</span><span class="badge">BFSI TRACK</span>
+      <h1>Privileged Account Audit</h1>
+      <p class="sub">A synthesis project: combine group membership, activity, and password age signals into one comprehensive privileged-account risk report — closing out the Active Directory track.</p>
+      <div class="cover-meta">
+        <div><span>Difficulty</span><strong>Intermediate</strong></div>
+        <div><span>Estimated Lab Time</span><strong>85–100 min</strong></div>
+        <div><span>Concepts</span><strong>9 core concepts</strong></div>
+        <div><span>Track</span><strong>30 of 40 — Active Directory Track Complete</strong></div>
+      </div>
+    </div>
+
+    <section id="milestone">
+      <h2>🗝️ Active Directory Track Complete</h2>
+      <div class="milestone">
+        <p>Projects 26-30 covered user provisioning, group membership auditing, inactive account detection, password
+        expiration, and now this capstone privileged-account audit — the same "discover → monitor → audit →
+        synthesize" shape you saw across the Certificate/IIS track (Projects 19-25), now completed for identity
+        management too. Project 31 begins the Advanced stage with PowerShell Remoting.</p>
+      </div>
+    </section>
+
+    <section id="recap1">
+      <h2>Quick Recap of Projects 1–29</h2>
+      <p>Projects 27, 28, and 29 each answered one question in isolation: who has privileged group access, who's
+      inactive, whose password is expiring. This project asks the more useful combined question: <b>for privileged
+      accounts specifically, are any of them exhibiting MULTIPLE risk signals at once?</b> An account that's both
+      privileged AND inactive AND has a stale password is a materially higher risk than one with just a single flag —
+      exactly the kind of synthesis Project 17 modeled for patch readiness, now applied to identity risk.</p>
+    </section>
+
+    <section id="story">
+      <h2>The Story — Why We're Building This</h2>
+      <div class="story">
+        The annual security audit wants a single answer to a compound question: <i>"Show us every privileged
+        account, and for each one, tell us if it's actively used, whether its password is current, and whether it's
+        still legitimately needed."</i> Pulling this together today means three separate people running three
+        separate reports and manually cross-referencing SamAccountNames in a spreadsheet. Our manager wants one
+        script that identifies every privileged account and enriches it with all three risk signals in a single
+        pass.
+      </div>
+    </section>
+
+    <section id="concepts">
+      <h2>Concepts First — Before We Touch Code</h2>
+
+      <h3>1. Finding Privileged Accounts: The AdminCount Attribute</h3>
+      <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code>Get-ADUser -Filter { AdminCount -eq 1 } -Properties AdminCount, PasswordLastSet, LastLogonDate</code></pre></div>
+      <div class="callout note"><span class="lbl">What AdminCount actually means</span>Active Directory
+      automatically sets <code>AdminCount = 1</code> on any account that is (or ever was) a member of certain
+      protected privileged groups (Domain Admins, Enterprise Admins, and similar). Importantly, this flag is
+      <b>sticky</b> — it doesn't automatically clear itself if the account is later removed from the privileged
+      group, which makes it a genuinely useful "has this account ever had elevated privileges" signal, distinct from
+      (and complementary to) Project 27's current-membership check.</div>
+
+      <h3>2. Why AdminCount and Current Group Membership Tell Different Stories</h3>
+      <table>
+        <tr><th>Signal</th><th>Tells You</th></tr>
+        <tr><td>AdminCount = 1</td><td>Ever was privileged (sticky flag, doesn't auto-clear)</td></tr>
+        <tr><td>Currently in Domain Admins (Project 27)</td><td>Currently, actively privileged right now</td></tr>
+      </table>
+      <p>An account with <code>AdminCount = 1</code> but <i>not</i> currently in any privileged group is a
+      genuinely interesting finding: it once had elevated access that was properly removed, but the sticky flag
+      remains — worth knowing about, distinct from a currently-privileged account.</p>
+
+      <h3>3. Combining Three Prior Projects' Logic</h3>
+      <p>For each privileged account found, we enrich it with:</p>
+      <ul class="explain-list">
+        <li>Days since last logon (Project 28's calculation)</li>
+        <li>Days until/since password expiry (Project 29's calculation)</li>
+        <li>Currently a member of a privileged group, or just AdminCount-flagged (Project 27's distinction)</li>
+      </ul>
+
+      <h3>4. A Combined Risk Score — Simple, Transparent Weighting</h3>
+      <p>Rather than a single pass/fail, we'll build a simple point-based risk indicator: each concerning signal
+      (inactive, password stale, no longer actually in a privileged group despite the flag) adds to a combined
+      score, giving reviewers a way to prioritize the accounts most worth investigating first.</p>
+
+      <h3>5. Still Detection-Only</h3>
+      <p>Consistent with Projects 15 and 27 — this audit never modifies group membership, disables accounts, or
+      resets passwords. It synthesizes information for human review.</p>
+    </section>
+
+    <section id="lab">
+      <h2>Hands-On Lab — Build It Yourself</h2>
+      <div class="callout note"><span class="lbl">Local Practice Lab vs Enterprise</span>Same ActiveDirectory
+      module and domain requirement as the rest of this track.</div>
+      <div class="steps">
+        <div class="step"><b>Create the project folder:</b>
+          <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code>New-Item -ItemType Directory -Path "C:\PS-Masterclass\Project30\reports" -Force
+Set-Location "C:\PS-Masterclass\Project30"</code></pre></div>
+        </div>
+        <div class="step"><b>Create <code>Invoke-PrivilegedAccountAudit.ps1</code></b> and paste the full script below.</div>
+        <div class="step"><b>Run it:</b>
+          <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code>.\Invoke-PrivilegedAccountAudit.ps1</code></pre></div>
+        </div>
+        <div class="step"><b>Validate:</b> confirm every AdminCount=1 account appears with all three enrichment
+        signals populated, sorted by combined risk score, highest first.</div>
+      </div>
+    </section>
+
+    <section id="script">
+      <h2>Full Script — Invoke-PrivilegedAccountAudit.ps1</h2>
+      <div class="codewrap"><button class="copybtn" onclick="copyCode(this)">Copy</button><pre><code># =====================================================================
+# Invoke-PrivilegedAccountAudit.ps1
+# ABC Bank - Windows Infrastructure Automation Team
+# Purpose: Comprehensive, read-only privileged account risk audit (synthesis project)
+# =====================================================================
+
+Import-Module ActiveDirectory -ErrorAction Stop
+
+$InactiveDaysThreshold  = 60                                     # Reused thinking from Project 28
+$PasswordStaleThreshold = 90                                     # Reused thinking from Project 29
+$PrivilegedGroups = @("Domain Admins", "Enterprise Admins")      # Reused from Project 27's config-driven idea, inlined here for simplicity
+
+Write-Host "`n=== PRIVILEGED ACCOUNT AUDIT (READ-ONLY, SYNTHESIS) ===" -ForegroundColor Magenta
+
+# ---------------------------------------------------------------
+# STEP 1: Find every account ever flagged as privileged (AdminCount)
+# ---------------------------------------------------------------
+$PrivilegedAccounts = Get-ADUser -Filter { AdminCount -eq 1 -and Enabled -eq $true } `
+    -Properties AdminCount, PasswordLastSet, PasswordNeverExpires, LastLogonDate
+
+Write-Host "Found $($PrivilegedAccounts.Count) account(s) flagged with AdminCount=1.`n" -ForegroundColor Cyan
+
+# ---------------------------------------------------------------
+# STEP 2: Build the current effective membership of each privileged group (Project 27's technique)
+# ---------------------------------------------------------------
+$CurrentPrivilegedMembers = @()
+foreach ($GroupName in $PrivilegedGroups) {
+    $CurrentPrivilegedMembers += (Get-ADGroupMember -Identity $GroupName -Recursive -ErrorAction SilentlyContinue |
+        Where-Object { $_.objectClass -eq "user" }).SamAccountName
+}
+$CurrentPrivilegedMembers = $CurrentPrivilegedMembers | Select-Object -Unique   # Removes duplicates if someone's in multiple groups
+
+$Results = @()
+
+foreach ($Account in $PrivilegedAccounts) {                        # Loops through every AdminCount-flagged account
+
+    $RiskScore = 0                                                    # Starts at zero, accumulates per concerning signal
+    $RiskFactors = @()                                                  # Human-readable list of WHY this account is risky
+
+    # --- Signal 1: Currently privileged, or just flagged? (Project 27's distinction) ---
+    $CurrentlyPrivileged = $Account.SamAccountName -in $CurrentPrivilegedMembers
+    if (-not $CurrentlyPrivileged) {
+        $RiskScore += 1
+        $RiskFactors += "AdminCount set but NOT currently in a privileged group (stale flag)"
+    }
+
+    # --- Signal 2: Inactivity (Project 28's calculation) ---
+    $DaysInactive = if ($Account.LastLogonDate) { ((Get-Date) - $Account.LastLogonDate).Days } else { $null }
+    if ($null -eq $DaysInactive -or $DaysInactive -ge $InactiveDaysThreshold) {
+        $RiskScore += 2                                                  # Weighted higher - inactive AND privileged is a serious combination
+        $RiskFactors += if ($null -eq $DaysInactive) { "Never logged on" } else { "Inactive $DaysInactive days" }
+    }
+
+    # --- Signal 3: Password age (Project 29's calculation, simplified to age rather than full expiry) ---
+    $PasswordAgeDays = if ($Account.PasswordLastSet) { ((Get-Date) - $Account.PasswordLastSet).Days } else { $null }
+    if (-not $Account.PasswordNeverExpires -and ($null -eq $PasswordAgeDays -or $PasswordAgeDays -ge $PasswordStaleThreshold)) {
+        $RiskScore += 1
+        $RiskFactors += if ($null -eq $PasswordAgeDays) { "Password never set" } else { "Password $PasswordAgeDays days old" }
+    }
+
+    $Results += [PSCustomObject]@{
+        SamAccountName       = $Account.SamAccountName
+        Name                 = $Account.Name
+        CurrentlyPrivileged  = $CurrentlyPrivileged
+        DaysInactive         = $DaysInactive
+        PasswordAgeDays      = $PasswordAgeDays
+        RiskScore            = $RiskScore
+        RiskFactors          = $RiskFactors -join "; "                    # Flattened to one string for CSV-friendliness
+    }
+}
+
+# ---------------------------------------------------------------
+# STEP 3: Sort by risk score, highest (most concerning) first
+# ---------------------------------------------------------------
+$Results = $Results | Sort-Object RiskScore -Descending
+
+foreach ($Result in $Results) {
+    $Color = if ($Result.RiskScore -ge 3) { "Red" } elseif ($Result.RiskScore -ge 1) { "Yellow" } else { "Green" }
+    Write-Host "  [$($Result.RiskScore)pt] $($Result.SamAccountName) - $($Result.RiskFactors)" -ForegroundColor $Color
+}
+
+# ---------------------------------------------------------------
+# STEP 4: Export and summarize
+# ---------------------------------------------------------------
+if (-not (Test-Path ".\reports")) { New-Item -ItemType Directory -Path ".\reports" | Out-Null }
+$Timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
+$Results | Export-Csv -Path ".\reports\PrivilegedAudit_$Timestamp.csv" -NoTypeInformation
+
+$HighRisk = ($Results | Where-Object { $_.RiskScore -ge 3 }).Count
+Write-Host "`nSummary: $HighRisk high-risk (score 3+) privileged account(s) out of $($Results.Count) total." -ForegroundColor Cyan
+Write-Host "REMINDER: No accounts or group memberships were changed. Review and remediate manually." -ForegroundColor Yellow
+</code></pre></div>
+      </div>
+    </section>
+
+    <section id="linebyline">
+      <h2>Line-by-Line Explanation</h2>
+
+      <h3><code>Get-ADUser -Filter { AdminCount -eq 1 -and Enabled -eq $true } -Properties AdminCount, PasswordLastSet, PasswordNeverExpires, LastLogonDate</code></h3>
+      <ul class="explain-list">
+        <li>One query, four explicitly requested properties — everything the rest of the script needs is fetched in
+        a single round-trip to AD, rather than making separate calls per signal, which would be significantly slower
+        across many accounts.</li>
+      </ul>
+
+      <h3><code>$RiskScore = 0</code> / <code>$RiskFactors = @()</code></h3>
+      <ul class="explain-list">
+        <li>Two parallel pieces of information tracked per account: a <i>number</i> for sorting/prioritization, and
+        a <i>human-readable explanation</i> for why that number is what it is — a report that only showed "risk
+        score: 3" without explaining what contributed to it would be far less actionable for whoever reviews it.</li>
+      </ul>
+
+      <h3><code>$RiskScore += 2</code> for inactivity, vs <code>+= 1</code> for the other two signals</h3>
+      <ul class="explain-list">
+        <li>Not every risk signal is equally concerning — a privileged account that's been completely inactive for
+        months is arguably more urgent than one with a slightly stale password, so the weighting reflects that
+        judgment explicitly in the code rather than treating every signal as equally important.</li>
+      </ul>
+
+      <h3><code>$RiskFactors -join "; "</code></h3>
+      <ul class="explain-list">
+        <li>The opposite operation of <code>-split</code> (used throughout this course since Project 7) — combines
+        an array of strings into one, here with <code>"; "</code> as the separator, producing a single
+        CSV-friendly cell instead of an array that wouldn't export cleanly.</li>
+      </ul>
+
+      <h3><code>$Results | Sort-Object RiskScore -Descending</code></h3>
+      <ul class="explain-list">
+        <li>Descending this time, not ascending — for a risk score, higher means more urgent/concerning, the
+        opposite ordering logic from Project 19/20's "soonest expiry first" ascending sorts, another reminder that
+        the right sort direction depends entirely on what the number represents.</li>
+      </ul>
+    </section>
+
+    <section id="architecture">
+      <h2>Architecture &amp; Synthesis Flow</h2>
+      <div class="diagram">
+        <div class="flow">
+          <div class="box">Get-ADUser (AdminCount=1)</div><div class="arrow">→</div>
+          <div class="box">Get-ADGroupMember -Recursive (current membership)</div><div class="arrow">→</div>
+          <div class="box">Per-Account Enrichment Loop</div>
+        </div>
+        <div class="flow" style="margin-top:12px;">
+          <div class="box">Signal 1: Currently Privileged?</div><div class="arrow">+</div>
+          <div class="box">Signal 2: Inactive?</div><div class="arrow">+</div>
+          <div class="box">Signal 3: Password Stale?</div><div class="arrow">→</div>
+          <div class="box">Combined Risk Score</div>
+        </div>
+      </div>
+      <p>This is the clearest example yet of <b>composition</b> as a skill in its own right — nothing in this script
+      is conceptually new; every individual calculation was built in Projects 27-29. What's new is combining three
+      independent signals into one prioritized view, which is often exactly what real security and compliance
+      reporting actually needs: not more raw data, but better synthesis of data that already exists.</p>
+    </section>
+
+    <section id="incident">
+      <h2>Production Incident Walkthrough</h2>
+      <div class="story">
+        The audit's top-scoring result: an account with AdminCount=1, NOT currently in any privileged group, 140
+        days inactive, and a 200-day-old password. Investigation reveals it belonged to a contractor whose
+        engagement ended five months ago — their privileged access was properly revoked at the time (explaining why
+        they're not currently in Domain Admins), but the account itself was never disabled, and the sticky
+        AdminCount flag correctly preserved the historical record that flagged it for this audit in the first place.
+      </div>
+      <ul class="explain-list">
+        <li><b>Why did this account surface here when Project 27's audit alone wouldn't have caught it?</b> Project
+        27 only checks <i>current</i> group membership — since this contractor was properly removed from Domain
+        Admins, they wouldn't appear as an unapproved current member. It took the AdminCount flag (Project 30's
+        addition) combined with inactivity to reveal that the account itself, not just its group access, was never
+        properly cleaned up.</li>
+      </ul>
+    </section>
+
+    <section id="troubleshoot">
+      <h2>Troubleshooting Cheat Sheet</h2>
+      <table>
+        <tr><th>Symptom</th><th>Likely Root Cause</th><th>Fix</th></tr>
+        <tr><td>No accounts found with AdminCount=1</td><td>Normal on a very small/fresh lab domain with minimal privileged group activity</td><td>Add a test account to Domain Admins temporarily, then remove it, to generate a sticky AdminCount=1 flag for testing</td></tr>
+        <tr><td>Every account shows RiskScore 0</td><td>Thresholds set too high for your test data, or all test accounts are genuinely recently active with fresh passwords</td><td>Temporarily lower InactiveDaysThreshold/PasswordStaleThreshold to confirm the logic branches correctly</td></tr>
+        <tr><td>CurrentlyPrivileged shows $false for someone you know is in Domain Admins</td><td>-Recursive wasn't applied, or the group name doesn't exactly match</td><td>Run Get-ADGroupMember -Identity "Domain Admins" -Recursive directly to confirm membership independently</td></tr>
+        <tr><td>Script runs slowly on a large domain</td><td>Get-ADGroupMember -Recursive can be expensive on very large, deeply nested groups</td><td>Expected at scale; consider caching results if running this audit frequently</td></tr>
+      </table>
+    </section>
+
+    <section id="security">
+      <h2>Security &amp; Best Practices</h2>
+      <div class="callout security"><span class="lbl">The value of synthesis over more raw data</span>This
+      project's real lesson is that combining a few already-understood signals thoughtfully often produces more
+      actionable insight than any single signal alone — a skill that transfers well beyond PowerShell or even IT,
+      into how good reporting and risk analysis work in general.</div>
+      <div class="callout tip"><span class="lbl">Best practice reinforced here</span>Explaining <i>why</i> each
+      account scored the way it did (RiskFactors), not just presenting a bare number, is what makes a risk score
+      genuinely useful to a human reviewer rather than an opaque, hard-to-trust ranking.</div>
+    </section>
+
+    <section id="recap">
+      <h2>Key Learnings &amp; Recap</h2>
+      <div class="grid2">
+        <div>
+          <h3>Commands/Syntax Learned</h3>
+          <ul class="explain-list">
+            <li>Filtering on <code>AdminCount</code></li>
+            <li><code>-join</code> operator (the reverse of <code>-split</code>)</li>
+          </ul>
+        </div>
+        <div>
+          <h3>Concepts Learned</h3>
+          <ul class="explain-list">
+            <li>AdminCount as a sticky "ever privileged" flag, distinct from current membership</li>
+            <li>Weighted, multi-signal risk scoring with human-readable explanations</li>
+            <li>Composition/synthesis as a skill distinct from building any one individual check</li>
+            <li>Why sort direction depends on what a number actually represents</li>
+          </ul>
+        </div>
+      </div>
+      <h3>Common Mistakes to Avoid</h3>
+      <ul class="explain-list">
+        <li>Confusing AdminCount=1 with "currently privileged" — they answer different questions.</li>
+        <li>Producing a risk score with no explanation of what drove it.</li>
+        <li>Treating every risk signal as equally weighted when some are genuinely more concerning than others.</li>
+        <li>Re-deriving individual signal calculations from scratch instead of reusing Projects 27-29's proven logic.</li>
+      </ul>
+    </section>
+
+    <section id="interview">
+      <h2>Interview Preparation</h2>
+      <details><summary>Q1. What does the AdminCount attribute actually tell you, and why is it described as "sticky"?</summary>
+        <p><b>Answer:</b> AD automatically sets AdminCount=1 on any account that is or has ever been a member of
+        certain protected privileged groups. It's called sticky because AD doesn't automatically clear it back to 0
+        when the account is later removed from that group — making it a durable historical record of past
+        privileged access, not just current status.</p>
+        <p><b>Follow-up:</b> "Why would Microsoft design it to not auto-clear?" — Answer: as a security feature —
+        it helps administrators identify accounts that once had elevated access and may still have residual
+        permissions or protective ACL settings applied from that period, which wouldn't be visible if the flag
+        simply disappeared once someone left the group.</p>
+      </details>
+      <details><summary>Q2. Why weight the inactivity signal higher than the password-age signal in this script's risk score?</summary>
+        <p><b>Answer:</b> A privileged account that's completely inactive is a more concerning combination than one
+        that's actively used but has a slightly stale password — an unused privileged account sitting dormant is
+        exactly the kind of credential that could be compromised or misused without anyone noticing, since nobody's
+        actively watching it.</p>
+        <p><b>Follow-up:</b> "How would you justify or adjust these specific weights in a real organization?" —
+        Answer: weights should reflect the organization's actual risk priorities, ideally set collaboratively with
+        the security team rather than a developer's own guess — this script's weights are a reasonable starting
+        point, not a definitive standard.</p>
+      </details>
+      <details><summary>Q3. This project reuses logic from Projects 27, 28, and 29 rather than introducing much new PowerShell syntax. What's the actual learning value here?</summary>
+        <p><b>Answer:</b> Real-world reporting and automation work often involves exactly this kind of synthesis —
+        combining already-solved individual problems into a more useful combined view — rather than constantly
+        learning brand-new syntax. Recognizing when a new requirement is really "combine what I already know how to
+        do" rather than "learn something entirely new" is itself a valuable, transferable skill.</p>
+        <p><b>Follow-up:</b> "How does this compare to Project 17's role in the Intermediate stage?" — Answer:
+        directly analogous — Project 17 synthesized disk, service, and reboot checks into one patch-readiness
+        verdict; this project synthesizes group membership, activity, and password-age checks into one
+        privileged-account risk score. Same architectural idea, different domain.</p>
+      </details>
+    </section>
+
+    <section id="challenges">
+      <h2>Coding Challenges</h2>
+      <details><summary>Challenge 1: Add a fourth signal - flag accounts where Description doesn't mention a business justification (empty or missing Description field)</summary>
+        <details><summary>Show answer</summary>
+        <pre><code># Add -Properties Description to the Get-ADUser call, then:
+if ([string]::IsNullOrWhiteSpace($Account.Description)) {
+    $RiskScore += 1
+    $RiskFactors += "No documented business justification (empty Description)"
+}</code></pre>
+        </details>
+      </details>
+      <details><summary>Challenge 2: Export ONLY the high-risk (score 3+) accounts to a separate "priority review" CSV</summary>
+        <details><summary>Show answer</summary>
+        <pre><code>$Results | Where-Object { $_.RiskScore -ge 3 } |
+    Export-Csv -Path ".\reports\PriorityReview_$Timestamp.csv" -NoTypeInformation</code></pre>
+        </details>
+      </details>
+      <details><summary>Challenge 3: Add a summary line showing the average risk score across all privileged accounts, using Measure-Object</summary>
+        <details><summary>Show answer</summary>
+        <pre><code>$AvgScore = ($Results | Measure-Object -Property RiskScore -Average).Average
+Write-Host "Average privileged account risk score: $([math]::Round($AvgScore, 1))"</code></pre>
+        </details>
+      </details>
+    </section>
+
+    <section id="resume">
+      <h2>Resume Points</h2>
+      <ul class="explain-list">
+        <li>Built a comprehensive PowerShell privileged account risk audit synthesizing group membership, activity, and password age into one weighted risk score.</li>
+        <li>Leveraged the AdminCount attribute to identify accounts with historical privileged access beyond current group membership alone.</li>
+        <li>Designed a transparent, explainable risk-scoring system pairing numeric prioritization with human-readable risk factor descriptions.</li>
+      </ul>
+    </section>
+
+    <section id="assignment">
+      <h2>Practice Assignment</h2>
+      <div class="callout note">
+        (If you have lab domain access) Review the top 3 highest-scoring accounts from your report and, for each
+        one, write one sentence explaining which specific risk factors contributed and what you'd investigate first
+        if this were a real security review.
+      </div>
+    </section>
+
+    <section id="next">
+      <h2>Next Project Prerequisites</h2>
+      <p>Project 31 (PowerShell Remoting Across Multiple Servers) opens the Advanced stage — running commands
+      against remote servers instead of just the local machine, the foundation everything from here forward will
+      build on. Every script in this course so far has run locally; that changes starting next project. When ready,
+      say <b>"Next Project."</b></p>
+    </section>
+
+    <footer>
+      PowerShell Masterclass — ABC Bank Automation Track · Project 30 of 40 · Generated for offline, self-contained use.
+    </footer>
+  </main>
+</div>
+
+<script>
+function copyCode(btn){
+  const code = btn.parentElement.querySelector('pre').innerText;
+  navigator.clipboard.writeText(code).then(()=>{
+    const old = btn.innerText; btn.innerText = "Copied!";
+    setTimeout(()=>btn.innerText = old, 1200);
+  });
+}
+window.addEventListener('scroll', ()=>{
+  const h = document.documentElement;
+  const pct = (h.scrollTop) / (h.scrollHeight - h.clientHeight) * 100;
+  document.getElementById('progressFill').style.width = pct + '%';
+  document.getElementById('progressLabel').innerText = 'Reading progress: ' + Math.round(pct) + '%';
+});
+</script>
+</body>
+</html>
